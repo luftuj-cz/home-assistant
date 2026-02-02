@@ -96,3 +96,41 @@ export async function deleteTimelineEvent(id: number): Promise<void> {
     throw new Error(detail || "Failed to delete event");
   }
 }
+
+export async function fetchActiveBoost(): Promise<{
+  modeId: number;
+  endTime: string;
+  durationMinutes: number;
+} | null> {
+  const res = await fetch(resolveApiUrl("/api/timeline/boost"));
+  if (!res.ok) return null;
+  const data = await res.json();
+  return data.active;
+}
+
+export async function activateBoost(
+  modeId: number,
+  durationMinutes: number,
+): Promise<{ modeId: number; endTime: string; durationMinutes: number }> {
+  const res = await fetch(resolveApiUrl("/api/timeline/boost"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ modeId, durationMinutes }),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || "Failed to activate boost");
+  }
+  const data = await res.json();
+  return data.active;
+}
+
+export async function cancelBoost(): Promise<void> {
+  const res = await fetch(resolveApiUrl("/api/timeline/boost"), {
+    method: "DELETE",
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || "Failed to cancel boost");
+  }
+}

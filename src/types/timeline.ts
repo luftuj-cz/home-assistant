@@ -39,4 +39,5 @@ export interface Mode {
   power?: number;
   temperature?: number;
   luftatorConfig?: Record<string, number>;
+  isBoost?: boolean;
 }

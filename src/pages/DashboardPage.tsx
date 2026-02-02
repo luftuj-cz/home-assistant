@@ -1,13 +1,22 @@
-import { Container, Stack, Title } from "@mantine/core";
+import { Container, Stack, Title, Group, Text } from "@mantine/core";
+import { IconLayoutDashboard } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
+import { useEffect } from "react";
 import { useDashboardStatus } from "../hooks/useDashboardStatus";
+import { useTimelineModes } from "../hooks/useTimelineModes";
 import { StatusCard } from "../components/dashboard/StatusCard";
 import { HruStatusCard } from "../components/dashboard/HruStatusCard";
+import { BoostButtons } from "../components/dashboard/BoostButtons";
 
 export function DashboardPage() {
   const { t } = useTranslation();
   const { haStatus, haLoading, modbusStatus, hruStatus, hruName, mqttStatus, mqttLastDiscovery } =
     useDashboardStatus();
+  const { modes, loadModes } = useTimelineModes(t);
+
+  useEffect(() => {
+    loadModes();
+  }, [loadModes]);
 
   function getHaStatusType() {
     if (haLoading) return "neutral";
@@ -40,8 +49,18 @@ export function DashboardPage() {
 
   return (
     <Container size="xl">
-      <Stack gap="lg">
-        <Title order={2}>{t("dashboard.title")}</Title>
+      <Stack gap="xl">
+        <Stack gap={0}>
+          <Group gap="sm">
+            <IconLayoutDashboard size={32} color="var(--mantine-primary-color-5)" />
+            <Title order={1}>{t("dashboard.title")}</Title>
+          </Group>
+          <Text size="lg" c="dimmed" mt="xs">
+            {t("dashboard.description", { defaultValue: "System status overview" })}
+          </Text>
+        </Stack>
+
+        <BoostButtons modes={modes} t={t} />
 
         <StatusCard
           title={t("dashboard.haStatusTitle", { defaultValue: "Home Assistant" })}
@@ -82,7 +101,9 @@ export function DashboardPage() {
           }
           status={getMqttStatusType()}
           statusLabel={
-            mqttStatus === "loading" ? t("dashboard.haStatus.loading") : t(`dashboard.mqttStatus.${mqttStatus}`)
+            mqttStatus === "loading"
+              ? t("dashboard.haStatus.loading")
+              : t(`dashboard.mqttStatus.${mqttStatus}`)
           }
         />
 

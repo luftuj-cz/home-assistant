@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Card, Group, Stack, Text, Title, Button } from "@mantine/core";
+import { Group, Stack, Text, Title, Button, SimpleGrid, Divider, Container } from "@mantine/core";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
+import { IconCalendar, IconCopy } from "@tabler/icons-react";
 
 import { useTimelineModes } from "../hooks/useTimelineModes";
 import { useTimelineEvents } from "../hooks/useTimelineEvents";
@@ -33,7 +34,6 @@ export function TimelinePage() {
   // -- Data Hooks --
   const { modes, loadModes, saveMode, deleteMode, savingMode } = useTimelineModes(t);
   const {
-    // events, // unused
     eventsByDay,
     loadEvents,
     saveEvent,
@@ -49,16 +49,14 @@ export function TimelinePage() {
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
 
   // Copy/Paste State
-
   const [copyDay, setCopyDay] = useState<number | null>(null);
 
   // Mode Modal State
   const [modeModalOpen, setModeModalOpen] = useState(false);
-  const [editingMode, setEditingMode] = useState<import("../types/timeline").Mode | null>(null); // Null for create
+  const [editingMode, setEditingMode] = useState<import("../types/timeline").Mode | null>(null);
 
   // Auxiliary Data
   const [valves, setValves] = useState<Valve[]>([]);
-  const [hruModes, setHruModes] = useState<string[]>([]);
   const [hruCapabilities, setHruCapabilities] = useState<
     Pick<hruApi.HruUnit, "capabilities">["capabilities"]
   >({});
@@ -77,13 +75,6 @@ export function TimelinePage() {
 
         const units = await hruApi.fetchHruUnits().catch(() => []);
         const first = units[0];
-        const values = first?.registers?.read?.mode?.values;
-        if (values) {
-          const modeList = Object.values(values);
-          if (modeList.length > 0) {
-            setHruModes(modeList);
-          }
-        }
         if (first?.capabilities) {
           setHruCapabilities(first.capabilities);
         }
@@ -118,36 +109,65 @@ export function TimelinePage() {
 
   const dayOrder = useMemo(() => [0, 1, 2, 3, 4, 5, 6], []);
 
+  // Notifications for Copy/Paste
+  useEffect(() => {
+    if (copyDay !== null) {
+      notifications.show({
+        id: "copy-hint",
+        icon: <IconCopy size={16} />,
+        title: t("settings.timeline.copying", {
+          defaultValue: "Copying",
+          day: dayLabels[copyDay],
+        }),
+        message: (
+          <Stack gap="xs">
+            <Text size="xs">
+              {t("settings.timeline.copyHint", {
+                defaultValue: "Select a day to paste events.",
+              })}
+            </Text>
+            <Button
+              size="compact-xs"
+              variant="light"
+              color="gray"
+              fullWidth
+              onClick={() => setCopyDay(null)}
+            >
+              {t("settings.timeline.modal.cancel")}
+            </Button>
+          </Stack>
+        ),
+        autoClose: false,
+        withCloseButton: false,
+        color: "blue",
+        loading: true,
+      });
+    } else {
+      notifications.hide("copy-hint");
+    }
+  }, [copyDay, dayLabels, t]);
+
   const modeOptions = useMemo(() => {
-    const userModes = modes.map((m) => ({ value: m.id.toString(), label: m.name }));
-    const builtinHruModes = hruModes.map((name) => ({ value: name, label: name }));
-    const combined = [...userModes, ...builtinHruModes];
-    const seen = new Set<string>();
-    return combined.filter((opt) => {
-      if (seen.has(opt.value)) return false;
-      seen.add(opt.value);
-      return true;
-    });
-  }, [modes, hruModes]);
+    return modes.map((m) => ({ value: m.id.toString(), label: m.name }));
+  }, [modes]);
 
   // -- Handlers --
 
   // Events
   const handleAddEvent = useCallback(
     (day: number) => {
-      // setSelectedDay(day); // removed unused state
       const startTime = "08:00";
 
       setEditingEvent({
         startTime,
         endTime: addMinutes(startTime, 30),
         dayOfWeek: day,
-        hruConfig: { mode: modes[0]?.id?.toString() ?? hruModes[0] },
+        hruConfig: { mode: modes[0]?.id?.toString() },
         enabled: true,
       });
       setEventModalOpen(true);
     },
-    [modes, hruModes],
+    [modes],
   );
 
   const handleEditEvent = useCallback((event: TimelineEvent) => {
@@ -157,15 +177,21 @@ export function TimelinePage() {
 
   const handleSaveEvent = useCallback(async () => {
     if (editingEvent) {
-      // If we are creating (no ID), ensure dayOfWeek is set from context if needed
-      // But editingEvent should already have dayOfWeek set by handleAddEvent or handleEditEvent
+      if (!editingEvent.hruConfig?.mode) {
+        notifications.show({
+          title: t("settings.timeline.notifications.validationFailedTitle"),
+          message: t("validation.modeRequired", { defaultValue: "Mode is required" }),
+          color: "red",
+        });
+        return;
+      }
       const success = await saveEvent(editingEvent);
       if (success) {
         setEventModalOpen(false);
         setEditingEvent(null);
       }
     }
-  }, [editingEvent, saveEvent]);
+  }, [editingEvent, saveEvent, t]);
 
   const handleToggleEvent = useCallback(
     (event: TimelineEvent, enabled: boolean) => {
@@ -180,7 +206,6 @@ export function TimelinePage() {
       if (copyDay === null) return;
       const source = eventsByDay.get(copyDay) ?? [];
       for (const ev of source) {
-        // Create new event based on source
         await saveEvent({
           startTime: ev.startTime,
           endTime: ev.endTime,
@@ -192,7 +217,7 @@ export function TimelinePage() {
       }
       setCopyDay(null);
       notifications.show({
-        title: t("settings.timeline.notifications.saveSuccessTitle"), // reusing generic success
+        title: t("settings.timeline.notifications.saveSuccessTitle"),
         message: t("settings.timeline.pasteDay", { defaultValue: "Events pasted" }),
         color: "green",
       });
@@ -223,96 +248,93 @@ export function TimelinePage() {
   );
 
   return (
-    <Stack gap="lg">
-      <Stack gap="sm">
-        <Title order={2}>{t("settings.timeline.title")}</Title>
-        <Text c="dimmed">{t("settings.timeline.description")}</Text>
-      </Stack>
-
-      {/* Modes Section */}
-      <TimelineModeList
-        modes={modes}
-        onAdd={handleAddMode}
-        onEdit={handleEditMode}
-        onDelete={deleteMode}
-        t={t}
-        powerUnit={powerUnit}
-        temperatureUnit={temperatureUnit}
-      />
-
-      {/* Copy/Paste Hint */}
-      <Card withBorder padding="md" radius="md">
-        <Group gap="sm" wrap="wrap">
-          <Text size="sm" c="dimmed">
-            {t("settings.timeline.copyHint", { defaultValue: "Copy a day and paste to another." })}
+    <Container size="xl">
+      <Stack gap="xl">
+        <Stack gap={0}>
+          <Group gap="sm">
+            <IconCalendar size={32} color="var(--mantine-primary-color-5)" />
+            <Title order={1}>{t("settings.timeline.title")}</Title>
+          </Group>
+          <Text size="lg" c="dimmed" mt="xs">
+            {t("settings.timeline.description")}
           </Text>
-          {copyDay !== null && (
-            <Group gap="xs">
-              <Text size="sm">
-                {t("settings.timeline.copying", {
-                  defaultValue: "Copying",
-                  day: dayLabels[copyDay],
-                })}
-              </Text>
-              <Button size="xs" variant="light" onClick={() => setCopyDay(null)}>
-                {t("settings.timeline.modal.cancel")}
-              </Button>
-            </Group>
-          )}
-        </Group>
-      </Card>
+        </Stack>
 
-      {/* Days Grid */}
-      <Stack gap="md">
-        {dayOrder.map((dayIdx) => (
-          <TimelineDayCard
-            key={dayIdx}
-            dayIdx={dayIdx}
-            label={dayLabels[dayIdx]}
-            events={eventsByDay.get(dayIdx) ?? []}
-            modes={modes}
-            copyDay={copyDay}
-            loading={loading}
-            onCopy={setCopyDay}
-            onPaste={handlePasteDay}
-            onCancelCopy={() => setCopyDay(null)}
-            onAdd={handleAddEvent}
-            onEdit={handleEditEvent}
-            onDelete={deleteEvent}
-            onToggle={handleToggleEvent}
-            t={t}
+        {/* Modes Section */}
+        <TimelineModeList
+          modes={modes}
+          onAdd={handleAddMode}
+          onEdit={handleEditMode}
+          onDelete={deleteMode}
+          t={t}
+          powerUnit={powerUnit}
+          temperatureUnit={temperatureUnit}
+        />
+
+        {/* Days Grid */}
+        <Stack gap="md">
+          <Divider
+            label={
+              <Group gap="xs">
+                <Text fw={700} size="sm">
+                  Weekly Schedule
+                </Text>
+              </Group>
+            }
+            labelPosition="left"
           />
-        ))}
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
+            {dayOrder.map((dayIdx) => (
+              <TimelineDayCard
+                key={dayIdx}
+                dayIdx={dayIdx}
+                label={dayLabels[dayIdx]}
+                events={eventsByDay.get(dayIdx) ?? []}
+                modes={modes}
+                copyDay={copyDay}
+                loading={loading}
+                onCopy={setCopyDay}
+                onPaste={handlePasteDay}
+                onCancelCopy={() => setCopyDay(null)}
+                onAdd={handleAddEvent}
+                onEdit={handleEditEvent}
+                onDelete={deleteEvent}
+                onToggle={handleToggleEvent}
+                t={t}
+              />
+            ))}
+          </SimpleGrid>
+        </Stack>
+
+        {/* Modals */}
+        <TimelineEventModal
+          opened={eventModalOpen}
+          event={editingEvent}
+          modeOptions={modeOptions}
+          saving={savingEvent}
+          onClose={() => {
+            setEventModalOpen(false);
+            setEditingEvent(null);
+          }}
+          onSave={handleSaveEvent}
+          onChange={setEditingEvent}
+          t={t}
+          hruCapabilities={hruCapabilities}
+        />
+
+        <TimelineModeModal
+          opened={modeModalOpen}
+          mode={editingMode}
+          valves={valves}
+          saving={savingMode}
+          onClose={() => setModeModalOpen(false)}
+          onSave={handleSaveMode}
+          t={t}
+          hruCapabilities={hruCapabilities}
+          powerUnit={powerUnit}
+          temperatureUnit={temperatureUnit}
+        />
       </Stack>
-
-      {/* Modals */}
-      <TimelineEventModal
-        opened={eventModalOpen}
-        event={editingEvent}
-        modeOptions={modeOptions}
-        saving={savingEvent}
-        onClose={() => {
-          setEventModalOpen(false);
-          setEditingEvent(null);
-        }}
-        onSave={handleSaveEvent}
-        onChange={setEditingEvent}
-        t={t}
-        hruCapabilities={hruCapabilities}
-      />
-
-      <TimelineModeModal
-        opened={modeModalOpen}
-        mode={editingMode}
-        valves={valves}
-        saving={savingMode}
-        onClose={() => setModeModalOpen(false)}
-        onSave={handleSaveMode}
-        t={t}
-        hruCapabilities={hruCapabilities}
-        powerUnit={powerUnit}
-        temperatureUnit={temperatureUnit}
-      />
-    </Stack>
+    </Container>
   );
 }
