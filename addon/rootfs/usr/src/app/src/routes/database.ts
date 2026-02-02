@@ -6,6 +6,7 @@ import {
   getDatabasePath,
   replaceDatabaseWithFile,
   createDatabaseBackup,
+  checkpointDatabase,
 } from "../services/database";
 import type { ValveController } from "../core/valveManager";
 
@@ -22,6 +23,10 @@ export function createDatabaseRouter(valveManager: ValveController, logger: Logg
       }
 
       logger.info({ dbPath }, "Streaming database export");
+
+      // Flush WAL to main DB file before export
+      checkpointDatabase();
+
       response.setHeader("Content-Type", "application/octet-stream");
       response.setHeader("Content-Disposition", "attachment; filename=luftator.db");
       fs.createReadStream(dbPath)

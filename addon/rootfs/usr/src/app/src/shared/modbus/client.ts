@@ -110,6 +110,15 @@ export function getSharedModbusClient(
   return client;
 }
 
+export async function closeAllSharedClients(): Promise<void> {
+  const promises: Promise<void>[] = [];
+  for (const client of clientCache.values()) {
+    promises.push(client.safeDisconnect());
+  }
+  await Promise.all(promises);
+  clientCache.clear();
+}
+
 export async function withTempModbusClient<T>(
   cfg: { host: string; port: number; unitId: number },
   logger: Logger,

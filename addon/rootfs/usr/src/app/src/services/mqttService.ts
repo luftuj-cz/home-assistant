@@ -10,7 +10,9 @@ const BASE_TOPIC = "luftuj/hru";
 const STATIC_CLIENT_ID = "luftuj-addon-static-client";
 const DISCOVERY_INTERVAL_MS = 60_000;
 
-export class MqttService {
+import { EventEmitter } from "events";
+
+export class MqttService extends EventEmitter {
   private client: mqtt.MqttClient | null = null;
   private connected = false;
   private lastSuccessAt = 0;
@@ -21,7 +23,9 @@ export class MqttService {
   constructor(
     private readonly envConfig: AppConfig["mqtt"],
     private readonly logger: Logger,
-  ) {}
+  ) {
+    super();
+  }
 
   public isConnected(): boolean {
     if (!this.client) return false;
@@ -197,6 +201,7 @@ export class MqttService {
       this.logger.info({ connack }, "MQTT: Connected");
       this.connected = true;
       this.lastSuccessAt = Date.now();
+      this.emit("connect");
       void this.publishAvailability("online");
     });
 
@@ -207,6 +212,7 @@ export class MqttService {
     this.client.on("error", (err) => {
       this.logger.error({ err }, "MQTT: Error");
       this.connected = false;
+      this.emit("disconnect");
     });
 
     this.client.on("close", () => {
@@ -214,6 +220,7 @@ export class MqttService {
         this.logger.warn("MQTT: Connection closed");
       }
       this.connected = false;
+      this.emit("disconnect");
     });
 
     this.client.on("offline", () => {

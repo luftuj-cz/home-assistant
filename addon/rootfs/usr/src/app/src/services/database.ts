@@ -474,6 +474,21 @@ export async function replaceDatabaseWithFile(buffer: Buffer): Promise<void> {
     db = null;
   }
 
-  await fsp.writeFile(getDatabasePath(), buffer);
+  const dbPath = getDatabasePath();
+  const tempPath = `${dbPath}.tmp`;
+  await fsp.writeFile(tempPath, buffer);
+  await fsp.rename(tempPath, dbPath);
+
   setupDatabase();
+}
+
+export function checkpointDatabase(): void {
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!db) throw new Error("Database not initialised");
+
+  // Force a checkpoint to move pages from WAL to the main DB file
+  // TRUNCATE resets the WAL file generated length to zero
+  db.run("PRAGMA wal_checkpoint(TRUNCATE);");
 }

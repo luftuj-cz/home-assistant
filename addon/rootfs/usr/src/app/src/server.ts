@@ -32,6 +32,7 @@ import { createSettingsRouter } from "./routes/settings";
 import { createDatabaseRouter } from "./routes/database";
 import { createValvesRouter } from "./routes/valves";
 import { createStatusRouter } from "./routes/status";
+import { closeAllSharedClients } from "./shared/modbus/client";
 
 loadConfig();
 const config = getConfig();
@@ -48,7 +49,12 @@ app.use(
   }),
 );
 app.use(express.json());
-app.use(express.raw({ type: "application/octet-stream", limit: "200mb" }));
+app.use(
+  express.raw({
+    type: ["application/octet-stream", "application/x-sqlite3", "binary/octet-stream"],
+    limit: "200mb",
+  }),
+);
 
 // Middleware
 app.use(createRequestLogger(logger));
@@ -162,10 +168,14 @@ wss.on("connection", async (socket) => {
   // Send initial status
   try {
     const status = haClient ? haClient.getConnectionState() : "offline";
+    const mqttStatus = mqttService.isConnected() ? "connected" : "disconnected";
     socket.send(
       JSON.stringify({
         type: "status",
-        payload: { ha: { connection: status } },
+        payload: {
+          ha: { connection: status },
+          mqtt: { connection: mqttStatus },
+        },
       }),
     );
   } catch (error) {
@@ -227,12 +237,48 @@ async function shutdown(signal: string) {
   isShuttingDown = true;
   logger.info({ signal }, "Shutting down Luftujha backend");
 
+  // Force exit if graceful shutdown takes too long
+  setTimeout(() => {
+    logger.error("Shutdown timed out, forcing exit");
+    process.exit(1);
+  }, 5000).unref(); // unref prevents this timer from keeping the loop process alive
+
   hruMonitor.stop();
   timelineRunner.stop();
   wss.close();
 
   await mqttService.disconnect();
   await valveManager.stop();
+  await closeAllSharedClients();
+
+  // Broadcast status helper
+  function broadcastStatus() {
+    const haState = haClient ? haClient.getConnectionState() : "offline";
+    const mqttState = mqttService.isConnected() ? "connected" : "disconnected";
+    const msg = JSON.stringify({
+      type: "status",
+      payload: {
+        ha: { connection: haState },
+        mqtt: { connection: mqttState },
+      },
+    });
+    for (const client of clients) {
+      if (client.readyState === WebSocket.OPEN) {
+        client.send(msg);
+      }
+    }
+  }
+
+  // Subscribe to status changes
+  mqttService.on("connect", () => {
+    logger.info("MQTT Service connected, broadcasting status");
+    broadcastStatus();
+  });
+
+  mqttService.on("disconnect", () => {
+    logger.info("MQTT Service disconnected, broadcasting status");
+    broadcastStatus();
+  });
 
   await new Promise<void>((resolve) => {
     httpServer.close(() => resolve());

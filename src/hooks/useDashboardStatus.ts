@@ -230,12 +230,19 @@ export function useDashboardStatus() {
       try {
         const msg = JSON.parse(ev.data as string) as {
           type?: string;
-          payload?: { ha?: { connection?: string } };
+          payload?: {
+            ha?: { connection?: string };
+            mqtt?: { connection?: "connected" | "disconnected" };
+          };
         };
         if (msg?.type === "status") {
           const s = msg?.payload?.ha?.connection;
           if (s === "connected" || s === "connecting" || s === "disconnected" || s === "offline") {
             setHaStatus(s);
+          }
+          const m = msg?.payload?.mqtt?.connection;
+          if (m === "connected" || m === "disconnected") {
+            setMqttStatus(m);
           }
           setHaLoading(false);
         }
