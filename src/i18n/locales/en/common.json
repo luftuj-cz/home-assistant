@@ -190,7 +190,10 @@
       "port": "Port",
       "user": "Username",
       "password": "Password",
+      "portInvalid": "Invalid port number (1-65535)",
       "save": "Save MQTT Settings",
+      "test": "Test connection",
+      "testing": "Testing...",
       "hostRequired": "Host is required when enabled",
       "notifications": {
         "loadFailedTitle": "Failed to load MQTT settings",
@@ -199,6 +202,9 @@
         "saveSuccessMessage": "MQTT configuration saved and service reloaded",
         "saveFailedTitle": "Failed to save MQTT settings",
         "saveFailedMessage": "{{message}}",
+        "testSuccessTitle": "Connection successful",
+        "testSuccessMessage": "Successfully connected to the MQTT broker.",
+        "testFailedTitle": "Connection failed",
         "unknown": "Unknown error"
       }
     },
@@ -269,7 +275,14 @@
     "hruStatusDescription": "Reads HRU registers every 10 seconds",
     "hruStatusOk": "OK",
     "hruStatusError": "Error",
-    "hruMode": "Mode"
+    "hruMode": "Mode",
+    "mqttStatusTitle": "MQTT Discovery",
+    "mqttStatusDescription": "MQTT connection status and sensor publishing",
+    "mqttStatus": {
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "lastDiscovery": "Last refresh: {{time}}"
+    }
   },
   "errors": {
     "i18n": {

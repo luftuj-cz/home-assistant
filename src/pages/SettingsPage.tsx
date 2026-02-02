@@ -58,6 +58,7 @@ export function SettingsPage() {
     mode: string;
   } | null>(null);
   const [savingMqtt, setSavingMqtt] = useState(false);
+  const [testingMqtt, setTestingMqtt] = useState(false);
   const [mqttSettings, setMqttSettings] = useState({
     enabled: false,
     host: "",
@@ -285,6 +286,49 @@ export function SettingsPage() {
       });
     } finally {
       setSavingMqtt(false);
+    }
+  }, [mqttSettings, t]);
+
+  const testMqttConnection = useCallback(async () => {
+    setTestingMqtt(true);
+    try {
+      const response = await fetch(resolveApiUrl("/api/settings/mqtt/test"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(mqttSettings),
+      });
+
+      if (!response.ok) {
+        const detail = await response.text();
+        let errorMessage = detail;
+        try {
+          const json = JSON.parse(detail);
+          errorMessage = json.detail || detail;
+        } catch {
+          // ignore
+        }
+
+        notifications.show({
+          title: t("settings.mqtt.notifications.testFailedTitle"),
+          message: errorMessage,
+          color: "red",
+        });
+        return;
+      }
+
+      notifications.show({
+        title: t("settings.mqtt.notifications.testSuccessTitle"),
+        message: t("settings.mqtt.notifications.testSuccessMessage"),
+        color: "green",
+      });
+    } catch (error) {
+      notifications.show({
+        title: t("settings.mqtt.notifications.testFailedTitle"),
+        message: error instanceof Error ? error.message : t("settings.mqtt.notifications.unknown"),
+        color: "red",
+      });
+    } finally {
+      setTestingMqtt(false);
     }
   }, [mqttSettings, t]);
 
@@ -737,15 +781,24 @@ export function SettingsPage() {
                         }
                         size="md"
                       />
-                      <NumberInput
-                        value={mqttSettings.port}
-                        onChange={(value) => {
-                          const num = typeof value === "number" ? value : Number(value ?? 1883);
-                          setMqttSettings((prev) => ({ ...prev, port: num }));
+                      <TextInput
+                        value={mqttSettings.port.toString()}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          // Allow digits only
+                          if (val === "" || /^\d+$/.test(val)) {
+                            const num = Number(val);
+                            setMqttSettings((prev) => ({ ...prev, port: num }));
+                          }
                         }}
                         label={t("settings.mqtt.port")}
-                        min={1}
-                        max={65535}
+                        placeholder="1883"
+                        error={
+                          mqttSettings.enabled &&
+                          (mqttSettings.port <= 0 || mqttSettings.port > 65535)
+                            ? t("settings.mqtt.portInvalid")
+                            : undefined
+                        }
                         size="md"
                       />
                     </SimpleGrid>
@@ -775,15 +828,26 @@ export function SettingsPage() {
                   </Stack>
                 )}
 
-                <Button
-                  onClick={saveMqttSettings}
-                  loading={savingMqtt}
-                  disabled={mqttSettings.enabled && mqttSettings.host.trim() === ""}
-                  variant="filled"
-                  size="md"
-                >
-                  {t("settings.mqtt.save")}
-                </Button>
+                <Group mt="sm">
+                  <Button
+                    onClick={saveMqttSettings}
+                    loading={savingMqtt}
+                    disabled={mqttSettings.enabled && mqttSettings.host.trim() === ""}
+                    variant="filled"
+                    size="md"
+                  >
+                    {t("settings.mqtt.save")}
+                  </Button>
+                  <Button
+                    onClick={testMqttConnection}
+                    loading={testingMqtt}
+                    disabled={mqttSettings.host.trim() === ""}
+                    variant="light"
+                    size="md"
+                  >
+                    {t("settings.mqtt.test")}
+                  </Button>
+                </Group>
               </Stack>
             </Paper>
           </Accordion.Panel>

@@ -2,20 +2,172 @@ import mqtt from "mqtt";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/options";
 import type { HruUnitDefinition } from "../hru/definitions";
-import { getAppSetting } from "./database";
-import { MQTT_SETTINGS_KEY, type MqttSettings } from "../types";
+import { getAppSetting, setAppSetting } from "./database";
+import { MQTT_SETTINGS_KEY, MQTT_LAST_DISCOVERY_KEY, type MqttSettings } from "../types";
 
 const DISCOVERY_PREFIX = "homeassistant";
 const BASE_TOPIC = "luftuj/hru";
+const STATIC_CLIENT_ID = "luftuj-addon-static-client";
+const DISCOVERY_INTERVAL_MS = 60_000;
 
 export class MqttService {
   private client: mqtt.MqttClient | null = null;
   private connected = false;
+  private lastSuccessAt = 0;
+
+  private discoveryTimer: NodeJS.Timeout | null = null;
+  private cachedDiscoveryUnit: HruUnitDefinition | null = null;
 
   constructor(
     private readonly envConfig: AppConfig["mqtt"],
     private readonly logger: Logger,
   ) {}
+
+  public isConnected(): boolean {
+    if (!this.client) return false;
+    return this.connected || Date.now() - this.lastSuccessAt < 120_000;
+  }
+
+  public async connect(): Promise<void> {
+    if (this.client) {
+      this.logger.warn("MQTT: Connect called but client already exists. Ignoring.");
+      return;
+    }
+
+    const config = this.resolveConfig();
+    if (!config.host) {
+      this.logger.info("MQTT: Host not configured, skipping start");
+      return;
+    }
+
+    const brokerUrl = `mqtt://${config.host}:${config.port}`;
+    this.logger.info(
+      {
+        brokerUrl,
+        clientId: STATIC_CLIENT_ID,
+        user: config.user,
+      },
+      "MQTT: Initializing service (v5)",
+    );
+
+    try {
+      this.client = mqtt.connect(brokerUrl, {
+        username: config.user ?? undefined,
+        password: config.password ?? undefined,
+        clientId: STATIC_CLIENT_ID,
+        clean: true,
+        keepalive: 60,
+        protocolVersion: 5,
+        reconnectPeriod: 5000,
+        connectTimeout: 10000,
+        properties: {
+          sessionExpiryInterval: 120,
+        },
+      });
+
+      this.setupEventListeners();
+    } catch (err) {
+      this.logger.error({ err }, "MQTT: Failed to initialize client");
+      this.client = null;
+    }
+  }
+
+  public async disconnect(): Promise<void> {
+    this.stopDiscoveryLoop();
+
+    if (this.client) {
+      this.logger.info("MQTT: Disconnecting...");
+      try {
+        await this.client.endAsync(true);
+      } catch (err) {
+        this.logger.warn({ err }, "MQTT: Error during disconnect");
+      }
+      this.client = null;
+      this.connected = false;
+    }
+  }
+
+  public async publishDiscovery(unit: HruUnitDefinition): Promise<boolean> {
+    this.cachedDiscoveryUnit = unit;
+    this.ensureDiscoveryLoop();
+
+    return true;
+  }
+
+  public async publishState(state: {
+    power?: number;
+    temperature?: number;
+    mode?: string;
+  }): Promise<void> {
+    if (!this.client || !this.connected) return;
+
+    const topic = `${BASE_TOPIC}/state`;
+    const payload = JSON.stringify(state);
+
+    try {
+      await this.client.publishAsync(topic, payload, { qos: 1, retain: false });
+      this.lastSuccessAt = Date.now();
+      this.logger.debug({ topic }, "MQTT: State published");
+    } catch (err) {
+      this.logger.error({ err }, "MQTT: Failed to publish state");
+    }
+  }
+
+  public async reloadConfig(): Promise<void> {
+    await this.disconnect();
+    await this.connect();
+  }
+
+  public getLastDiscoveryTime(): string | null {
+    return getAppSetting(MQTT_LAST_DISCOVERY_KEY);
+  }
+
+  public setLastDiscoveryTime(time: string): void {
+    setAppSetting(MQTT_LAST_DISCOVERY_KEY, time);
+  }
+
+  public static async testConnection(
+    settings: MqttSettings,
+    logger: Logger,
+  ): Promise<{ success: boolean; message?: string }> {
+    const brokerUrl = `mqtt://${settings.host}:${settings.port}`;
+    const clientId = `luftuj-test-${Math.random().toString(16).slice(2, 8)}`;
+
+    logger.info({ brokerUrl, clientId }, "MQTT: Testing connection (v5)");
+
+    return new Promise((resolve) => {
+      const client = mqtt.connect(brokerUrl, {
+        username: settings.user ?? undefined,
+        password: settings.password ?? undefined,
+        clientId,
+        clean: true,
+        protocolVersion: 5,
+        connectTimeout: 5000,
+        reconnectPeriod: 0,
+        manualConnect: true,
+      });
+
+      let finished = false;
+      function finish(ok: boolean, msg?: string) {
+        if (finished) return;
+        finished = true;
+        client.end(true);
+        resolve({ success: ok, message: msg });
+      }
+
+      client.on("connect", () => finish(true));
+      client.on("error", (e) => finish(false, e.message));
+      client.on("close", () => finish(false, "Connection closed"));
+
+      try {
+        client.connect();
+      } catch (e: unknown) {
+        finish(false, e instanceof Error ? e.message : "Unknown error");
+      }
+
+      setTimeout(() => finish(false, "Timeout"), 6000);
+    });
+  }
 
   private resolveConfig(): AppConfig["mqtt"] {
     const raw = getAppSetting(MQTT_SETTINGS_KEY);
@@ -30,70 +182,80 @@ export class MqttService {
             password: dbSettings.password ?? null,
           };
         }
-        // Explicitly disabled in DB overrides ENV?
-        // Or if disabled in DB, do we fallback to ENV?
-        // "Disabled in DB" probably means "User turned it off in UI".
-        // So we should respect that and return null/empty host.
         return { host: null, port: 1883, user: null, password: null };
-      } catch (err) {
-        this.logger.warn({ err }, "Failed to parse MQTT settings from DB");
+      } catch {
+        this.logger.error("MQTT: Failed to parse settings from database");
       }
     }
-    // Fallback to ENV config
     return this.envConfig;
   }
 
-  async reloadConfig(): Promise<void> {
-    await this.disconnect();
-    await this.connect();
+  private setupEventListeners() {
+    if (!this.client) return;
+
+    this.client.on("connect", (connack) => {
+      this.logger.info({ connack }, "MQTT: Connected");
+      this.connected = true;
+      this.lastSuccessAt = Date.now();
+      void this.publishAvailability("online");
+    });
+
+    this.client.on("reconnect", () => {
+      this.logger.info("MQTT: Attempting reconnect...");
+    });
+
+    this.client.on("error", (err) => {
+      this.logger.error({ err }, "MQTT: Error");
+      this.connected = false;
+    });
+
+    this.client.on("close", () => {
+      if (this.connected) {
+        this.logger.warn("MQTT: Connection closed");
+      }
+      this.connected = false;
+    });
+
+    this.client.on("offline", () => {
+      this.logger.warn("MQTT: Client offline");
+    });
   }
 
-  async connect(): Promise<void> {
-    const config = this.resolveConfig();
+  private ensureDiscoveryLoop() {
+    if (this.discoveryTimer) return;
 
-    if (!config.host) {
-      this.logger.info("MQTT host not configured, skipping MQTT service");
+    this.logger.info("MQTT: Starting discovery loop");
+
+    this.discoveryTimer = setInterval(() => {
+      void this.runDiscoveryCycle();
+    }, DISCOVERY_INTERVAL_MS);
+
+    void this.runDiscoveryCycle();
+  }
+
+  private stopDiscoveryLoop() {
+    if (this.discoveryTimer) {
+      clearInterval(this.discoveryTimer);
+      this.discoveryTimer = null;
+      this.logger.info("MQTT: Stopped discovery loop");
+    }
+  }
+
+  private async runDiscoveryCycle() {
+    if (!this.connected || !this.client || !this.cachedDiscoveryUnit) {
       return;
     }
 
-    const brokerUrl = `mqtt://${config.host}:${config.port}`;
-    this.logger.info({ brokerUrl }, "Connecting to MQTT broker");
-
     try {
-      this.client = await mqtt.connectAsync(brokerUrl, {
-        username: config.user ?? undefined,
-        password: config.password ?? undefined,
-        clientId: "luftuj-addon",
-        clean: true,
-      });
-
-      this.connected = true;
-      this.logger.info("MQTT connected");
-
-      this.client.on("error", (err) => {
-        this.logger.error({ err }, "MQTT error");
-      });
-
-      this.client.on("close", () => {
-        if (this.connected) {
-          this.logger.warn("MQTT connection closed");
-          this.connected = false;
-        }
-      });
-
-      this.client.on("connect", () => {
-        this.connected = true;
-        this.logger.info("MQTT reconnected");
-      });
+      await this.internalSendDiscovery(this.cachedDiscoveryUnit);
+      this.lastSuccessAt = Date.now();
     } catch (err) {
-      this.logger.error({ err }, "Failed to connect to MQTT broker");
-      // Don't throw, just log. Retry logic is built into mqtt client if we want,
-      // but connectAsync throws if initial connection fails.
+      this.logger.warn({ err }, "MQTT: Discovery cycle failed");
     }
   }
 
-  async publishDiscovery(unit: HruUnitDefinition): Promise<void> {
-    if (!this.client || !this.connected) return;
+  private async internalSendDiscovery(unit: HruUnitDefinition) {
+    if (!this.client) return;
 
     const device = {
       identifiers: [`luftuj_hru_${unit.id}`],
@@ -101,84 +263,49 @@ export class MqttService {
       model: unit.name,
       manufacturer: "Luftuj",
     };
+    const availability = [{ topic: `${BASE_TOPIC}/status` }];
 
-    // 1. Requested Power
-    await this.publishConfig("sensor", "requested_power", {
-      name: "Requested Power",
-      unique_id: `luftuj_hru_${unit.id}_power`,
-      state_topic: `${BASE_TOPIC}/state`,
-      value_template: "{{ value_json.power }}",
-      unit_of_measurement: "%",
-      device_class: "power_factor", // Using power_factor as it is percentage based 0-100 commonly
-      device,
-    });
+    const pub = async (field: string, name: string, cls: string, unitStr?: string) => {
+      const payload = {
+        name,
+        unique_id: `luftuj_hru_${unit.id}_${field}`,
+        state_topic: `${BASE_TOPIC}/state`,
+        value_template: `{{ value_json.${field} }}`,
+        device,
+        availability,
+        ...(cls ? { device_class: cls } : {}),
+        ...(unitStr ? { unit_of_measurement: unitStr } : {}),
+      };
+      const topic = `${DISCOVERY_PREFIX}/sensor/luftuj_hru/${field}/config`;
+      await this.client?.publishAsync(topic, JSON.stringify(payload), { qos: 1, retain: true });
+    };
 
-    // 2. Requested Temperature
-    await this.publishConfig("sensor", "requested_temperature", {
-      name: "Requested Temperature",
-      unique_id: `luftuj_hru_${unit.id}_temperature`,
-      state_topic: `${BASE_TOPIC}/state`,
-      value_template: "{{ value_json.temperature }}",
-      unit_of_measurement: "°C",
-      device_class: "temperature",
-      device,
-    });
+    await pub("power", "Requested Power", "power_factor", "%");
+    await pub("temperature", "Requested Temperature", "temperature", "°C");
 
-    // 3. Mode
-    await this.publishConfig("sensor", "mode", {
+    const modePayload = {
       name: "Mode",
       unique_id: `luftuj_hru_${unit.id}_mode`,
       state_topic: `${BASE_TOPIC}/state`,
       value_template: "{{ value_json.mode }}",
       device,
+      availability,
+    };
+    const modeTopic = `${DISCOVERY_PREFIX}/sensor/luftuj_hru/mode/config`;
+    await this.client.publishAsync(modeTopic, JSON.stringify(modePayload), {
+      qos: 1,
+      retain: true,
     });
+
+    this.logger.info("MQTT: Discovery payloads sent");
   }
 
-  async publishState(state: {
-    power?: number;
-    temperature?: number;
-    mode?: string;
-  }): Promise<void> {
-    if (!this.client || !this.connected) {
-      this.logger.debug("MQTT: publishState called but not connected");
-      return;
-    }
-
-    try {
-      const topic = `${BASE_TOPIC}/state`;
-      const payload = JSON.stringify(state);
-      this.logger.debug({ topic, payload }, "MQTT: Publishing state");
-
-      await this.client.publishAsync(topic, payload, {
-        retain: false,
-      });
-    } catch (err) {
-      this.logger.error({ err }, "Failed to publish MQTT state");
-    }
-  }
-
-  async disconnect(): Promise<void> {
-    if (this.client) {
-      this.logger.info("MQTT: Disconnecting...");
-      await this.client.endAsync();
-      this.client = null;
-      this.connected = false;
-    }
-  }
-
-  private async publishConfig(
-    component: string,
-    objectId: string,
-    payload: Record<string, unknown>,
-  ): Promise<void> {
+  private async publishAvailability(status: "online" | "offline") {
     if (!this.client) return;
-
-    const topic = `${DISCOVERY_PREFIX}/${component}/luftuj_hru/${objectId}/config`;
-    this.logger.debug({ topic }, "MQTT: Publishing discovery config");
     try {
-      await this.client.publishAsync(topic, JSON.stringify(payload), { retain: true });
-    } catch (err) {
-      this.logger.error({ err, topic }, "Failed to publish discovery message");
+      await this.client.publishAsync(`${BASE_TOPIC}/status`, status, { qos: 1, retain: true });
+    } catch {
+      this.logger.warn("MQTT: Failed to publish availability");
     }
   }
 }

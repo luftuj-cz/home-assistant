@@ -171,7 +171,10 @@
       "port": "Port",
       "user": "Uživatelské jméno",
       "password": "Heslo",
+      "portInvalid": "Neplatné číslo portu (1-65535)",
       "save": "Uložit nastavení MQTT",
+      "test": "Testovat připojení",
+      "testing": "Testování...",
       "hostRequired": "Host je povinný, pokud je povoleno",
       "notifications": {
         "loadFailedTitle": "Nepodařilo se načíst nastavení MQTT",
@@ -180,6 +183,9 @@
         "saveSuccessMessage": "Konfigurace MQTT uložena a služba restartována",
         "saveFailedTitle": "Nepodařilo se uložit nastavení MQTT",
         "saveFailedMessage": "{{message}}",
+        "testSuccessTitle": "Připojení úspěšné",
+        "testSuccessMessage": "Úspěšně připojeno k MQTT brokeru.",
+        "testFailedTitle": "Připojení selhalo",
         "unknown": "Neznámá chyba"
       }
     },
@@ -250,7 +256,14 @@
     "hruStatusDescription": "Čte registry rekuperační jednotky každých 10 sekund",
     "hruStatusOk": "OK",
     "hruStatusError": "Chyba",
-    "hruMode": "Režim"
+    "hruMode": "Režim",
+    "mqttStatusTitle": "MQTT Discovery",
+    "mqttStatusDescription": "Stav MQTT spojení a publikování senzorů",
+    "mqttStatus": {
+      "connected": "Připojeno",
+      "disconnected": "Odpojeno",
+      "lastDiscovery": "Poslední obnova: {{time}}"
+    }
   },
   "valves": {
     "title": "Zóny Luftatoru",

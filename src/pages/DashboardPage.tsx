@@ -6,7 +6,8 @@ import { HruStatusCard } from "../components/dashboard/HruStatusCard";
 
 export function DashboardPage() {
   const { t } = useTranslation();
-  const { haStatus, haLoading, modbusStatus, hruStatus, hruName } = useDashboardStatus();
+  const { haStatus, haLoading, modbusStatus, hruStatus, hruName, mqttStatus, mqttLastDiscovery } =
+    useDashboardStatus();
 
   function getHaStatusType() {
     if (haLoading) return "neutral";
@@ -19,6 +20,22 @@ export function DashboardPage() {
     if (modbusStatus === "loading") return "neutral";
     if (modbusStatus === "reachable") return "success";
     return "error";
+  }
+
+  function getMqttStatusType() {
+    if (mqttStatus === "loading") return "neutral";
+    if (mqttStatus === "connected") return "success";
+    return "error";
+  }
+
+  function formatDiscoveryTime(timeStr: string | null) {
+    if (!timeStr) return t("dashboard.haStatus.loading");
+    try {
+      const date = new Date(timeStr);
+      return date.toLocaleString();
+    } catch {
+      return timeStr;
+    }
   }
 
   return (
@@ -49,6 +66,23 @@ export function DashboardPage() {
               : modbusStatus === "reachable"
                 ? t("dashboard.modbusStatus.reachable")
                 : t("dashboard.modbusStatus.unreachable")
+          }
+        />
+
+        <StatusCard
+          title={t("dashboard.mqttStatusTitle", { defaultValue: "MQTT Discovery" })}
+          description={
+            mqttLastDiscovery
+              ? t("dashboard.mqttStatus.lastDiscovery", {
+                  time: formatDiscoveryTime(mqttLastDiscovery),
+                })
+              : t("dashboard.mqttStatusDescription", {
+                  defaultValue: "MQTT connection status and sensor publishing",
+                })
+          }
+          status={getMqttStatusType()}
+          statusLabel={
+            mqttStatus === "loading" ? t("dashboard.haStatus.loading") : t(`dashboard.mqttStatus.${mqttStatus}`)
           }
         />
 

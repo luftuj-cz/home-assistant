@@ -34,6 +34,9 @@ export function useDashboardStatus() {
   const [hruName, setHruName] = useState<string | null>(null);
   const [hruStatus, setHruStatus] = useState<HruState>(null);
 
+  const [mqttStatus, setMqttStatus] = useState<"connected" | "disconnected" | "loading">("loading");
+  const [mqttLastDiscovery, setMqttLastDiscovery] = useState<string | null>(null);
+
   const valvesWsRef = useRef<WebSocket | null>(null);
   const valvesReconnectRef = useRef<number | null>(null);
 
@@ -101,11 +104,18 @@ export function useDashboardStatus() {
           setHaLoading(false);
           return;
         }
-        const data = (await res.json()) as { ha?: { connection?: string } };
+        const data = (await res.json()) as {
+          ha?: { connection?: string };
+          mqtt?: { connection?: "connected" | "disconnected"; lastDiscovery?: string | null };
+        };
         if (!active) return;
         const s = data.ha?.connection;
         if (s === "connected" || s === "connecting" || s === "disconnected" || s === "offline") {
           setHaStatus(s);
+        }
+        if (data.mqtt) {
+          setMqttStatus(data.mqtt.connection ?? "disconnected");
+          setMqttLastDiscovery(data.mqtt.lastDiscovery ?? null);
         }
         setHaLoading(false);
       } catch {
@@ -271,5 +281,7 @@ export function useDashboardStatus() {
     modbusStatus,
     hruStatus,
     hruName,
+    mqttStatus,
+    mqttLastDiscovery,
   };
 }

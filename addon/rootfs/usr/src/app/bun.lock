@@ -5,14 +5,14 @@
     "": {
       "name": "app",
       "dependencies": {
-        "cors": "^2.8.5",
+        "cors": "^2.8.6",
         "dotenv": "^17.2.3",
         "express": "^5.2.1",
         "modbus-serial": "^8.0.23",
         "mqtt": "^5.14.1",
-        "pino": "^10.2.0",
+        "pino": "^10.3.0",
         "ws": "^8.19.0",
-        "zod": "^4.3.5",
+        "zod": "^4.3.6",
       },
       "devDependencies": {
         "@types/bun": "latest",
@@ -21,7 +21,7 @@
         "@types/node": "^20.19.30",
         "@types/pino": "^7.0.5",
         "@types/ws": "^8.18.1",
-        "prettier": "^3.8.0",
+        "prettier": "^3.8.1",
         "typescript": "^5.9.3",
       },
     },

@@ -18,11 +18,11 @@ export class HruMonitor {
     this.isRunning = true;
     this.logger.info("Starting HRU Monitor");
 
-    // Initial run + discovery
+    // No pre-check, runCycle will handle the refresh logic
     void this.runCycle(true);
 
     this.timer = setInterval(() => {
-      void this.runCycle(false);
+      void this.runCycle(true); // Send discovery every minute as requested
     }, POLLING_INTERVAL_MS);
   }
 
@@ -66,7 +66,11 @@ export class HruMonitor {
     );
 
     if (sendDiscovery) {
-      await this.mqttService.publishDiscovery(def);
+      this.logger.info("HRU Monitor: Attempting MQTT discovery refresh...");
+      const success = await this.mqttService.publishDiscovery(def);
+      if (success) {
+        this.mqttService.setLastDiscoveryTime(new Date().toISOString());
+      }
     }
 
     try {
@@ -106,6 +110,7 @@ export class HruMonitor {
         "HRU Monitor: Read successful, publishing to MQTT",
       );
 
+      // Always try to publish; MqttService will handle its internal state
       await this.mqttService.publishState({
         power,
         mode: modeStr,

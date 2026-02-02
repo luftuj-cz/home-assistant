@@ -12,6 +12,7 @@ export type HruSettings = {
 };
 
 export const MQTT_SETTINGS_KEY = "mqtt.settings";
+export const MQTT_LAST_DISCOVERY_KEY = "mqtt.last_discovery_sent";
 
 export type MqttSettings = {
   enabled: boolean;

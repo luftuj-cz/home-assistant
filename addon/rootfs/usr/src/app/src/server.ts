@@ -86,7 +86,7 @@ app.use("/api/timeline", createTimelineRouter(logger));
 app.use("/api/settings", createSettingsRouter(mqttService, logger));
 app.use("/api/database", createDatabaseRouter(valveManager, logger));
 app.use("/api/valves", createValvesRouter(valveManager, logger));
-app.use("/api", createStatusRouter(haClient, logger));
+app.use("/api", createStatusRouter(haClient, mqttService, logger));
 
 const staticRoot = config.staticRoot;
 const assetsPath = path.join(staticRoot, "assets");
@@ -199,12 +199,21 @@ async function start() {
     throw err;
   }
 
+  httpServer.on("error", (error) => {
+    logger.fatal({ error }, "Failed to start HTTP server");
+    process.exit(1);
+  });
+
   httpServer.listen(port, host, () => {
     logger.info({ port }, "Luftujha backend listening");
   });
 }
 
+let isShuttingDown = false;
+
 async function shutdown(signal: string) {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
   logger.info({ signal }, "Shutting down Luftujha backend");
 
   hruMonitor.stop();

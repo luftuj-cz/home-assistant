@@ -63,6 +63,35 @@ export function createSettingsRouter(mqttService: MqttService, logger: Logger) {
     response.status(204).end();
   });
 
+  router.post("/mqtt/test", async (request: Request, response: Response) => {
+    const body = request.body as Partial<MqttSettings>;
+    const host = (body.host ?? "").toString().trim();
+    const port = Number(body.port);
+    const user = body.user;
+    const password = body.password;
+
+    if (!host) {
+      response.status(400).json({ detail: "Missing host" });
+      return;
+    }
+
+    try {
+      const result = await (mqttService.constructor as typeof MqttService).testConnection(
+        { enabled: true, host, port, user, password },
+        logger,
+      );
+
+      if (result.success) {
+        response.json({ success: true });
+      } else {
+        response.status(502).json({ detail: result.message || "Connection failed" });
+      }
+    } catch (err) {
+      logger.error({ err }, "MQTT test connection error");
+      response.status(500).json({ detail: err instanceof Error ? err.message : "Internal error" });
+    }
+  });
+
   // HRU Settings
   router.get("/hru", (_request: Request, response: Response) => {
     const raw = getAppSetting(HRU_SETTINGS_KEY);
