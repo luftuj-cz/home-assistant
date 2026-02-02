@@ -6,6 +6,7 @@ import type { HomeAssistantClient } from "../services/homeAssistantClient";
 import type { MqttService } from "../services/mqttService";
 import { getAppSetting } from "../services/database";
 import { HRU_SETTINGS_KEY, type HruSettings } from "../types";
+import { APP_VERSION } from "../constants";
 
 export function createStatusRouter(
   haClient: HomeAssistantClient | null,
@@ -20,7 +21,7 @@ export function createStatusRouter(
       connection: mqttService.isConnected() ? "connected" : "disconnected",
       lastDiscovery: mqttService.getLastDiscoveryTime(),
     };
-    response.json({ ha, mqtt });
+    response.json({ ha, mqtt, version: APP_VERSION });
   });
 
   async function probeTcp(host: string, port: number, timeoutMs = 1500): Promise<void> {

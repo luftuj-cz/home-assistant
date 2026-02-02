@@ -27,6 +27,7 @@ export const ADDON_MODES = ["manual", "timeline"] as const;
 export type AddonMode = (typeof ADDON_MODES)[number];
 
 export const TIMELINE_MODES_KEY = "timeline.modes";
+export const TIMELINE_OVERRIDE_KEY = "timeline.override";
 
 export type TimelineMode = {
   id: number;
@@ -35,4 +36,11 @@ export type TimelineMode = {
   power?: number;
   temperature?: number;
   luftatorConfig?: Record<string, number>;
+  isBoost?: boolean;
 };
+
+export type TimelineOverride = {
+  modeId: number;
+  endTime: string; // ISO 8601
+  durationMinutes: number;
+} | null;

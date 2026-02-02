@@ -9,8 +9,15 @@ import {
   checkpointDatabase,
 } from "../services/database";
 import type { ValveController } from "../core/valveManager";
+import type { MqttService } from "../services/mqttService";
+import type { TimelineScheduler } from "../services/timelineScheduler";
 
-export function createDatabaseRouter(valveManager: ValveController, logger: Logger) {
+export function createDatabaseRouter(
+  valveManager: ValveController,
+  mqttService: MqttService,
+  timelineScheduler: TimelineScheduler,
+  logger: Logger,
+) {
   const router = Router();
 
   router.get("/export", async (_request: Request, response: Response, next: NextFunction) => {
@@ -25,7 +32,7 @@ export function createDatabaseRouter(valveManager: ValveController, logger: Logg
       logger.info({ dbPath }, "Streaming database export");
 
       // Flush WAL to main DB file before export
-      checkpointDatabase();
+      checkpointDatabase(logger);
 
       response.setHeader("Content-Type", "application/octet-stream");
       response.setHeader("Content-Disposition", "attachment; filename=luftator.db");
@@ -55,11 +62,17 @@ export function createDatabaseRouter(valveManager: ValveController, logger: Logg
 
       logger.info({ size: buffer.length }, "Replacing database from uploaded file");
       await createDatabaseBackup();
-      await replaceDatabaseWithFile(buffer);
+      await replaceDatabaseWithFile(buffer, logger);
 
-      logger.info("Database import completed, restarting valve manager");
+      logger.info("Database import completed, restarting valve manager and reloading services");
       await valveManager.stop();
       await valveManager.start();
+
+      // Ensure MQTT picks up new settings
+      await mqttService.reloadConfig();
+
+      // Ensure Timeline Scheduler picks up new events/modes immediately
+      await timelineScheduler.executeScheduledEvent();
 
       response.status(204).end();
     } catch (error) {

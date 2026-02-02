@@ -13,7 +13,7 @@ import { HomeAssistantClient } from "./services/homeAssistantClient";
 import type { ValveController } from "./core/valveManager";
 import { ValveManager } from "./core/valveManager";
 import { OfflineValveManager } from "./core/offlineValveManager";
-import { TimelineRunner } from "./services/timelineRunner";
+import { TimelineScheduler } from "./services/timelineScheduler";
 import { setupDatabase } from "./services/database";
 import { MqttService } from "./services/mqttService";
 import { HruMonitor } from "./services/hruMonitor";
@@ -86,7 +86,7 @@ if (config.token) {
   valveManager = new OfflineValveManager(logger, broadcast);
 }
 
-const timelineRunner = new TimelineRunner(valveManager, logger);
+const timelineScheduler = new TimelineScheduler(valveManager, logger);
 
 const mqttService = new MqttService(config.mqtt, logger);
 const hruMonitor = new HruMonitor(mqttService, logger);
@@ -99,9 +99,12 @@ const hruController = new HruController(hruService, logger);
 
 // Routes
 app.use("/api/hru", createHruRouter(hruController));
-app.use("/api/timeline", createTimelineRouter(logger));
+app.use("/api/timeline", createTimelineRouter(logger, timelineScheduler));
 app.use("/api/settings", createSettingsRouter(mqttService, logger));
-app.use("/api/database", createDatabaseRouter(valveManager, logger));
+app.use(
+  "/api/database",
+  createDatabaseRouter(valveManager, mqttService, timelineScheduler, logger),
+);
 app.use("/api/valves", createValvesRouter(valveManager, logger));
 app.use("/api", createStatusRouter(haClient, mqttService, logger));
 
@@ -213,10 +216,10 @@ async function start() {
   }
 
   try {
-    logger.info("Starting Timeline Runner...");
-    timelineRunner.start();
+    logger.info("Starting Timeline Scheduler...");
+    timelineScheduler.start();
   } catch (err) {
-    logger.fatal({ err }, "Failed to start Timeline Runner");
+    logger.fatal({ err }, "Failed to start Timeline Scheduler");
     throw err;
   }
 
@@ -244,7 +247,7 @@ async function shutdown(signal: string) {
   }, 5000).unref(); // unref prevents this timer from keeping the loop process alive
 
   hruMonitor.stop();
-  timelineRunner.stop();
+  timelineScheduler.stop();
   wss.close();
 
   await mqttService.disconnect();

@@ -107,6 +107,7 @@ type StatementMap = {
   deleteTimelineEvent: Statement;
 };
 
+let moduleLogger: Logger | null = null;
 let statements: StatementMap | null = null;
 
 type ValveStateRecord = {
@@ -120,36 +121,26 @@ type ValveStateRecord = {
 };
 
 function openDatabase(logger?: Logger): Database {
+  const activeLogger = logger || moduleLogger;
   const logMsg = `Opening database at ${DATABASE_PATH}`;
-  if (logger) {
-    logger.info(logMsg);
-  } else {
-    console.log(logMsg);
-  }
+
+  activeLogger?.info(logMsg);
+
   try {
     return new Database(DATABASE_PATH, { create: true });
   } catch (error) {
-    const errMsg = "Failed to open database";
-    if (logger) {
-      logger.error({ error }, errMsg);
-    } else {
-      console.error(errMsg, error);
-    }
+    activeLogger?.error({ error }, "Failed to open database");
     throw error;
   }
 }
 
 function applyMigrations(database: Database, logger?: Logger): void {
+  const activeLogger = logger || moduleLogger;
   try {
     database.run("PRAGMA journal_mode = WAL;");
   } catch (err) {
     // Fallback for environments that don't support WAL (e.g. WSL mounts)
-    const warnMsg = "Failed to set WAL mode, falling back to DELETE mode";
-    if (logger) {
-      logger.warn({ err }, warnMsg);
-    } else {
-      console.warn(warnMsg, err);
-    }
+    activeLogger?.warn({ err }, "Failed to set WAL mode, falling back to DELETE mode");
     database.run("PRAGMA journal_mode = DELETE;");
   }
   database.run(
@@ -246,6 +237,7 @@ function prepareStatements(database: Database): StatementMap {
 }
 
 export function setupDatabase(logger?: Logger): void {
+  moduleLogger = logger || moduleLogger;
   if (statements) {
     finalizeStatements();
   }
@@ -254,8 +246,8 @@ export function setupDatabase(logger?: Logger): void {
     db = null;
   }
 
-  db = openDatabase(logger);
-  applyMigrations(db, logger);
+  db = openDatabase(moduleLogger || undefined);
+  applyMigrations(db, moduleLogger || undefined);
   statements = prepareStatements(db);
 }
 
@@ -295,7 +287,10 @@ export function storeValveSnapshots(records: ValveSnapshotRecord[]): void {
     // Or throw error if you prefer strict explicit init
     setupDatabase();
   }
-  if (!db || !statements) throw new Error("Database init failed");
+  if (!db || !statements) {
+    moduleLogger?.error("Database initialisation failed in storeValveSnapshots");
+    throw new Error("Database init failed");
+  }
 
   const prepared = statements;
 
@@ -337,7 +332,10 @@ export function getAppSetting(key: string): string | null {
   if (!db || !statements) {
     setupDatabase();
   }
-  if (!statements) throw new Error("Database not initialised");
+  if (!statements) {
+    moduleLogger?.error({ key }, "Database not initialised in getAppSetting");
+    throw new Error("Database not initialised");
+  }
 
   const row = statements.getSetting.get(key) as { value: string } | undefined;
   return row?.value ?? null;
@@ -347,7 +345,10 @@ export function setAppSetting(key: string, value: string): void {
   if (!db || !statements) {
     setupDatabase();
   }
-  if (!statements) throw new Error("Database not initialised");
+  if (!statements) {
+    moduleLogger?.error({ key }, "Database not initialised in setAppSetting");
+    throw new Error("Database not initialised");
+  }
 
   statements.upsertSetting.run(key, value);
 }
@@ -411,7 +412,10 @@ export function getTimelineEvents(): TimelineEvent[] {
   if (!db || !statements) {
     setupDatabase();
   }
-  if (!statements) throw new Error("Database not initialised");
+  if (!statements) {
+    moduleLogger?.error("Database not initialised in getTimelineEvents");
+    throw new Error("Database not initialised");
+  }
 
   const records = statements.getTimelineEvents.all() as TimelineEventRecord[];
   return records.map(denormaliseTimelineEvent);
@@ -421,7 +425,10 @@ export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
   if (!db || !statements) {
     setupDatabase();
   }
-  if (!statements) throw new Error("Database not initialised");
+  if (!statements) {
+    moduleLogger?.error({ eventId: event.id }, "Database not initialised in upsertTimelineEvent");
+    throw new Error("Database not initialised");
+  }
 
   const normalised = normaliseTimelineEvent(event);
 
@@ -449,7 +456,10 @@ export function deleteTimelineEvent(id: number): void {
   if (!db || !statements) {
     setupDatabase();
   }
-  if (!statements) throw new Error("Database not initialised");
+  if (!statements) {
+    moduleLogger?.error({ id }, "Database not initialised in deleteTimelineEvent");
+    throw new Error("Database not initialised");
+  }
 
   statements.deleteTimelineEvent.run(id);
 }
@@ -465,7 +475,7 @@ export async function createDatabaseBackup(): Promise<string | null> {
   return backupPath;
 }
 
-export async function replaceDatabaseWithFile(buffer: Buffer): Promise<void> {
+export async function replaceDatabaseWithFile(buffer: Buffer, logger?: Logger): Promise<void> {
   if (statements) {
     finalizeStatements();
   }
@@ -475,20 +485,31 @@ export async function replaceDatabaseWithFile(buffer: Buffer): Promise<void> {
   }
 
   const dbPath = getDatabasePath();
+
+  const walPath = `${dbPath}-wal`;
+  const shmPath = `${dbPath}-shm`;
+  try {
+    if (existsSync(walPath)) await fsp.unlink(walPath);
+    if (existsSync(shmPath)) await fsp.unlink(shmPath);
+  } catch {
+    logger?.warn("Failed to delete auxiliary database files during replacement");
+  }
+
   const tempPath = `${dbPath}.tmp`;
   await fsp.writeFile(tempPath, buffer);
   await fsp.rename(tempPath, dbPath);
 
-  setupDatabase();
+  setupDatabase(logger);
 }
 
-export function checkpointDatabase(): void {
+export function checkpointDatabase(logger?: Logger): void {
   if (!db || !statements) {
-    setupDatabase();
+    setupDatabase(logger);
   }
-  if (!db) throw new Error("Database not initialised");
+  if (!db) {
+    logger?.error("Database not initialised");
+    throw new Error("Database not initialised");
+  }
 
-  // Force a checkpoint to move pages from WAL to the main DB file
-  // TRUNCATE resets the WAL file generated length to zero
   db.run("PRAGMA wal_checkpoint(TRUNCATE);");
 }

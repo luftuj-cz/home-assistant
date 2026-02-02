@@ -8,9 +8,16 @@ import {
   upsertTimelineEvent,
   deleteTimelineEvent,
 } from "../services/database";
-import { TIMELINE_MODES_KEY, type TimelineMode } from "../types";
+import {
+  TIMELINE_MODES_KEY,
+  TIMELINE_OVERRIDE_KEY,
+  type TimelineMode,
+  type TimelineOverride,
+} from "../types";
 
-export function createTimelineRouter(logger: Logger) {
+import type { TimelineScheduler } from "../services/timelineScheduler";
+
+export function createTimelineRouter(logger: Logger, timelineScheduler: TimelineScheduler) {
   const router = Router();
 
   type TimelineModeBody = {
@@ -19,6 +26,7 @@ export function createTimelineRouter(logger: Logger) {
     power?: number;
     temperature?: number;
     luftatorConfig?: Record<string, number>;
+    isBoost?: boolean;
   };
 
   function getTimelineModes(): TimelineMode[] {
@@ -47,7 +55,10 @@ export function createTimelineRouter(logger: Logger) {
       response.status(400).json({ detail: "Mode name is required" });
       return null;
     }
-    if (body.power !== undefined && (Number.isNaN(body.power) || body.power < 0 || body.power > 90)) {
+    if (
+      body.power !== undefined &&
+      (Number.isNaN(body.power) || body.power < 0 || body.power > 90)
+    ) {
       response.status(400).json({ detail: "Power must be between 0 and 90" });
       return null;
     }
@@ -60,7 +71,9 @@ export function createTimelineRouter(logger: Logger) {
     }
     if (body.luftatorConfig !== undefined) {
       if (typeof body.luftatorConfig !== "object" || Array.isArray(body.luftatorConfig)) {
-        response.status(400).json({ detail: "luftatorConfig must be an object of valve->percentage" });
+        response
+          .status(400)
+          .json({ detail: "luftatorConfig must be an object of valve->percentage" });
         return null;
       }
       for (const [key, value] of Object.entries(body.luftatorConfig)) {
@@ -88,6 +101,7 @@ export function createTimelineRouter(logger: Logger) {
       ...body,
       name: trimmed,
       color: body.color || undefined,
+      isBoost: !!body.isBoost,
       luftatorConfig: normalizedLuftatorConfig,
     };
   }
@@ -110,6 +124,7 @@ export function createTimelineRouter(logger: Logger) {
       power: payload.power,
       temperature: payload.temperature,
       luftatorConfig: payload.luftatorConfig,
+      isBoost: payload.isBoost,
     };
     modes.push(newMode);
     saveTimelineModes(modes);
@@ -144,6 +159,7 @@ export function createTimelineRouter(logger: Logger) {
       power: payload.power,
       temperature: payload.temperature,
       luftatorConfig: payload.luftatorConfig,
+      isBoost: payload.isBoost,
     };
     modes[idx] = updated;
     saveTimelineModes(modes);
@@ -251,6 +267,58 @@ export function createTimelineRouter(logger: Logger) {
       logger.warn({ error, id }, "Failed to delete timeline event");
       response.status(500).json({ detail: "Failed to delete timeline event" });
     }
+  });
+
+  // Boost Overrides
+  router.get("/boost", (_request: Request, response: Response) => {
+    const raw = getAppSetting(TIMELINE_OVERRIDE_KEY);
+    if (!raw) return response.json({ active: null });
+    try {
+      const parsed = JSON.parse(raw) as TimelineOverride;
+      // Filter out expired boosts
+      if (parsed && new Date(parsed.endTime) < new Date()) {
+        setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
+        return response.json({ active: null });
+      }
+      response.json({ active: parsed });
+    } catch {
+      response.json({ active: null });
+    }
+  });
+
+  router.post("/boost", async (request: Request, response: Response) => {
+    const { modeId, durationMinutes } = request.body as {
+      modeId: number;
+      durationMinutes: number;
+    };
+    if (!modeId || !durationMinutes || durationMinutes <= 0) {
+      return response.status(400).json({ detail: "modeId and positive durationMinutes required" });
+    }
+
+    const modes = getTimelineModes();
+    const mode = modes.find((m) => m.id === modeId);
+    if (!mode) return response.status(404).json({ detail: "Mode not found" });
+
+    const endTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+    const override: TimelineOverride = { modeId, endTime, durationMinutes };
+
+    setAppSetting(TIMELINE_OVERRIDE_KEY, JSON.stringify(override));
+    logger.info({ modeId, durationMinutes, endTime }, "Timeline boost activated");
+
+    // Trigger immediate execution
+    await timelineScheduler.executeScheduledEvent();
+
+    response.json({ active: override });
+  });
+
+  router.delete("/boost", async (_request: Request, response: Response) => {
+    setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
+    logger.info("Timeline boost cancelled");
+
+    // Trigger immediate execution
+    await timelineScheduler.executeScheduledEvent();
+
+    response.status(204).end();
   });
 
   return router;
