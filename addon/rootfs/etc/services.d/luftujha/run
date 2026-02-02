@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-bashio::log.info "Starting Luftujha backend"
+bashio::log.info "Starting the Luftuj backend service..."
 
 PORT=$(bashio::config 'web_port')
 if [ -z "${PORT}" ] || [ "${PORT}" = "null" ]; then

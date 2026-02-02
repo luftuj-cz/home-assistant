@@ -21,7 +21,12 @@ import { HruMonitor } from "./services/hruMonitor";
 import { createRequestLogger } from "./middleware/requestLogger";
 import { createErrorHandler } from "./middleware/errorHandler";
 
-import { createHruRouter } from "./routes/hru";
+import { createHruRouter } from "./features/hru/hru.routes";
+import { HruRepository } from "./features/hru/hru.repository";
+import { SettingsRepository } from "./features/settings/settings.repository";
+import { HruService } from "./features/hru/hru.service";
+import { HruController } from "./features/hru/hru.controller";
+
 import { createTimelineRouter } from "./routes/timeline";
 import { createSettingsRouter } from "./routes/settings";
 import { createDatabaseRouter } from "./routes/database";
@@ -80,8 +85,14 @@ const timelineRunner = new TimelineRunner(valveManager, logger);
 const mqttService = new MqttService(config.mqtt, logger);
 const hruMonitor = new HruMonitor(mqttService, logger);
 
+// Core Dependencies
+const settingsRepo = new SettingsRepository();
+const hruRepo = new HruRepository(logger);
+const hruService = new HruService(hruRepo, settingsRepo);
+const hruController = new HruController(hruService, logger);
+
 // Routes
-app.use("/api/hru", createHruRouter(logger));
+app.use("/api/hru", createHruRouter(hruController));
 app.use("/api/timeline", createTimelineRouter(logger));
 app.use("/api/settings", createSettingsRouter(mqttService, logger));
 app.use("/api/database", createDatabaseRouter(valveManager, logger));

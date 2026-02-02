@@ -15,7 +15,7 @@ import {
   MQTT_SETTINGS_KEY,
   type MqttSettings,
 } from "../types";
-import { HRU_UNITS } from "../hru/definitions";
+import { HRU_UNITS } from "../features/hru/hru.definitions";
 
 export function createSettingsRouter(mqttService: MqttService, logger: Logger) {
   const router = Router();

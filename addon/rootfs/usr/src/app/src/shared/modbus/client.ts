@@ -52,7 +52,7 @@ export class ModbusTcpClient {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       void this.connect().catch(() => {
-        /* keep retrying */
+        this.logger.debug("Modbus TCP reconnection failed");
       });
     }, wait);
   }
@@ -90,4 +90,36 @@ export class ModbusTcpClient {
       await this.client.writeRegister(start, values);
     }
   }
+}
+
+const clientCache = new Map<string, ModbusTcpClient>();
+
+export function getSharedModbusClient(
+  cfg: { host: string; port: number; unitId: number },
+  logger: Logger,
+): ModbusTcpClient {
+  const key = `${cfg.host}:${cfg.port}:${cfg.unitId}`;
+  let client = clientCache.get(key);
+  if (!client) {
+    client = new ModbusTcpClient(
+      { host: cfg.host, port: cfg.port, unitId: cfg.unitId, timeoutMs: 5000 },
+      logger,
+    );
+    clientCache.set(key, client);
+  }
+  return client;
+}
+
+export async function withTempModbusClient<T>(
+  cfg: { host: string; port: number; unitId: number },
+  logger: Logger,
+  fn: (client: ModbusTcpClient) => Promise<T>,
+): Promise<T> {
+  const client = getSharedModbusClient(cfg, logger);
+
+  if (!client.isConnected()) {
+    await client.connect();
+  }
+
+  return fn(client);
 }

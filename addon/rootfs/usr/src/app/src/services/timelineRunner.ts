@@ -1,11 +1,14 @@
 import type { Logger } from "pino";
 import type { ValveController } from "../core/valveManager";
 import { getTimelineEvents } from "./database";
-import { getHruDefinitionSafe, withTempModbusClient } from "./hruService";
+import { withTempModbusClient } from "../shared/modbus/client";
+import { SettingsRepository } from "../features/settings/settings.repository";
+import { getUnitById } from "../features/hru/hru.definitions";
 import { applyWriteDefinition, resolveModeValue } from "../utils/hruWrite";
 
 export class TimelineRunner {
   private timelineTimer: NodeJS.Timeout | null = null;
+  private readonly settingsRepo = new SettingsRepository();
 
   constructor(
     private readonly valveManager: ValveController,
@@ -110,56 +113,59 @@ export class TimelineRunner {
 
     // Apply HRU settings if available
     if (hasHru && event.hruConfig) {
-      const hruCtx = getHruDefinitionSafe();
-      if (hruCtx) {
-        const { settings, def } = hruCtx;
-        const { power, temperature, mode } = event.hruConfig;
-        this.logger.info(
-          {
-            eventId: event.id,
-            power,
-            temperature,
-            mode,
-            host: settings.host,
-            port: settings.port,
-            unitId: settings.unitId,
-          },
-          "Timeline: applying HRU settings",
-        );
-        try {
-          await withTempModbusClient(
-            { host: settings.host, port: settings.port, unitId: settings.unitId },
-            this.logger,
-            async (mb) => {
-              if (typeof power === "number" && Number.isFinite(power)) {
-                const writeDef = def.registers.write?.power;
-                if (!writeDef) {
-                  this.logger.warn("Timeline: power write not supported by HRU definition");
-                } else {
-                  await applyWriteDefinition(mb, writeDef, power);
-                }
-              }
-              if (typeof temperature === "number" && Number.isFinite(temperature)) {
-                const writeDef = def.registers.write?.temperature;
-                if (!writeDef) {
-                  this.logger.warn("Timeline: temperature write not supported by HRU definition");
-                } else {
-                  await applyWriteDefinition(mb, writeDef, temperature);
-                }
-              }
-              if (mode !== undefined && mode !== null) {
-                const writeDef = def.registers.write?.mode;
-                if (!writeDef) {
-                  this.logger.warn("Timeline: mode write not supported by HRU definition");
-                } else {
-                  const rawMode = resolveModeValue(def.registers.read.mode.values, mode);
-                  await applyWriteDefinition(mb, writeDef, rawMode);
-                }
-              }
+      const settings = this.settingsRepo.getHruSettings();
+      if (settings?.unit) {
+        const def = getUnitById(settings.unit);
+
+        if (def) {
+          const { power, temperature, mode } = event.hruConfig;
+          this.logger.info(
+            {
+              eventId: event.id,
+              power,
+              temperature,
+              mode,
+              host: settings.host,
+              port: settings.port,
+              unitId: settings.unitId,
             },
+            "Timeline: applying HRU settings",
           );
-        } catch (err) {
-          this.logger.warn({ err }, "Failed to apply HRU settings from timeline event");
+          try {
+            await withTempModbusClient(
+              { host: settings.host, port: settings.port, unitId: settings.unitId },
+              this.logger,
+              async (mb) => {
+                if (typeof power === "number" && Number.isFinite(power)) {
+                  const writeDef = def.registers.write?.power;
+                  if (!writeDef) {
+                    this.logger.warn("Timeline: power write not supported by HRU definition");
+                  } else {
+                    await applyWriteDefinition(mb, writeDef, power);
+                  }
+                }
+                if (typeof temperature === "number" && Number.isFinite(temperature)) {
+                  const writeDef = def.registers.write?.temperature;
+                  if (!writeDef) {
+                    this.logger.warn("Timeline: temperature write not supported by HRU definition");
+                  } else {
+                    await applyWriteDefinition(mb, writeDef, temperature);
+                  }
+                }
+                if (mode !== undefined && mode !== null) {
+                  const writeDef = def.registers.write?.mode;
+                  if (!writeDef) {
+                    this.logger.warn("Timeline: mode write not supported by HRU definition");
+                  } else {
+                    const rawMode = resolveModeValue(def.registers.read.mode.values, mode);
+                    await applyWriteDefinition(mb, writeDef, rawMode);
+                  }
+                }
+              },
+            );
+          } catch (err) {
+            this.logger.warn({ err }, "Failed to apply HRU settings from timeline event");
+          }
         }
       }
     }

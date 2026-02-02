@@ -7,4 +7,4 @@ labels:
   org.opencontainers.image.title: "Luftator"
   org.opencontainers.image.description: "Luftuj's Luftator Home Assistant add-on"
   org.opencontainers.image.licenses: "MIT"
-  org.opencontainers.image.source: "https://github.com/kankajm/Luftuj-HA"
+  org.opencontainers.image.source: "https://github.com/luftuj-cz/home-assistant"

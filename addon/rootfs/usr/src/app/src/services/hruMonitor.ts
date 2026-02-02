@@ -1,12 +1,15 @@
 import type { Logger } from "pino";
 import type { MqttService } from "./mqttService";
-import { getHruDefinitionSafe, getSharedModbusClient } from "./hruService";
+import { getSharedModbusClient } from "../shared/modbus/client";
+import { SettingsRepository } from "../features/settings/settings.repository";
+import { getUnitById } from "../features/hru/hru.definitions";
 
 const POLLING_INTERVAL_MS = 60_000; // 1 minute
 
 export class HruMonitor {
   private timer: NodeJS.Timeout | null = null;
   private isRunning = false;
+  private readonly settingsRepo = new SettingsRepository();
 
   constructor(
     private readonly mqttService: MqttService,
@@ -36,13 +39,16 @@ export class HruMonitor {
   }
 
   private async runCycle(sendDiscovery: boolean): Promise<void> {
-    const hruCtx = getHruDefinitionSafe();
-    if (!hruCtx) {
-      this.logger.debug("HRU Monitor: HRU not configured, skipping cycle");
+    const settings = this.settingsRepo.getHruSettings();
+    if (!settings?.unit) {
+      this.logger.debug("HRU Monitor: HRU unit not configured, skipping cycle");
       return;
     }
-
-    const { settings, def } = hruCtx;
+    const def = getUnitById(settings.unit);
+    if (!def) {
+      this.logger.debug("HRU Monitor: Unknown HRU unit, skipping cycle");
+      return;
+    }
 
     // Get shared client
     const client = getSharedModbusClient(

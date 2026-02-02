@@ -1,7 +1,7 @@
 import mqtt from "mqtt";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/options";
-import type { HruUnitDefinition } from "../hru/definitions";
+import type { HruUnitDefinition } from "../features/hru/hru.definitions";
 import { getAppSetting, setAppSetting } from "./database";
 import { MQTT_SETTINGS_KEY, MQTT_LAST_DISCOVERY_KEY, type MqttSettings } from "../types";
 

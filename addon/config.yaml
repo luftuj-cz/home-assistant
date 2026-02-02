@@ -2,7 +2,7 @@ name: Luftuj
 version: 0.1.0
 slug: luftuj
 description: Luftuj Home Assistant Add-on
-url: https://github.com/kankajm/Luftuj-HA
+url: https://github.com/luftuj-cz/home-assistant
 arch:
   - armhf
   - aarch64
