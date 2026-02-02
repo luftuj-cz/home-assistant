@@ -6,6 +6,7 @@
       "valves": "Ventily",
       "timeline": "Časová osa",
       "settings": "Nastavení",
+      "debug": "Ladění",
       "navigate": "Navigace",
       "toggle": "Přepnout navigaci"
     },
@@ -17,8 +18,15 @@
       "phoneLink": "tel:+420735774074",
       "email": "info@luftuj.cz",
       "emailLink": "mailto:info@luftuj.cz",
-      "copyright": "© {{year}} Luftuj. Všechna práva vyhrazena."
+      "copyright": "© {{year}} Luftuj. Všechna práva vyhrazena.",
+      "contact": "Kontakt",
+      "location": "Adresa",
+      "allRightsReserved": "Všechna práva vyhrazena."
     }
+  },
+  "hru": {
+    "power": "Výkon",
+    "temperature": "Teplota"
   },
   "settings": {
     "title": "Nastavení",
@@ -51,6 +59,14 @@
         "unknown": "Neznámá chyba"
       }
     },
+    "temperatureUnit": {
+      "title": "Jednotky teploty",
+      "description": "Vyberte preferované jednotky teploty pro zobrazení v celém rozhraní.",
+      "options": {
+        "c": "Celsius (°C)",
+        "f": "Fahrenheit (°F)"
+      }
+    },
     "mode": {
       "title": "Režim doplňku",
       "description": "Zvolte způsob provozu doplňku",
@@ -72,11 +88,18 @@
       "modesTitle": "Režimy",
       "modeName": "Název režimu",
       "modePlaceholder": "např. Komfort",
-      "modePower": "Výkon (%)",
-      "modeTemperature": "Teplota (°C)",
+      "modePower": "Výkon",
+      "modeTemperature": "Teplota",
       "modeColor": "Barva (volitelné)",
+      "modeColorPlaceholder": "#228be6 nebo modrá",
       "modeDialogTitle": "Vytvořit režim",
+      "modeEditTitle": "Upravit režim",
       "modeCreateAction": "Vytvořit",
+      "modeUpdateAction": "Aktualizovat",
+      "modeIsBoost": "Zobrazit jako BOOST tlačítko",
+      "modeIsBoostDescription": "Zobrazí tento režim jako tlačítko rychlé akce na palubní desce.",
+      "noModesCreated": "Nejdříve vytvořte režim",
+      "noModesCreatedDescription": "Před plánováním událostí v časové ose musíte vytvořit alespoň jeden režim větrání.",
       "noModes": "Zatím žádné režimy.",
       "edit": "Upravit",
       "delete": "Smazat",
@@ -206,7 +229,16 @@
         "importFailedMessage": "{{message}}",
         "unknown": "Došlo k neočekávané chybě."
       }
+    },
+    "developer": {
+      "title": "Vývojářské nastavení",
+      "debugMode": "Ladicí režim",
+      "debugModeDescription": "Povolí stránku Ladění v navigačním panelu."
     }
+  },
+  "debug": {
+    "title": "Ladicí nástroje",
+    "description": "Pokročilá diagnostika a inspektor registrů."
   },
   "schedule": {
     "title": "Týdenní plán",
@@ -236,6 +268,16 @@
   },
   "dashboard": {
     "title": "Přehled",
+    "boostTitle": "Rychlý BOOST",
+    "boostDescription": "Dočasné přepsání časového plánu větrání.",
+    "boostActive": "BOOST aktivní (zbývá {{minutes}}m)",
+    "boostDuration": "Trvání",
+    "boostSetDuration": "Nastavit trvání",
+    "boostTimeRemaining": "Zbývající čas",
+    "boostMinutes": "minut",
+    "boostSelectMode": "Vybrat režim",
+    "boostActiveMode": "Aktivní režim",
+    "boostCancel": "Zrušit BOOST",
     "haStatusTitle": "Home Assistant",
     "haStatusDescription": "Připojení k WebSocketu Home Assistanta",
     "haStatus": {
@@ -269,6 +311,10 @@
     "title": "Zóny Luftatoru",
     "description": "Ovládejte servopohony ventilů Luftuj v jednotlivých místnostech.",
     "refreshAria": "Obnovit ventily",
+    "status": {
+      "open": "OTEVŘENO",
+      "closed": "ZAVŘENO"
+    },
     "alertTitle": "Chyba",
     "empty": "Nebyly nalezeny žádné ventily s prefixem `number.luftator`.",
     "errors": {

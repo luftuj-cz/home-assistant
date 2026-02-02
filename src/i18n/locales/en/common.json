@@ -6,6 +6,7 @@
       "valves": "Valves",
       "timeline": "Timeline",
       "settings": "Settings",
+      "debug": "Debug",
       "navigate": "Navigate",
       "toggle": "Toggle navigation"
     },
@@ -17,8 +18,15 @@
       "phoneLink": "tel:+420735774074",
       "email": "info@luftuj.cz",
       "emailLink": "mailto:info@luftuj.cz",
-      "copyright": "© {{year}} Luftuj. All rights reserved."
+      "copyright": "© {{year}} Luftuj. All rights reserved.",
+      "contact": "Contact",
+      "location": "Location",
+      "allRightsReserved": "All rights reserved."
     }
+  },
+  "hru": {
+    "power": "Power",
+    "temperature": "Temperature"
   },
   "valves": {
     "title": "Luftator Zones",
@@ -32,7 +40,11 @@
       "setValueUnknown": "Failed to set valve value."
     },
     "alertTitle": "Error",
-    "empty": "No valves found for prefix `number.luftator`."
+    "empty": "No valves found for prefix `number.luftator`.",
+    "status": {
+      "open": "OPEN",
+      "closed": "CLOSED"
+    }
   },
   "settings": {
     "title": "Settings",
@@ -68,6 +80,14 @@
         "unknown": "Unknown error"
       }
     },
+    "temperatureUnit": {
+      "title": "Temperature Unit",
+      "description": "Choose your preferred temperature unit for display throughout the interface.",
+      "options": {
+        "c": "Celsius (°C)",
+        "f": "Fahrenheit (°F)"
+      }
+    },
     "mode": {
       "title": "Addon Mode",
       "description": "Choose how the addon operates",
@@ -89,11 +109,18 @@
       "modesTitle": "Modes",
       "modeName": "Mode name",
       "modePlaceholder": "e.g., Comfort",
-      "modePower": "Power (%)",
-      "modeTemperature": "Temperature (°C)",
+      "modePower": "Power",
+      "modeTemperature": "Temperature",
       "modeColor": "Color (optional)",
+      "modeColorPlaceholder": "#228be6 or blue",
       "modeDialogTitle": "Create mode",
+      "modeEditTitle": "Edit mode",
       "modeCreateAction": "Create",
+      "modeUpdateAction": "Update",
+      "modeIsBoost": "Show as boost button",
+      "modeIsBoostDescription": "Display this mode as a quick-action button on the dashboard.",
+      "noModesCreated": "Create a mode first",
+      "noModesCreatedDescription": "You need to create at least one ventilation mode before you can schedule timeline events.",
       "noModes": "No modes yet.",
       "edit": "Edit",
       "delete": "Delete",
@@ -225,7 +252,16 @@
         "importFailedMessage": "{{message}}",
         "unknown": "An unexpected error occurred."
       }
+    },
+    "developer": {
+      "title": "Developer settings",
+      "debugMode": "Debug Mode",
+      "debugModeDescription": "Enables the Debug page in the navigation bar."
     }
+  },
+  "debug": {
+    "title": "Debug Tools",
+    "description": "Advanced diagnostics and register inspection."
   },
   "schedule": {
     "title": "Weekly schedule",
@@ -255,6 +291,17 @@
   },
   "dashboard": {
     "title": "Dashboard",
+    "description": "Real-time status of your ventilation system and connected services.",
+    "boostTitle": "Quick Boost",
+    "boostDescription": "Temporary overrides for the ventilation schedule.",
+    "boostActive": "Boost active ({{minutes}}m remaining)",
+    "boostDuration": "Duration",
+    "boostSetDuration": "Set Duration",
+    "boostTimeRemaining": "Time Remaining",
+    "boostMinutes": "minutes",
+    "boostSelectMode": "Select Mode",
+    "boostActiveMode": "Active Mode",
+    "boostCancel": "Cancel Boost",
     "haStatusTitle": "Home Assistant",
     "haStatusDescription": "Backend connection to Home Assistant WebSocket",
     "haStatus": {
