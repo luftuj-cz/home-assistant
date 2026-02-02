@@ -1,4 +1,26 @@
-import { Modal, Stack, TextInput, Group, NumberInput, Text, Button } from "@mantine/core";
+import {
+  Modal,
+  Stack,
+  TextInput,
+  Group,
+  NumberInput,
+  Text,
+  Button,
+  ColorInput,
+  Fieldset,
+  Slider,
+  Badge,
+  Switch,
+} from "@mantine/core";
+import {
+  IconFileText,
+  IconBolt,
+  IconThermometer,
+  IconDroplet,
+  IconPlus,
+  IconEdit,
+  IconPalette,
+} from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import type { TFunction } from "i18next";
 import type { Mode } from "../../types/timeline";
@@ -29,6 +51,7 @@ export function TimelineModeModal({
   onSave,
   t,
   hruCapabilities,
+  // TODO: get from config or device info (definice HRU)
   powerUnit = "%",
   temperatureUnit = "°C",
 }: TimelineModeModalProps) {
@@ -36,6 +59,7 @@ export function TimelineModeModal({
   const [power, setPower] = useState<number | undefined>(undefined);
   const [temperature, setTemperature] = useState<number | undefined>(undefined);
   const [color, setColor] = useState("");
+  const [isBoost, setIsBoost] = useState(false);
   const [valveOpenings, setValveOpenings] = useState<Record<string, number | undefined>>({});
 
   useEffect(() => {
@@ -45,12 +69,14 @@ export function TimelineModeModal({
         setPower(mode.power);
         setTemperature(mode.temperature);
         setColor(mode.color ?? "");
+        setIsBoost(mode.isBoost ?? false);
         setValveOpenings(mode.luftatorConfig ?? {});
       } else {
         setName("");
         setPower(undefined);
         setTemperature(undefined);
         setColor("");
+        setIsBoost(false);
         setValveOpenings({});
       }
     }
@@ -66,11 +92,12 @@ export function TimelineModeModal({
     ) as Record<string, number>;
 
     onSave({
-      id: mode?.id, // undefined if creating
+      id: mode?.id,
       name,
       power,
       temperature,
       color: color || undefined,
+      isBoost,
       luftatorConfig: Object.keys(cleanedValveOpenings).length ? cleanedValveOpenings : undefined,
     });
   }
@@ -79,8 +106,22 @@ export function TimelineModeModal({
     <Modal
       opened={opened}
       onClose={onClose}
-      title={t("settings.timeline.modeDialogTitle", { defaultValue: "Create mode" })}
+      title={
+        <Group gap="xs">
+          {mode ? (
+            <IconEdit size={20} color="var(--mantine-primary-color-5)" />
+          ) : (
+            <IconPlus size={20} color="var(--mantine-primary-color-5)" />
+          )}
+          <Text fw={600}>
+            {t(mode ? "settings.timeline.modeEditTitle" : "settings.timeline.modeDialogTitle", {
+              defaultValue: mode ? "Edit mode" : "Create mode",
+            })}
+          </Text>
+        </Group>
+      }
       size="md"
+      radius="md"
     >
       <Stack gap="md">
         <TextInput
@@ -88,6 +129,7 @@ export function TimelineModeModal({
           placeholder={t("settings.timeline.modePlaceholder", { defaultValue: "e.g., Comfort" })}
           value={name}
           onChange={(e) => setName(e.target.value)}
+          leftSection={<IconFileText size={16} stroke={1.5} />}
           required
         />
         <Group grow>
@@ -100,6 +142,7 @@ export function TimelineModeModal({
               min={0}
               max={100}
               step={1}
+              leftSection={<IconBolt size={16} stroke={1.5} />}
             />
           )}
           {hruCapabilities?.supportsTemperatureWrite !== false && (
@@ -111,49 +154,107 @@ export function TimelineModeModal({
               min={-50}
               max={100}
               step={0.5}
+              leftSection={<IconThermometer size={16} stroke={1.5} />}
             />
           )}
         </Group>
 
         {valves.length > 0 && (
-          <Stack gap="xs">
-            <Text size="sm" fw={500}>
-              {t("settings.timeline.modeValves", { defaultValue: "Valve openings (%)" })}
-            </Text>
-            {valves.map((v, idx) => {
-              const key = v.entityId || v.name || `valve-${idx}`;
-              const label = v.name || v.entityId || `Valve ${idx + 1}`;
-              return (
-                <NumberInput
-                  key={key}
-                  label={label}
-                  placeholder="e.g., 50"
-                  value={valveOpenings[v.entityId] ?? ""}
-                  onChange={(value) =>
-                    setValveOpenings((prev) => ({
-                      ...prev,
-                      [v.entityId || key]: typeof value === "number" ? value : undefined,
-                    }))
-                  }
-                  min={0}
-                  max={100}
-                  step={1}
-                />
-              );
-            })}
-          </Stack>
+          <Fieldset
+            legend={
+              <Group gap="xs">
+                <IconDroplet size={16} color="var(--mantine-primary-color-5)" stroke={1.5} />
+                <Text size="sm" fw={600}>
+                  {t("settings.timeline.modeValves", { defaultValue: "Valve openings" })}
+                </Text>
+              </Group>
+            }
+            radius="md"
+          >
+            <Stack gap="xs">
+              {valves.map((v, idx) => {
+                const key = v.entityId || v.name || `valve-${idx}`;
+                const name = v.name || `Valve ${idx + 1}`;
+                const entityId = v.entityId || "";
+
+                // Use a consistent key for storage (state/config)
+                const storageKey = v.entityId || key;
+
+                const backendValue = valveOpenings[storageKey] ?? 90;
+
+                // Backend 0 (Open) -> UI 90 (Max). Backend 90 (Closed) -> UI 0.
+                const uiValue = 90 - backendValue;
+
+                const statusColor =
+                  backendValue >= 90 ? "red" : backendValue <= 0 ? "green" : "orange";
+
+                let badgeText = `${Math.round(90 - backendValue)}°`;
+                if (backendValue === 0) badgeText = "OPEN";
+                if (backendValue >= 90) badgeText = "CLOSED";
+
+                return (
+                  <Stack key={key} gap={0}>
+                    <Group justify="space-between" mb={4}>
+                      <div>
+                        <Text size="sm" fw={500} lh={1.2}>
+                          {name}
+                        </Text>
+                        {entityId && (
+                          <Text size="xs" c="dimmed">
+                            {entityId}
+                          </Text>
+                        )}
+                      </div>
+                      <Badge variant="light" color={statusColor}>
+                        {badgeText}
+                      </Badge>
+                    </Group>
+                    <Slider
+                      value={uiValue}
+                      onChange={(val) =>
+                        setValveOpenings((prev) => ({
+                          ...prev,
+                          [storageKey]: 90 - val,
+                        }))
+                      }
+                      min={0}
+                      max={90}
+                      step={5}
+                      marks={[]}
+                      label={null}
+                      size="lg"
+                      color={statusColor}
+                      thumbSize={22}
+                    />
+                  </Stack>
+                );
+              })}
+            </Stack>
+          </Fieldset>
         )}
-        <TextInput
+
+        <ColorInput
           label={t("settings.timeline.modeColor", { defaultValue: "Color (optional)" })}
-          placeholder="#228be6 or blue"
+          placeholder={t("settings.timeline.modeColorPlaceholder", {
+            defaultValue: "#228be6 or blue",
+          })}
           value={color}
-          onChange={(e) => setColor(e.target.value)}
+          onChange={setColor}
+          leftSection={<IconPalette size={16} stroke={1.5} />}
         />
-        <Group justify="flex-end" gap="sm">
-          <Button variant="light" onClick={onClose}>
+
+        <Switch
+          label={t("settings.timeline.modeIsBoost", { defaultValue: "Show as boost button" })}
+          description={t("settings.timeline.modeIsBoostDescription")}
+          checked={isBoost}
+          onChange={(e) => setIsBoost(e.currentTarget.checked)}
+        />
+
+        <Group justify="flex-end" gap="sm" mt="xs">
+          <Button variant="light" onClick={onClose} radius="md">
             {t("settings.timeline.modal.cancel")}
           </Button>
-          <Button onClick={handleSave} loading={saving}>
+          <Button onClick={handleSave} loading={saving} radius="md">
             {t(mode ? "settings.timeline.modeUpdateAction" : "settings.timeline.modeCreateAction", {
               defaultValue: mode ? "Update" : "Create",
             })}

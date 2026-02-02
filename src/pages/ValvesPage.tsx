@@ -10,7 +10,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { IconRefresh } from "@tabler/icons-react";
+import { IconRefresh, IconAdjustments } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
 import { ValveCard } from "../components";
@@ -48,17 +48,6 @@ function valvesFromStates(states: HaState[]): Record<string, Valve> {
   }, {});
 }
 
-function formatValveValue(value: number): string {
-  return `${value}%`;
-}
-
-function sliderMarksForValve(valve: Valve) {
-  return [
-    { value: valve.min, label: formatValveValue(valve.min) },
-    { value: valve.max, label: formatValveValue(valve.max) },
-  ];
-}
-
 export function ValvesPage() {
   const [valveMap, setValveMap] = useState<Record<string, Valve>>({});
   const [loading, setLoading] = useState(true);
@@ -72,6 +61,15 @@ export function ValvesPage() {
   } | null>(null);
 
   const { t } = useTranslation();
+
+  const formatValveValue = useCallback(
+    (value: number) => {
+      if (value === 0) return t("valves.status.open");
+      if (value >= 90) return t("valves.status.closed");
+      return `${90 - value}°`;
+    },
+    [t],
+  );
 
   const valves = useMemo(() => {
     return Object.values(valveMap).sort((a, b) => a.name.localeCompare(b.name));
@@ -300,16 +298,14 @@ export function ValvesPage() {
   const handleCloseError = useCallback(() => setError(null), []);
 
   return (
-    <Container size="xl" px={{ base: "sm", sm: "md" }}>
-      <Stack gap="lg">
-        <Stack gap="sm">
-          <Group justify="space-between" align="flex-start" gap="sm" wrap="wrap">
-            <Stack gap={2} style={{ minWidth: 0 }}>
-              <Title order={3}>{t("valves.title")}</Title>
-              <Text size="sm" c="dimmed">
-                {t("valves.description")}
-              </Text>
-            </Stack>
+    <Container size="xl">
+      <Stack gap="xl">
+        <Stack gap={0}>
+          <Group justify="space-between" align="center">
+            <Group gap="sm">
+              <IconAdjustments size={32} color="var(--mantine-primary-color-5)" />
+              <Title order={1}>{t("valves.title")}</Title>
+            </Group>
             <ActionIcon
               variant="light"
               color="blue"
@@ -320,6 +316,9 @@ export function ValvesPage() {
               <IconRefresh size={20} stroke={1.8} />
             </ActionIcon>
           </Group>
+          <Text size="lg" c="dimmed" mt="xs">
+            {t("valves.description")}
+          </Text>
         </Stack>
 
         {error ? (
@@ -349,7 +348,6 @@ export function ValvesPage() {
                 key={valve.entityId}
                 valve={valve}
                 formatValue={formatValveValue}
-                marks={sliderMarksForValve(valve)}
                 onPreview={previewValveValue}
                 onCommit={commitValveValue}
               />

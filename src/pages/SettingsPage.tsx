@@ -19,6 +19,7 @@ import {
   SimpleGrid,
   Paper,
   Badge,
+  Container,
 } from "@mantine/core";
 import {
   IconDownload,
@@ -30,6 +31,9 @@ import {
   IconServer,
   IconDatabase,
   IconCheck,
+  IconTemperature,
+  IconCode,
+  IconBug,
 } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
@@ -43,6 +47,7 @@ export function SettingsPage() {
   const [savingTheme, setSavingTheme] = useState(false);
   const [savingLanguage, setSavingLanguage] = useState(false);
   const [loadingUnits, setLoadingUnits] = useState(false);
+  const [tempUnit, setTempUnit] = useState("c");
   const [savingHru, setSavingHru] = useState(false);
   const [probingHru, setProbingHru] = useState(false);
   const [hruUnits, setHruUnits] = useState<Array<{ value: string; label: string }>>([]);
@@ -66,6 +71,9 @@ export function SettingsPage() {
     user: "",
     password: "",
   });
+  const [debugMode, setDebugMode] = useState(() => {
+    return localStorage.getItem("luftujha-debug-mode") === "true";
+  });
   const { setColorScheme } = useMantineColorScheme();
   const computedColorScheme = useComputedColorScheme("light", { getInitialValueInEffect: false });
   const { t, i18n } = useTranslation();
@@ -82,6 +90,15 @@ export function SettingsPage() {
     () => [
       { label: t("settings.language.options.en"), value: "en" },
       { label: t("settings.language.options.cs"), value: "cs" },
+    ],
+    [t],
+  );
+  // TODO: implement
+
+  const tempUnitOptions = useMemo(
+    () => [
+      { label: t("settings.temperatureUnit.options.c"), value: "c" },
+      { label: t("settings.temperatureUnit.options.f"), value: "f" },
     ],
     [t],
   );
@@ -497,6 +514,9 @@ export function SettingsPage() {
         color: "green",
       });
       logger.info("Database import completed successfully");
+
+      // Force reload to pick up new theme, language and MQTT settings
+      setTimeout(() => window.location.reload(), 1500);
     } catch (importError) {
       logger.error("Database import failed", { error: importError });
       notifications.show({
@@ -516,383 +536,450 @@ export function SettingsPage() {
   }
 
   return (
-    <Stack gap="xl">
-      <Stack gap={0}>
-        <Group gap="sm">
-          <IconSettings size={32} color="var(--mantine-primary-color-5)" />
-          <Title order={1}>{t("settings.title")}</Title>
-        </Group>
-        <Text size="lg" c="dimmed" mt="xs">
-          {t("settings.description")}
-        </Text>
-      </Stack>
+    <Container size="xl">
+      <Stack gap="xl">
+        <Stack gap={0}>
+          <Group gap="sm">
+            <IconSettings size={32} color="var(--mantine-primary-color-5)" />
+            <Title order={1}>{t("settings.title")}</Title>
+          </Group>
+          <Text size="lg" c="dimmed" mt="xs">
+            {t("settings.description")}
+          </Text>
+        </Stack>
 
-      <Accordion variant="separated" defaultValue="appearance">
-        <Accordion.Item value="appearance">
-          <Accordion.Control icon={<IconSun size={20} />}>
-            <Text fw={600}>{t("settings.appearance.title")}</Text>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap="lg">
-              <Paper p="md" withBorder radius="md">
-                <Stack gap="md">
-                  <Group gap="sm">
-                    <IconLanguage size={20} color="var(--mantine-primary-color-5)" />
-                    <Text fw={500}>{t("settings.language.title")}</Text>
-                  </Group>
-                  <Text size="sm" c="dimmed">
-                    {t("settings.language.description")}
-                  </Text>
-                  <SegmentedControl
-                    fullWidth
-                    value={currentLanguage}
-                    data={languageOptions}
-                    onChange={handleLanguageChange}
-                    disabled={savingLanguage}
-                    size="md"
-                  />
-                </Stack>
-              </Paper>
-
-              <Paper p="md" withBorder radius="md">
-                <Stack gap="md">
-                  <Group gap="sm">
-                    {computedColorScheme === "dark" ? (
-                      <IconMoon size={20} color="var(--mantine-primary-color-5)" />
-                    ) : (
-                      <IconSun size={20} color="var(--mantine-primary-color-5)" />
-                    )}
-                    <Text fw={500}>{t("settings.theme.title")}</Text>
-                  </Group>
-                  <Text size="sm" c="dimmed">
-                    {t("settings.theme.description")}
-                  </Text>
-                  <SegmentedControl
-                    fullWidth
-                    value={computedColorScheme}
-                    data={themeOptions}
-                    onChange={handleThemeChange}
-                    disabled={savingTheme}
-                    size="md"
-                  />
-                </Stack>
-              </Paper>
-            </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
-
-        <Accordion.Item value="hru">
-          <Accordion.Control icon={<IconServer size={20} />}>
-            <Text fw={600}>{t("settings.hru.title")}</Text>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Stack gap="lg">
-              <Paper p="md" withBorder radius="md">
-                <Stack gap="md">
-                  <Text fw={500} size="md">
-                    {t("settings.hru.description")}
-                  </Text>
-                  <Text size="sm" c="blue" fs="italic">
-                    {t("settings.hru.saveBeforeProbeHint")}
-                  </Text>
-
-                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                    <Select
-                      data={hruUnits}
-                      value={hruSettings.unit ?? ""}
-                      onChange={(value) => {
-                        setHruSettings((prev) => ({ ...prev, unit: value === "" ? null : value }));
-                        setProbeResult(null);
-                      }}
-                      label={t("settings.hru.unitLabel")}
-                      placeholder={t("settings.hru.unitPlaceholder")}
-                      disabled={loadingUnits}
-                      searchable
-                      clearable
+        <Accordion variant="separated" defaultValue="appearance">
+          <Accordion.Item value="appearance">
+            <Accordion.Control icon={<IconSun size={20} />}>
+              <Text fw={600}>{t("settings.appearance.title")}</Text>
+            </Accordion.Control>
+            <Accordion.Panel>
+              <Stack gap="lg">
+                <Paper p="md" withBorder radius="md">
+                  <Stack gap="md">
+                    <Group gap="sm">
+                      <IconLanguage size={20} color="var(--mantine-primary-color-5)" />
+                      <Text fw={500}>{t("settings.language.title")}</Text>
+                    </Group>
+                    <Text size="sm" c="dimmed">
+                      {t("settings.language.description")}
+                    </Text>
+                    <SegmentedControl
+                      fullWidth
+                      value={currentLanguage}
+                      data={languageOptions}
+                      onChange={handleLanguageChange}
+                      disabled={savingLanguage}
                       size="md"
                     />
-                    <NumberInput
-                      value={hruSettings.port}
-                      onChange={(value) => {
-                        const numericValue =
-                          typeof value === "number" ? value : Number(value ?? 502);
-                        setHruSettings((prev) => ({
-                          ...prev,
-                          port: Number.isFinite(numericValue) ? numericValue : 502,
-                        }));
-                        setProbeResult(null);
-                      }}
-                      label={t("settings.hru.portLabel")}
-                      min={1}
-                      max={65535}
-                      step={1}
+                  </Stack>
+                </Paper>
+
+                <Paper p="md" withBorder radius="md">
+                  <Stack gap="md">
+                    <Group gap="sm">
+                      {computedColorScheme === "dark" ? (
+                        <IconMoon size={20} color="var(--mantine-primary-color-5)" />
+                      ) : (
+                        <IconSun size={20} color="var(--mantine-primary-color-5)" />
+                      )}
+                      <Text fw={500}>{t("settings.theme.title")}</Text>
+                    </Group>
+                    <Text size="sm" c="dimmed">
+                      {t("settings.theme.description")}
+                    </Text>
+                    <SegmentedControl
+                      fullWidth
+                      value={computedColorScheme}
+                      data={themeOptions}
+                      onChange={handleThemeChange}
+                      disabled={savingTheme}
                       size="md"
                     />
-                  </SimpleGrid>
+                  </Stack>
+                </Paper>
 
-                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                    <TextInput
-                      value={hruSettings.host}
+                <Paper p="md" withBorder radius="md">
+                  <Stack gap="md">
+                    <Group gap="sm">
+                      <IconTemperature size={20} color="var(--mantine-primary-color-5)" />
+                      <Text fw={500}>{t("settings.temperatureUnit.title")}</Text>
+                    </Group>
+                    <Text size="sm" c="dimmed">
+                      {t("settings.temperatureUnit.description")}
+                    </Text>
+                    <SegmentedControl
+                      fullWidth
+                      value={tempUnit}
+                      data={tempUnitOptions}
+                      onChange={setTempUnit}
+                      size="md"
+                    />
+                  </Stack>
+                </Paper>
+              </Stack>
+            </Accordion.Panel>
+          </Accordion.Item>
+
+          <Accordion.Item value="hru">
+            <Accordion.Control icon={<IconServer size={20} />}>
+              <Text fw={600}>{t("settings.hru.title")}</Text>
+            </Accordion.Control>
+            <Accordion.Panel>
+              <Stack gap="lg">
+                <Paper p="md" withBorder radius="md">
+                  <Stack gap="md">
+                    <Text fw={500} size="md">
+                      {t("settings.hru.description")}
+                    </Text>
+                    <Text size="sm" c="blue" fs="italic">
+                      {t("settings.hru.saveBeforeProbeHint")}
+                    </Text>
+
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                      <Select
+                        data={hruUnits}
+                        value={hruSettings.unit ?? ""}
+                        onChange={(value) => {
+                          setHruSettings((prev) => ({
+                            ...prev,
+                            unit: value === "" ? null : value,
+                          }));
+                          setProbeResult(null);
+                        }}
+                        label={t("settings.hru.unitLabel")}
+                        placeholder={t("settings.hru.unitPlaceholder")}
+                        disabled={loadingUnits}
+                        searchable
+                        clearable
+                        size="md"
+                      />
+                      <NumberInput
+                        value={hruSettings.port}
+                        onChange={(value) => {
+                          const numericValue =
+                            typeof value === "number" ? value : Number(value ?? 502);
+                          setHruSettings((prev) => ({
+                            ...prev,
+                            port: Number.isFinite(numericValue) ? numericValue : 502,
+                          }));
+                          setProbeResult(null);
+                        }}
+                        label={t("settings.hru.portLabel")}
+                        min={1}
+                        max={65535}
+                        step={1}
+                        size="md"
+                      />
+                    </SimpleGrid>
+
+                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                      <TextInput
+                        value={hruSettings.host}
+                        onChange={(e) => {
+                          setHruSettings((prev) => ({ ...prev, host: e.target.value }));
+                          setProbeResult(null);
+                        }}
+                        label={t("settings.hru.hostLabel")}
+                        placeholder="localhost"
+                        error={
+                          hruSettings.host.trim() === ""
+                            ? t("settings.hru.hostRequired")
+                            : undefined
+                        }
+                        size="md"
+                      />
+                      <NumberInput
+                        value={hruSettings.unitId}
+                        onChange={(value) => {
+                          const numericValue =
+                            typeof value === "number" ? value : Number(value ?? 1);
+                          setHruSettings((prev) => ({
+                            ...prev,
+                            unitId: Number.isFinite(numericValue) ? numericValue : 1,
+                          }));
+                          setProbeResult(null);
+                        }}
+                        label={t("settings.hru.unitIdLabel")}
+                        min={1}
+                        max={247}
+                        step={1}
+                        size="md"
+                      />
+                    </SimpleGrid>
+
+                    <Group mt="sm">
+                      <Button
+                        onClick={saveHruSettings}
+                        loading={savingHru}
+                        disabled={loadingUnits || hruSettings.host.trim() === ""}
+                        size="md"
+                        variant="filled"
+                      >
+                        {t("settings.hru.save")}
+                      </Button>
+                      <Button
+                        onClick={probeHru}
+                        loading={probingHru}
+                        disabled={
+                          !hruSettings.unit || loadingUnits || hruSettings.host.trim() === ""
+                        }
+                        variant="light"
+                        size="md"
+                      >
+                        {t("settings.hru.probe")}
+                      </Button>
+                    </Group>
+                  </Stack>
+                </Paper>
+
+                {probeResult && (
+                  <Alert
+                    icon={<IconCheck size={20} />}
+                    title={t("settings.hru.probeResultTitle")}
+                    color="green"
+                    withCloseButton
+                    onClose={() => setProbeResult(null)}
+                    radius="md"
+                  >
+                    <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
+                      <Group gap="xs">
+                        <Badge color="green" variant="light" circle>
+                          P
+                        </Badge>
+                        <div>
+                          <Text size="xs" c="dimmed">
+                            {t("settings.hru.powerLabel")}
+                          </Text>
+                          <Text fw={600} size="lg">
+                            {probeResult.power}%
+                          </Text>
+                        </div>
+                      </Group>
+                      <Group gap="xs">
+                        <Badge color="orange" variant="light" circle>
+                          T
+                        </Badge>
+                        <div>
+                          <Text size="xs" c="dimmed">
+                            {t("settings.hru.temperatureLabel")}
+                          </Text>
+                          <Text fw={600} size="lg">
+                            {probeResult.temperature}°C
+                          </Text>
+                        </div>
+                      </Group>
+                      <Group gap="xs">
+                        <Badge color="blue" variant="light" circle>
+                          M
+                        </Badge>
+                        <div>
+                          <Text size="xs" c="dimmed">
+                            {t("settings.hru.modeLabel")}
+                          </Text>
+                          <Text fw={600} size="lg">
+                            {probeResult.mode}
+                          </Text>
+                        </div>
+                      </Group>
+                    </SimpleGrid>
+                  </Alert>
+                )}
+              </Stack>
+            </Accordion.Panel>
+          </Accordion.Item>
+
+          <Accordion.Item value="mqtt">
+            <Accordion.Control icon={<IconSettings size={20} />}>
+              <Text fw={600}>{t("settings.mqtt.title")}</Text>
+            </Accordion.Control>
+            <Accordion.Panel>
+              <Paper p="md" withBorder radius="md">
+                <Stack gap="md">
+                  <Group justify="space-between" align="center">
+                    <Text fw={500} size="md">
+                      {t("settings.mqtt.description")}
+                    </Text>
+                    <Switch
+                      label={t("settings.mqtt.enabled")}
+                      checked={mqttSettings.enabled}
                       onChange={(e) => {
-                        setHruSettings((prev) => ({ ...prev, host: e.target.value }));
-                        setProbeResult(null);
+                        const checked = e.currentTarget.checked;
+                        setMqttSettings((prev) => ({ ...prev, enabled: checked }));
                       }}
-                      label={t("settings.hru.hostLabel")}
-                      placeholder="localhost"
-                      error={
-                        hruSettings.host.trim() === "" ? t("settings.hru.hostRequired") : undefined
-                      }
                       size="md"
                     />
-                    <NumberInput
-                      value={hruSettings.unitId}
-                      onChange={(value) => {
-                        const numericValue = typeof value === "number" ? value : Number(value ?? 1);
-                        setHruSettings((prev) => ({
-                          ...prev,
-                          unitId: Number.isFinite(numericValue) ? numericValue : 1,
-                        }));
-                        setProbeResult(null);
-                      }}
-                      label={t("settings.hru.unitIdLabel")}
-                      min={1}
-                      max={247}
-                      step={1}
-                      size="md"
-                    />
-                  </SimpleGrid>
+                  </Group>
+
+                  {mqttSettings.enabled && (
+                    <Stack gap="md" mt="xs">
+                      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                        <TextInput
+                          value={mqttSettings.host}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setMqttSettings((prev) => ({ ...prev, host: val }));
+                          }}
+                          label={t("settings.mqtt.host")}
+                          placeholder="core-mosquitto"
+                          error={
+                            mqttSettings.enabled && mqttSettings.host.trim() === ""
+                              ? t("settings.mqtt.hostRequired")
+                              : undefined
+                          }
+                          size="md"
+                        />
+                        <TextInput
+                          value={mqttSettings.port.toString()}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            // Allow digits only
+                            if (val === "" || /^\d+$/.test(val)) {
+                              const num = Number(val);
+                              setMqttSettings((prev) => ({ ...prev, port: num }));
+                            }
+                          }}
+                          label={t("settings.mqtt.port")}
+                          placeholder="1883"
+                          error={
+                            mqttSettings.enabled &&
+                            (mqttSettings.port <= 0 || mqttSettings.port > 65535)
+                              ? t("settings.mqtt.portInvalid")
+                              : undefined
+                          }
+                          size="md"
+                        />
+                      </SimpleGrid>
+
+                      <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                        <TextInput
+                          value={mqttSettings.user}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setMqttSettings((prev) => ({ ...prev, user: val }));
+                          }}
+                          label={t("settings.mqtt.user")}
+                          autoComplete="off"
+                          size="md"
+                        />
+                        <PasswordInput
+                          value={mqttSettings.password}
+                          onChange={(e) => {
+                            const val = e.target.value;
+                            setMqttSettings((prev) => ({ ...prev, password: val }));
+                          }}
+                          label={t("settings.mqtt.password")}
+                          autoComplete="new-password"
+                          size="md"
+                        />
+                      </SimpleGrid>
+                    </Stack>
+                  )}
 
                   <Group mt="sm">
                     <Button
-                      onClick={saveHruSettings}
-                      loading={savingHru}
-                      disabled={loadingUnits || hruSettings.host.trim() === ""}
-                      size="md"
+                      onClick={saveMqttSettings}
+                      loading={savingMqtt}
+                      disabled={mqttSettings.enabled && mqttSettings.host.trim() === ""}
                       variant="filled"
+                      size="md"
                     >
-                      {t("settings.hru.save")}
+                      {t("settings.mqtt.save")}
                     </Button>
                     <Button
-                      onClick={probeHru}
-                      loading={probingHru}
-                      disabled={!hruSettings.unit || loadingUnits || hruSettings.host.trim() === ""}
+                      onClick={testMqttConnection}
+                      loading={testingMqtt}
+                      disabled={mqttSettings.host.trim() === ""}
                       variant="light"
                       size="md"
                     >
-                      {t("settings.hru.probe")}
+                      {t("settings.mqtt.test")}
                     </Button>
                   </Group>
                 </Stack>
               </Paper>
+            </Accordion.Panel>
+          </Accordion.Item>
 
-              {probeResult && (
-                <Alert
-                  icon={<IconCheck size={20} />}
-                  title={t("settings.hru.probeResultTitle")}
-                  color="green"
-                  withCloseButton
-                  onClose={() => setProbeResult(null)}
-                  radius="md"
-                >
-                  <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-                    <Group gap="xs">
-                      <Badge color="green" variant="light" circle>
-                        P
-                      </Badge>
-                      <div>
-                        <Text size="xs" c="dimmed">
-                          {t("settings.hru.powerLabel")}
-                        </Text>
-                        <Text fw={600} size="lg">
-                          {probeResult.power}%
-                        </Text>
-                      </div>
-                    </Group>
-                    <Group gap="xs">
-                      <Badge color="orange" variant="light" circle>
-                        T
-                      </Badge>
-                      <div>
-                        <Text size="xs" c="dimmed">
-                          {t("settings.hru.temperatureLabel")}
-                        </Text>
-                        <Text fw={600} size="lg">
-                          {probeResult.temperature}°C
-                        </Text>
-                      </div>
-                    </Group>
-                    <Group gap="xs">
-                      <Badge color="blue" variant="light" circle>
-                        M
-                      </Badge>
-                      <div>
-                        <Text size="xs" c="dimmed">
-                          {t("settings.hru.modeLabel")}
-                        </Text>
-                        <Text fw={600} size="lg">
-                          {probeResult.mode}
-                        </Text>
-                      </div>
-                    </Group>
-                  </SimpleGrid>
-                </Alert>
-              )}
-            </Stack>
-          </Accordion.Panel>
-        </Accordion.Item>
-
-        <Accordion.Item value="mqtt">
-          <Accordion.Control icon={<IconSettings size={20} />}>
-            <Text fw={600}>{t("settings.mqtt.title")}</Text>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Paper p="md" withBorder radius="md">
-              <Stack gap="md">
-                <Group justify="space-between" align="center">
+          <Accordion.Item value="database">
+            <Accordion.Control icon={<IconDatabase size={20} />}>
+              <Text fw={600}>{t("settings.database.title")}</Text>
+            </Accordion.Control>
+            <Accordion.Panel>
+              <Paper p="md" withBorder radius="md">
+                <Stack gap="md">
                   <Text fw={500} size="md">
-                    {t("settings.mqtt.description")}
+                    {t("settings.database.description")}
                   </Text>
-                  <Switch
-                    label={t("settings.mqtt.enabled")}
-                    checked={mqttSettings.enabled}
-                    onChange={(e) => {
-                      const checked = e.currentTarget.checked;
-                      setMqttSettings((prev) => ({ ...prev, enabled: checked }));
-                    }}
-                    size="md"
-                  />
-                </Group>
-
-                {mqttSettings.enabled && (
-                  <Stack gap="md" mt="xs">
-                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                      <TextInput
-                        value={mqttSettings.host}
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
+                    <Button
+                      leftSection={<IconDownload size={20} />}
+                      onClick={handleExport}
+                      variant="light"
+                      size="md"
+                    >
+                      {t("settings.database.export")}
+                    </Button>
+                    <FileButton onChange={handleImport} accept=".db" disabled={uploading}>
+                      {(props) => (
+                        <Button
+                          {...props}
+                          leftSection={<IconUpload size={20} />}
+                          loading={uploading}
+                          variant="filled"
+                          size="md"
+                        >
+                          {uploading
+                            ? t("settings.database.importing")
+                            : t("settings.database.import")}
+                        </Button>
+                      )}
+                    </FileButton>
+                  </SimpleGrid>
+                </Stack>
+              </Paper>
+            </Accordion.Panel>
+          </Accordion.Item>
+          <Accordion.Item value="developer">
+            <Accordion.Control icon={<IconCode size={20} />}>
+              <Text fw={600}>{t("settings.developer.title")}</Text>
+            </Accordion.Control>
+            <Accordion.Panel>
+              <Paper p="md" withBorder radius="md">
+                <Stack gap="md">
+                  <Stack gap="xs">
+                    <Group justify="space-between" align="center">
+                      <Stack gap={0}>
+                        <Text fw={500}>{t("settings.developer.debugMode")}</Text>
+                        <Text size="xs" c="dimmed">
+                          {t("settings.developer.debugModeDescription")}
+                        </Text>
+                      </Stack>
+                      <Switch
+                        checked={debugMode}
                         onChange={(e) => {
-                          const val = e.target.value;
-                          setMqttSettings((prev) => ({ ...prev, host: val }));
+                          const checked = e.currentTarget.checked;
+                          setDebugMode(checked);
+                          localStorage.setItem("luftujha-debug-mode", String(checked));
+                          notifications.show({
+                            title: t("settings.developer.debugMode"),
+                            message: checked ? "Debug Mode enabled" : "Debug Mode disabled",
+                            color: checked ? "blue" : "gray",
+                            icon: <IconBug size={20} />,
+                          });
+                          // Reload to update navbar
+                          setTimeout(() => window.location.reload(), 800);
                         }}
-                        label={t("settings.mqtt.host")}
-                        placeholder="core-mosquitto"
-                        error={
-                          mqttSettings.enabled && mqttSettings.host.trim() === ""
-                            ? t("settings.mqtt.hostRequired")
-                            : undefined
-                        }
                         size="md"
                       />
-                      <TextInput
-                        value={mqttSettings.port.toString()}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          // Allow digits only
-                          if (val === "" || /^\d+$/.test(val)) {
-                            const num = Number(val);
-                            setMqttSettings((prev) => ({ ...prev, port: num }));
-                          }
-                        }}
-                        label={t("settings.mqtt.port")}
-                        placeholder="1883"
-                        error={
-                          mqttSettings.enabled &&
-                          (mqttSettings.port <= 0 || mqttSettings.port > 65535)
-                            ? t("settings.mqtt.portInvalid")
-                            : undefined
-                        }
-                        size="md"
-                      />
-                    </SimpleGrid>
-
-                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                      <TextInput
-                        value={mqttSettings.user}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setMqttSettings((prev) => ({ ...prev, user: val }));
-                        }}
-                        label={t("settings.mqtt.user")}
-                        autoComplete="off"
-                        size="md"
-                      />
-                      <PasswordInput
-                        value={mqttSettings.password}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          setMqttSettings((prev) => ({ ...prev, password: val }));
-                        }}
-                        label={t("settings.mqtt.password")}
-                        autoComplete="new-password"
-                        size="md"
-                      />
-                    </SimpleGrid>
+                    </Group>
                   </Stack>
-                )}
-
-                <Group mt="sm">
-                  <Button
-                    onClick={saveMqttSettings}
-                    loading={savingMqtt}
-                    disabled={mqttSettings.enabled && mqttSettings.host.trim() === ""}
-                    variant="filled"
-                    size="md"
-                  >
-                    {t("settings.mqtt.save")}
-                  </Button>
-                  <Button
-                    onClick={testMqttConnection}
-                    loading={testingMqtt}
-                    disabled={mqttSettings.host.trim() === ""}
-                    variant="light"
-                    size="md"
-                  >
-                    {t("settings.mqtt.test")}
-                  </Button>
-                </Group>
-              </Stack>
-            </Paper>
-          </Accordion.Panel>
-        </Accordion.Item>
-
-        <Accordion.Item value="database">
-          <Accordion.Control icon={<IconDatabase size={20} />}>
-            <Text fw={600}>{t("settings.database.title")}</Text>
-          </Accordion.Control>
-          <Accordion.Panel>
-            <Paper p="md" withBorder radius="md">
-              <Stack gap="md">
-                <Text fw={500} size="md">
-                  {t("settings.database.description")}
-                </Text>
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="sm">
-                  <Button
-                    leftSection={<IconDownload size={20} />}
-                    onClick={handleExport}
-                    variant="light"
-                    size="md"
-                  >
-                    {t("settings.database.export")}
-                  </Button>
-                  <FileButton onChange={handleImport} accept=".db" disabled={uploading}>
-                    {(props) => (
-                      <Button
-                        {...props}
-                        leftSection={<IconUpload size={20} />}
-                        loading={uploading}
-                        variant="filled"
-                        size="md"
-                      >
-                        {uploading
-                          ? t("settings.database.importing")
-                          : t("settings.database.import")}
-                      </Button>
-                    )}
-                  </FileButton>
-                </SimpleGrid>
-              </Stack>
-            </Paper>
-          </Accordion.Panel>
-        </Accordion.Item>
-      </Accordion>
-    </Stack>
+                </Stack>
+              </Paper>
+            </Accordion.Panel>
+          </Accordion.Item>
+        </Accordion>
+      </Stack>
+    </Container>
   );
 }

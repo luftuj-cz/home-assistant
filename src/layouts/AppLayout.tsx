@@ -13,7 +13,14 @@ import {
   UnstyledButton,
   rem,
   Paper,
+  Container,
+  Grid,
+  Divider,
+  Badge,
+  ThemeIcon,
+  NavLink,
 } from "@mantine/core";
+import { APP_VERSION } from "../config";
 import {
   IconAt,
   IconPhone,
@@ -21,6 +28,7 @@ import {
   IconDeviceFloppy,
   IconTimeline,
   IconSettings,
+  IconBug,
 } from "@tabler/icons-react";
 import { Link, Outlet, useLocation } from "@tanstack/react-router";
 import { useDisclosure } from "@mantine/hooks";
@@ -35,19 +43,24 @@ export function AppLayout() {
   const location = useLocation();
   const footerLink = import.meta.env.VITE_FOOTER_LINK ?? "https://www.luftuj.cz/";
 
-  const navItems = useMemo(
-    () => [
+  const navItems = useMemo(() => {
+    const items = [
       { to: "/", label: t("app.nav.dashboard"), icon: IconLayoutDashboard },
       { to: "/valves", label: t("app.nav.valves"), icon: IconDeviceFloppy },
       { to: "/timeline", label: t("app.nav.timeline"), icon: IconTimeline },
       { to: "/settings", label: t("app.nav.settings"), icon: IconSettings },
-    ],
-    [t],
-  );
+    ];
 
-  const isActive = (to: string) => {
+    if (localStorage.getItem("luftujha-debug-mode") === "true") {
+      items.push({ to: "/debug", label: t("app.nav.debug"), icon: IconBug });
+    }
+
+    return items;
+  }, [t]);
+
+  function isActive(to: string) {
     return location.pathname === to;
-  };
+  }
 
   function DesktopNav() {
     return (
@@ -97,66 +110,29 @@ export function AppLayout() {
 
   function MobileNav({ onNavigate }: { onNavigate?: () => void }) {
     return (
-      <Stack gap="sm">
+      <Stack gap="xs">
         {navItems.map((item) => {
           const active = isActive(item.to);
           const IconComponent = item.icon;
           return (
-            <UnstyledButton
+            <NavLink
               key={item.to}
               component={Link}
               to={item.to}
               onClick={onNavigate}
+              label={
+                <Text size="md" fw={500}>
+                  {item.label}
+                </Text>
+              }
+              leftSection={<IconComponent size={24} stroke={1.5} />}
+              active={active}
+              variant="light"
+              color={active ? "primary" : "gray"}
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "1rem",
-                padding: "1rem 1.25rem",
-                borderRadius: "12px",
-                backgroundColor: active
-                  ? "var(--mantine-color-primary-light)"
-                  : "var(--mantine-color-default-hover)",
-                color: active ? "var(--mantine-color-primary-filled)" : "var(--mantine-color-text)",
-                fontWeight: active ? 600 : 400,
-                transition: "all 0.2s ease",
-                border: active
-                  ? "2px solid var(--mantine-color-primary-filled)"
-                  : "1px solid var(--mantine-color-default-border)",
+                borderRadius: "var(--mantine-radius-md)",
               }}
-              onTouchStart={(e) => {
-                if (!active) {
-                  e.currentTarget.style.backgroundColor = "var(--mantine-color-default-hover)";
-                  e.currentTarget.style.transform = "scale(0.98)";
-                }
-              }}
-              onTouchEnd={(e) => {
-                e.currentTarget.style.transform = "scale(1)";
-              }}
-              onMouseEnter={(e) => {
-                if (!active) {
-                  e.currentTarget.style.backgroundColor = "var(--mantine-color-default-hover)";
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!active) {
-                  e.currentTarget.style.backgroundColor = "var(--mantine-color-body)";
-                }
-              }}
-            >
-              <IconComponent size={24} style={{ flexShrink: 0 }} />
-              <Text size="lg">{item.label}</Text>
-              {active && (
-                <div
-                  style={{
-                    marginLeft: "auto",
-                    width: "8px",
-                    height: "8px",
-                    borderRadius: "50%",
-                    backgroundColor: "var(--mantine-color-primary-filled)",
-                  }}
-                />
-              )}
-            </UnstyledButton>
+            />
           );
         })}
       </Stack>
@@ -166,7 +142,6 @@ export function AppLayout() {
   return (
     <AppShell
       header={{ height: 70 }}
-      padding={{ base: "sm", sm: "md" }}
       withBorder={true}
       styles={{
         header: {
@@ -183,58 +158,42 @@ export function AppLayout() {
       }}
     >
       <AppShell.Header>
-        <Group h="100%" px="lg" justify="space-between">
-          <UnstyledButton
-            component={Link}
-            to="/"
-            p={0}
-            h="100%"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              textDecoration: "none",
-            }}
-          >
-            <Group gap="sm" align="center" wrap="nowrap">
-              <Image src={logoMark} alt={t("app.title")} h={32} w={32} fit="contain" />
-              <Title order={2} fw={700} ff="inherit" size={rem(22)} c="var(--mantine-color-text)">
-                {t("app.title")}
-              </Title>
+        <Container size="xl" h="100%">
+          <Group h="100%" px={0} justify="space-between">
+            <UnstyledButton
+              component={Link}
+              to="/"
+              p={0}
+              h="100%"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                textDecoration: "none",
+              }}
+            >
+              <Group gap="sm" align="center" wrap="nowrap">
+                <Image src={logoMark} alt={t("app.title")} h={32} w={32} fit="contain" />
+                <Title order={2} fw={700} ff="inherit" size={rem(22)} c="var(--mantine-color-text)">
+                  {t("app.title")}
+                </Title>
+              </Group>
+            </UnstyledButton>
+
+            <Group gap="sm" visibleFrom="md">
+              <DesktopNav />
             </Group>
-          </UnstyledButton>
 
-          <Group gap="sm" visibleFrom="sm">
-            <DesktopNav />
+            <Box hiddenFrom="md" style={{ display: "flex", alignItems: "center" }}>
+              <Burger
+                opened={mobileNavOpened}
+                onClick={toggle}
+                aria-label="Toggle navigation"
+                size="md"
+              />
+            </Box>
           </Group>
-
-          <Paper
-            p={10}
-            radius="md"
-            style={{
-              backgroundColor: "var(--mantine-color-default-hover)",
-              cursor: "pointer",
-              transition: "all 0.2s ease",
-            }}
-            onTouchStart={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--mantine-color-default-hover)";
-              e.currentTarget.style.transform = "scale(0.95)";
-            }}
-            onTouchEnd={(e) => {
-              e.currentTarget.style.transform = "scale(1)";
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--mantine-color-default-hover)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.backgroundColor = "var(--mantine-color-body)";
-            }}
-            onClick={toggle}
-            hiddenFrom="sm"
-          >
-            <Burger opened={mobileNavOpened} aria-label="Toggle navigation" size="md" />
-          </Paper>
-        </Group>
+        </Container>
       </AppShell.Header>
 
       <Drawer
@@ -250,7 +209,7 @@ export function AppLayout() {
           </Group>
         }
         size="100%"
-        hiddenFrom="sm"
+        hiddenFrom="md"
         styles={{
           content: {
             backgroundColor: "var(--mantine-color-body)",
@@ -272,92 +231,121 @@ export function AppLayout() {
       </Drawer>
 
       <AppShell.Main>
-        <Box style={{ flex: 1, paddingBottom: "100px" }}>
+        <Box p={{ base: "sm", sm: "md" }} style={{ flex: 1 }}>
           <Outlet />
         </Box>
+
+        <Box
+          component="footer"
+          pt="xl"
+          pb="md"
+          style={{ borderTop: "1px solid var(--mantine-color-default-border)" }}
+        >
+          <Container size="xl">
+            <Stack gap="xl">
+              <Grid gutter="xl" align="flex-start">
+                <Grid.Col span={{ base: 12, md: 4 }} order={{ base: 2, md: 1 }}>
+                  <Stack gap="sm" align="center">
+                    <Text fw={700} size="xs" tt="uppercase" lts={1.2} c="dimmed" ta="center" mb={4}>
+                      {t("app.footer.contact")}
+                    </Text>
+                    <Stack gap={10} align="center">
+                      <Group gap={12} wrap="nowrap" justify="center">
+                        <ThemeIcon variant="light" radius="md" size="md">
+                          <IconPhone size={16} stroke={2} />
+                        </ThemeIcon>
+                        <Anchor
+                          href={t("app.footer.phoneLink")}
+                          size="sm"
+                          c="var(--mantine-color-text)"
+                          fw={500}
+                          underline="hover"
+                        >
+                          {t("app.footer.phone")}
+                        </Anchor>
+                      </Group>
+                      <Group gap={12} wrap="nowrap" justify="center">
+                        <ThemeIcon variant="light" radius="md" size="md">
+                          <IconAt size={16} stroke={2} />
+                        </ThemeIcon>
+                        <Anchor
+                          href={t("app.footer.emailLink")}
+                          size="sm"
+                          c="var(--mantine-color-text)"
+                          fw={500}
+                          underline="hover"
+                        >
+                          {t("app.footer.email")}
+                        </Anchor>
+                      </Group>
+                    </Stack>
+                  </Stack>
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, md: 4 }} order={{ base: 1, md: 2 }}>
+                  <Stack gap="xs" align="center" w="100%">
+                    <Anchor
+                      href={footerLink}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      underline="never"
+                      style={{ display: "inline-flex", alignItems: "center", gap: rem(12) }}
+                    >
+                      <Image src={logoFull} alt={t("app.footer.company")} h={42} fit="contain" />
+                    </Anchor>
+                  </Stack>
+                </Grid.Col>
+
+                <Grid.Col span={{ base: 12, md: 4 }} order={{ base: 3, md: 3 }}>
+                  <Stack gap="sm" align="center">
+                    <Text fw={700} size="xs" tt="uppercase" lts={1.2} c="dimmed" ta="center" mb={4}>
+                      {t("app.footer.location")}
+                    </Text>
+                    <Stack gap={4} align="center">
+                      <Text size="sm" fw={600} ta="center">
+                        {t("app.footer.addressLine1")}
+                      </Text>
+                      <Text size="sm" c="dimmed" ta="center">
+                        {t("app.footer.addressLine2")}
+                      </Text>
+                    </Stack>
+                  </Stack>
+                </Grid.Col>
+              </Grid>
+
+              <Divider variant="dashed" />
+
+              <Group justify="space-between" align="center" pb="lg" wrap="wrap" gap="sm">
+                <Box visibleFrom="md">
+                  <Text size="xs" c="dimmed">
+                    © {new Date().getFullYear()} {t("app.footer.company")}.{" "}
+                    {t("app.footer.allRightsReserved")}
+                  </Text>
+                </Box>
+                <Box hiddenFrom="md" w="100%" style={{ textAlign: "center" }}>
+                  <Text size="xs" c="dimmed">
+                    © {new Date().getFullYear()} {t("app.footer.company")}.
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {t("app.footer.allRightsReserved")}
+                  </Text>
+                </Box>
+
+                <Box visibleFrom="md">
+                  <Badge variant="light" color="gray" size="sm" radius="sm">
+                    v{APP_VERSION}
+                  </Badge>
+                </Box>
+                <Box hiddenFrom="md" w="100%" style={{ display: "flex", justifyContent: "center" }}>
+                  <Badge variant="light" color="gray" size="sm" radius="sm">
+                    v{APP_VERSION}
+                  </Badge>
+                </Box>
+              </Group>
+            </Stack>
+          </Container>
+        </Box>
       </AppShell.Main>
-
-      <AppShell.Footer
-        mih={90}
-        px="lg"
-        pt="lg"
-        pb="xl"
-        withBorder
-        style={{ paddingBottom: "calc(var(--mantine-spacing-xl) + 12px)" }}
-      >
-        <Stack gap="sm" justify="space-between" h="100%">
-          <Group justify="space-between" align="flex-start" wrap="wrap" gap="xl">
-            <Anchor
-              href={footerLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "0.75rem",
-                transition: "opacity 0.2s ease",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.opacity = "0.8")}
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-            >
-              <Image src={logoFull} alt={t("app.footer.company")} h={36} fit="contain" />
-              <Text size="md" fw={700} c="var(--mantine-color-text)" lh={1.2}>
-                {t("app.footer.company")}
-              </Text>
-            </Anchor>
-
-            <Group gap="xl" align="flex-start" wrap="wrap">
-              <Stack gap={4}>
-                <Text size="sm" c="dimmed" fw={500}>
-                  {t("app.footer.addressLine1")}
-                </Text>
-                <Text size="sm" c="dimmed">
-                  {t("app.footer.addressLine2")}
-                </Text>
-              </Stack>
-
-              <Stack gap={6}>
-                <Group gap={8} wrap="nowrap">
-                  <IconPhone size={16} stroke={1.8} color="var(--mantine-primary-color-5)" />
-                  <Anchor
-                    href={t("app.footer.phoneLink")}
-                    size="sm"
-                    c="blue"
-                    fw={500}
-                    style={{ transition: "color 0.2s ease" }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.color = "var(--mantine-primary-color-6)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.color = "var(--mantine-primary-color-5)")
-                    }
-                  >
-                    {t("app.footer.phone")}
-                  </Anchor>
-                </Group>
-                <Group gap={8} wrap="nowrap">
-                  <IconAt size={16} stroke={1.8} color="var(--mantine-primary-color-5)" />
-                  <Anchor
-                    href={t("app.footer.emailLink")}
-                    size="sm"
-                    c="blue"
-                    fw={500}
-                    style={{ transition: "color 0.2s ease" }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.color = "var(--mantine-primary-color-6)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.color = "var(--mantine-primary-color-5)")
-                    }
-                  >
-                    {t("app.footer.email")}
-                  </Anchor>
-                </Group>
-              </Stack>
-            </Group>
-          </Group>
-        </Stack>
-      </AppShell.Footer>
     </AppShell>
   );
 }

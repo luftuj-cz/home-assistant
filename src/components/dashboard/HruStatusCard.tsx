@@ -106,7 +106,7 @@ export function HruStatusCard({ status, hruName, t }: HruStatusCardProps) {
         <Card shadow="none" padding="md" withBorder radius="md" variant="light">
           <Group justify="space-between" align="flex-start" mb="xs">
             <Text size="sm" fw={500} c="dimmed">
-              {t("hru.power", { defaultValue: "Power" })}
+              {t("hru.power")}
             </Text>
             <Text size="lg" fw={700} c="teal">
               {powerValue}
@@ -136,7 +136,7 @@ export function HruStatusCard({ status, hruName, t }: HruStatusCardProps) {
               </ThemeIcon>
               <div>
                 <Text size="xs" fw={500} c="dimmed">
-                  {t("hru.temperature", { defaultValue: "Temperature" })}
+                  {t("hru.temperature")}
                 </Text>
                 <Text size="xl" fw={700} c="blue" mt={4}>
                   {tempValue}

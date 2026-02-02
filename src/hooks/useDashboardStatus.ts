@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { resolveApiUrl, resolveWebSocketUrl } from "../utils/api";
+import { logger } from "../utils/logger";
 
 export type ConnectionState = "connected" | "connecting" | "disconnected" | "offline";
 export type ModbusState = "loading" | "reachable" | "unreachable";
@@ -85,7 +86,7 @@ export function useDashboardStatus() {
           }
         }
       } catch {
-        // ignore
+        logger.error("Failed to load data");
       }
     }
     void loadData();
@@ -247,12 +248,12 @@ export function useDashboardStatus() {
           setHaLoading(false);
         }
       } catch {
-        // ignore
+        logger.error("Failed to parse WebSocket message", ev.data);
       }
     }
 
     function onError() {
-      // handled by close/reconnect
+      logger.error("WebSocket error");
     }
 
     function onClose() {

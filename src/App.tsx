@@ -3,6 +3,8 @@ import {
   createTheme,
   localStorageColorSchemeManager,
   useMantineColorScheme,
+  type MantineTheme,
+  type NotificationProps,
 } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { RouterProvider } from "@tanstack/react-router";
@@ -11,6 +13,7 @@ import { Suspense, useEffect } from "react";
 
 import { router } from "./router";
 import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from "./i18n";
+import { logger } from "./utils/logger";
 
 const theme = createTheme({
   primaryColor: "blue",
@@ -27,6 +30,62 @@ const theme = createTheme({
       "#1971c2",
       "#1864ab",
     ],
+  },
+  components: {
+    Notification: {
+      styles: (_theme: MantineTheme, props: NotificationProps) => {
+        const color = props.color || "gray";
+        return {
+          root: {
+            backdropFilter: "blur(20px)",
+            backgroundColor: props.color
+              ? `rgba(var(--mantine-color-${color}-light-color), 0.45)`
+              : "rgba(var(--mantine-color-body-rgb), 0.95)",
+            border: `1.5px solid ${
+              props.color ? `var(--mantine-color-${color}-filled)` : "rgba(255, 255, 255, 0.5)"
+            }`,
+            boxShadow: props.color
+              ? `0 15px 45px rgba(var(--mantine-color-${color}-light-color), 0.35), 0 0 0 2px rgba(var(--mantine-color-${color}-light-color), 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.2)`
+              : "0 15px 45px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255, 255, 255, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.2)",
+            padding: "var(--mantine-spacing-md)",
+            borderRadius: "var(--mantine-radius-xl)",
+            overflow: "hidden",
+          },
+          icon: {
+            width: 40,
+            height: 40,
+            borderRadius: "var(--mantine-radius-lg)",
+            fontSize: 22,
+            backgroundColor: props.color
+              ? `var(--mantine-color-${color}-light)`
+              : "var(--mantine-color-gray-light)",
+          },
+          inner: {
+            paddingLeft: "var(--mantine-spacing-md)",
+          },
+          title: {
+            fontWeight: 800,
+            fontSize: "var(--mantine-font-size-md)",
+            marginBottom: 6,
+            letterSpacing: "-0.01em",
+            color: props.color ? `var(--mantine-color-${color}-filled)` : "inherit",
+          },
+          description: {
+            color: "var(--mantine-color-text)",
+            opacity: 0.9,
+            fontSize: "var(--mantine-font-size-sm)",
+            lineHeight: 1.5,
+            fontWeight: 500,
+          },
+          closeButton: {
+            borderRadius: "var(--mantine-radius-md)",
+            "&:hover": {
+              backgroundColor: "rgba(0, 0, 0, 0.05)",
+            },
+          },
+        };
+      },
+    },
   },
 });
 
@@ -52,7 +111,7 @@ function ThemeInitializer() {
           setColorScheme(data.theme);
         }
       } catch (error) {
-        console.error("Failed to load persisted theme", error);
+        logger.error("Failed to load persisted theme", { error });
       }
     }
 
@@ -86,7 +145,7 @@ function LanguageInitializer() {
           await setLanguage(data.language);
         }
       } catch (error) {
-        console.error("Failed to synchronise language preference", error);
+        logger.error("Failed to synchronise language preference", { error });
       }
     }
 
@@ -111,7 +170,7 @@ export default function App() {
       >
         <LanguageInitializer />
         <ThemeInitializer />
-        <Notifications position="bottom-right" limit={3} zIndex={4000} />
+        <Notifications position="bottom-left" limit={3} zIndex={4000} containerWidth={440} />
         <Suspense fallback={null}>
           <RouterProvider router={router} />
         </Suspense>
