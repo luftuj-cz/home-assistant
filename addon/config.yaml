@@ -39,5 +39,5 @@ schema:
   mqtt_port: int(1,65535)
   mqtt_user: str?
   mqtt_password: str?
-# TODO: Přidat až bude image existovat
-#image: "ghcr.io/kankajm/{arch}-addon-luftujha"
+# HASS Addon Image
+image: "ghcr.io/luftuj-cz/{arch}-addon-luftuj"

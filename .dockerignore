@@ -1,0 +1,11 @@
+node_modules
+dist
+.git
+.trunk
+.vscode
+.github
+addon/rootfs/usr/src/app/node_modules
+docs/node_modules
+README.md
+PROJECT_OVERVIEW.md
+info.md
