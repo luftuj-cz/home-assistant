@@ -18,6 +18,20 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install
+
+      - name: Build frontend
+        run: bun run build
+
+      - name: Sync dist to addon
+        run: bun scripts/sync-dist.mjs
+
       - name: Build and Publish
         uses: home-assistant/builder@master
         with:
