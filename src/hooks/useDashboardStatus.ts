@@ -4,6 +4,12 @@ import { logger } from "../utils/logger";
 
 export type ConnectionState = "connected" | "connecting" | "disconnected" | "offline";
 export type ModbusState = "loading" | "reachable" | "unreachable";
+export type TemperatureUnit = "c" | "f";
+
+export interface ActiveMode {
+  source: "manual" | "schedule" | "boost";
+  modeName?: string;
+}
 
 export interface RegisterInfo {
   unit?: string;
@@ -16,6 +22,8 @@ export type HruState =
       power: number;
       temperature: number;
       mode: string;
+      maxPower?: number;
+      powerUnit?: string;
       registers?: {
         power?: RegisterInfo;
         temperature?: RegisterInfo;
@@ -38,6 +46,9 @@ export function useDashboardStatus() {
   const [mqttStatus, setMqttStatus] = useState<"connected" | "disconnected" | "loading">("loading");
   const [mqttLastDiscovery, setMqttLastDiscovery] = useState<string | null>(null);
 
+  const [tempUnit, setTempUnit] = useState<TemperatureUnit>("c");
+  const [activeMode, setActiveMode] = useState<ActiveMode | null>(null);
+
   const valvesWsRef = useRef<WebSocket | null>(null);
   const valvesReconnectRef = useRef<number | null>(null);
 
@@ -56,14 +67,17 @@ export function useDashboardStatus() {
     let canceled = false;
     async function loadData() {
       try {
-        const [settingsRes, unitsRes] = await Promise.all([
+        const [settingsRes, unitsRes, tempUnitRes] = await Promise.all([
           fetch(resolveApiUrl("/api/settings/hru")),
           fetch(resolveApiUrl("/api/hru/units")),
+          fetch(resolveApiUrl("/api/settings/temperature-unit")),
         ]);
 
         if (canceled) return;
 
         let unitId: string | null = null;
+        let allUnits: Array<{ id: string; name: string; maxValue?: number; controlUnit?: string }> =
+          [];
 
         if (settingsRes.ok) {
           const data = (await settingsRes.json()) as {
@@ -78,9 +92,37 @@ export function useDashboardStatus() {
           }
         }
 
-        if (unitsRes.ok && unitId) {
-          const units = (await unitsRes.json()) as Array<{ id: string; name: string }>;
-          const found = units.find((u) => u.id === unitId);
+        if (unitsRes.ok) {
+          allUnits = (await unitsRes.json()) as Array<{
+            id: string;
+            name: string;
+            maxValue?: number;
+            controlUnit?: string;
+          }>;
+        }
+
+        if (tempUnitRes.ok) {
+          const { temperatureUnit } = (await tempUnitRes.json()) as {
+            temperatureUnit: TemperatureUnit;
+          };
+          if (temperatureUnit === "c" || temperatureUnit === "f") {
+            setTempUnit(temperatureUnit);
+          }
+        }
+
+        const activeUnit = allUnits.find((u) => u.id === unitId) || allUnits[0];
+
+        setHruStatus((prev) => {
+          if (!prev || !("power" in prev)) return prev;
+          return {
+            ...prev,
+            maxPower: activeUnit?.maxValue ?? 100,
+            powerUnit: activeUnit?.controlUnit ?? "%",
+          };
+        });
+
+        if (unitId) {
+          const found = allUnits.find((u) => u.id === unitId);
           if (found) {
             setHruName(found.name);
           }
@@ -108,6 +150,7 @@ export function useDashboardStatus() {
         const data = (await res.json()) as {
           ha?: { connection?: string };
           mqtt?: { connection?: "connected" | "disconnected"; lastDiscovery?: string | null };
+          timeline?: ActiveMode | null;
         };
         if (!active) return;
         const s = data.ha?.connection;
@@ -117,6 +160,9 @@ export function useDashboardStatus() {
         if (data.mqtt) {
           setMqttStatus(data.mqtt.connection ?? "disconnected");
           setMqttLastDiscovery(data.mqtt.lastDiscovery ?? null);
+        }
+        if (data.timeline !== undefined) {
+          setActiveMode(data.timeline);
         }
         setHaLoading(false);
       } catch {
@@ -234,6 +280,7 @@ export function useDashboardStatus() {
           payload?: {
             ha?: { connection?: string };
             mqtt?: { connection?: "connected" | "disconnected" };
+            timeline?: ActiveMode | null;
           };
         };
         if (msg?.type === "status") {
@@ -244,6 +291,9 @@ export function useDashboardStatus() {
           const m = msg?.payload?.mqtt?.connection;
           if (m === "connected" || m === "disconnected") {
             setMqttStatus(m);
+          }
+          if (msg?.payload?.timeline !== undefined) {
+            setActiveMode(msg.payload.timeline);
           }
           setHaLoading(false);
         }
@@ -291,5 +341,7 @@ export function useDashboardStatus() {
     hruName,
     mqttStatus,
     mqttLastDiscovery,
+    tempUnit,
+    activeMode,
   };
 }

@@ -20,16 +20,34 @@ export class ModbusTcpClient {
   ) {
     const timeout = cfg.timeoutMs ?? 2000;
     this.client.setTimeout(timeout);
+
+    // Track connection health via events
+    this.client.on("error", (err) => {
+      this.logger.warn({ err }, "Modbus TCP connection error");
+      this.handleDisconnect();
+    });
+
+    this.client.on("close", () => {
+      this.logger.info("Modbus TCP connection closed");
+      this.handleDisconnect();
+    });
+  }
+
+  private handleDisconnect() {
+    this.connected = false;
+    this.scheduleReconnect();
   }
 
   async connect(): Promise<void> {
+    if (this.connected) return;
+
     await this.safeDisconnect();
     return new Promise((resolve, reject) => {
       this.logger.info({ host: this.cfg.host, port: this.cfg.port }, "Connecting Modbus TCP");
-      this.client.connectTCP(this.cfg.host, { port: this.cfg.port }, async (err?: Error) => {
+      this.client.connectTCP(this.cfg.host, { port: this.cfg.port }, (err?: Error) => {
         if (err) {
           this.logger.warn({ err }, "Modbus TCP connect failed");
-          this.scheduleReconnect();
+          this.handleDisconnect();
           reject(err);
           return;
         }
@@ -62,7 +80,7 @@ export class ModbusTcpClient {
     try {
       this.client.close(() => {
         this.connected = false;
-        this.logger.info("Modbus TCP disconnected");
+        this.logger.info("Modbus TCP disconnected (requested)");
       });
     } catch (e) {
       this.logger.warn({ e }, "Modbus TCP disconnect error");
@@ -74,20 +92,35 @@ export class ModbusTcpClient {
   }
 
   async readHolding(start: number, length: number): Promise<number[]> {
-    const res = await this.client.readHoldingRegisters(start, length);
-    return Array.from(res.data);
+    try {
+      const res = await this.client.readHoldingRegisters(start, length);
+      return Array.from(res.data);
+    } catch (err) {
+      this.handleDisconnect();
+      throw err;
+    }
   }
 
   async readInput(start: number, length: number): Promise<number[]> {
-    const res = await this.client.readInputRegisters(start, length);
-    return Array.from(res.data);
+    try {
+      const res = await this.client.readInputRegisters(start, length);
+      return Array.from(res.data);
+    } catch (err) {
+      this.handleDisconnect();
+      throw err;
+    }
   }
 
   async writeHolding(start: number, values: number | number[]): Promise<void> {
-    if (Array.isArray(values)) {
-      await this.client.writeRegisters(start, values);
-    } else {
-      await this.client.writeRegister(start, values);
+    try {
+      if (Array.isArray(values)) {
+        await this.client.writeRegisters(start, values);
+      } else {
+        await this.client.writeRegister(start, values);
+      }
+    } catch (err) {
+      this.handleDisconnect();
+      throw err;
     }
   }
 }
@@ -126,9 +159,17 @@ export async function withTempModbusClient<T>(
 ): Promise<T> {
   const client = getSharedModbusClient(cfg, logger);
 
+  // If not connected, try to connect. If it fails, let it throw to the caller.
   if (!client.isConnected()) {
     await client.connect();
   }
 
-  return fn(client);
+  try {
+    return await fn(client);
+  } catch (err) {
+    // If the error looks like a connection issue, we've already handled it in the client
+    // by calling handleDisconnect(), but we should log it here as well.
+    logger.debug({ err }, "Operation failed in withTempModbusClient");
+    throw err;
+  }
 }

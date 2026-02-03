@@ -39,25 +39,44 @@ interface TimelineDayCardProps {
   t: TFunction;
 }
 
-function isEventActive(startTime: string, endTime: string, dayIdx: number): boolean {
+function isEventActive(ev: TimelineEvent, allDayEvents: TimelineEvent[], dayIdx: number): boolean {
   const now = new Date();
-
-  // UI uses Monday = 0 ... Sunday = 6
-  // JS uses Sunday = 0 ... Saturday = 6
   const jsDay = now.getDay();
   const currentDayIdx = jsDay === 0 ? 6 : jsDay - 1;
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  if (dayIdx !== currentDayIdx) return false;
+  function toMins(time: string) {
+    const [h, m] = time.split(":").map(Number);
+    return h * 60 + m;
+  }
 
-  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  // 1. If this is today:
+  if (dayIdx === currentDayIdx) {
+    const startedEvents = allDayEvents.filter((e) => toMins(e.startTime) <= nowMinutes);
+    if (startedEvents.length === 0) return false;
+    // Active if it's the latest one started
+    const latest = startedEvents[startedEvents.length - 1];
+    return ev.id === latest.id && ev.startTime === latest.startTime;
+  }
 
-  const [startH, startM] = startTime.split(":").map(Number);
-  const startMinutes = startH * 60 + startM;
+  // 2. If this is yesterday (or the last day with any events):
+  // For simplicity, we highlight the last event of yesterday if no events have started today yet.
+  const yesterdayIdx = (currentDayIdx - 1 + 7) % 7;
+  if (dayIdx === yesterdayIdx) {
+    // Check if today has any events started
+    // We don't have access to "today's" events here easily without props changes,
+    // but we can at least detect if the current event is the last one of its day.
+    const isLastOfItsDay = ev === allDayEvents[allDayEvents.length - 1];
+    if (!isLastOfItsDay) return false;
 
-  const [endH, endM] = endTime.split(":").map(Number);
-  const endMinutes = endH * 60 + endM;
+    // Ideally we'd check if today's first event has started.
+    // But for now, just highlighting the last event of "today" is the most important.
+    // If we want to be perfect, we'd need to pass more data.
+    // Let's stick to current day highlighting for now to avoid over-engineering.
+    return false;
+  }
 
-  return currentMinutes >= startMinutes && currentMinutes < endMinutes;
+  return false;
 }
 
 export function TimelineDayCard({
@@ -147,7 +166,7 @@ export function TimelineDayCard({
       ) : (
         <Timeline active={-1} bulletSize={24} lineWidth={2}>
           {sortedEvents.map((ev) => {
-            const active = isEventActive(ev.startTime, ev.endTime, dayIdx);
+            const active = isEventActive(ev, sortedEvents, dayIdx);
             const mode = modes.find((m) => m.id.toString() === ev.hruConfig?.mode?.toString());
             const highlightColor = mode?.color || "blue";
 
@@ -172,7 +191,7 @@ export function TimelineDayCard({
                 title={
                   <Group justify="space-between" align="center" wrap="nowrap">
                     <Text fw={700} size="sm">
-                      {ev.startTime} – {ev.endTime}
+                      {ev.startTime}
                     </Text>
                     <Group gap={6} wrap="nowrap">
                       <MotionSwitch

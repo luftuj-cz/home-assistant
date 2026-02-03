@@ -1,14 +1,16 @@
 export const THEME_SETTING_KEY = "ui.theme";
 export const LANGUAGE_SETTING_KEY = "ui.language";
+export const TEMP_UNIT_SETTING_KEY = "ui.temperature_unit";
 export const SUPPORTED_LANGUAGES = new Set(["en", "cs"]);
 
 export const HRU_SETTINGS_KEY = "hru.settings";
 
 export type HruSettings = {
-  unit: string | null; // id from HRU_UNITS
+  unit: string | null; // id from HeatRecoveryUnit
   host: string;
   port: number;
   unitId: number; // Modbus unit/slave id
+  maxPower?: number;
 };
 
 export const MQTT_SETTINGS_KEY = "mqtt.settings";

@@ -3,155 +3,270 @@ import struct
 import threading
 import time
 import math
+import json
+import os
+import argparse
+from typing import Dict, Any, List
 
 # --- Configuration ---
 HOST = '0.0.0.0'
 PORT = 502
 
-# --- Atrea RD5 Register Map ---
-# Based on definitions.ts for atrea-rd5
+# Resolve base path relative to this script
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+# Definitions are in ../addon/rootfs/usr/src/app/src/features/hru/definitions
+DEFAULT_BASE_PATH = os.path.abspath(os.path.join(SCRIPT_DIR, "..", "addon/rootfs/usr/src/app/src/features/hru/definitions"))
+BASE_PATH = os.getenv("HRU_DEFINITIONS_PATH", DEFAULT_BASE_PATH)
 
-# Read Registers
-REG_POWER_READ    = 10704  # Current power value (%)
-REG_MODE_READ     = 10705  # Current mode (Enum)
-REG_TEMP_READ     = 10706  # Current temperature (Scale 0.1, raw value)
+UNITS_PATH = os.path.join(BASE_PATH, "units")
+STRATEGIES_PATH = os.path.join(BASE_PATH, "strategies")
 
-# Write Control Registers (Trigger writes)
-REG_POWER_CTRL    = 10700  # Control: write 0 to initiate power change
-REG_MODE_CTRL     = 10701  # Control: write 0 to initiate mode change
-REG_TEMP_CTRL    = 10702  # Control: write 0 to initiate temperature change
+# --- DSL Interpreter ---
 
-# Write Target Registers (Actual values)
-REG_POWER_WRITE   = 10708  # Target power value (%)
-REG_MODE_WRITE    = 10709  # Target mode value
-REG_TEMP_WRITE    = 10710  # Target temperature (Scale 0.1, raw value)
+class HruSimDSL:
+    def __init__(self, registers: Dict[int, int], variables: Dict[str, Any]):
+        self.registers = registers
+        self.variables = variables
 
-# Extra Sensors (simulated for realism)
-REG_TEMP_OUTDOOR = 10300
-REG_TEMP_SUPPLY  = 10301
+    def eval_expr(self, expr: Any) -> Any:
+        if isinstance(expr, (int, float)):
+            return expr
+        if isinstance(expr, str):
+            if expr.startswith('$'):
+                return self.variables.get(expr, 0)
+            return expr # Literal string or hex? (usually handled as int in json)
+        
+        if isinstance(expr, dict) and "function" in expr:
+            func = expr["function"]
+            args = [self.eval_expr(arg) for arg in expr.get("args", [])]
+            
+            if func == "modbus_read_holding":
+                addr = args[0]
+                return self.registers.get(addr, 0)
+            elif func == "multiply":
+                return args[0] * args[1]
+            elif func == "divide":
+                 return args[0] / args[1] if args[1] != 0 else 0
+            elif func == "bit_and":
+                return int(args[0]) & int(args[1])
+            elif func == "bit_or":
+                return int(args[0]) | int(args[1])
+            elif func == "bit_lshift":
+                return int(args[0]) << int(args[1])
+            elif func == "bit_rshift":
+                return int(args[0]) >> int(args[1])
+            elif func == "round":
+                return round(args[0])
+            
+        return 0
 
-# Mode Enum (Czech names matching definitions.ts)
-MODE_VALUES = {
-    0: "Vypnuto",
-    1: "Auto",
-    2: "Větrání",
-    3: "Cirkulace+Větrání",
-    4: "Cirkulace",
-    5: "Noční předchlazení",
-    6: "Rozvážení",
-    7: "Přetlak",
-}
+    def execute_script(self, script: List[dict]):
+        for stmt in script:
+            if stmt["type"] == "assignment":
+                var = stmt["variable"]
+                val = self.eval_expr(stmt["value"])
+                self.variables[var] = val
+            elif stmt["type"] == "action":
+                expr = stmt["expression"]
+                func = expr["function"]
+                args = [self.eval_expr(arg) for arg in expr.get("args", [])]
+                
+                if func == "modbus_write_holding":
+                    addr = args[0]
+                    val = int(args[1])
+                    self.registers[addr] = val
+                    print(f" [MODBUS] Write Reg {addr} = {val}")
 
-# --- Data Store ---
-# Read registers (what the unit reports back)
-registers_read = {
-    REG_POWER_READ: 40,       # Default 40%
-    REG_MODE_READ: 2,         # Default 2 (Větrání)
-    REG_TEMP_READ: 225,       # Default 22.5 °C (225 raw)
-    REG_TEMP_OUTDOOR: 120,   # 12.0 °C
-    REG_TEMP_SUPPLY: 200,     # 20.0 °C
-}
+# --- Simulator State ---
 
-# Write control/target registers
-registers_write = {
-    REG_POWER_CTRL: 0,
-    REG_MODE_CTRL: 0,
-    REG_TEMP_CTRL: 0,
-    REG_POWER_WRITE: 40,
-    REG_MODE_WRITE: 2,
-    REG_TEMP_WRITE: 225,
-}
+class HruSimulator:
+    def __init__(self, unit_code: str):
+        self.registers = {i: 0 for i in range(1000, 11000)} # Large enough for most
+        # Add some default values for realism
+        self.registers[10300] = 120 # Outdoor 12.0
+        self.registers[10301] = 220 # Supply 22.0
+        
+        self.internal_state = {
+            "$power": 40.0,
+            "$temperature": 22.5,
+            "$mode": 2.0,
+            "$rawTemp": 225.0
+        }
+        
+        self.unit_def = self.load_json(UNITS_PATH, unit_code)
+        self.strategy_def = self.load_json(STRATEGIES_PATH, self.unit_def["regulationTypeId"], is_strategy=True)
+        
+        self.dsl = HruSimDSL(self.registers, self.internal_state)
+        self.reg_lock = threading.RLock()
+        self.dirty_registers = set() # Track registers written by master
+        
+        print(f"[*] Loaded Unit: {self.unit_def.get('name', unit_code)}")
+        print(f"[*] Loaded Strategy: {self.strategy_def.get('id', 'unknown')}")
 
-reg_lock = threading.Lock()
+    def load_json(self, path: str, code: str, is_strategy: bool = False) -> dict:
+        if not is_strategy:
+            file_path = os.path.join(path, f"{code}.json")
+            if not os.path.exists(file_path):
+                # Try finding by 'code' field inside
+                for filename in os.listdir(path):
+                    if filename.endswith(".json"):
+                        try:
+                            with open(os.path.join(path, filename), 'r') as f:
+                                data = json.load(f)
+                                if data.get("code") == code:
+                                    return data
+                        except: continue
+                raise FileNotFoundError(f"Unit definition for '{code}' not found in {path}")
+            with open(file_path, 'r') as f:
+                return json.load(f)
+        
+        # Strategy resolution: scan directory for matching "id"
+        for filename in os.listdir(path):
+            if filename.endswith(".json"):
+                try:
+                    with open(os.path.join(path, filename), 'r') as f:
+                        data = json.load(f)
+                        if data.get("id") == code:
+                            return data
+                except:
+                    continue
+        
+        raise FileNotFoundError(f"Strategy with ID '{code}' not found in {path}")
 
-def get_register(addr):
-    """Read from appropriate register space"""
-    with reg_lock:
-        if addr in registers_read:
-            return registers_read[addr]
-        elif addr in registers_write:
-            return registers_write[addr]
-        else:
-            # Unknown register - return 0
-            print(f" [?] Read from unknown register {addr}")
-            return 0
+    def sync_registers_from_state(self):
+        """Update Read registers from internal state using strategy DSL"""
+        # Only sync if master hasn't touched these registers recently
+        if "powerCommands" in self.strategy_def:
+            raw_power = self.internal_state["$power"]
+            if self.strategy_def["id"] == "xvent":
+                addr = 40000
+                if addr not in self.dirty_registers:
+                    current = self.registers.get(addr, 0)
+                    mask = ~(15 << 6)
+                    self.registers[addr] = (current & mask) | (int(raw_power) << 6)
+            else:
+                self.sync_component("powerCommands", "$power")
+        
+        self.sync_component("temperatureCommands", "$temperature")
+        self.sync_component("modeCommands", "$mode")
 
-def set_register(addr, val):
-    """Write to appropriate register space"""
-    with reg_lock:
-        old_val = 0
-        if addr in registers_read:
-            old_val = registers_read[addr]
-            registers_read[addr] = val
-        elif addr in registers_write:
-            old_val = registers_write[addr]
-            registers_write[addr] = val
-        else:
-            print(f" [?] Write to unknown register {addr} = {val}")
-            return False, val
-        return old_val != val, old_val
+    def sync_component(self, cmd_group: str, var_name: str):
+        if cmd_group not in self.strategy_def: return
+        
+        for stmt in self.strategy_def[cmd_group]["read"]:
+            if stmt["type"] == "assignment" and stmt["variable"] == var_name:
+                val_expr = stmt["value"]
+                if val_expr.get("function") == "modbus_read_holding":
+                    addr = val_expr["args"][0]
+                    if addr not in self.dirty_registers:
+                        self.registers[addr] = int(self.internal_state[var_name])
+                        if var_name == "$power": # Debug log for power sync
+                             pass
+                elif val_expr.get("function") in ["multiply", "divide"]:
+                    # Handle both direct modbus_read and aliased variables (like RD5 temp)
+                    sub_expr = val_expr["args"][0]
+                    factor = val_expr["args"][1]
+                    addr = None
+                    
+                    if isinstance(sub_expr, dict) and sub_expr.get("function") == "modbus_read_holding":
+                        addr = sub_expr["args"][0]
+                    elif isinstance(sub_expr, str) and sub_expr.startswith("$"):
+                        # Trace back to find the address for this variable in the same read script
+                        for prev_stmt in self.strategy_def[cmd_group]["read"]:
+                            if prev_stmt.get("variable") == sub_expr:
+                                prev_val = prev_stmt.get("value", {})
+                                if prev_val.get("function") == "modbus_read_holding":
+                                    addr = prev_val["args"][0]
+                                    break
+                    
+                    if addr is not None and addr not in self.dirty_registers:
+                        if val_expr["function"] == "multiply":
+                            self.registers[addr] = int(round(self.internal_state[var_name] / factor))
+                        else:
+                            self.registers[addr] = int(round(self.internal_state[var_name] * factor))
 
-def physics_loop():
-    """
-    Simulates unit reacting to write commands.
-    This implements the Atrea RD5 write protocol:
-    1. Control register (10700-10702) is set to 0
-    2. Target register (10708-10710) is set to desired value
-    3. After delay, the read register is updated
-    """
-    print("[*] Physics Engine Running...")
-    while True:
-        time.sleep(0.1)  # Check every 100ms
+    def check_writes(self):
+        """Detect master writes and update internal state"""
+        with self.reg_lock:
+            if not self.dirty_registers: return
 
-        with reg_lock:
-            # Check for power write
-            if registers_write[REG_POWER_CTRL] == 0 and registers_write[REG_POWER_WRITE] != registers_read[REG_POWER_READ]:
-                target = registers_write[REG_POWER_WRITE]
-                current = registers_read[REG_POWER_READ]
-                print(f" [PHYSICS] Power: {current}% -> {target}%")
-                registers_read[REG_POWER_READ] = target
-                # Reset control register to prevent repeated writes
-                registers_write[REG_POWER_CTRL] = 1
+            for cmd_group in ["powerCommands", "temperatureCommands", "modeCommands"]:
+                if cmd_group not in self.strategy_def: continue
+                
+                write_script = self.strategy_def[cmd_group]["write"]
+                has_trigger = any(stmt.get("expression", {}).get("function") == "delay" for stmt in write_script)
+                
+                if has_trigger:
+                    # RD5: Watch for control register = 0
+                    ctrl_addr = write_script[0]["expression"]["args"][0]
+                    if ctrl_addr in self.dirty_registers and self.registers.get(ctrl_addr) == 0:
+                        var_name = "$" + cmd_group.split("Commands")[0]
+                        target_addr = write_script[-1]["expression"]["args"][0]
+                        raw_val = self.registers.get(target_addr, 0)
+                        
+                        self.internal_state[var_name + "_target"] = float(raw_val)
+                        if var_name == "$temperature":
+                            self.internal_state[var_name + "_target"] /= 10.0
+                            
+                        print(f" [SIM] RD5 {var_name} setpoint -> {self.internal_state[var_name + '_target']}")
+                        self.registers[ctrl_addr] = 1 # Auto-reset trigger
+                else:
+                    # AM/XVent: Detect if master wrote to any register used in reading
+                    var_name = "$" + cmd_group.split("Commands")[0]
+                    read_val_expr = self.strategy_def[cmd_group]["read"][0]["value"]
+                    
+                    # Heuristic: if any register in the read script is dirty, re-evaluate
+                    # For simplicity, we just execute the read script from current registers
+                    current_val_from_regs = self.dsl.eval_expr(read_val_expr)
+                    if abs(current_val_from_regs - self.internal_state[var_name + "_target"]) > 0.001:
+                         # Ensure this was actually a master write by checking dirty registers
+                         # (Wait, if we just sync-back it won't be in dirty_registers)
+                         print(f" [SIM] {var_name} setpoint changed via Master: {current_val_from_regs}")
+                         self.internal_state[var_name + "_target"] = float(current_val_from_regs)
 
-            # Check for temperature write
-            if registers_write[REG_TEMP_CTRL] == 0 and registers_write[REG_TEMP_WRITE] != registers_read[REG_TEMP_READ]:
-                target = registers_write[REG_TEMP_WRITE]
-                current = registers_read[REG_TEMP_READ]
-                print(f" [PHYSICS] Temp: {current/10.0}°C -> {target/10.0}°C")
-                registers_read[REG_TEMP_READ] = target
-                # Reset control register
-                registers_write[REG_TEMP_CTRL] = 1
+            self.dirty_registers.clear()
 
-            # Check for mode write
-            if registers_write[REG_MODE_CTRL] == 0 and registers_write[REG_MODE_WRITE] != registers_read[REG_MODE_READ]:
-                target = registers_write[REG_MODE_WRITE]
-                current = registers_read[REG_MODE_READ]
-                mode_str = MODE_VALUES.get(target, str(target))
-                print(f" [PHYSICS] Mode: {MODE_VALUES.get(current, str(current))} -> {mode_str}")
-                registers_read[REG_MODE_READ] = target
-                # Reset control register
-                registers_write[REG_MODE_CTRL] = 1
+    def physics_loop(self):
+        print("[*] Realistic Physics Engine Running...")
+        start_time = time.time()
+        
+        # Initialize targets
+        for var in ["$power", "$temperature", "$mode"]:
+            self.internal_state[var + "_target"] = self.internal_state.get(var, 0)
 
-            # Simulate Supply Temp moving toward Setpoint
-            target_temp = registers_read[REG_TEMP_READ]
-            current_supply = registers_read[REG_TEMP_SUPPLY]
+        while True:
+            time.sleep(0.5)
+            self.check_writes()
 
-            if current_supply < target_temp:
-                registers_read[REG_TEMP_SUPPLY] += 1
-            elif current_supply > target_temp:
-                registers_read[REG_TEMP_SUPPLY] -= 1
+            with self.reg_lock:
+                t = time.time()
+                # Update outdoor temp (generic address if possible, else 10300)
+                outdoor_addr = 10300 if self.strategy_def["id"] == "atrea-rd5" else 10300
+                self.registers[outdoor_addr] = int(120 + 20 * math.sin((t - start_time) / 60.0))
+                
+                for var in ["$power", "$temperature"]:
+                    target = self.internal_state[var + "_target"]
+                    current = self.internal_state[var]
+                    if abs(current - target) > 0.01:
+                        step = 0.5 if var == "$power" else 0.1
+                        self.internal_state[var] = min(target, current + step) if target > current else max(target, current - step)
 
-            # Simulate Outdoor temp fluctuation
-            t = time.time()
-            registers_read[REG_TEMP_OUTDOOR] = int(120 + 20 * math.sin(t / 10.0))
+                self.internal_state["$mode"] = self.internal_state["$mode_target"]
+
+                # Supply temp simulation (reaction to power/temperature settings)
+                # For RD5, we update 10706 via sync_registers_from_state, but we can also fake 10301
+                self.registers[10301] = int(self.internal_state["$temperature"] * 10 + 2 * math.sin(t/10.0))
+
+                self.sync_registers_from_state()
+
+# --- Network Handlers ---
 
 def parse_mbap(data):
-    """Parse Modbus TCP header"""
     if len(data) < 8: return None
     tid, pid, length, uid, fc = struct.unpack('>HHHBB', data[:8])
     return {'tid':tid, 'pid':pid, 'len':length, 'uid':uid, 'fc':fc, 'payload':data[8:]}
 
-def handle_client(conn, addr):
+def handle_client(conn, addr, sim: HruSimulator):
     print(f"[+] Client connected from {addr}")
     try:
         while True:
@@ -163,78 +278,40 @@ def handle_client(conn, addr):
 
             resp_payload = b''
 
-            # FC 03: Read Holding Registers
-            if frame['fc'] == 3:
+            if frame['fc'] == 3: # Read Holding
                 start_addr, count = struct.unpack('>HH', frame['payload'][:4])
-
+                print(f" [MB] FC03 Read {count} regs from {start_addr}")
                 vals = []
-                for i in range(count):
-                    vals.append(get_register(start_addr + i))
+                with sim.reg_lock:
+                    for i in range(count):
+                        vals.append(sim.registers.get(start_addr + i, 0))
+                
+                # Modbus byte count is 1 byte, max 255. 
+                # FC03 usually allows max 125 registers (250 bytes).
+                actual_count = min(count, 125)
+                byte_count = actual_count * 2
+                resp_payload = struct.pack('B', byte_count)
+                print(f"   -> Returning: {vals[:actual_count]}")
+                for i in range(actual_count):
+                    resp_payload += struct.pack('>H', int(vals[i]) & 0xFFFF)
 
-                # Log specific reads
-                if REG_POWER_READ <= start_addr < REG_POWER_READ + count:
-                    idx = REG_POWER_READ - start_addr
-                    if 0 <= idx < count:
-                        print(f" [READ] Power: {vals[idx]}%")
-                if REG_MODE_READ <= start_addr < REG_MODE_READ + count:
-                    idx = REG_MODE_READ - start_addr
-                    if 0 <= idx < count:
-                        mode_val = vals[idx]
-                        print(f" [READ] Mode: {mode_val} ({MODE_VALUES.get(mode_val, 'Unknown')})")
-                if REG_TEMP_READ <= start_addr < REG_TEMP_READ + count:
-                    idx = REG_TEMP_READ - start_addr
-                    if 0 <= idx < count:
-                        print(f" [READ] Temperature: {vals[idx]/10.0}°C")
-
-                resp_payload = struct.pack('B', count * 2)
-                for v in vals:
-                    resp_payload += struct.pack('>H', v)
-
-            # FC 06: Write Single Register
-            elif frame['fc'] == 6:
+            elif frame['fc'] == 6: # Write Single
                 reg_addr, reg_val = struct.unpack('>HH', frame['payload'][:4])
-                changed, old_val = set_register(reg_addr, reg_val)
-
-                if changed:
-                    # Power control register (10700)
-                    if reg_addr == REG_POWER_CTRL:
-                        print(f" [WRITE] Power CTRL trigger: {old_val} -> {reg_val}")
-                    # Power target register (10708)
-                    elif reg_addr == REG_POWER_WRITE:
-                        print(f" [WRITE] Power target: {old_val}% -> {reg_val}%")
-
-                    # Temperature control register (10702)
-                    elif reg_addr == REG_TEMP_CTRL:
-                        print(f" [WRITE] Temp CTRL trigger: {old_val} -> {reg_val}")
-                    # Temperature target register (10710)
-                    elif reg_addr == REG_TEMP_WRITE:
-                        print(f" [WRITE] Temp target: {old_val/10.0}°C -> {reg_val/10.0}°C")
-
-                    # Mode control register (10701)
-                    elif reg_addr == REG_MODE_CTRL:
-                        print(f" [WRITE] Mode CTRL trigger: {old_val} -> {reg_val}")
-                    # Mode target register (10709)
-                    elif reg_addr == REG_MODE_WRITE:
-                        mode_str = MODE_VALUES.get(reg_val, str(reg_val))
-                        print(f" [WRITE] Mode target: {MODE_VALUES.get(old_val, str(old_val))} -> {mode_str}")
-
-                    else:
-                        print(f" [WRITE] Reg {reg_addr}: {old_val} -> {reg_val}")
-
-                # Echo back per Modbus spec
+                print(f" [MB] FC06 Write Reg {reg_addr} = {reg_val}")
+                with sim.reg_lock:
+                    sim.registers[reg_addr] = reg_val
+                    sim.dirty_registers.add(reg_addr)
                 resp_payload = struct.pack('>HH', reg_addr, reg_val)
 
-            # FC 16: Write Multiple Registers
-            elif frame['fc'] == 16:
+            elif frame['fc'] == 16: # Write Multiple
                 start_addr, count, byte_count = struct.unpack('>HHB', frame['payload'][:5])
                 vals_data = frame['payload'][5:]
-
-                for i in range(count):
-                    val = struct.unpack('>H', vals_data[i*2:(i*2)+2])[0]
-                    changed, old_val = set_register(start_addr + i, val)
-                    if changed:
-                        print(f" [WRITE MULTI] {start_addr+i} = {val} (was {old_val})")
-
+                print(f" [MB] FC16 Write Multi {start_addr} count {count}")
+                with sim.reg_lock:
+                    for i in range(count):
+                        val = struct.unpack('>H', vals_data[i*2:(i*2)+2])[0]
+                        sim.registers[start_addr + i] = val
+                        sim.dirty_registers.add(start_addr + i)
                 resp_payload = struct.pack('>HH', start_addr, count)
 
             if resp_payload:
@@ -247,47 +324,43 @@ def handle_client(conn, addr):
     finally:
         conn.close()
 
-def start_server():
+def main():
+    parser = argparse.ArgumentParser(description='Atrea HRU Simulator (Dynamic)')
+    parser.add_argument('--unit', type=str, default='atrea-rd5-cf', help='Unit code (from units json)')
+    parser.add_argument('--port', type=int, default=502, help='Modbus port')
+    args = parser.parse_args()
+
+    sim = HruSimulator(args.unit)
+    
     server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
+    
     try:
-        server.bind((HOST, PORT))
-    except PermissionError:
-        print(f"!!! PERMISSION DENIED !!!")
-        print(f"You are trying to bind port {PORT} (Standard Modbus).")
-        print(f"Please run this script with 'sudo python3 atrea_sim_ha.py'")
+        server.bind((HOST, args.port))
+    except (PermissionError, OSError) as e:
+        print(f"!!! Error: Could not bind to port {args.port}: {e}")
+        if args.port == 502:
+            print("Tip: Run with sudo or use --port 5020")
         return
 
     server.listen(5)
     print(f"==========================================")
-    print(f" ATREA RD5 SIMULATOR")
-    print(f" Protocol: New multi-step write style")
-    print(f" Listen: {HOST}:{PORT}")
-    print(f"")
-    print(f" Read Registers:")
-    print(f"   10704: Power (%)")
-    print(f"   10705: Mode (Enum)")
-    print(f"   10706: Temperature (°C, scale 0.1)")
-    print(f"")
-    print(f" Write Protocol:")
-    print(f"   Power:   10700(ctrl) -> 10708(value)")
-    print(f"   Mode:    10701(ctrl) -> 10709(value)")
-    print(f"   Temp:     10702(ctrl) -> 10710(value)")
+    print(f" DYNAMIC HRU SIMULATOR")
+    print(f" Unit: {sim.unit_def['name']}")
+    print(f" Strategy: {sim.strategy_def['id']}")
+    print(f" Listen: {HOST}:{args.port}")
     print(f"==========================================")
 
-    # Background thread to simulate temp changes
-    t_sim = threading.Thread(target=physics_loop, daemon=True)
-    t_sim.start()
+    # Background physics
+    threading.Thread(target=sim.physics_loop, daemon=True).start()
 
     try:
         while True:
             conn, addr = server.accept()
-            t = threading.Thread(target=handle_client, args=(conn, addr), daemon=True)
-            t.start()
+            threading.Thread(target=handle_client, args=(conn, addr, sim), daemon=True).start()
     except KeyboardInterrupt:
         print("\nStopping...")
         server.close()
 
 if __name__ == '__main__':
-    start_server()
+    main()

@@ -13,7 +13,7 @@ interface TimelineEventModalProps {
   onChange: (event: TimelineEvent) => void;
   t: TFunction;
   hruCapabilities?: {
-    supportsModeWrite?: boolean;
+    hasModeControl?: boolean;
   };
 }
 
@@ -56,19 +56,9 @@ export function TimelineEventModal({
               leftSection={<IconClock size={16} stroke={1.5} />}
               required
             />
-            <TextInput
-              label={t("settings.timeline.form.endTime")}
-              placeholder="08:30"
-              value={event.endTime}
-              type="time"
-              onChange={(e) => onChange({ ...event, endTime: e.target.value })}
-              pattern={TIME_REGEX.source}
-              leftSection={<IconClock size={16} stroke={1.5} />}
-              required
-            />
           </Group>
 
-          {hruCapabilities?.supportsModeWrite !== false && (
+          {hruCapabilities?.hasModeControl !== false && (
             <Select
               label={t("schedule.modeSelect", { defaultValue: "Select mode" })}
               data={modeOptions}

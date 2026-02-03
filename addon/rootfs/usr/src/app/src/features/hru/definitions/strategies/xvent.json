@@ -1,0 +1,44 @@
+{
+  "id": "xvent",
+  "capabilities": {
+    "hasPowerControl": true,
+    "hasTemperatureControl": false,
+    "hasModeControl": false
+  },
+  "powerCommands": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$power",
+        "value": {
+          "function": "bit_and",
+          "args": [
+            {
+              "function": "bit_rshift",
+              "args": [{ "function": "modbus_read_holding", "args": [40000] }, 6]
+            },
+            15
+          ]
+        }
+      }
+    ],
+    "write": [
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [
+            40000,
+            {
+              "function": "bit_or",
+              "args": [
+                { "function": "modbus_read_holding", "args": [40000] },
+                { "function": "bit_lshift", "args": ["$power", 6] }
+              ]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}

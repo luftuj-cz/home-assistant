@@ -12,6 +12,7 @@ export function createStatusRouter(
   haClient: HomeAssistantClient | null,
   mqttService: MqttService,
   logger: Logger,
+  timelineScheduler: { getActiveState: () => { source: string; modeName?: string } | null },
 ) {
   const router = Router();
 
@@ -21,7 +22,8 @@ export function createStatusRouter(
       connection: mqttService.isConnected() ? "connected" : "disconnected",
       lastDiscovery: mqttService.getLastDiscoveryTime(),
     };
-    response.json({ ha, mqtt, version: APP_VERSION });
+    const timeline = timelineScheduler.getActiveState();
+    response.json({ ha, mqtt, timeline, version: APP_VERSION });
   });
 
   async function probeTcp(host: string, port: number, timeoutMs = 1500): Promise<void> {

@@ -7,7 +7,7 @@ export interface HruCapabilities {
 export interface TimelineEvent {
   id?: number;
   startTime: string;
-  endTime: string;
+  endTime?: string;
   dayOfWeek: number; // 0-6
   hruConfig?: { mode?: string; power?: number; temperature?: number } | null;
   hruCapabilities?: HruCapabilities;

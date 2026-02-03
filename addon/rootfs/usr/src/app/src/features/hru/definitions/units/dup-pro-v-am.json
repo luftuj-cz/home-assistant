@@ -1,0 +1,8 @@
+{
+  "code": "atrea-am",
+  "name": "Atrea DUPLEX Pro-V.AM",
+  "regulationTypeId": "modbus-atrea-am",
+  "controlUnit": "%",
+  "maxValue": 100,
+  "isConfigurable": false
+}

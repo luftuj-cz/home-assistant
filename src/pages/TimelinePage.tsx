@@ -6,27 +6,17 @@ import { IconCalendar, IconCopy } from "@tabler/icons-react";
 
 import { useTimelineModes } from "../hooks/useTimelineModes";
 import { useTimelineEvents } from "../hooks/useTimelineEvents";
+import { useDashboardStatus } from "../hooks/useDashboardStatus";
 import { TimelineModeList } from "../components/timeline/TimelineModeList";
 import { TimelineDayCard } from "../components/timeline/TimelineDayCard";
 import { TimelineEventModal } from "../components/timeline/TimelineEventModal";
 import { TimelineModeModal } from "../components/timeline/TimelineModeModal";
 
+import { resolveApiUrl } from "../utils/api";
 import * as hruApi from "../api/hru";
 import * as valveApi from "../api/valves";
 import type { TimelineEvent } from "../types/timeline";
 import type { Valve } from "../types/valve";
-
-function pad(num: number) {
-  return num.toString().padStart(2, "0");
-}
-
-function addMinutes(time: string, minutes: number) {
-  const [h, m] = time.split(":").map(Number);
-  const total = h * 60 + m + minutes;
-  const hh = Math.floor(total / 60) % 24;
-  const mm = total % 60;
-  return `${pad(hh)}:${pad(mm)}`;
-}
 
 export function TimelinePage() {
   const { t } = useTranslation();
@@ -40,6 +30,8 @@ export function TimelinePage() {
     deleteEvent,
     saving: savingEvent,
   } = useTimelineEvents(modes, t);
+
+  const { tempUnit } = useDashboardStatus();
 
   // -- Local State --
   const [loading, setLoading] = useState(false);
@@ -61,7 +53,7 @@ export function TimelinePage() {
     Pick<hruApi.HruUnit, "capabilities">["capabilities"]
   >({});
   const [powerUnit, setPowerUnit] = useState<string>("%");
-  const [temperatureUnit, setTemperatureUnit] = useState<string>("°C");
+  const [maxPower, setMaxPower] = useState<number>(100);
 
   // -- Effects --
   useEffect(() => {
@@ -70,22 +62,25 @@ export function TimelinePage() {
       await Promise.all([loadModes(), loadEvents()]);
 
       try {
-        const v = await valveApi.fetchValves().catch(() => []);
-        setValves(v);
+        const valves = await valveApi.fetchValves().catch(() => []);
+        setValves(valves);
 
-        const units = await hruApi.fetchHruUnits().catch(() => []);
-        const first = units[0];
-        if (first?.capabilities) {
-          setHruCapabilities(first.capabilities);
+        const [settingsRes, units] = await Promise.all([
+          fetch(resolveApiUrl("/api/settings/hru")).then(
+            (r) => r.json() as Promise<{ unit?: string }>,
+          ),
+          hruApi.fetchHruUnits().catch(() => []),
+        ]);
+
+        const activeUnit = units.find((u) => u.id === settingsRes.unit) || units[0];
+
+        if (activeUnit) {
+          setHruCapabilities(activeUnit.capabilities || {});
+          setPowerUnit(activeUnit.controlUnit || "%");
+          setMaxPower(activeUnit.maxValue || 100);
         }
-        if (first?.registers?.read?.power?.unit) {
-          setPowerUnit(first.registers.read.power.unit);
-        }
-        if (first?.registers?.read?.temperature?.unit) {
-          setTemperatureUnit(first.registers.read.temperature.unit);
-        }
-      } catch {
-        // ignore aux load errors
+      } catch (err) {
+        console.error("Failed to load HRU context:", err);
       } finally {
         setLoading(false);
       }
@@ -160,7 +155,6 @@ export function TimelinePage() {
 
       setEditingEvent({
         startTime,
-        endTime: addMinutes(startTime, 30),
         dayOfWeek: day,
         hruConfig: { mode: modes[0]?.id?.toString() },
         enabled: true,
@@ -208,7 +202,6 @@ export function TimelinePage() {
       for (const ev of source) {
         await saveEvent({
           startTime: ev.startTime,
-          endTime: ev.endTime,
           dayOfWeek: targetDay,
           hruConfig: ev.hruConfig,
           luftatorConfig: ev.luftatorConfig,
@@ -268,7 +261,7 @@ export function TimelinePage() {
           onDelete={deleteMode}
           t={t}
           powerUnit={powerUnit}
-          temperatureUnit={temperatureUnit}
+          temperatureUnit={tempUnit}
         />
 
         {/* Days Grid */}
@@ -332,7 +325,8 @@ export function TimelinePage() {
           t={t}
           hruCapabilities={hruCapabilities}
           powerUnit={powerUnit}
-          temperatureUnit={temperatureUnit}
+          temperatureUnit={tempUnit}
+          maxPower={maxPower}
         />
       </Stack>
     </Container>

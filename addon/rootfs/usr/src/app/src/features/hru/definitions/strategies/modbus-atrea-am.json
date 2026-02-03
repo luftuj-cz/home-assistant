@@ -1,0 +1,62 @@
+{
+  "id": "modbus-atrea-am",
+  "capabilities": {
+    "hasPowerControl": true,
+    "hasTemperatureControl": true,
+    "hasModeControl": true,
+    "powerStep": 1,
+    "temperatureStep": 0.1
+  },
+  "powerCommands": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$power",
+        "value": { "function": "modbus_read_holding", "args": [1004, 1] }
+      }
+    ],
+    "write": [
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [1004, "$power"] }
+      }
+    ]
+  },
+  "temperatureCommands": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$temperature",
+        "value": { "function": "modbus_read_holding", "args": [1002, 1] }
+      }
+    ],
+    "write": [
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [1002, "$temperature"] }
+      }
+    ]
+  },
+  "modeCommands": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$mode",
+        "value": { "function": "modbus_read_holding", "args": [1001, 1] }
+      }
+    ],
+    "write": [
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [1001, "$mode"] }
+      }
+    ],
+    "availableModes": {
+      "0": "Vypnuto",
+      "2": "Větrání",
+      "5": "Noční předchlazení",
+      "6": "Rozvážení",
+      "7": "Přetlak"
+    }
+  }
+}

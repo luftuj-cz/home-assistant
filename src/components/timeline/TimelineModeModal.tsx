@@ -25,6 +25,8 @@ import { useEffect, useState } from "react";
 import type { TFunction } from "i18next";
 import type { Mode } from "../../types/timeline";
 import type { Valve } from "../../types/valve";
+import { formatTemperature, parseTemperature, getTemperatureLabel } from "../../utils/temperature";
+import type { TemperatureUnit } from "../../hooks/useDashboardStatus";
 
 interface TimelineModeModalProps {
   opened: boolean;
@@ -35,11 +37,12 @@ interface TimelineModeModalProps {
   onSave: (mode: Partial<Mode>) => void;
   t: TFunction;
   hruCapabilities?: {
-    supportsPowerWrite?: boolean;
-    supportsTemperatureWrite?: boolean;
+    hasPowerControl?: boolean;
+    hasTemperatureControl?: boolean;
   };
   powerUnit?: string;
-  temperatureUnit?: string;
+  maxPower?: number;
+  temperatureUnit?: TemperatureUnit;
 }
 
 export function TimelineModeModal({
@@ -51,9 +54,9 @@ export function TimelineModeModal({
   onSave,
   t,
   hruCapabilities,
-  // TODO: get from config or device info (definice HRU)
   powerUnit = "%",
-  temperatureUnit = "°C",
+  maxPower = 100,
+  temperatureUnit = "c",
 }: TimelineModeModalProps) {
   const [name, setName] = useState("");
   const [power, setPower] = useState<number | undefined>(undefined);
@@ -67,7 +70,11 @@ export function TimelineModeModal({
       if (mode) {
         setName(mode.name);
         setPower(mode.power);
-        setTemperature(mode.temperature);
+        setTemperature(
+          mode.temperature !== undefined
+            ? formatTemperature(mode.temperature, temperatureUnit)
+            : undefined,
+        );
         setColor(mode.color ?? "");
         setIsBoost(mode.isBoost ?? false);
         setValveOpenings(mode.luftatorConfig ?? {});
@@ -80,7 +87,7 @@ export function TimelineModeModal({
         setValveOpenings({});
       }
     }
-  }, [opened, mode]);
+  }, [opened, mode, temperatureUnit]);
 
   function handleSave() {
     // Filter undefined/invalid
@@ -95,7 +102,8 @@ export function TimelineModeModal({
       id: mode?.id,
       name,
       power,
-      temperature,
+      temperature:
+        temperature !== undefined ? parseTemperature(temperature, temperatureUnit) : undefined,
       color: color || undefined,
       isBoost,
       luftatorConfig: Object.keys(cleanedValveOpenings).length ? cleanedValveOpenings : undefined,
@@ -133,21 +141,21 @@ export function TimelineModeModal({
           required
         />
         <Group grow>
-          {hruCapabilities?.supportsPowerWrite !== false && (
+          {hruCapabilities?.hasPowerControl !== false && (
             <NumberInput
               label={`${t("settings.timeline.modePower", { defaultValue: "Power" })} (${powerUnit})`}
               placeholder="50"
               value={power}
               onChange={(value) => setPower(typeof value === "number" ? value : undefined)}
               min={0}
-              max={100}
+              max={maxPower}
               step={1}
               leftSection={<IconBolt size={16} stroke={1.5} />}
             />
           )}
-          {hruCapabilities?.supportsTemperatureWrite !== false && (
+          {hruCapabilities?.hasTemperatureControl !== false && (
             <NumberInput
-              label={`${t("settings.timeline.modeTemperature", { defaultValue: "Temperature" })} (${temperatureUnit})`}
+              label={`${t("settings.timeline.modeTemperature", { defaultValue: "Temperature" })} (${getTemperatureLabel(temperatureUnit)})`}
               placeholder="21"
               value={temperature}
               onChange={(value) => setTemperature(typeof value === "number" ? value : undefined)}

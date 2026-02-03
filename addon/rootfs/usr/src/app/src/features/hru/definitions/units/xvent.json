@@ -1,0 +1,8 @@
+{
+  "code": "xvent",
+  "name": "XVent",
+  "regulationTypeId": "xvent",
+  "controlUnit": "level",
+  "maxValue": 7,
+  "isConfigurable": false
+}

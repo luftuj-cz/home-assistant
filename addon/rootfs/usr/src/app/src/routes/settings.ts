@@ -10,14 +10,19 @@ import {
   type AddonMode,
   THEME_SETTING_KEY,
   LANGUAGE_SETTING_KEY,
+  TEMP_UNIT_SETTING_KEY,
   SUPPORTED_LANGUAGES,
   type HruSettings,
   MQTT_SETTINGS_KEY,
   type MqttSettings,
 } from "../types";
-import { HRU_UNITS } from "../features/hru/hru.definitions";
+import type { HruService } from "../features/hru/hru.service";
 
-export function createSettingsRouter(mqttService: MqttService, logger: Logger) {
+export function createSettingsRouter(
+  hruService: HruService,
+  mqttService: MqttService,
+  logger: Logger,
+) {
   const router = Router();
 
   // MQTT Settings
@@ -113,8 +118,9 @@ export function createSettingsRouter(mqttService: MqttService, logger: Logger) {
     const host = (body.host ?? "").toString().trim();
     const port = Number(body.port);
     const unitId = Number(body.unitId);
+    const maxPower = body.maxPower !== undefined ? Number(body.maxPower) : undefined;
 
-    if (unit !== null && !HRU_UNITS.some((u) => u.id === unit)) {
+    if (unit !== null && !hruService.getAllUnits().some((u) => u.id === unit)) {
       response.status(400).json({ detail: "Unknown HRU unit id" });
       return;
     }
@@ -131,7 +137,21 @@ export function createSettingsRouter(mqttService: MqttService, logger: Logger) {
       return;
     }
 
-    const settings: HruSettings = { unit, host, port, unitId };
+    // Validate maxPower against unit's actual maximum
+    if (maxPower !== undefined && unit !== null) {
+      const selectedUnit = hruService.getAllUnits().find((u) => u.id === unit);
+      if (selectedUnit && selectedUnit.isConfigurable) {
+        const unitMaxValue = selectedUnit.maxValue;
+        if (maxPower > unitMaxValue) {
+          response.status(400).json({
+            detail: `Maximum power cannot exceed ${unitMaxValue} ${selectedUnit.controlUnit || ""}. The selected unit supports a maximum of ${unitMaxValue}.`,
+          });
+          return;
+        }
+      }
+    }
+
+    const settings: HruSettings = { unit, host, port, unitId, maxPower };
     setAppSetting(HRU_SETTINGS_KEY, JSON.stringify(settings));
     response.status(204).end();
   });
@@ -182,6 +202,22 @@ export function createSettingsRouter(mqttService: MqttService, logger: Logger) {
       return;
     }
     setAppSetting(LANGUAGE_SETTING_KEY, language);
+    response.status(204).end();
+  });
+
+  // Temperature Unit
+  router.get("/temperature-unit", (_request: Request, response: Response) => {
+    const temperatureUnit = getAppSetting(TEMP_UNIT_SETTING_KEY) ?? "c";
+    response.json({ temperatureUnit });
+  });
+
+  router.post("/temperature-unit", (request: Request, response: Response) => {
+    const { temperatureUnit } = request.body as { temperatureUnit?: string };
+    if (temperatureUnit !== "c" && temperatureUnit !== "f") {
+      response.status(400).json({ detail: "Invalid temperature unit value" });
+      return;
+    }
+    setAppSetting(TEMP_UNIT_SETTING_KEY, temperatureUnit);
     response.status(204).end();
   });
 

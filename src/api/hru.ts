@@ -6,15 +6,19 @@ export interface HruRegister {
   scale?: number;
   precision?: number;
   unit?: string;
+  maxValue?: number;
 }
 
 export interface HruUnit {
   id: string;
   name: string;
+  isConfigurable?: boolean;
+  maxValue?: number;
+  controlUnit?: string;
   capabilities?: {
-    supportsPowerWrite?: boolean;
-    supportsTemperatureWrite?: boolean;
-    supportsModeWrite?: boolean;
+    hasPowerControl?: boolean;
+    hasTemperatureControl?: boolean;
+    hasModeControl?: boolean;
   };
   registers?: {
     read?: {

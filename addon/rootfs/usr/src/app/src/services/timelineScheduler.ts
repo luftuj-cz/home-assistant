@@ -1,10 +1,8 @@
 import type { Logger } from "pino";
 import type { ValveController } from "../core/valveManager";
 import { getTimelineEvents, getAppSetting, setAppSetting } from "./database";
-import { withTempModbusClient } from "../shared/modbus/client";
 import { SettingsRepository } from "../features/settings/settings.repository";
-import { getUnitById } from "../features/hru/hru.definitions";
-import { applyWriteDefinition, resolveModeValue } from "../utils/hruWrite";
+import type { HruService } from "../features/hru/hru.service";
 import {
   TIMELINE_MODES_KEY,
   TIMELINE_OVERRIDE_KEY,
@@ -12,12 +10,19 @@ import {
   type TimelineOverride,
 } from "../types";
 
+export interface ActiveState {
+  source: "manual" | "schedule" | "boost";
+  modeName?: string;
+}
+
 export class TimelineScheduler {
   private schedulerTimer: NodeJS.Timeout | null = null;
   private readonly settingsRepo = new SettingsRepository();
+  private lastActiveState: ActiveState | null = null;
 
   constructor(
     private readonly valveManager: ValveController,
+    private readonly hruService: HruService,
     private readonly logger: Logger,
   ) {}
 
@@ -53,30 +58,38 @@ export class TimelineScheduler {
       `${new Date().getHours().toString().padStart(2, "0")}:${new Date().getMinutes().toString().padStart(2, "0")}`,
     );
     const today = this.mapTodayToTimelineDay();
-    const events = getTimelineEvents();
+    const allEvents = getTimelineEvents();
 
-    const candidates = events
-      .filter((e) => e.enabled && (e.dayOfWeek ?? today) === today)
-      .filter(
-        (e) =>
-          this.timeToMinutes(e.startTime) <= nowMinutes &&
-          nowMinutes < this.timeToMinutes(e.endTime),
+    // Check today, then yesterday, then the day before... up to 7 days
+    for (let d = 0; d < 7; d++) {
+      const targetDay = (today - d + 7) % 7;
+      const dayCandidates = allEvents.filter(
+        (e) => e.enabled && (e.dayOfWeek === null || e.dayOfWeek === targetDay),
       );
 
-    this.logger.debug(
-      { today, nowMinutes, candidates: candidates.length },
-      "TimelineScheduler: candidate events for current time",
-    );
+      let filtered = dayCandidates;
+      if (d === 0) {
+        // For today, only consider events that have already started
+        filtered = dayCandidates.filter((e) => this.timeToMinutes(e.startTime) <= nowMinutes);
+      }
 
-    if (candidates.length === 0) return null;
+      if (filtered.length > 0) {
+        // Pick latest start time on this specific day, then highest priority
+        filtered.sort((a, b) => {
+          const timeA = this.timeToMinutes(a.startTime);
+          const timeB = this.timeToMinutes(b.startTime);
+          if (timeB !== timeA) return timeB - timeA;
+          return (b.priority ?? 0) - (a.priority ?? 0);
+        });
+        return filtered[0] ?? null;
+      }
+    }
 
-    // Highest priority, then latest start time
-    candidates.sort((a, b) => {
-      if (b.priority !== a.priority) return b.priority - a.priority;
-      return this.timeToMinutes(b.startTime) - this.timeToMinutes(a.startTime);
-    });
+    return null;
+  }
 
-    return candidates[0] ?? null;
+  public getActiveState(): ActiveState | null {
+    return this.lastActiveState;
   }
 
   public async executeScheduledEvent(): Promise<void> {
@@ -84,7 +97,7 @@ export class TimelineScheduler {
     let activePayload: {
       hruConfig?: { mode?: string; power?: number; temperature?: number } | null;
       luftatorConfig?: Record<string, number> | null;
-      source: string;
+      source: "manual" | "schedule" | "boost";
       id?: number;
     } | null = null;
 
@@ -118,8 +131,33 @@ export class TimelineScheduler {
     if (!activePayload) {
       const event = this.pickActiveEvent();
       if (event) {
+        // Look up the mode name if hruConfig.mode contains an ID
+        let displayModeName = event.hruConfig?.mode;
+
+        // If mode looks like a number (mode ID), try to look up the actual mode name
+        if (displayModeName && /^\d+$/.test(displayModeName)) {
+          try {
+            const modesRaw = getAppSetting(TIMELINE_MODES_KEY);
+            if (modesRaw) {
+              const modes = JSON.parse(modesRaw) as TimelineMode[];
+              const modeId = parseInt(displayModeName, 10);
+              const foundMode = modes.find((m) => m.id === modeId);
+              if (foundMode) {
+                displayModeName = foundMode.name;
+              }
+            }
+          } catch {
+            // If lookup fails, use the original value
+          }
+        }
+
         activePayload = {
-          hruConfig: event.hruConfig,
+          hruConfig: event.hruConfig
+            ? {
+                ...event.hruConfig,
+                mode: displayModeName,
+              }
+            : event.hruConfig,
           luftatorConfig: event.luftatorConfig,
           source: "schedule",
           id: event.id,
@@ -129,10 +167,27 @@ export class TimelineScheduler {
 
     if (!activePayload) {
       this.logger.debug("TimelineScheduler: no active event or boost for current time");
+      this.lastActiveState = { source: "manual" };
       return;
     }
 
     const { hruConfig, luftatorConfig, source, id } = activePayload;
+
+    // Extract mode name for display
+    let modeName: string | undefined;
+    if (source === "boost" || source === "schedule") {
+      modeName = hruConfig?.mode;
+      this.logger.info(
+        { source, id, modeName, hruConfig },
+        "TimelineScheduler: extracted mode name",
+      );
+    }
+
+    // Update active state
+    this.lastActiveState = {
+      source,
+      modeName,
+    };
     const hasValves = luftatorConfig && Object.keys(luftatorConfig).length > 0;
     const hasHru = Boolean(hruConfig);
 
@@ -165,69 +220,17 @@ export class TimelineScheduler {
       }
     }
 
-    // Apply HRU settings if available
+    // Apply HRU settings
     if (hasHru && hruConfig) {
-      const settings = this.settingsRepo.getHruSettings();
-      if (settings?.unit) {
-        const def = getUnitById(settings.unit);
-
-        if (def) {
-          const { power, temperature, mode } = hruConfig;
-          this.logger.info(
-            {
-              source,
-              id,
-              power,
-              temperature,
-              mode,
-            },
-            "TimelineScheduler: applying HRU settings",
-          );
-          try {
-            await withTempModbusClient(
-              { host: settings.host, port: settings.port, unitId: settings.unitId },
-              this.logger,
-              async (mb) => {
-                if (typeof power === "number" && Number.isFinite(power)) {
-                  const writeDef = def.registers.write?.power;
-                  if (!writeDef) {
-                    this.logger.warn(
-                      "TimelineScheduler: power write not supported by HRU definition",
-                    );
-                  } else {
-                    await applyWriteDefinition(mb, writeDef, power);
-                  }
-                }
-                if (typeof temperature === "number" && Number.isFinite(temperature)) {
-                  const writeDef = def.registers.write?.temperature;
-                  if (!writeDef) {
-                    this.logger.warn(
-                      "TimelineScheduler: temperature write not supported by HRU definition",
-                    );
-                  } else {
-                    await applyWriteDefinition(mb, writeDef, temperature);
-                  }
-                }
-                if (mode !== undefined && mode !== null) {
-                  const writeDef = def.registers.write?.mode;
-                  if (!writeDef) {
-                    this.logger.warn(
-                      "TimelineScheduler: mode write not supported by HRU definition",
-                    );
-                  } else {
-                    const rawMode = resolveModeValue(def.registers.read.mode.values, mode);
-                    await applyWriteDefinition(mb, writeDef, rawMode);
-                  }
-                }
-              },
-            );
-          } catch (err) {
-            this.logger.warn(
-              { err, source },
-              "Failed to apply HRU settings from timeline scheduler",
-            );
-          }
-        }
+      try {
+        await this.hruService.writeValues({
+          power: hruConfig.power,
+          temperature: hruConfig.temperature,
+          mode: hruConfig.mode,
+        });
+        this.logger.info({ source, id, hruConfig }, "TimelineScheduler: applied HRU settings");
+      } catch (err) {
+        this.logger.warn({ err, source }, "Failed to apply HRU settings from timeline scheduler");
       }
     }
   }
@@ -236,12 +239,11 @@ export class TimelineScheduler {
     if (this.schedulerTimer) {
       clearTimeout(this.schedulerTimer);
     }
-    const now = new Date();
-    const msUntilNextMinute = 60_000 - (now.getSeconds() * 1000 + now.getMilliseconds());
+    // Run every 30 seconds for more responsive boost expiration and schedule transitions
     this.schedulerTimer = setTimeout(() => {
       void this.executeScheduledEvent().finally(() => {
         this.scheduleNextTick();
       });
-    }, msUntilNextMinute);
+    }, 30_000);
   }
 }

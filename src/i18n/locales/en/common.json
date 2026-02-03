@@ -86,6 +86,13 @@
       "options": {
         "c": "Celsius (°C)",
         "f": "Fahrenheit (°F)"
+      },
+      "notifications": {
+        "updatedTitle": "Temperature unit changed",
+        "updatedMessage": "Display unit set to {{unit}}.",
+        "failedTitle": "Failed to change unit",
+        "failedMessage": "{{message}}",
+        "unknown": "Unknown error"
       }
     },
     "mode": {
@@ -207,6 +214,13 @@
         "probeFailedMessage": "{{message}}",
         "noUnitSelected": "Please select an HRU unit first",
         "unknown": "Unknown error"
+      },
+      "maxPowerLabel": "Maximum Airflow/Power",
+      "configuration": {
+        "title": "Unit Overrides",
+        "maxPowerLabel": "Maximum Airflow/Power",
+        "maxPowerDescription": "This value overrides the default limit for this unit. Useful for volumetric units (m3/h) to match your specific installation.",
+        "maxPowerHint": "Default: {{default}} {{unit}}"
       }
     },
     "mqtt": {

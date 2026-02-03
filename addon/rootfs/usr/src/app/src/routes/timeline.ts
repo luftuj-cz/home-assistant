@@ -11,23 +11,29 @@ import {
 import {
   TIMELINE_MODES_KEY,
   TIMELINE_OVERRIDE_KEY,
+  HRU_SETTINGS_KEY,
   type TimelineMode,
   type TimelineOverride,
+  type HruSettings,
 } from "../types";
 
 import type { TimelineScheduler } from "../services/timelineScheduler";
+import type { HruService } from "../features/hru/hru.service";
+import { validateRequest } from "../middleware/validateRequest";
+import {
+  timelineModeInputSchema,
+  timelineEventInputSchema,
+  boostOverrideInputSchema,
+  type TimelineModeInput,
+  type TimelineEventInput,
+} from "../schemas/timeline";
 
-export function createTimelineRouter(logger: Logger, timelineScheduler: TimelineScheduler) {
+export function createTimelineRouter(
+  logger: Logger,
+  timelineScheduler: TimelineScheduler,
+  hruService: HruService,
+) {
   const router = Router();
-
-  type TimelineModeBody = {
-    name?: string;
-    color?: string;
-    power?: number;
-    temperature?: number;
-    luftatorConfig?: Record<string, number>;
-    isBoost?: boolean;
-  };
 
   function getTimelineModes(): TimelineMode[] {
     const raw = getAppSetting(TIMELINE_MODES_KEY);
@@ -45,65 +51,83 @@ export function createTimelineRouter(logger: Logger, timelineScheduler: Timeline
     setAppSetting(TIMELINE_MODES_KEY, JSON.stringify(modes));
   }
 
-  function validateModeInput(
-    body: TimelineModeBody,
-    response: Response,
-    valveMax: number,
-  ): (TimelineModeBody & { name: string }) | null {
-    const trimmed = (body.name ?? "").toString().trim();
-    if (!trimmed) {
-      response.status(400).json({ detail: "Mode name is required" });
-      return null;
-    }
-    if (
-      body.power !== undefined &&
-      (Number.isNaN(body.power) || body.power < 0 || body.power > 90)
-    ) {
-      response.status(400).json({ detail: "Power must be between 0 and 90" });
-      return null;
-    }
-    if (
-      body.temperature !== undefined &&
-      (Number.isNaN(body.temperature) || body.temperature < -50 || body.temperature > 100)
-    ) {
-      response.status(400).json({ detail: "Temperature must be between -50 and 100" });
-      return null;
-    }
-    if (body.luftatorConfig !== undefined) {
-      if (typeof body.luftatorConfig !== "object" || Array.isArray(body.luftatorConfig)) {
-        response
-          .status(400)
-          .json({ detail: "luftatorConfig must be an object of valve->percentage" });
-        return null;
+  function getHruMaxPower(): number {
+    try {
+      // Get current HRU settings to find which unit is selected
+      const settingsRaw = getAppSetting(HRU_SETTINGS_KEY);
+      if (!settingsRaw) {
+        logger.warn("No HRU settings found, using default max power 100");
+        return 100;
       }
-      for (const [key, value] of Object.entries(body.luftatorConfig)) {
-        if (value === null || value === undefined) {
-          continue;
-        }
-        if (Number.isNaN(Number(value)) || Number(value) < 0 || Number(value) > valveMax) {
+
+      const settings = JSON.parse(String(settingsRaw)) as HruSettings;
+      const unitId = settings.unit;
+
+      if (!unitId) {
+        logger.warn("No unit ID in HRU settings, using default max power 100");
+        return 100;
+      }
+
+      // Get the unit definition from HRU service
+      const units = hruService.getAllUnits();
+      const currentUnit = units.find((u) => u.id === unitId);
+
+      if (!currentUnit) {
+        logger.warn({ unitId }, "Unit not found in HRU service, using default max power 100");
+        return 100;
+      }
+
+      // Use maxPower override if unit is configurable, otherwise use unit's maxValue
+      const maxPower =
+        currentUnit.isConfigurable && settings.maxPower
+          ? settings.maxPower
+          : currentUnit.maxValue || 100;
+
+      logger.info(
+        {
+          unitId,
+          unitMaxValue: currentUnit.maxValue,
+          settingsMaxPower: settings.maxPower,
+          isConfigurable: currentUnit.isConfigurable,
+          finalMaxPower: maxPower,
+        },
+        "Retrieved HRU max power for validation",
+      );
+
+      return maxPower;
+    } catch (error) {
+      logger.warn({ error }, "Failed to get HRU max power, using default");
+      return 100;
+    }
+  }
+
+  function validatePowerAndValves(payload: TimelineModeInput, response: Response): boolean {
+    const maxPower = getHruMaxPower();
+
+    logger.info(
+      { maxPower, payloadPower: payload.power, valves: payload.luftatorConfig },
+      "Validating timeline mode power and valves",
+    );
+
+    if (payload.power !== undefined && payload.power > maxPower) {
+      response.status(400).json({
+        detail: `Power must be between 0 and ${maxPower}`,
+      });
+      return false;
+    }
+
+    if (payload.luftatorConfig) {
+      for (const [valve, value] of Object.entries(payload.luftatorConfig)) {
+        if (value > maxPower) {
           response.status(400).json({
-            detail: `Invalid opening for valve ${key}. Must be 0-${valveMax}.`,
+            detail: `Valve ${valve} opening must be between 0 and ${maxPower}`,
           });
-          return null;
+          return false;
         }
       }
     }
 
-    const normalizedLuftatorConfig = body.luftatorConfig
-      ? Object.fromEntries(
-          Object.entries(body.luftatorConfig)
-            .filter(([, v]) => v !== undefined && v !== null && !Number.isNaN(Number(v)))
-            .map(([k, v]) => [k, Number(v)]),
-        )
-      : undefined;
-
-    return {
-      ...body,
-      name: trimmed,
-      color: body.color || undefined,
-      isBoost: !!body.isBoost,
-      luftatorConfig: normalizedLuftatorConfig,
-    };
+    return true;
   }
 
   // Timeline Modes
@@ -111,60 +135,76 @@ export function createTimelineRouter(logger: Logger, timelineScheduler: Timeline
     response.json({ modes: getTimelineModes() });
   });
 
-  router.post("/modes", (request: Request, response: Response) => {
-    const payload = validateModeInput(request.body as TimelineModeBody, response, 90);
-    if (!payload) return;
+  router.post(
+    "/modes",
+    validateRequest(timelineModeInputSchema),
+    (request: Request, response: Response) => {
+      const payload = request.body as TimelineModeInput;
 
-    const modes = getTimelineModes();
-    const nextId = modes.reduce((acc, m) => Math.max(acc, m.id), 0) + 1;
-    const newMode: TimelineMode = {
-      id: nextId,
-      name: payload.name,
-      color: payload.color,
-      power: payload.power,
-      temperature: payload.temperature,
-      luftatorConfig: payload.luftatorConfig,
-      isBoost: payload.isBoost,
-    };
-    modes.push(newMode);
-    saveTimelineModes(modes);
-    response.status(201).json(newMode);
-  });
+      // Validate against HRU max power
+      if (!validatePowerAndValves(payload, response)) {
+        return;
+      }
 
-  router.put("/modes/:id", (request: Request, response: Response) => {
-    const id = Number.parseInt(request.params.id as string, 10);
-    if (!Number.isFinite(id)) {
-      response.status(400).json({ detail: "Invalid mode id" });
-      return;
-    }
-    const payload = validateModeInput(request.body as TimelineModeBody, response, 100);
-    if (!payload) return;
+      const modes = getTimelineModes();
+      const nextId = modes.reduce((acc, m) => Math.max(acc, m.id), 0) + 1;
+      const newMode: TimelineMode = {
+        id: nextId,
+        name: payload.name,
+        color: payload.color,
+        power: payload.power,
+        temperature: payload.temperature,
+        luftatorConfig: payload.luftatorConfig,
+        isBoost: payload.isBoost ?? false,
+      };
+      modes.push(newMode);
+      saveTimelineModes(modes);
+      response.status(201).json(newMode);
+    },
+  );
 
-    const modes = getTimelineModes();
-    const idx = modes.findIndex((m) => m.id === id);
-    if (idx === -1) {
-      response.status(404).json({ detail: "Mode not found" });
-      return;
-    }
-    const baseMode = modes[idx];
-    if (!baseMode) {
-      response.status(404).json({ detail: "Mode not found" });
-      return;
-    }
-    const updated: TimelineMode = {
-      ...baseMode,
-      id: baseMode.id,
-      name: payload.name,
-      color: payload.color,
-      power: payload.power,
-      temperature: payload.temperature,
-      luftatorConfig: payload.luftatorConfig,
-      isBoost: payload.isBoost,
-    };
-    modes[idx] = updated;
-    saveTimelineModes(modes);
-    response.json(updated);
-  });
+  router.put(
+    "/modes/:id",
+    validateRequest(timelineModeInputSchema),
+    (request: Request, response: Response) => {
+      const id = Number.parseInt(request.params.id as string, 10);
+      if (!Number.isFinite(id)) {
+        response.status(400).json({ detail: "Invalid mode id" });
+        return;
+      }
+      const payload = request.body as TimelineModeInput;
+
+      // Validate against HRU max power
+      if (!validatePowerAndValves(payload, response)) {
+        return;
+      }
+
+      const modes = getTimelineModes();
+      const idx = modes.findIndex((m) => m.id === id);
+      if (idx === -1) {
+        response.status(404).json({ detail: "Mode not found" });
+        return;
+      }
+      const baseMode = modes[idx];
+      if (!baseMode) {
+        response.status(404).json({ detail: "Mode not found" });
+        return;
+      }
+      const updated: TimelineMode = {
+        ...baseMode,
+        id: baseMode.id,
+        name: payload.name,
+        color: payload.color,
+        power: payload.power,
+        temperature: payload.temperature,
+        luftatorConfig: payload.luftatorConfig,
+        isBoost: payload.isBoost ?? false,
+      };
+      modes[idx] = updated;
+      saveTimelineModes(modes);
+      response.json(updated);
+    },
+  );
 
   router.delete("/modes/:id", (request: Request, response: Response) => {
     const id = Number.parseInt(request.params.id as string, 10);
@@ -193,65 +233,51 @@ export function createTimelineRouter(logger: Logger, timelineScheduler: Timeline
     }
   });
 
-  router.post("/events", (request: Request, response: Response) => {
-    const body = request.body as {
-      id?: number;
-      startTime?: string;
-      endTime?: string;
-      dayOfWeek?: number | null;
-      hruConfig?: {
-        mode?: string;
-        power?: number;
-        temperature?: number;
-      } | null;
-      luftatorConfig?: Record<string, number> | null;
-      enabled?: boolean;
-      priority?: number;
-    };
+  router.post(
+    "/events",
+    validateRequest(timelineEventInputSchema),
+    (request: Request, response: Response) => {
+      const body = request.body as TimelineEventInput;
 
-    // Validation
-    if (!body.startTime || !body.endTime) {
-      response.status(400).json({ detail: "Start time and end time are required" });
-      return;
-    }
+      // Validate HRU config against max power
+      const maxPower = getHruMaxPower();
+      if (body.hruConfig?.power !== undefined && body.hruConfig.power > maxPower) {
+        response.status(400).json({
+          detail: `Power must be between 0 and ${maxPower}`,
+        });
+        return;
+      }
 
-    const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(body.startTime) || !timeRegex.test(body.endTime)) {
-      response.status(400).json({ detail: "Times must be in HH:MM format" });
-      return;
-    }
+      // Validate luftator config against max power
+      if (body.luftatorConfig) {
+        for (const [valve, value] of Object.entries(body.luftatorConfig)) {
+          if (value > maxPower) {
+            response.status(400).json({
+              detail: `Valve ${valve} opening must be between 0 and ${maxPower}`,
+            });
+            return;
+          }
+        }
+      }
 
-    if (
-      body.dayOfWeek !== undefined &&
-      body.dayOfWeek !== null &&
-      (body.dayOfWeek < 0 || body.dayOfWeek > 6)
-    ) {
-      response.status(400).json({ detail: "Day of week must be 0-6 or null for all days" });
-      return;
-    }
-
-    if (body.priority !== undefined && (body.priority < 0 || body.priority > 100)) {
-      response.status(400).json({ detail: "Priority must be 0-100" });
-      return;
-    }
-
-    try {
-      const event = upsertTimelineEvent({
-        id: body.id,
-        startTime: body.startTime,
-        endTime: body.endTime,
-        dayOfWeek: body.dayOfWeek,
-        hruConfig: body.hruConfig,
-        luftatorConfig: body.luftatorConfig,
-        enabled: body.enabled ?? true,
-        priority: body.priority ?? 0,
-      });
-      response.json(event);
-    } catch (error) {
-      logger.warn({ error }, "Failed to save timeline event");
-      response.status(500).json({ detail: "Failed to save timeline event" });
-    }
-  });
+      try {
+        const event = upsertTimelineEvent({
+          id: body.id,
+          startTime: body.startTime,
+          endTime: body.endTime,
+          dayOfWeek: body.dayOfWeek,
+          hruConfig: body.hruConfig,
+          luftatorConfig: body.luftatorConfig,
+          enabled: body.enabled ?? true,
+          priority: body.priority ?? 0,
+        });
+        response.json(event);
+      } catch (error) {
+        logger.warn({ error }, "Failed to save timeline event");
+        response.status(500).json({ detail: "Failed to save timeline event" });
+      }
+    },
+  );
 
   router.delete("/events/:id", (request: Request, response: Response) => {
     const id = Number.parseInt(request.params.id as string, 10);
@@ -286,30 +312,31 @@ export function createTimelineRouter(logger: Logger, timelineScheduler: Timeline
     }
   });
 
-  router.post("/boost", async (request: Request, response: Response) => {
-    const { modeId, durationMinutes } = request.body as {
-      modeId: number;
-      durationMinutes: number;
-    };
-    if (!modeId || !durationMinutes || durationMinutes <= 0) {
-      return response.status(400).json({ detail: "modeId and positive durationMinutes required" });
-    }
+  router.post(
+    "/boost",
+    validateRequest(boostOverrideInputSchema),
+    async (request: Request, response: Response) => {
+      const { modeId, durationMinutes } = request.body as {
+        modeId: number;
+        durationMinutes: number;
+      };
 
-    const modes = getTimelineModes();
-    const mode = modes.find((m) => m.id === modeId);
-    if (!mode) return response.status(404).json({ detail: "Mode not found" });
+      const modes = getTimelineModes();
+      const mode = modes.find((m) => m.id === modeId);
+      if (!mode) return response.status(404).json({ detail: "Mode not found" });
 
-    const endTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
-    const override: TimelineOverride = { modeId, endTime, durationMinutes };
+      const endTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
+      const override: TimelineOverride = { modeId, endTime, durationMinutes };
 
-    setAppSetting(TIMELINE_OVERRIDE_KEY, JSON.stringify(override));
-    logger.info({ modeId, durationMinutes, endTime }, "Timeline boost activated");
+      setAppSetting(TIMELINE_OVERRIDE_KEY, JSON.stringify(override));
+      logger.info({ modeId, durationMinutes, endTime }, "Timeline boost activated");
 
-    // Trigger immediate execution
-    await timelineScheduler.executeScheduledEvent();
+      // Trigger immediate execution
+      await timelineScheduler.executeScheduledEvent();
 
-    response.json({ active: override });
-  });
+      response.json({ active: override });
+    },
+  );
 
   router.delete("/boost", async (_request: Request, response: Response) => {
     setAppSetting(TIMELINE_OVERRIDE_KEY, "null");

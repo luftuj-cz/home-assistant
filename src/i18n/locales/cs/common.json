@@ -65,6 +65,13 @@
       "options": {
         "c": "Celsius (°C)",
         "f": "Fahrenheit (°F)"
+      },
+      "notifications": {
+        "updatedTitle": "Jednotky teploty změněny",
+        "updatedMessage": "Jednotka zobrazení byla nastavena na {{unit}}.",
+        "failedTitle": "Chyba změny jednotek",
+        "failedMessage": "{{message}}",
+        "unknown": "Neznámá chyba"
       }
     },
     "mode": {
@@ -184,6 +191,12 @@
         "probeFailedMessage": "{{message}}",
         "noUnitSelected": "Nejprve vyberte rekuperační jednotku",
         "unknown": "Neznámá chyba"
+      },
+      "configuration": {
+        "title": "Vlastní limity jednotky",
+        "maxPowerLabel": "Maximální průtok/výkon",
+        "maxPowerDescription": "Tato hodnota přepíše výchozí limit pro tuto jednotku. Užitečné pro objemové jednotky (m3/h) pro přizpůsobení vaší konkrétní instalaci.",
+        "maxPowerHint": "Výchozí: {{default}} {{unit}}"
       }
     },
     "mqtt": {

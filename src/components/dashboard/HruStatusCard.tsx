@@ -7,16 +7,25 @@ import {
   IconRefresh,
   IconAlertCircle,
 } from "@tabler/icons-react";
-import type { HruState } from "../../hooks/useDashboardStatus";
+import type { HruState, TemperatureUnit, ActiveMode } from "../../hooks/useDashboardStatus";
 import type { TFunction } from "i18next";
+import { formatTemperature, getTemperatureLabel } from "../../utils/temperature";
 
 interface HruStatusCardProps {
   status: HruState;
   hruName?: string | null;
   t: TFunction;
+  tempUnit?: TemperatureUnit;
+  activeMode?: ActiveMode | null;
 }
 
-export function HruStatusCard({ status, hruName, t }: HruStatusCardProps) {
+export function HruStatusCard({
+  status,
+  hruName,
+  t,
+  tempUnit = "c",
+  activeMode,
+}: HruStatusCardProps) {
   const title = t("dashboard.hruStatusTitle", { defaultValue: "HRU live values" });
   const displayTitle = hruName ? `${title} - ${hruName}` : title;
 
@@ -70,9 +79,10 @@ export function HruStatusCard({ status, hruName, t }: HruStatusCardProps) {
   }
 
   const powerValue = Math.round(status.power);
-  const powerUnit = status.registers?.power?.unit ?? "%";
-  const tempValue = status.temperature;
-  const tempUnit = status.registers?.temperature?.unit ?? "°C";
+  const powerUnit = status.powerUnit ?? status.registers?.power?.unit ?? "%";
+  const maxPower = status.maxPower ?? 100;
+  const tempValue = formatTemperature(status.temperature, tempUnit);
+  const displayTempUnit = getTemperatureLabel(tempUnit);
   const modeValue = status.mode;
 
   return (
@@ -113,12 +123,7 @@ export function HruStatusCard({ status, hruName, t }: HruStatusCardProps) {
               {powerUnit}
             </Text>
           </Group>
-          <Progress
-            value={Math.max(0, Math.min(100, powerValue))}
-            color="teal"
-            size="xl"
-            radius="xl"
-          />
+          <Progress value={(powerValue / maxPower) * 100} color="teal" size="xl" radius="xl" />
         </Card>
 
         <Group gap="md">
@@ -139,8 +144,8 @@ export function HruStatusCard({ status, hruName, t }: HruStatusCardProps) {
                   {t("hru.temperature")}
                 </Text>
                 <Text size="xl" fw={700} c="blue" mt={4}>
-                  {tempValue}
-                  {tempUnit}
+                  {tempValue.toFixed(1)}
+                  {displayTempUnit}
                 </Text>
               </div>
             </Stack>
@@ -162,9 +167,30 @@ export function HruStatusCard({ status, hruName, t }: HruStatusCardProps) {
                 <Text size="xs" fw={500} c="dimmed">
                   {t("dashboard.hruMode", { defaultValue: "Mode" })}
                 </Text>
-                <Text size="lg" fw={700} c="grape" mt={4} lineClamp={1}>
-                  {modeValue}
-                </Text>
+                {activeMode ? (
+                  <>
+                    <Text size="lg" fw={700} c="grape" mt={4} lineClamp={1}>
+                      {activeMode.source === "manual"
+                        ? t("dashboard.activeMode.manual", { defaultValue: "Manual" })
+                        : activeMode.source === "boost"
+                          ? t("dashboard.activeMode.boost", {
+                              defaultValue: "Boost: {{name}}",
+                              name: activeMode.modeName || "?",
+                            })
+                          : t("dashboard.activeMode.schedule", {
+                              defaultValue: "Schedule: {{name}}",
+                              name: activeMode.modeName || "?",
+                            })}
+                    </Text>
+                    <Text size="xs" c="dimmed" mt={4}>
+                      {t("dashboard.nativeMode", { defaultValue: "Native mode" })}: {modeValue}
+                    </Text>
+                  </>
+                ) : (
+                  <Text size="lg" fw={700} c="grape" mt={4} lineClamp={1}>
+                    {modeValue}
+                  </Text>
+                )}
               </div>
             </Stack>
           </Card>

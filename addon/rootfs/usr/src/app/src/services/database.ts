@@ -356,7 +356,7 @@ export function setAppSetting(key: string, value: string): void {
 export interface TimelineEvent {
   id?: number;
   startTime: string; // HH:MM
-  endTime: string; // HH:MM
+  endTime?: string; // HH:MM (Legacy/Optional)
   dayOfWeek?: number | null; // 0-6 (Sunday=0), null for all days
   hruConfig?: {
     mode?: string;
@@ -386,7 +386,7 @@ function normaliseTimelineEvent(
 ): Omit<TimelineEventRecord, "id" | "created_at" | "updated_at"> {
   return {
     start_time: event.startTime,
-    end_time: event.endTime,
+    end_time: event.endTime ?? "",
     day_of_week: event.dayOfWeek ?? null,
     hru_config: event.hruConfig ? JSON.stringify(event.hruConfig) : null,
     luftator_config: event.luftatorConfig ? JSON.stringify(event.luftatorConfig) : null,

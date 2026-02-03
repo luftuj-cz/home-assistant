@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
+import { type HruUnit } from "../api/hru";
 import {
   Button,
   FileButton,
@@ -48,14 +49,17 @@ export function SettingsPage() {
   const [savingLanguage, setSavingLanguage] = useState(false);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [tempUnit, setTempUnit] = useState("c");
+  const [savingTempUnit, setSavingTempUnit] = useState(false);
   const [savingHru, setSavingHru] = useState(false);
   const [probingHru, setProbingHru] = useState(false);
+  const [fullHruUnits, setFullHruUnits] = useState<HruUnit[]>([]);
   const [hruUnits, setHruUnits] = useState<Array<{ value: string; label: string }>>([]);
   const [hruSettings, setHruSettings] = useState({
     unit: null as string | null,
     host: "localhost",
     port: 502,
     unitId: 1,
+    maxPower: undefined as number | undefined,
   });
   const [probeResult, setProbeResult] = useState<{
     power: number;
@@ -223,19 +227,76 @@ export function SettingsPage() {
     [persistLanguagePreference],
   );
 
+  const persistTempUnitPreference = useCallback(
+    async (value: string) => {
+      setSavingTempUnit(true);
+      try {
+        const response = await fetch(resolveApiUrl("/api/settings/temperature-unit"), {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ temperatureUnit: value }),
+        });
+
+        if (!response.ok) {
+          const detail = await response.text();
+          notifications.show({
+            title: t("settings.temperatureUnit.notifications.failedTitle"),
+            message: t("settings.temperatureUnit.notifications.failedMessage", {
+              message: detail || t("settings.temperatureUnit.notifications.unknown"),
+            }),
+            color: "red",
+          });
+          return;
+        }
+
+        notifications.show({
+          title: t("settings.temperatureUnit.notifications.updatedTitle"),
+          message: t("settings.temperatureUnit.notifications.updatedMessage", {
+            unit: value === "c" ? "Celsius (°C)" : "Fahrenheit (°F)",
+          }),
+          color: "orange",
+        });
+      } catch (error) {
+        notifications.show({
+          title: t("settings.temperatureUnit.notifications.failedTitle"),
+          message: t("settings.temperatureUnit.notifications.failedMessage", {
+            message:
+              error instanceof Error
+                ? error.message
+                : t("settings.temperatureUnit.notifications.unknown"),
+          }),
+          color: "red",
+        });
+      } finally {
+        setSavingTempUnit(false);
+      }
+    },
+    [t],
+  );
+
+  const handleTempUnitChange = useCallback(
+    (value: string) => {
+      setTempUnit(value);
+      void persistTempUnitPreference(value);
+    },
+    [persistTempUnitPreference],
+  );
+
   // Load HRU units and settings on mount
   useEffect(() => {
     async function loadData() {
       setLoadingUnits(true);
       try {
-        const [unitsRes, settingsRes, mqttRes] = await Promise.all([
+        const [unitsRes, settingsRes, mqttRes, tempUnitRes] = await Promise.all([
           fetch(resolveApiUrl("/api/hru/units")),
           fetch(resolveApiUrl("/api/settings/hru")),
           fetch(resolveApiUrl("/api/settings/mqtt")),
+          fetch(resolveApiUrl("/api/settings/temperature-unit")),
         ]);
 
         if (unitsRes.ok) {
           const units = await unitsRes.json();
+          setFullHruUnits(units);
           setHruUnits(
             units.map((u: { id: string; name: string }) => ({ value: u.id, label: u.name })),
           );
@@ -254,6 +315,10 @@ export function SettingsPage() {
             user: mqtt.user || "",
             password: mqtt.password || "",
           });
+        }
+        if (tempUnitRes.ok) {
+          const { temperatureUnit } = await tempUnitRes.json();
+          setTempUnit(temperatureUnit);
         }
       } catch {
         notifications.show({
@@ -348,6 +413,10 @@ export function SettingsPage() {
       setTestingMqtt(false);
     }
   }, [mqttSettings, t]);
+
+  const selectedUnit = useMemo(() => {
+    return fullHruUnits.find((u) => u.id === hruSettings.unit);
+  }, [fullHruUnits, hruSettings.unit]);
 
   const saveHruSettings = useCallback(async () => {
     setSavingHru(true);
@@ -612,7 +681,8 @@ export function SettingsPage() {
                       fullWidth
                       value={tempUnit}
                       data={tempUnitOptions}
-                      onChange={setTempUnit}
+                      onChange={handleTempUnitChange}
+                      disabled={savingTempUnit}
                       size="md"
                     />
                   </Stack>
@@ -707,6 +777,34 @@ export function SettingsPage() {
                         size="md"
                       />
                     </SimpleGrid>
+
+                    {selectedUnit?.isConfigurable && (
+                      <Paper p="sm" withBorder radius="md" bg="var(--mantine-color-blue-light)">
+                        <Stack gap="xs">
+                          <Text fw={500} size="sm">
+                            {t("settings.hru.configuration.title")}
+                          </Text>
+                          <Text size="xs" c="dimmed">
+                            {t("settings.hru.configuration.maxPowerDescription")}
+                          </Text>
+                          <NumberInput
+                            value={hruSettings.maxPower ?? selectedUnit.maxValue}
+                            onChange={(value) => {
+                              const numericValue = typeof value === "number" ? value : undefined;
+                              setHruSettings((prev) => ({ ...prev, maxPower: numericValue }));
+                            }}
+                            label={t("settings.hru.configuration.maxPowerLabel")}
+                            description={t("settings.hru.configuration.maxPowerHint", {
+                              default: selectedUnit.maxValue,
+                              unit: selectedUnit.controlUnit || "%",
+                            })}
+                            min={1}
+                            max={10000}
+                            size="md"
+                          />
+                        </Stack>
+                      </Paper>
+                    )}
 
                     <Group mt="sm">
                       <Button

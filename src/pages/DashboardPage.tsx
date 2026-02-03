@@ -10,13 +10,23 @@ import { BoostButtons } from "../components/dashboard/BoostButtons";
 
 export function DashboardPage() {
   const { t } = useTranslation();
-  const { haStatus, haLoading, modbusStatus, hruStatus, hruName, mqttStatus, mqttLastDiscovery } =
-    useDashboardStatus();
+  const {
+    haStatus,
+    haLoading,
+    modbusStatus,
+    hruStatus,
+    hruName,
+    mqttStatus,
+    mqttLastDiscovery,
+    tempUnit,
+    activeMode,
+  } = useDashboardStatus();
   const { modes, loadModes } = useTimelineModes(t);
 
   useEffect(() => {
     loadModes();
-  }, [loadModes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function getHaStatusType() {
     if (haLoading) return "neutral";
@@ -107,7 +117,13 @@ export function DashboardPage() {
           }
         />
 
-        <HruStatusCard status={hruStatus} hruName={hruName} t={t} />
+        <HruStatusCard
+          status={hruStatus}
+          hruName={hruName}
+          t={t}
+          tempUnit={tempUnit}
+          activeMode={activeMode}
+        />
       </Stack>
     </Container>
   );

@@ -1,78 +1,99 @@
 import type { HruRepository } from "./hru.repository";
 import type { SettingsRepository } from "../settings/settings.repository";
-import { HruNotConfiguredError } from "../../shared/errors/apiErrors";
-import { HRU_UNITS, getUnitById } from "./hru.definitions";
+import { HruLoader } from "./hru.loader";
+import { type RegulationStrategy, type HeatRecoveryUnit } from "./hru.definitions";
 
 export interface HruReadResult {
+  // Keeping this interface simple for now, might need to evolve
   raw: { power: number; temperature: number; mode: number };
   value: { power: number; temperature: number; mode: string };
+  // Registers metadata is removed as it's no longer directly available on the unit
   registers: {
-    power: { unit?: string; scale?: number; precision?: number };
+    power: { unit?: string; scale?: number; precision?: number; maxValue?: number };
     temperature: { unit?: string; scale?: number; precision?: number };
   };
 }
 
 export class HruService {
+  private units: HeatRecoveryUnit[] = [];
+  private strategies: RegulationStrategy[] = [];
+
   constructor(
     private readonly repository: HruRepository,
     private readonly settingsRepo: SettingsRepository,
-  ) {}
+  ) {
+    const loader = new HruLoader();
+    this.units = loader.loadUnits();
+    this.strategies = loader.loadStrategies();
+  }
 
   getAllUnits() {
-    return HRU_UNITS.map((u) => ({
-      id: u.id,
+    return this.units.map((u) => ({
+      id: u.code || u.name,
       name: u.name,
-      description: u.description,
-      capabilities: u.capabilities ?? null,
-      registers: {
-        read: {
-          power: u.registers.read.power,
-          temperature: u.registers.read.temperature,
-          mode: {
-            address: u.registers.read.mode.address,
-            kind: u.registers.read.mode.kind,
-            values: u.registers.read.mode.values,
-          },
-        },
-        write: u.registers.write ?? null,
-      },
+      isConfigurable: u.isConfigurable,
+      maxValue: u.maxValue, // Always return original max value
+      controlUnit: u.controlUnit,
+      capabilities: this.getStrategyForUnit(u)?.capabilities ?? null,
+      registers: null,
     }));
   }
 
   getModes(): { id: number; name: string }[] {
-    const { def } = this.getResolvedSettings();
-    return Object.entries(def.registers.read.mode.values).map(([id, name]) => ({
+    const config = this.getResolvedConfiguration();
+    if (!config) return [];
+    const modes = config.strategy.modeCommands?.availableModes ?? {};
+    return Object.entries(modes).map(([id, name]) => ({
       id: Number(id),
-      name,
+      name: name as string,
     }));
   }
 
   async readValues(): Promise<HruReadResult> {
-    const { settings, def } = this.getResolvedSettings();
+    const configData = this.getResolvedConfiguration();
+    if (!configData) throw new Error("HRU not configured");
+    const { settings, strategy, unit } = configData;
+    const config = { host: settings.host, port: settings.port, unitId: settings.unitId };
 
-    const { power, temperature, mode } = await this.repository.readRegisters(
-      settings,
-      def.registers.read,
-    );
+    // Execute read scripts in parallel if possible (or sequentially)
+    // We merge the results into a single variables map
+    let variables: Record<string, number> = {};
 
-    const scale = def.registers.read.temperature.scale ?? 1;
+    if (strategy.powerCommands?.read) {
+      const vars = await this.repository.executeScript(config, strategy.powerCommands.read);
+      variables = { ...variables, ...vars };
+    }
+    if (strategy.temperatureCommands?.read) {
+      const vars = await this.repository.executeScript(config, strategy.temperatureCommands.read);
+      variables = { ...variables, ...vars };
+    }
+    if (strategy.modeCommands?.read) {
+      const vars = await this.repository.executeScript(config, strategy.modeCommands.read);
+      variables = { ...variables, ...vars };
+    }
+
+    const power = variables["$power"] ?? 0;
+    const temperature = variables["$temperature"] ?? 0;
+    const mode = variables["$mode"] ?? 0;
+
     return {
       raw: { power, temperature, mode },
       value: {
         power,
-        temperature: temperature * scale,
-        mode: def.registers.read.mode.values[mode] ?? String(mode),
+        temperature,
+        mode: strategy.modeCommands?.availableModes[mode] ?? String(mode),
       },
       registers: {
         power: {
-          unit: def.registers.read.power.unit,
-          scale: def.registers.read.power.scale,
-          precision: def.registers.read.power.precision,
+          unit: strategy.capabilities.powerUnit || unit.controlUnit || "%",
+          scale: strategy.capabilities.powerStep ?? 1,
+          precision: 0,
+          maxValue: (unit.isConfigurable && settings.maxPower) || unit.maxValue,
         },
         temperature: {
-          unit: def.registers.read.temperature.unit,
-          scale: def.registers.read.temperature.scale,
-          precision: def.registers.read.temperature.precision,
+          unit: strategy.capabilities.temperatureUnit || "°C",
+          scale: strategy.capabilities.temperatureStep ?? 1,
+          precision: 1,
         },
       },
     };
@@ -83,31 +104,56 @@ export class HruService {
     temperature?: number;
     mode?: number | string;
   }): Promise<void> {
-    const { settings, def } = this.getResolvedSettings();
+    const configData = this.getResolvedConfiguration();
+    if (!configData) throw new Error("HRU not configured");
+    const { settings, strategy } = configData;
+    const config = { host: settings.host, port: settings.port, unitId: settings.unitId };
 
-    const modeValue =
-      data.mode !== undefined
-        ? this.resolveMode(def.registers.read.mode.values, data.mode)
-        : undefined;
+    if (data.power !== undefined && strategy.powerCommands?.write) {
+      await this.repository.executeScript(config, strategy.powerCommands.write, {
+        $power: data.power,
+      });
+    }
 
-    await this.repository.writeRegisters(settings, def.registers.write ?? {}, {
-      power: data.power,
-      temperature: data.temperature,
-      mode: modeValue,
-    });
+    if (data.temperature !== undefined && strategy.temperatureCommands?.write) {
+      await this.repository.executeScript(config, strategy.temperatureCommands.write, {
+        $temperature: data.temperature,
+      });
+    }
+
+    if (data.mode !== undefined && strategy.modeCommands?.write) {
+      let modeVal: number;
+      if (typeof data.mode === "string") {
+        const entry = Object.entries(strategy.modeCommands.availableModes ?? {}).find(
+          ([, name]) => name === data.mode,
+        );
+        modeVal = entry ? Number(entry[0]) : 0;
+      } else {
+        modeVal = data.mode;
+      }
+
+      await this.repository.executeScript(config, strategy.modeCommands.write, {
+        $mode: modeVal,
+      });
+    }
   }
 
-  private resolveMode(values: Record<number, string>, mode: number | string): number {
-    if (typeof mode === "number") return mode;
-    const entry = Object.entries(values).find(([, name]) => name === mode);
-    return entry ? Number(entry[0]) : Number(mode);
+  private getStrategyForUnit(unit: HeatRecoveryUnit): RegulationStrategy | undefined {
+    return this.strategies.find((s) => s.id === unit.regulationTypeId);
   }
 
-  private getResolvedSettings() {
+  private getUnitById(id: string): HeatRecoveryUnit | undefined {
+    return this.units.find((u) => u.name === id || u.code === id);
+  }
+
+  public getResolvedConfiguration() {
     const raw = this.settingsRepo.getHruSettings();
-    if (!raw?.unit) throw new HruNotConfiguredError("HRU unit not configured");
-    const def = getUnitById(raw.unit);
-    if (!def) throw new HruNotConfiguredError("Unknown HRU unit");
-    return { settings: raw, def };
+    if (!raw?.unit) return null;
+    const unit = this.getUnitById(raw.unit);
+    if (!unit) return null;
+    const strategy = this.getStrategyForUnit(unit);
+    if (!strategy) return null;
+
+    return { settings: raw, unit, strategy };
   }
 }

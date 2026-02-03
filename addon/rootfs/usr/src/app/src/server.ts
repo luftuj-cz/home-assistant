@@ -86,27 +86,28 @@ if (config.token) {
   valveManager = new OfflineValveManager(logger, broadcast);
 }
 
-const timelineScheduler = new TimelineScheduler(valveManager, logger);
-
-const mqttService = new MqttService(config.mqtt, logger);
-const hruMonitor = new HruMonitor(mqttService, logger);
-
 // Core Dependencies
 const settingsRepo = new SettingsRepository();
 const hruRepo = new HruRepository(logger);
 const hruService = new HruService(hruRepo, settingsRepo);
+
+const timelineScheduler = new TimelineScheduler(valveManager, hruService, logger);
+
+const mqttService = new MqttService(config.mqtt, logger);
+const hruMonitor = new HruMonitor(hruService, mqttService, logger);
+
 const hruController = new HruController(hruService, logger);
 
 // Routes
 app.use("/api/hru", createHruRouter(hruController));
-app.use("/api/timeline", createTimelineRouter(logger, timelineScheduler));
-app.use("/api/settings", createSettingsRouter(mqttService, logger));
+app.use("/api/timeline", createTimelineRouter(logger, timelineScheduler, hruService));
+app.use("/api/settings", createSettingsRouter(hruService, mqttService, logger));
 app.use(
   "/api/database",
   createDatabaseRouter(valveManager, mqttService, timelineScheduler, logger),
 );
 app.use("/api/valves", createValvesRouter(valveManager, logger));
-app.use("/api", createStatusRouter(haClient, mqttService, logger));
+app.use("/api", createStatusRouter(haClient, mqttService, logger, timelineScheduler));
 
 const staticRoot = config.staticRoot;
 const assetsPath = path.join(staticRoot, "assets");
