@@ -20,6 +20,7 @@ import {
   ThemeIcon,
   NavLink,
 } from "@mantine/core";
+import { motion } from "framer-motion";
 import { APP_VERSION } from "../config";
 import {
   IconAt,
@@ -62,83 +63,6 @@ export function AppLayout() {
     return location.pathname === to;
   }
 
-  function DesktopNav() {
-    return (
-      <Paper
-        px="xs"
-        py={4}
-        radius="lg"
-        style={{
-          backgroundColor: "var(--mantine-color-default-hover)",
-          border: "1px solid var(--mantine-color-default-border)",
-        }}
-      >
-        <Group gap={0}>
-          {navItems.map((item) => {
-            const active = isActive(item.to);
-            const IconComponent = item.icon;
-            return (
-              <Button
-                key={item.to}
-                component={Link}
-                to={item.to}
-                variant={active ? "light" : "subtle"}
-                color={active ? "primary" : "gray"}
-                size="sm"
-                radius="md"
-                leftSection={<IconComponent size={18} />}
-                styles={{
-                  root: {
-                    fontWeight: active ? 600 : 400,
-                    transition: "all 0.2s ease",
-                    "&:hover": {
-                      backgroundColor: active
-                        ? "var(--mantine-color-primary-hover)"
-                        : "var(--mantine-color-default-hover)",
-                    },
-                  },
-                }}
-              >
-                {item.label}
-              </Button>
-            );
-          })}
-        </Group>
-      </Paper>
-    );
-  }
-
-  function MobileNav({ onNavigate }: { onNavigate?: () => void }) {
-    return (
-      <Stack gap="xs">
-        {navItems.map((item) => {
-          const active = isActive(item.to);
-          const IconComponent = item.icon;
-          return (
-            <NavLink
-              key={item.to}
-              component={Link}
-              to={item.to}
-              onClick={onNavigate}
-              label={
-                <Text size="md" fw={500}>
-                  {item.label}
-                </Text>
-              }
-              leftSection={<IconComponent size={24} stroke={1.5} />}
-              active={active}
-              variant="light"
-              color={active ? "primary" : "gray"}
-              style={{
-                borderRadius: "var(--mantine-radius-md)",
-              }}
-            />
-          );
-        })}
-      </Stack>
-    );
-  }
-
   return (
     <AppShell
       header={{ height: 70 }}
@@ -172,16 +96,107 @@ export function AppLayout() {
                 textDecoration: "none",
               }}
             >
-              <Group gap="sm" align="center" wrap="nowrap">
-                <Image src={logoMark} alt={t("app.title")} h={32} w={32} fit="contain" />
-                <Title order={2} fw={700} ff="inherit" size={rem(22)} c="var(--mantine-color-text)">
-                  {t("app.title")}
-                </Title>
-              </Group>
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                transition={{ type: "spring", stiffness: 400, damping: 10 }}
+              >
+                <Group gap="sm" align="center" wrap="nowrap">
+                  <Image src={logoMark} alt={t("app.title")} h={32} w={32} fit="contain" />
+                  <Title
+                    order={2}
+                    fw={800}
+                    ff="inherit"
+                    size={rem(22)}
+                    c="var(--mantine-color-text)"
+                    style={{ letterSpacing: -0.5 }}
+                  >
+                    {t("app.title")}
+                  </Title>
+                </Group>
+              </motion.div>
             </UnstyledButton>
 
             <Group gap="sm" visibleFrom="md">
-              <DesktopNav />
+              <Paper
+                px="xs"
+                py={4}
+                radius="lg"
+                style={{
+                  backgroundColor: "var(--mantine-color-default-hover)",
+                  border: "1px solid var(--mantine-color-default-border)",
+                  position: "relative",
+                  zIndex: 1,
+                }}
+              >
+                <Group gap={4} wrap="nowrap">
+                  {navItems.map((item) => {
+                    const active = isActive(item.to);
+                    const IconComponent = item.icon;
+                    return (
+                      <Button
+                        key={item.to}
+                        component={Link}
+                        to={item.to}
+                        variant="subtle"
+                        size="sm"
+                        radius="md"
+                        leftSection={
+                          <motion.div
+                            animate={{
+                              scale: active ? 1.1 : 1,
+                              color: active
+                                ? "var(--mantine-color-primary-filled)"
+                                : "var(--mantine-color-dimmed)",
+                            }}
+                            transition={{ duration: 0.2 }}
+                          >
+                            <IconComponent size={18} stroke={active ? 2.5 : 2} />
+                          </motion.div>
+                        }
+                        styles={{
+                          root: {
+                            fontWeight: active ? 700 : 500,
+                            transition: "color 0.2s ease",
+                            border: "none",
+                            backgroundColor: "transparent",
+                            position: "relative",
+                            zIndex: 2,
+                            color: active
+                              ? "var(--mantine-color-text)"
+                              : "var(--mantine-color-dimmed)",
+                            "&:hover": {
+                              backgroundColor: "transparent",
+                              color: "var(--mantine-color-text)",
+                            },
+                          },
+                        }}
+                      >
+                        <Box style={{ position: "relative", zIndex: 2 }}>{item.label}</Box>
+                        {active && (
+                          <motion.div
+                            layoutId="nav-active-pill"
+                            style={{
+                              position: "absolute",
+                              inset: 0,
+                              backgroundColor: "rgba(255, 255, 255, 0.08)",
+                              borderRadius: "var(--mantine-radius-md)",
+                              zIndex: 1,
+                              border: "1px solid rgba(255, 255, 255, 0.1)",
+                              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                            }}
+                            transition={{
+                              type: "spring",
+                              stiffness: 380,
+                              damping: 30,
+                            }}
+                          />
+                        )}
+                      </Button>
+                    );
+                  })}
+                </Group>
+              </Paper>
             </Group>
 
             <Box hiddenFrom="md" style={{ display: "flex", alignItems: "center" }}>
@@ -227,7 +242,48 @@ export function AppLayout() {
           blur: 2,
         }}
       >
-        <MobileNav onNavigate={close} />
+        <Stack gap="xs">
+          {navItems.map((item, index) => {
+            const active = isActive(item.to);
+            const IconComponent = item.icon;
+            return (
+              <motion.div
+                key={item.to}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05, duration: 0.3 }}
+              >
+                <NavLink
+                  component={Link}
+                  to={item.to}
+                  onClick={close}
+                  label={
+                    <Text size="md" fw={active ? 700 : 500}>
+                      {item.label}
+                    </Text>
+                  }
+                  leftSection={
+                    <motion.div
+                      animate={{
+                        scale: active ? 1.15 : 1,
+                        color: active ? "var(--mantine-color-primary-filled)" : "inherit",
+                      }}
+                    >
+                      <IconComponent size={24} stroke={1.5} />
+                    </motion.div>
+                  }
+                  active={active}
+                  variant="light"
+                  color={active ? "primary" : "gray"}
+                  style={{
+                    borderRadius: "var(--mantine-radius-md)",
+                    transition: "all 0.2s ease",
+                  }}
+                />
+              </motion.div>
+            );
+          })}
+        </Stack>
       </Drawer>
 
       <AppShell.Main>
