@@ -1,3 +1,5 @@
+ARG BUILD_FROM
+
 # Build Stage for Frontend
 FROM oven/bun:1.1 AS frontend-builder
 WORKDIR /app
@@ -7,7 +9,6 @@ COPY . .
 RUN bun run build
 
 # Final Stage
-ARG BUILD_FROM
 FROM ${BUILD_FROM}
 
 ENV BUN_INSTALL="/opt/bun"
