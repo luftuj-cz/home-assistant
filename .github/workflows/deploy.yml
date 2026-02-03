@@ -42,5 +42,5 @@ jobs:
             --amd64 \
             --aarch64 \
             --target addon \
-            --image "addon-luftuj" \
+            --image "{arch}-addon-luftuj" \
             --docker-hub "ghcr.io/luftuj-cz"
