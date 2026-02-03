@@ -1,16 +1,67 @@
 import mqtt from "mqtt";
+import { EventEmitter } from "events";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/options";
-import type { HruUnitDefinition } from "../features/hru/hru.definitions";
+import type { HeatRecoveryUnit } from "../features/hru/hru.definitions";
 import { getAppSetting, setAppSetting } from "./database";
-import { MQTT_SETTINGS_KEY, MQTT_LAST_DISCOVERY_KEY, type MqttSettings } from "../types";
+import {
+  MQTT_SETTINGS_KEY,
+  MQTT_LAST_DISCOVERY_KEY,
+  MQTT_DISCOVERED_BOOSTS_KEY,
+  MQTT_LAST_UNIT_ID_KEY,
+  LANGUAGE_SETTING_KEY,
+  TIMELINE_OVERRIDE_KEY,
+  TIMELINE_MODES_KEY,
+  BOOST_DURATION_KEY,
+  type MqttSettings,
+  type TimelineMode,
+  type TimelineOverride,
+} from "../types";
+import type { SettingsRepository } from "../features/settings/settings.repository";
+import type { TimelineScheduler } from "./timelineScheduler";
 
 const DISCOVERY_PREFIX = "homeassistant";
 const BASE_TOPIC = "luftuj/hru";
 const STATIC_CLIENT_ID = "luftuj-addon-static-client";
 const DISCOVERY_INTERVAL_MS = 60_000;
 
-import { EventEmitter } from "events";
+const LOCALIZED_STRINGS: Record<
+  string,
+  {
+    power: string;
+    temperature: string;
+    mode: string;
+    native_mode: string;
+    boost_duration: string;
+    cancel_boost: string;
+    boost_label: string;
+    boost_remaining: string;
+    boost_mode: string;
+  }
+> = {
+  en: {
+    power: "Requested Power",
+    temperature: "Requested Temperature",
+    mode: "Mode",
+    native_mode: "Native Mode",
+    boost_duration: "Boost Duration",
+    cancel_boost: "Cancel Boost",
+    boost_label: "Boost: {{name}}",
+    boost_remaining: "Boost Time Remaining",
+    boost_mode: "Active Boost",
+  },
+  cs: {
+    power: "Požadovaný výkon",
+    temperature: "Požadovaná teplota",
+    mode: "Režim",
+    native_mode: "Nativní režim",
+    boost_duration: "Doba boostu",
+    cancel_boost: "Zrušit boost",
+    boost_label: "Boost: {{name}}",
+    boost_remaining: "Zbývající čas boostu",
+    boost_mode: "Aktivní boost",
+  },
+};
 
 export class MqttService extends EventEmitter {
   private client: mqtt.MqttClient | null = null;
@@ -18,10 +69,12 @@ export class MqttService extends EventEmitter {
   private lastSuccessAt = 0;
 
   private discoveryTimer: NodeJS.Timeout | null = null;
-  private cachedDiscoveryUnit: HruUnitDefinition | null = null;
+  private cachedDiscoveryUnit: HeatRecoveryUnit | null = null;
 
   constructor(
     private readonly envConfig: AppConfig["mqtt"],
+    private readonly settingsRepo: SettingsRepository,
+    private readonly timelineScheduler: TimelineScheduler,
     private readonly logger: Logger,
   ) {
     super();
@@ -91,7 +144,7 @@ export class MqttService extends EventEmitter {
     }
   }
 
-  public async publishDiscovery(unit: HruUnitDefinition): Promise<boolean> {
+  public async publishDiscovery(unit: HeatRecoveryUnit): Promise<boolean> {
     this.cachedDiscoveryUnit = unit;
     this.ensureDiscoveryLoop();
 
@@ -101,11 +154,15 @@ export class MqttService extends EventEmitter {
   public async publishState(state: {
     power?: number;
     temperature?: number;
-    mode?: string;
+    mode_formatted?: string;
+    native_mode_formatted?: string;
+    boost_remaining?: number;
+    boost_name?: string;
   }): Promise<void> {
-    if (!this.client || !this.connected) return;
+    if (!this.client || !this.connected || !this.cachedDiscoveryUnit) return;
 
-    const topic = `${BASE_TOPIC}/state`;
+    const unitId = this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name);
+    const topic = `${BASE_TOPIC}/${unitId}/state`;
     const payload = JSON.stringify(state);
 
     try {
@@ -202,7 +259,12 @@ export class MqttService extends EventEmitter {
       this.connected = true;
       this.lastSuccessAt = Date.now();
       this.emit("connect");
-      void this.publishAvailability("online");
+
+      if (this.cachedDiscoveryUnit) {
+        const unitId = this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name);
+        void this.publishAvailability(unitId, "online");
+        void this.subscribeToCommands(unitId);
+      }
     });
 
     this.client.on("reconnect", () => {
@@ -221,11 +283,85 @@ export class MqttService extends EventEmitter {
       }
       this.connected = false;
       this.emit("disconnect");
+
+      if (this.cachedDiscoveryUnit) {
+        const unitId = this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name);
+        void this.publishAvailability(unitId, "offline");
+      }
     });
 
     this.client.on("offline", () => {
       this.logger.warn("MQTT: Client offline");
     });
+
+    this.client.on("message", (topic, message) => {
+      this.handleIncomingMessage(topic, message.toString());
+    });
+  }
+
+  private async subscribeToCommands(unitId: string) {
+    if (!this.client) return;
+    const unitBaseTopic = `${BASE_TOPIC}/${unitId}`;
+    try {
+      await this.client.subscribeAsync(`${unitBaseTopic}/boost_duration/set`);
+      await this.client.subscribeAsync(`${unitBaseTopic}/boost/cancel`);
+      await this.client.subscribeAsync(`${unitBaseTopic}/boost/+/start`);
+      this.logger.debug({ unitId }, "MQTT: Subscribed to unit commands");
+    } catch (err) {
+      this.logger.warn({ err, unitId }, "MQTT: Failed to subscribe to commands");
+    }
+  }
+
+  private async handleIncomingMessage(topic: string, payload: string) {
+    if (!this.cachedDiscoveryUnit) return;
+    const unitId = this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name);
+    const unitBaseTopic = `${BASE_TOPIC}/${unitId}`;
+
+    // 1. Duration Set
+    if (topic === `${unitBaseTopic}/boost_duration/set`) {
+      const duration = parseInt(payload, 10);
+      if (!isNaN(duration)) {
+        setAppSetting(BOOST_DURATION_KEY, String(duration));
+        await this.client?.publishAsync(`${unitBaseTopic}/boost_duration/state`, String(duration), {
+          qos: 1,
+          retain: true,
+        });
+        this.logger.info({ duration }, "MQTT: Boost duration updated");
+      }
+    }
+
+    // 2. Cancel Boost
+    if (topic === `${unitBaseTopic}/boost/cancel` && payload === "CANCEL") {
+      setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
+      await this.timelineScheduler.executeScheduledEvent();
+      this.emit("command-received");
+      this.logger.info("MQTT: Boost cancelled");
+    }
+
+    // 3. Start Boost
+    const startBoostMatch = topic.match(new RegExp(`${unitBaseTopic}/boost/(\\d+)/start`));
+    if (startBoostMatch && payload === "START") {
+      const modeIdStr = startBoostMatch[1];
+      if (!modeIdStr) return;
+
+      const modeId = parseInt(modeIdStr, 10);
+      const duration = parseInt(getAppSetting(BOOST_DURATION_KEY) || "30", 10);
+      const endTime = new Date(Date.now() + duration * 60 * 1000).toISOString();
+      const override: TimelineOverride = { modeId, endTime, durationMinutes: duration };
+
+      setAppSetting(TIMELINE_OVERRIDE_KEY, JSON.stringify(override));
+      this.logger.info({ modeId, duration, endTime }, "MQTT: Boost activated");
+
+      await this.timelineScheduler.executeScheduledEvent();
+      this.emit("command-received");
+    }
+  }
+
+  private slugify(text: string): string {
+    return text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/(^_|_$)/g, "");
   }
 
   private ensureDiscoveryLoop() {
@@ -236,8 +372,6 @@ export class MqttService extends EventEmitter {
     this.discoveryTimer = setInterval(() => {
       void this.runDiscoveryCycle();
     }, DISCOVERY_INTERVAL_MS);
-
-    void this.runDiscoveryCycle();
   }
 
   private stopDiscoveryLoop() {
@@ -261,58 +395,238 @@ export class MqttService extends EventEmitter {
     }
   }
 
-  private async internalSendDiscovery(unit: HruUnitDefinition) {
+  private async internalSendDiscovery(unit: HeatRecoveryUnit) {
     if (!this.client) return;
 
+    const unitId = this.slugify(unit.code || unit.name);
     const device = {
-      identifiers: [`luftuj_hru_${unit.id}`],
-      name: `Luftuj HRU (${unit.name})`,
-      model: unit.name,
-      manufacturer: "Luftuj",
+      identifiers: [`luftuj_hru_${unitId}`],
+      name: `Luftuj (${unit.name})`,
+      manufacturer: "Luftuj s.r.o.",
+      model: unit.code || "HRU",
     };
-    const availability = [{ topic: `${BASE_TOPIC}/status` }];
 
-    const pub = async (field: string, name: string, cls: string, unitStr?: string) => {
+    const unitBaseTopic = `${BASE_TOPIC}/${unitId}`;
+    await this.client.subscribeAsync(`${unitBaseTopic}/boost_duration/set`);
+    await this.client.subscribeAsync(`${unitBaseTopic}/boost/cancel`);
+    await this.client.subscribeAsync(`${unitBaseTopic}/boost/+/start`);
+
+    const availability = [{ topic: `${unitBaseTopic}/status` }];
+
+    const strings =
+      LOCALIZED_STRINGS[getAppSetting(LANGUAGE_SETTING_KEY) || "en"] || LOCALIZED_STRINGS.en;
+
+    if (!strings) {
+      this.logger.error("MQTT: Failed to load localization strings for discovery");
+      return;
+    }
+
+    // --- 1. Sensors & Configuration ---
+
+    // Shared sensor helper
+    const publishSensor = async (
+      id: string,
+      name: string,
+      template: string,
+      icon?: string,
+      unit_of_measure?: string,
+      device_class?: string,
+    ) => {
       const payload = {
         name,
-        unique_id: `luftuj_hru_${unit.id}_${field}`,
-        state_topic: `${BASE_TOPIC}/state`,
-        value_template: `{{ value_json.${field} }}`,
+        unique_id: `luftuj_hru_${unitId}_${id}`,
+        state_topic: `${unitBaseTopic}/state`,
+        value_template: template,
         device,
         availability,
-        ...(cls ? { device_class: cls } : {}),
-        ...(unitStr ? { unit_of_measurement: unitStr } : {}),
+        ...(icon ? { icon } : {}),
+        ...(unit_of_measure ? { unit_of_measurement: unit_of_measure } : {}),
+        ...(device_class ? { device_class } : {}),
       };
-      const topic = `${DISCOVERY_PREFIX}/sensor/luftuj_hru/${field}/config`;
-      await this.client?.publishAsync(topic, JSON.stringify(payload), { qos: 1, retain: true });
+      await this.client!.publishAsync(
+        `${DISCOVERY_PREFIX}/sensor/luftuj_hru_${unitId}/${id}/config`,
+        JSON.stringify(payload),
+        { qos: 1, retain: true },
+      );
     };
 
-    await pub("power", "Requested Power", "power_factor", "%");
-    await pub("temperature", "Requested Temperature", "temperature", "°C");
+    const powerUnit = unit.controlUnit || "%";
+    const powerCls = powerUnit === "%" ? "power_factor" : null;
 
-    const modePayload = {
-      name: "Mode",
-      unique_id: `luftuj_hru_${unit.id}_mode`,
-      state_topic: `${BASE_TOPIC}/state`,
-      value_template: "{{ value_json.mode }}",
+    await publishSensor(
+      "power",
+      strings.power,
+      "{{ value_json.power }}",
+      "mdi:fan",
+      powerUnit,
+      powerCls || undefined,
+    );
+    await publishSensor(
+      "temperature",
+      strings.temperature,
+      "{{ value_json.temperature }}",
+      "mdi:thermometer",
+      "°C",
+      "temperature",
+    );
+    await publishSensor("mode", strings.mode, "{{ value_json.mode_formatted }}", "mdi:fan");
+    await publishSensor(
+      "native_mode",
+      strings.native_mode,
+      "{{ value_json.native_mode_formatted }}",
+      "mdi:cog",
+    );
+    await publishSensor(
+      "boost_remaining",
+      strings.boost_remaining,
+      "{{ value_json.boost_remaining }}",
+      "mdi:timer-sand",
+      "min",
+    );
+    await publishSensor(
+      "boost_mode",
+      strings.boost_mode,
+      "{{ value_json.boost_name }}",
+      "mdi:rocket",
+    );
+
+    // Boost Duration Number Control
+    const durationPayload = {
+      name: strings.boost_duration,
+      unique_id: `luftuj_hru_${unitId}_boost_duration`,
+      state_topic: `${unitBaseTopic}/boost_duration/state`,
+      command_topic: `${unitBaseTopic}/boost_duration/set`,
+      min: 5,
+      max: 240,
+      step: 5,
+      unit_of_measurement: "min",
+      icon: "mdi:clock-fast",
       device,
       availability,
     };
-    const modeTopic = `${DISCOVERY_PREFIX}/sensor/luftuj_hru/mode/config`;
-    await this.client.publishAsync(modeTopic, JSON.stringify(modePayload), {
-      qos: 1,
-      retain: true,
-    });
+    await this.client.publishAsync(
+      `${DISCOVERY_PREFIX}/number/luftuj_hru_${unitId}/boost_duration/config`,
+      JSON.stringify(durationPayload),
+      { qos: 1, retain: true },
+    );
 
-    this.logger.info("MQTT: Discovery payloads sent");
+    // Initial publish of boost duration
+    const currentDuration = getAppSetting(BOOST_DURATION_KEY) || "30";
+    await this.client.publishAsync(
+      `${unitBaseTopic}/boost_duration/state`,
+      String(currentDuration),
+      { qos: 1, retain: true },
+    );
+
+    // Cancel Boost Button
+    const cancelPayload = {
+      name: strings.cancel_boost,
+      unique_id: `luftuj_hru_${unitId}_cancel_boost`,
+      command_topic: `${unitBaseTopic}/boost/cancel`,
+      payload_press: "CANCEL",
+      icon: "mdi:stop-circle-outline",
+      device,
+      availability,
+    };
+    await this.client.publishAsync(
+      `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/cancel_boost/config`,
+      JSON.stringify(cancelPayload),
+      { qos: 1, retain: true },
+    );
+
+    // --- 2. Boost Controls Lifecycle ---
+
+    // Tracking for Unit ID changes
+    const lastUnitId = getAppSetting(MQTT_LAST_UNIT_ID_KEY);
+    if (lastUnitId && lastUnitId !== unitId) {
+      this.logger.warn(
+        { lastUnitId, newUnitId: unitId },
+        "MQTT: Unit ID changed, old discovery entities might be orphaned",
+      );
+    }
+    setAppSetting(MQTT_LAST_UNIT_ID_KEY, unitId);
+
+    // ID-to-Slug mapping for reliable cleanup
+    const prevBoostsRaw = getAppSetting(MQTT_DISCOVERED_BOOSTS_KEY);
+    const prevBoostMap: Record<number, string> = prevBoostsRaw
+      ? JSON.parse(String(prevBoostsRaw))
+      : {};
+    const currentBoostMap: Record<number, string> = {};
+
+    const modesRaw = getAppSetting(TIMELINE_MODES_KEY);
+    const modes = modesRaw ? (JSON.parse(modesRaw) as TimelineMode[]) : [];
+    let activeBoostCount = 0;
+
+    // Process ALL modes: register boosts, explicitly delete non-boosts
+    for (const m of modes) {
+      const slug = this.slugify(m.name);
+
+      if (m.isBoost) {
+        currentBoostMap[m.id] = slug;
+        activeBoostCount++;
+
+        // Delete old slug topic if renamed
+        if (prevBoostMap[m.id] && prevBoostMap[m.id] !== slug) {
+          const oldSlug = prevBoostMap[m.id];
+          await this.client.publishAsync(
+            `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/boost_${oldSlug}/config`,
+            "",
+            { qos: 1, retain: true },
+          );
+        }
+
+        const boostBtnPayload = {
+          name: strings.boost_label.replace("{{name}}", m.name),
+          unique_id: `luftuj_hru_${unitId}_boost_${m.id}`,
+          command_topic: `${unitBaseTopic}/boost/${m.id}/start`,
+          payload_press: "START",
+          icon: "mdi:rocket-launch",
+          device,
+          availability,
+        };
+        await this.client.publishAsync(
+          `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/boost_${slug}/config`,
+          JSON.stringify(boostBtnPayload),
+          { qos: 1, retain: true },
+        );
+      } else {
+        // Mode exists but 'isBoost' is false - EXPLICITLY ensure no discovery button remains
+        await this.client.publishAsync(
+          `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/boost_${slug}/config`,
+          "",
+          { qos: 1, retain: true },
+        );
+      }
+    }
+
+    // Cleanup modes that were deleted from the DB entirely
+    for (const modeIdStr of Object.keys(prevBoostMap)) {
+      const modeId = parseInt(modeIdStr, 10);
+      if (!currentBoostMap[modeId] && !modes.find((m) => m.id === modeId)) {
+        const oldSlug = prevBoostMap[modeId];
+        await this.client.publishAsync(
+          `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/boost_${oldSlug}/config`,
+          "",
+          { qos: 1, retain: true },
+        );
+      }
+    }
+
+    // Finalize
+    setAppSetting(MQTT_DISCOVERED_BOOSTS_KEY, JSON.stringify(currentBoostMap));
+    await this.publishAvailability(unitId, "online");
+    this.logger.info({ unitId, boostCount: activeBoostCount }, "MQTT: Discovery cycle complete");
   }
 
-  private async publishAvailability(status: "online" | "offline") {
+  private async publishAvailability(unitId: string, status: "online" | "offline") {
     if (!this.client) return;
     try {
-      await this.client.publishAsync(`${BASE_TOPIC}/status`, status, { qos: 1, retain: true });
+      await this.client.publishAsync(`${BASE_TOPIC}/${unitId}/status`, status, {
+        qos: 1,
+        retain: true,
+      });
     } catch {
-      this.logger.warn("MQTT: Failed to publish availability");
+      this.logger.warn({ unitId }, "MQTT: Failed to publish availability");
     }
   }
 }

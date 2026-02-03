@@ -93,8 +93,8 @@ const hruService = new HruService(hruRepo, settingsRepo);
 
 const timelineScheduler = new TimelineScheduler(valveManager, hruService, logger);
 
-const mqttService = new MqttService(config.mqtt, logger);
-const hruMonitor = new HruMonitor(hruService, mqttService, logger);
+const mqttService = new MqttService(config.mqtt, settingsRepo, timelineScheduler, logger);
+const hruMonitor = new HruMonitor(hruService, mqttService, timelineScheduler, logger);
 
 const hruController = new HruController(hruService, logger);
 

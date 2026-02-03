@@ -15,6 +15,8 @@ export type HruSettings = {
 
 export const MQTT_SETTINGS_KEY = "mqtt.settings";
 export const MQTT_LAST_DISCOVERY_KEY = "mqtt.last_discovery_sent";
+export const MQTT_DISCOVERED_BOOSTS_KEY = "mqtt.discovered_boosts";
+export const MQTT_LAST_UNIT_ID_KEY = "mqtt.last_unit_id";
 
 export type MqttSettings = {
   enabled: boolean;
@@ -30,6 +32,7 @@ export type AddonMode = (typeof ADDON_MODES)[number];
 
 export const TIMELINE_MODES_KEY = "timeline.modes";
 export const TIMELINE_OVERRIDE_KEY = "timeline.override";
+export const BOOST_DURATION_KEY = "boost.duration";
 
 export type TimelineMode = {
   id: number;

@@ -1,8 +1,9 @@
 import type { Logger } from "pino";
 import type { MqttService } from "./mqttService";
 import type { HruService } from "../features/hru/hru.service";
+import type { TimelineScheduler } from "./timelineScheduler";
 
-const POLLING_INTERVAL_MS = 60_000; // 1 minute
+const POLLING_INTERVAL_MS = 10_000; // 10 seconds
 
 export class HruMonitor {
   private timer: NodeJS.Timeout | null = null;
@@ -11,6 +12,7 @@ export class HruMonitor {
   constructor(
     private readonly hruService: HruService,
     private readonly mqttService: MqttService,
+    private readonly timelineScheduler: TimelineScheduler,
     private readonly logger: Logger,
   ) {}
 
@@ -20,7 +22,14 @@ export class HruMonitor {
     this.logger.info("Starting HRU Monitor");
 
     // No pre-check, runCycle will handle the refresh logic
-    void this.runCycle(true);
+    void this.runCycle(false);
+
+    this.mqttService.on("command-received", () => {
+      if (this.isRunning) {
+        this.logger.debug("HRU Monitor: Command received, triggering immediate cycle");
+        void this.runCycle(false);
+      }
+    });
 
     this.timer = setInterval(() => {
       void this.runCycle(true); // Send discovery every minute as requested
@@ -53,11 +62,23 @@ export class HruMonitor {
 
     try {
       const result = await this.hruService.readValues();
+      const addonMode = this.timelineScheduler.getFormattedActiveMode();
+      const boostRemaining = this.timelineScheduler.getBoostRemainingMinutes();
+      const boostActiveName = this.timelineScheduler.getActiveBoostName();
 
-      this.logger.info({ ...result.value }, "HRU Monitor: Read successful, publishing to MQTT");
+      this.logger.info(
+        { ...result.value, addonMode, boostRemaining, boostActiveName },
+        "HRU Monitor: Read successful, publishing to MQTT",
+      );
 
       // Always try to publish; MqttService will handle its internal state
-      await this.mqttService.publishState(result.value);
+      await this.mqttService.publishState({
+        ...result.value,
+        mode_formatted: addonMode,
+        native_mode_formatted: result.value.mode,
+        boost_remaining: boostRemaining,
+        boost_name: boostActiveName || "-",
+      });
     } catch (err) {
       this.logger.warn({ err }, "HRU Monitor: Failed to read from HRU");
     }

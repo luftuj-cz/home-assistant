@@ -92,6 +92,35 @@ export class TimelineScheduler {
     return this.lastActiveState;
   }
 
+  public getFormattedActiveMode(): string {
+    const state = this.lastActiveState;
+    if (!state || state.source === "manual") return "Manual";
+
+    const prefix = state.source.charAt(0).toUpperCase() + state.source.slice(1);
+    return `${prefix}: ${state.modeName || "?"}`;
+  }
+
+  public getBoostRemainingMinutes(): number {
+    const overrideRaw = getAppSetting(TIMELINE_OVERRIDE_KEY);
+    if (!overrideRaw) return 0;
+    try {
+      const override = JSON.parse(overrideRaw) as TimelineOverride;
+      if (!override || !override.endTime) return 0;
+      const diff = new Date(override.endTime).getTime() - Date.now();
+      return Math.max(0, Math.ceil(diff / 60000));
+    } catch {
+      return 0;
+    }
+  }
+
+  public getActiveBoostName(): string | null {
+    const state = this.lastActiveState;
+    if (state?.source === "boost") {
+      return state.modeName || null;
+    }
+    return null;
+  }
+
   public async executeScheduledEvent(): Promise<void> {
     const overrideRaw = getAppSetting(TIMELINE_OVERRIDE_KEY);
     let activePayload: {
@@ -239,11 +268,11 @@ export class TimelineScheduler {
     if (this.schedulerTimer) {
       clearTimeout(this.schedulerTimer);
     }
-    // Run every 30 seconds for more responsive boost expiration and schedule transitions
+    // Run every 10 seconds for more responsive boost expiration and schedule transitions
     this.schedulerTimer = setTimeout(() => {
       void this.executeScheduledEvent().finally(() => {
         this.scheduleNextTick();
       });
-    }, 30_000);
+    }, 10_000);
   }
 }
