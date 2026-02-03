@@ -6,7 +6,7 @@ on:
 jobs:
   publish:
     name: Publish Addon
-    runs-on: kankaj_contabo
+    runs-on: [self-hosted, linux]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
