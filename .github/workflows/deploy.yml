@@ -6,7 +6,7 @@ on:
 jobs:
   publish:
     name: Publish Addon
-    runs-on: ubuntu-latest
+    runs-on: kankaj_contabo
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -24,9 +24,6 @@ jobs:
           args: |
             --amd64 \
             --aarch64 \
-            --armv7 \
-            --armhf \
-            --i386 \
             --target addon \
             --image "addon-luftuj" \
             --docker-hub "ghcr.io/luftuj-cz"
