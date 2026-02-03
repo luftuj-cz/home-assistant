@@ -7,6 +7,9 @@ jobs:
   publish:
     name: Publish Addon
     runs-on: [self-hosted, linux]
+    permissions:
+      contents: read
+      packages: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
