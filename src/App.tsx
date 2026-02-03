@@ -166,7 +166,7 @@ export default function App() {
         theme={theme}
         withCssVariables
         colorSchemeManager={colorSchemeManager}
-        defaultColorScheme="auto"
+        defaultColorScheme="dark"
       >
         <LanguageInitializer />
         <ThemeInitializer />

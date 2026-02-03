@@ -11,7 +11,6 @@ import {
   NumberInput,
   Select,
   Alert,
-  Switch,
   PasswordInput,
   useMantineColorScheme,
   useComputedColorScheme,
@@ -41,6 +40,7 @@ import { useTranslation } from "react-i18next";
 import { resolveApiUrl } from "../utils/api";
 import { logger } from "../utils/logger";
 import { setLanguage } from "../i18n";
+import { MotionSwitch } from "../components/common/MotionSwitch";
 
 export function SettingsPage() {
   const [uploading, setUploading] = useState(false);
@@ -75,7 +75,7 @@ export function SettingsPage() {
     return localStorage.getItem("luftujha-debug-mode") === "true";
   });
   const { setColorScheme } = useMantineColorScheme();
-  const computedColorScheme = useComputedColorScheme("light", { getInitialValueInEffect: false });
+  const computedColorScheme = useComputedColorScheme("dark", { getInitialValueInEffect: false });
   const { t, i18n } = useTranslation();
 
   const themeOptions = useMemo(
@@ -800,7 +800,7 @@ export function SettingsPage() {
                     <Text fw={500} size="md">
                       {t("settings.mqtt.description")}
                     </Text>
-                    <Switch
+                    <MotionSwitch
                       label={t("settings.mqtt.enabled")}
                       checked={mqttSettings.enabled}
                       onChange={(e) => {
@@ -955,7 +955,7 @@ export function SettingsPage() {
                           {t("settings.developer.debugModeDescription")}
                         </Text>
                       </Stack>
-                      <Switch
+                      <MotionSwitch
                         checked={debugMode}
                         onChange={(e) => {
                           const checked = e.currentTarget.checked;
