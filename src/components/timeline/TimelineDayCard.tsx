@@ -19,7 +19,8 @@ import {
 } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { TimelineEvent, Mode } from "../../types/timeline";
-import { Switch, ActionIcon as MantineActionIcon } from "@mantine/core";
+import { ActionIcon as MantineActionIcon } from "@mantine/core";
+import { MotionSwitch } from "../common/MotionSwitch";
 
 interface TimelineDayCardProps {
   dayIdx: number;
@@ -174,7 +175,7 @@ export function TimelineDayCard({
                       {ev.startTime} – {ev.endTime}
                     </Text>
                     <Group gap={6} wrap="nowrap">
-                      <Switch
+                      <MotionSwitch
                         size="xs"
                         checked={ev.enabled}
                         onChange={(e) => onToggle(ev, e.currentTarget.checked)}
