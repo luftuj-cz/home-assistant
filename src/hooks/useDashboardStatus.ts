@@ -197,7 +197,7 @@ export function useDashboardStatus() {
       }
     }
     void probe();
-    const id = setInterval(probe, 10000);
+    const id = setInterval(probe, 30_000);
     return () => {
       active = false;
       clearInterval(id);
@@ -227,12 +227,15 @@ export function useDashboardStatus() {
             ...data.value,
             registers: data.registers,
           });
+          setModbusStatus("reachable");
         } else {
           setHruStatus({ error: "Invalid HRU response" });
+          setModbusStatus("unreachable");
         }
       } catch {
         if (!active) return;
         setHruStatus({ error: "Failed to read HRU" });
+        setModbusStatus("unreachable");
       }
     }
     void poll();

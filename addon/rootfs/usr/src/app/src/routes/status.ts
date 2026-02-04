@@ -9,6 +9,7 @@ import { HRU_SETTINGS_KEY, type HruSettings } from "../types";
 import { APP_VERSION } from "../constants";
 import { validateQuery } from "../middleware/validateRequest";
 import { type ModbusStatusQuery, modbusStatusQuerySchema } from "../schemas/status";
+import { getSharedModbusClient, isModbusReachable } from "../shared/modbus/client";
 
 export function createStatusRouter(
   haClient: HomeAssistantClient | null,
@@ -76,6 +77,27 @@ export function createStatusRouter(
 
       const host = hostQ || savedSettings?.host || "localhost";
       const port = portQ ?? savedSettings?.port ?? 502;
+
+      if (isModbusReachable(host, port)) {
+        response.json({ reachable: true });
+        return;
+      }
+
+      if (host === savedSettings?.host && port === savedSettings?.port) {
+        try {
+          const unitId = savedSettings?.unitId ?? 1;
+          const sharedClient = getSharedModbusClient({ host, port, unitId }, logger);
+          if (!sharedClient.isConnected()) {
+            await sharedClient.connect();
+          }
+          if (sharedClient.isConnected()) {
+            response.json({ reachable: true });
+            return;
+          }
+        } catch (err) {
+          logger.debug({ err }, "Shared Modbus client connection failed during status probe");
+        }
+      }
 
       try {
         await probeTcp(host, port);

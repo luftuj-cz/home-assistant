@@ -170,3 +170,17 @@ export async function withTempModbusClient<T>(
     throw err;
   }
 }
+
+export function isModbusReachable(host: string, port: number): boolean {
+  const normalizedHost = host === "localhost" ? "127.0.0.1" : host;
+
+  for (const [key, client] of clientCache.entries()) {
+    const [cHost, cPort] = key.split(":");
+    const normalizedCHost = cHost === "localhost" ? "127.0.0.1" : cHost;
+
+    if (normalizedHost === normalizedCHost && String(port) === cPort && client.isConnected()) {
+      return true;
+    }
+  }
+  return false;
+}
