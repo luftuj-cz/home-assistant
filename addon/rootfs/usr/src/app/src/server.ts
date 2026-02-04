@@ -89,7 +89,7 @@ if (config.token) {
 // Core Dependencies
 const settingsRepo = new SettingsRepository();
 const hruRepo = new HruRepository(logger);
-const hruService = new HruService(hruRepo, settingsRepo);
+const hruService = new HruService(hruRepo, settingsRepo, logger);
 
 const timelineScheduler = new TimelineScheduler(valveManager, hruService, logger);
 
@@ -230,7 +230,7 @@ async function start() {
   });
 
   httpServer.listen(port, host, () => {
-    logger.info({ port }, "Luftujha backend listening");
+    logger.info({ port }, "Luftuj backend listening");
   });
 }
 
@@ -239,7 +239,7 @@ let isShuttingDown = false;
 async function shutdown(signal: string) {
   if (isShuttingDown) return;
   isShuttingDown = true;
-  logger.info({ signal }, "Shutting down Luftujha backend");
+  logger.info({ signal }, "Shutting down Luftuj backend");
 
   // Force exit if graceful shutdown takes too long
   setTimeout(() => {

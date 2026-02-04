@@ -5,10 +5,6 @@ import type { CommandScript, CommandValue, CommandExpression } from "./hru.defin
 export class HruRepository {
   constructor(private readonly logger: Logger) {}
 
-  /**
-   * Executes a given script of commands against the HRU.
-   * Returns a map of variables (e.g., $power) and their final values.
-   */
   async executeScript(
     config: { host: string; port: number; unitId: number },
     script: CommandScript,
@@ -23,20 +19,12 @@ export class HruRepository {
         if (typeof val === "number") return val;
 
         if (typeof val === "string") {
-          // Hex literal
           if (val.startsWith("0x")) return parseInt(val, 16);
-          // Variable reference
           if (val.startsWith("$")) {
-            // remove '$' prefix if stored without it, or keep it consistent
-            // let's assume keys in 'variables' map retain the '$' or we strip it.
-            // The DSL example implies '$power', so let's use the full string as key.
             return variables[val] ?? 0;
           }
-          // Regular number in string format?
           return Number(val) || 0;
         }
-
-        // It's an expression
         return evaluateExpression(val);
       }
 
@@ -60,10 +48,10 @@ export class HruRepository {
           case "multiply":
             return arg0 * arg1;
           case "divide":
-            return arg0 / (arg1 || 1); // Avoid division by zero
+            return arg0 / (arg1 || 1);
           case "delay":
             await new Promise((resolve) => setTimeout(resolve, arg0));
-            return 0; // delay doesn't return a meaningful value
+            return 0;
           case "modbus_read_holding": {
             const count = arg1 || 1;
             const data = await mb.readHolding(arg0, count);

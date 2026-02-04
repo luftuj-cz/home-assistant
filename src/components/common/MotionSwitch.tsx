@@ -28,7 +28,7 @@ export const MotionSwitch = forwardRef<HTMLInputElement, SwitchProps>((props, re
         {...props}
         styles={{
           thumb: {
-            transition: "transform 400ms cubic-bezier(0.68, -0.6, 0.32, 1.6)", // CSS bounce for the thumb movement
+            transition: "transform 400ms cubic-bezier(0.68, -0.6, 0.32, 1.6)",
           },
         }}
       />

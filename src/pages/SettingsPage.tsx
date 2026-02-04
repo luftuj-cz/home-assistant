@@ -97,7 +97,6 @@ export function SettingsPage() {
     ],
     [t],
   );
-  // TODO: implement
 
   const tempUnitOptions = useMemo(
     () => [
@@ -282,7 +281,6 @@ export function SettingsPage() {
     [persistTempUnitPreference],
   );
 
-  // Load HRU units and settings on mount
   useEffect(() => {
     async function loadData() {
       setLoadingUnits(true);
@@ -307,7 +305,6 @@ export function SettingsPage() {
         }
         if (mqttRes.ok) {
           const mqtt = await mqttRes.json();
-          // Ensure defaults if missing from API
           setMqttSettings({
             enabled: !!mqtt.enabled,
             host: mqtt.host || "",
@@ -584,7 +581,6 @@ export function SettingsPage() {
       });
       logger.info("Database import completed successfully");
 
-      // Force reload to pick up new theme, language and MQTT settings
       setTimeout(() => window.location.reload(), 1500);
     } catch (importError) {
       logger.error("Database import failed", { error: importError });

@@ -27,7 +27,6 @@ export function isSupportedLanguage(language: string): language is SupportedLang
   return Object.prototype.hasOwnProperty.call(resources, language);
 }
 
-// Initialize i18n on module load; we don't need the returned promise elsewhere.
 void i18n
   .use(initReactI18next)
   .init({
@@ -56,8 +55,8 @@ export async function setLanguage(language: string) {
     if (typeof window !== "undefined") {
       window.localStorage.setItem("luftujha-language", target);
     }
-  } catch {
-    // ignore storage errors
+  } catch (error) {
+    logger.error("Failed to set language in localStorage:", { error });
   }
 }
 

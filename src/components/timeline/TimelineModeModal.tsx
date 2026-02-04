@@ -30,7 +30,7 @@ import type { TemperatureUnit } from "../../hooks/useDashboardStatus";
 
 interface TimelineModeModalProps {
   opened: boolean;
-  mode: Mode | null; // if null, creating new
+  mode: Mode | null;
   valves: Valve[];
   saving: boolean;
   onClose: () => void;
@@ -90,7 +90,6 @@ export function TimelineModeModal({
   }, [opened, mode, temperatureUnit]);
 
   function handleSave() {
-    // Filter undefined/invalid
     const cleanedValveOpenings = Object.fromEntries(
       Object.entries(valveOpenings).filter(
         ([, value]) =>

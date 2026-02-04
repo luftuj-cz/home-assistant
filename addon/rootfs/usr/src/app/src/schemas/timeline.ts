@@ -20,7 +20,6 @@ const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
 export const timelineEventInputSchema = z.object({
   id: z.number().int().positive().optional(),
   startTime: z.string().regex(timeRegex, "Start time must be in HH:MM format"),
-  endTime: z.string().regex(timeRegex, "End time must be in HH:MM format").optional(),
   dayOfWeek: z.number().int().min(0).max(6).nullable().optional(),
   hruConfig: z
     .object({

@@ -40,8 +40,6 @@ export function useTimelineEvents(modes: Mode[], t: TFunction) {
 
   const saveEvent = useCallback(
     async (event: TimelineEvent) => {
-      // Validation handled by caller or API, but UI validation was in component.
-      // Moving basic mode config merging here.
       const selectedMode =
         modes.find((m) => m.id?.toString() === event.hruConfig?.mode?.toString()) ?? null;
       const mergedHruConfig = {

@@ -19,6 +19,7 @@ export class HruController {
       const modes = this.service.getModes();
       res.json({ modes });
     } catch (error) {
+      this.logger.error({ error }, "Failed to get HRU modes");
       next(error);
     }
   };
@@ -28,6 +29,7 @@ export class HruController {
       const result = await this.service.readValues();
       res.json(result);
     } catch (error) {
+      this.logger.error({ error }, "Failed to read HRU values");
       next(error);
     }
   };
@@ -40,6 +42,7 @@ export class HruController {
     };
 
     if (power === undefined && temperature === undefined && mode === undefined) {
+      this.logger.warn("HRU write attempt with no fields");
       throw new ApiError(400, "No fields to write");
     }
 
@@ -47,6 +50,7 @@ export class HruController {
       await this.service.writeValues({ power, temperature, mode });
       res.status(204).end();
     } catch (error) {
+      this.logger.error({ error, body: req.body }, "Failed to write HRU values");
       next(error);
     }
   };

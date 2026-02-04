@@ -95,6 +95,7 @@ export class HomeAssistantClient {
 
     if (!response.ok) {
       const body = await response.text();
+      this.logger.error({ status: response.status, body }, "Failed to fetch Home Assistant states");
       throw new Error(`Failed to fetch Home Assistant states: ${response.status} ${body}`);
     }
 
@@ -170,10 +171,7 @@ export class HomeAssistantClient {
 
       cleanupSocket();
       clearReconnectTimer();
-      // mark connecting
       logger.info({ url: websocketUrl }, "Connecting to Home Assistant WebSocket");
-      // Note: since this is an inner function, update via header-bound logger and a state setter below
-      // We cannot access `this` here; expose a state setter through closures instead.
       setState("connecting");
 
       socket = new WebSocket(websocketUrl, {

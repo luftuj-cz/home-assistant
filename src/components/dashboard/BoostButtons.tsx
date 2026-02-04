@@ -98,7 +98,6 @@ export function BoostButtons({ modes, t }: BoostButtonsProps) {
     try {
       const active = await activateBoost(modeId, duration);
 
-      // Calculate minutes immediately to ensure seamless transition
       const diff = new Date(active.endTime).getTime() - Date.now();
       const mins = Math.max(0, Math.ceil(diff / 60000));
       setRemainingMinutes(mins);
@@ -125,7 +124,7 @@ export function BoostButtons({ modes, t }: BoostButtonsProps) {
     setIsCancelling(true);
     try {
       await cancelBoost();
-      setRemainingMinutes(0); // Reset immediately
+      setRemainingMinutes(0);
       setActiveBoost(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Could not cancel boost";
@@ -153,7 +152,6 @@ export function BoostButtons({ modes, t }: BoostButtonsProps) {
       }}
     >
       <Stack gap="xl">
-        {/* Header Section */}
         <Group justify="space-between" wrap="nowrap">
           <Group gap="md">
             <Box
@@ -195,9 +193,7 @@ export function BoostButtons({ modes, t }: BoostButtonsProps) {
 
         <Divider style={{ opacity: 0.1 }} />
 
-        {/* Centered Content Container */}
         <Flex direction={{ base: "column", md: "row" }} gap="xl" justify="center" align="center">
-          {/* Duration Control Group */}
           <Stack
             gap="md"
             w={{ base: "100%", md: 360 }}
@@ -320,7 +316,6 @@ export function BoostButtons({ modes, t }: BoostButtonsProps) {
             />
           </Stack>
 
-          {/* Mode Selection Group - Balanced Grid */}
           <Stack gap="md" style={{ flex: 1 }} align="center">
             <Group gap="xs" w="100%" justify="center">
               <IconPlayerPlay size={16} color="var(--mantine-color-dimmed)" />

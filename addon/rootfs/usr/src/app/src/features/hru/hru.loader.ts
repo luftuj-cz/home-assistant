@@ -1,19 +1,20 @@
 import * as fs from "fs";
 import * as path from "path";
+import type { Logger } from "pino";
 import type { HeatRecoveryUnit, RegulationStrategy } from "./hru.definitions";
 
 export class HruLoader {
   private readonly strategiesPath: string;
   private readonly unitsPath: string;
 
-  constructor() {
+  constructor(private readonly logger: Logger) {
     this.strategiesPath = path.join(__dirname, "definitions/strategies");
     this.unitsPath = path.join(__dirname, "definitions/units");
   }
 
   loadStrategies(): RegulationStrategy[] {
     if (!fs.existsSync(this.strategiesPath)) {
-      console.warn(`Strategies directory not found: ${this.strategiesPath}`);
+      this.logger.warn(`Strategies directory not found: ${this.strategiesPath}`);
       return [];
     }
 
@@ -27,7 +28,7 @@ export class HruLoader {
         const strategy = JSON.parse(content) as RegulationStrategy;
         strategies.push(strategy);
       } catch (error) {
-        console.error(`Failed to load strategy from ${file}:`, error);
+        this.logger.error({ error, file }, "Failed to load strategy from file");
       }
     }
 
@@ -36,7 +37,7 @@ export class HruLoader {
 
   loadUnits(): HeatRecoveryUnit[] {
     if (!fs.existsSync(this.unitsPath)) {
-      console.warn(`Units directory not found: ${this.unitsPath}`);
+      this.logger.warn(`Units directory not found: ${this.unitsPath}`);
       return [];
     }
 
@@ -50,7 +51,7 @@ export class HruLoader {
         const unit = JSON.parse(content) as HeatRecoveryUnit;
         units.push(unit);
       } catch (error) {
-        console.error(`Failed to load unit from ${file}:`, error);
+        this.logger.error({ error, file }, "Failed to load unit from file");
       }
     }
 

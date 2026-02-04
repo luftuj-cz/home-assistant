@@ -80,7 +80,6 @@ const migrations: Migration[] = [
       `CREATE TABLE IF NOT EXISTS timeline_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         start_time TEXT NOT NULL, -- HH:MM format
-        end_time TEXT NOT NULL, -- HH:MM format
         day_of_week INTEGER, -- 0-6 (Sunday=0), NULL for all days
         hru_config TEXT, -- JSON: {mode, power, temperature}
         luftator_config TEXT, -- JSON: {entity_id: value}
@@ -91,6 +90,10 @@ const migrations: Migration[] = [
       )`,
       `CREATE INDEX IF NOT EXISTS idx_timeline_events_day_time ON timeline_events(day_of_week, start_time, enabled)`,
     ],
+  },
+  {
+    id: "004_remove_legacy_end_time",
+    statements: [`ALTER TABLE timeline_events DROP COLUMN end_time;`],
   },
 ];
 
@@ -139,7 +142,6 @@ function applyMigrations(database: Database, logger?: Logger): void {
   try {
     database.run("PRAGMA journal_mode = WAL;");
   } catch (err) {
-    // Fallback for environments that don't support WAL (e.g. WSL mounts)
     activeLogger?.warn({ err }, "Failed to set WAL mode, falling back to DELETE mode");
     database.run("PRAGMA journal_mode = DELETE;");
   }
@@ -216,15 +218,14 @@ function prepareStatements(database: Database): StatementMap {
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
     ),
     getTimelineEvents: database.prepare(
-      `SELECT id, start_time, end_time, day_of_week, hru_config, luftator_config, enabled, priority, created_at, updated_at
+      `SELECT id, start_time, day_of_week, hru_config, luftator_config, enabled, priority, created_at, updated_at
        FROM timeline_events ORDER BY day_of_week ASC NULLS LAST, start_time ASC, priority DESC`,
     ),
     upsertTimelineEvent: database.prepare(
-      `INSERT INTO timeline_events (id, start_time, end_time, day_of_week, hru_config, luftator_config, enabled, priority)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO timeline_events (id, start_time, day_of_week, hru_config, luftator_config, enabled, priority)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          start_time = excluded.start_time,
-         end_time = excluded.end_time,
          day_of_week = excluded.day_of_week,
          hru_config = excluded.hru_config,
          luftator_config = excluded.luftator_config,
@@ -250,9 +251,6 @@ export function setupDatabase(logger?: Logger): void {
   applyMigrations(db, moduleLogger || undefined);
   statements = prepareStatements(db);
 }
-
-// Remove automatic initialization to allow lazy loading/mocking
-// setupDatabase();
 
 export interface ValveSnapshotRecord {
   entityId: string;
@@ -283,8 +281,6 @@ export function storeValveSnapshots(records: ValveSnapshotRecord[]): void {
   }
 
   if (!db || !statements) {
-    // If not initialized, try to initialize (lazy load for prod)
-    // Or throw error if you prefer strict explicit init
     setupDatabase();
   }
   if (!db || !statements) {
@@ -356,7 +352,6 @@ export function setAppSetting(key: string, value: string): void {
 export interface TimelineEvent {
   id?: number;
   startTime: string; // HH:MM
-  endTime?: string; // HH:MM (Legacy/Optional)
   dayOfWeek?: number | null; // 0-6 (Sunday=0), null for all days
   hruConfig?: {
     mode?: string;
@@ -371,7 +366,6 @@ export interface TimelineEvent {
 export interface TimelineEventRecord {
   id: number;
   start_time: string;
-  end_time: string;
   day_of_week: number | null;
   hru_config: string | null;
   luftator_config: string | null;
@@ -386,7 +380,6 @@ function normaliseTimelineEvent(
 ): Omit<TimelineEventRecord, "id" | "created_at" | "updated_at"> {
   return {
     start_time: event.startTime,
-    end_time: event.endTime ?? "",
     day_of_week: event.dayOfWeek ?? null,
     hru_config: event.hruConfig ? JSON.stringify(event.hruConfig) : null,
     luftator_config: event.luftatorConfig ? JSON.stringify(event.luftatorConfig) : null,
@@ -399,7 +392,6 @@ function denormaliseTimelineEvent(record: TimelineEventRecord): TimelineEvent {
   return {
     id: record.id,
     startTime: record.start_time,
-    endTime: record.end_time,
     dayOfWeek: record.day_of_week,
     hruConfig: record.hru_config ? JSON.parse(record.hru_config) : null,
     luftatorConfig: record.luftator_config ? JSON.parse(record.luftator_config) : null,
@@ -436,7 +428,6 @@ export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
   const result = statements.upsertTimelineEvent.run(
     event.id ?? null, // id can be null for new records
     normalised.start_time,
-    normalised.end_time,
     normalised.day_of_week,
     normalised.hru_config,
     normalised.luftator_config,

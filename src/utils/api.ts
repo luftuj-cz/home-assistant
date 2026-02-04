@@ -1,15 +1,11 @@
-// With HashRouter, the pathname is always the base path of the application
-// because routing information is stored in the hash fragment.
 function computeBaseUrl(): URL {
   const url = new URL(window.location.origin);
   let path = window.location.pathname;
 
-  // If path refers to a file (e.g. /app/index.html), strip the filename
   if (!path.endsWith("/") && path.split("/").pop()?.includes(".")) {
     path = path.substring(0, path.lastIndexOf("/") + 1);
   }
 
-  // Ensure path ends with /
   if (!path.endsWith("/")) {
     path += "/";
   }

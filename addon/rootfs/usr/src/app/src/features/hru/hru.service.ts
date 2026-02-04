@@ -1,13 +1,12 @@
 import type { HruRepository } from "./hru.repository";
 import type { SettingsRepository } from "../settings/settings.repository";
+import type { Logger } from "pino";
 import { HruLoader } from "./hru.loader";
 import { type RegulationStrategy, type HeatRecoveryUnit } from "./hru.definitions";
 
 export interface HruReadResult {
-  // Keeping this interface simple for now, might need to evolve
   raw: { power: number; temperature: number; mode: number };
   value: { power: number; temperature: number; mode: string };
-  // Registers metadata is removed as it's no longer directly available on the unit
   registers: {
     power: { unit?: string; scale?: number; precision?: number; maxValue?: number };
     temperature: { unit?: string; scale?: number; precision?: number };
@@ -21,8 +20,9 @@ export class HruService {
   constructor(
     private readonly repository: HruRepository,
     private readonly settingsRepo: SettingsRepository,
+    private readonly logger: Logger,
   ) {
-    const loader = new HruLoader();
+    const loader = new HruLoader(this.logger);
     this.units = loader.loadUnits();
     this.strategies = loader.loadStrategies();
   }
@@ -32,7 +32,7 @@ export class HruService {
       id: u.code || u.name,
       name: u.name,
       isConfigurable: u.isConfigurable,
-      maxValue: u.maxValue, // Always return original max value
+      maxValue: u.maxValue,
       controlUnit: u.controlUnit,
       capabilities: this.getStrategyForUnit(u)?.capabilities ?? null,
       registers: null,
@@ -55,8 +55,6 @@ export class HruService {
     const { settings, strategy, unit } = configData;
     const config = { host: settings.host, port: settings.port, unitId: settings.unitId };
 
-    // Execute read scripts in parallel if possible (or sequentially)
-    // We merge the results into a single variables map
     let variables: Record<string, number> = {};
 
     if (strategy.powerCommands?.read) {

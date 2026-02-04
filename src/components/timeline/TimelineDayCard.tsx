@@ -50,29 +50,17 @@ function isEventActive(ev: TimelineEvent, allDayEvents: TimelineEvent[], dayIdx:
     return h * 60 + m;
   }
 
-  // 1. If this is today:
   if (dayIdx === currentDayIdx) {
     const startedEvents = allDayEvents.filter((e) => toMins(e.startTime) <= nowMinutes);
     if (startedEvents.length === 0) return false;
-    // Active if it's the latest one started
     const latest = startedEvents[startedEvents.length - 1];
     return ev.id === latest.id && ev.startTime === latest.startTime;
   }
 
-  // 2. If this is yesterday (or the last day with any events):
-  // For simplicity, we highlight the last event of yesterday if no events have started today yet.
   const yesterdayIdx = (currentDayIdx - 1 + 7) % 7;
   if (dayIdx === yesterdayIdx) {
-    // Check if today has any events started
-    // We don't have access to "today's" events here easily without props changes,
-    // but we can at least detect if the current event is the last one of its day.
     const isLastOfItsDay = ev === allDayEvents[allDayEvents.length - 1];
     if (!isLastOfItsDay) return false;
-
-    // Ideally we'd check if today's first event has started.
-    // But for now, just highlighting the last event of "today" is the most important.
-    // If we want to be perfect, we'd need to pass more data.
-    // Let's stick to current day highlighting for now to avoid over-engineering.
     return false;
   }
 

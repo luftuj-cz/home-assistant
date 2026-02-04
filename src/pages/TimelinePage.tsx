@@ -15,13 +15,12 @@ import { TimelineModeModal } from "../components/timeline/TimelineModeModal";
 import { resolveApiUrl } from "../utils/api";
 import * as hruApi from "../api/hru";
 import * as valveApi from "../api/valves";
-import type { TimelineEvent } from "../types/timeline";
+import type { TimelineEvent, Mode } from "../types/timeline";
 import type { Valve } from "../types/valve";
 
 export function TimelinePage() {
   const { t } = useTranslation();
 
-  // -- Data Hooks --
   const { modes, loadModes, saveMode, deleteMode, savingMode } = useTimelineModes(t);
   const {
     eventsByDay,
@@ -33,21 +32,16 @@ export function TimelinePage() {
 
   const { tempUnit } = useDashboardStatus();
 
-  // -- Local State --
   const [loading, setLoading] = useState(false);
 
-  // Event Modal State
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<TimelineEvent | null>(null);
 
-  // Copy/Paste State
   const [copyDay, setCopyDay] = useState<number | null>(null);
 
-  // Mode Modal State
   const [modeModalOpen, setModeModalOpen] = useState(false);
-  const [editingMode, setEditingMode] = useState<import("../types/timeline").Mode | null>(null);
+  const [editingMode, setEditingMode] = useState<Mode | null>(null);
 
-  // Auxiliary Data
   const [valves, setValves] = useState<Valve[]>([]);
   const [hruCapabilities, setHruCapabilities] = useState<
     Pick<hruApi.HruUnit, "capabilities">["capabilities"]
@@ -55,7 +49,6 @@ export function TimelinePage() {
   const [powerUnit, setPowerUnit] = useState<string>("%");
   const [maxPower, setMaxPower] = useState<number>(100);
 
-  // -- Effects --
   useEffect(() => {
     async function init() {
       setLoading(true);
@@ -88,7 +81,6 @@ export function TimelinePage() {
     void init();
   }, [loadModes, loadEvents]);
 
-  // -- Memoized Options --
   const dayLabels = useMemo(
     () => [
       t("settings.timeline.monday"),
@@ -104,7 +96,6 @@ export function TimelinePage() {
 
   const dayOrder = useMemo(() => [0, 1, 2, 3, 4, 5, 6], []);
 
-  // Notifications for Copy/Paste
   useEffect(() => {
     if (copyDay !== null) {
       notifications.show({
@@ -146,9 +137,6 @@ export function TimelinePage() {
     return modes.map((m) => ({ value: m.id.toString(), label: m.name }));
   }, [modes]);
 
-  // -- Handlers --
-
-  // Events
   const handleAddEvent = useCallback(
     (day: number) => {
       const startTime = "08:00";
@@ -194,7 +182,6 @@ export function TimelinePage() {
     [saveEvent],
   );
 
-  // Copy/Paste
   const handlePasteDay = useCallback(
     async (targetDay: number) => {
       if (copyDay === null) return;
@@ -218,19 +205,18 @@ export function TimelinePage() {
     [copyDay, eventsByDay, saveEvent, t],
   );
 
-  // Modes
   const handleAddMode = useCallback(() => {
     setEditingMode(null);
     setModeModalOpen(true);
   }, []);
 
-  const handleEditMode = useCallback((mode: import("../types/timeline").Mode) => {
+  const handleEditMode = useCallback((mode: Mode) => {
     setEditingMode(mode);
     setModeModalOpen(true);
   }, []);
 
   const handleSaveMode = useCallback(
-    async (modeData: Partial<import("../types/timeline").Mode>) => {
+    async (modeData: Partial<Mode>) => {
       const success = await saveMode(modeData);
       if (success) {
         setModeModalOpen(false);
@@ -253,7 +239,6 @@ export function TimelinePage() {
           </Text>
         </Stack>
 
-        {/* Modes Section */}
         <TimelineModeList
           modes={modes}
           onAdd={handleAddMode}
@@ -264,7 +249,6 @@ export function TimelinePage() {
           temperatureUnit={tempUnit}
         />
 
-        {/* Days Grid */}
         <Stack gap="md">
           <Divider
             label={
@@ -299,7 +283,6 @@ export function TimelinePage() {
           </SimpleGrid>
         </Stack>
 
-        {/* Modals */}
         <TimelineEventModal
           opened={eventModalOpen}
           event={editingEvent}

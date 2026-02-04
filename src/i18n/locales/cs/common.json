@@ -127,7 +127,6 @@
       "sunday": "Neděle",
       "form": {
         "startTime": "Čas začátku",
-        "endTime": "Čas konce",
         "dayOfWeek": "Den v týdnu",
         "priority": "Priorita",
         "hruSettings": "Nastavení rekuperace",
@@ -152,7 +151,6 @@
         "deleteFailedMessage": "{{message}}",
         "validationFailedTitle": "Validace selhala",
         "invalidTimeFormat": "Čas musí být ve formátu HH:MM (24hodinový)",
-        "startTimeBeforeEnd": "Čas začátku musí být před časem konce",
         "modeNameRequired": "Název režimu je povinný",
         "modeCreated": "Režim vytvořen",
         "modeUpdated": "Režim aktualizován",

@@ -264,7 +264,6 @@ export function createTimelineRouter(
         const event = upsertTimelineEvent({
           id: body.id,
           startTime: body.startTime,
-          endTime: body.endTime,
           dayOfWeek: body.dayOfWeek,
           hruConfig: body.hruConfig,
           luftatorConfig: body.luftatorConfig,

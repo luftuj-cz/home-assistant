@@ -3,20 +3,7 @@ import { EventEmitter } from "events";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/options";
 import type { HeatRecoveryUnit } from "../features/hru/hru.definitions";
-import { getAppSetting, setAppSetting } from "./database";
-import {
-  MQTT_SETTINGS_KEY,
-  MQTT_LAST_DISCOVERY_KEY,
-  MQTT_DISCOVERED_BOOSTS_KEY,
-  MQTT_LAST_UNIT_ID_KEY,
-  LANGUAGE_SETTING_KEY,
-  TIMELINE_OVERRIDE_KEY,
-  TIMELINE_MODES_KEY,
-  BOOST_DURATION_KEY,
-  type MqttSettings,
-  type TimelineMode,
-  type TimelineOverride,
-} from "../types";
+import { type MqttSettings, type TimelineOverride } from "../types";
 import type { SettingsRepository } from "../features/settings/settings.repository";
 import type { TimelineScheduler } from "./timelineScheduler";
 
@@ -180,11 +167,11 @@ export class MqttService extends EventEmitter {
   }
 
   public getLastDiscoveryTime(): string | null {
-    return getAppSetting(MQTT_LAST_DISCOVERY_KEY);
+    return this.settingsRepo.getLastDiscoveryTime();
   }
 
   public setLastDiscoveryTime(time: string): void {
-    setAppSetting(MQTT_LAST_DISCOVERY_KEY, time);
+    this.settingsRepo.setLastDiscoveryTime(time);
   }
 
   public static async testConnection(
@@ -231,22 +218,17 @@ export class MqttService extends EventEmitter {
   }
 
   private resolveConfig(): AppConfig["mqtt"] {
-    const raw = getAppSetting(MQTT_SETTINGS_KEY);
-    if (raw) {
-      try {
-        const dbSettings = JSON.parse(raw) as MqttSettings;
-        if (dbSettings.enabled) {
-          return {
-            host: dbSettings.host,
-            port: dbSettings.port,
-            user: dbSettings.user ?? null,
-            password: dbSettings.password ?? null,
-          };
-        }
-        return { host: null, port: 1883, user: null, password: null };
-      } catch {
-        this.logger.error("MQTT: Failed to parse settings from database");
+    const dbSettings = this.settingsRepo.getMqttSettings();
+    if (dbSettings) {
+      if (dbSettings.enabled) {
+        return {
+          host: dbSettings.host,
+          port: dbSettings.port,
+          user: dbSettings.user ?? null,
+          password: dbSettings.password ?? null,
+        };
       }
+      return { host: null, port: 1883, user: null, password: null };
     }
     return this.envConfig;
   }
@@ -321,7 +303,7 @@ export class MqttService extends EventEmitter {
     if (topic === `${unitBaseTopic}/boost_duration/set`) {
       const duration = parseInt(payload, 10);
       if (!isNaN(duration)) {
-        setAppSetting(BOOST_DURATION_KEY, String(duration));
+        this.settingsRepo.setBoostDuration(duration);
         await this.client?.publishAsync(`${unitBaseTopic}/boost_duration/state`, String(duration), {
           qos: 1,
           retain: true,
@@ -332,7 +314,7 @@ export class MqttService extends EventEmitter {
 
     // 2. Cancel Boost
     if (topic === `${unitBaseTopic}/boost/cancel` && payload === "CANCEL") {
-      setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
+      this.settingsRepo.setTimelineOverride(null);
       await this.timelineScheduler.executeScheduledEvent();
       this.emit("command-received");
       this.logger.info("MQTT: Boost cancelled");
@@ -345,11 +327,11 @@ export class MqttService extends EventEmitter {
       if (!modeIdStr) return;
 
       const modeId = parseInt(modeIdStr, 10);
-      const duration = parseInt(getAppSetting(BOOST_DURATION_KEY) || "30", 10);
+      const duration = this.settingsRepo.getBoostDuration();
       const endTime = new Date(Date.now() + duration * 60 * 1000).toISOString();
       const override: TimelineOverride = { modeId, endTime, durationMinutes: duration };
 
-      setAppSetting(TIMELINE_OVERRIDE_KEY, JSON.stringify(override));
+      this.settingsRepo.setTimelineOverride(override);
       this.logger.info({ modeId, duration, endTime }, "MQTT: Boost activated");
 
       await this.timelineScheduler.executeScheduledEvent();
@@ -413,8 +395,7 @@ export class MqttService extends EventEmitter {
 
     const availability = [{ topic: `${unitBaseTopic}/status` }];
 
-    const strings =
-      LOCALIZED_STRINGS[getAppSetting(LANGUAGE_SETTING_KEY) || "en"] || LOCALIZED_STRINGS.en;
+    const strings = LOCALIZED_STRINGS[this.settingsRepo.getLanguage()] || LOCALIZED_STRINGS.en;
 
     if (!strings) {
       this.logger.error("MQTT: Failed to load localization strings for discovery");
@@ -511,7 +492,7 @@ export class MqttService extends EventEmitter {
     );
 
     // Initial publish of boost duration
-    const currentDuration = getAppSetting(BOOST_DURATION_KEY) || "30";
+    const currentDuration = this.settingsRepo.getBoostDuration();
     await this.client.publishAsync(
       `${unitBaseTopic}/boost_duration/state`,
       String(currentDuration),
@@ -537,24 +518,20 @@ export class MqttService extends EventEmitter {
     // --- 2. Boost Controls Lifecycle ---
 
     // Tracking for Unit ID changes
-    const lastUnitId = getAppSetting(MQTT_LAST_UNIT_ID_KEY);
+    const lastUnitId = this.settingsRepo.getLastUnitId();
     if (lastUnitId && lastUnitId !== unitId) {
       this.logger.warn(
         { lastUnitId, newUnitId: unitId },
         "MQTT: Unit ID changed, old discovery entities might be orphaned",
       );
     }
-    setAppSetting(MQTT_LAST_UNIT_ID_KEY, unitId);
+    this.settingsRepo.setLastUnitId(unitId);
 
     // ID-to-Slug mapping for reliable cleanup
-    const prevBoostsRaw = getAppSetting(MQTT_DISCOVERED_BOOSTS_KEY);
-    const prevBoostMap: Record<number, string> = prevBoostsRaw
-      ? JSON.parse(String(prevBoostsRaw))
-      : {};
+    const prevBoostMap = this.settingsRepo.getDiscoveredBoosts();
     const currentBoostMap: Record<number, string> = {};
 
-    const modesRaw = getAppSetting(TIMELINE_MODES_KEY);
-    const modes = modesRaw ? (JSON.parse(modesRaw) as TimelineMode[]) : [];
+    const modes = this.settingsRepo.getTimelineModes();
     let activeBoostCount = 0;
 
     // Process ALL modes: register boosts, explicitly delete non-boosts
@@ -613,7 +590,7 @@ export class MqttService extends EventEmitter {
     }
 
     // Finalize
-    setAppSetting(MQTT_DISCOVERED_BOOSTS_KEY, JSON.stringify(currentBoostMap));
+    this.settingsRepo.setDiscoveredBoosts(currentBoostMap);
     await this.publishAvailability(unitId, "online");
     this.logger.info({ unitId, boostCount: activeBoostCount }, "MQTT: Discovery cycle complete");
   }

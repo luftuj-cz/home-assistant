@@ -1,5 +1,5 @@
 name: Luftuj
-version: 0.1.0
+version: 0.0.1-dev
 slug: luftuj
 description: Luftuj Home Assistant Add-on
 url: https://github.com/luftuj-cz/home-assistant
@@ -36,5 +36,4 @@ schema:
   mqtt_port: int(1,65535)
   mqtt_user: str?
   mqtt_password: str?
-# HASS Addon Image
 image: "ghcr.io/luftuj-cz/{arch}-addon-luftuj"

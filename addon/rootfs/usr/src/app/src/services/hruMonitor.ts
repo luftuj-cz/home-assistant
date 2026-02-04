@@ -32,7 +32,7 @@ export class HruMonitor {
     });
 
     this.timer = setInterval(() => {
-      void this.runCycle(true); // Send discovery every minute as requested
+      void this.runCycle(true); // Send discovery every minute
     }, POLLING_INTERVAL_MS);
   }
 

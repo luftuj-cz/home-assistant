@@ -52,7 +52,6 @@ function log(level: LogLevel, message: string, meta?: LogMeta): void {
   try {
     logWithConsole(consoleMethod, level, message, meta);
   } catch (error) {
-    // If structured logging fails, fall back to a minimal console output.
     console.error(`${LOG_NAMESPACE} Failed to emit log`, { level, message, meta, error });
   }
 }

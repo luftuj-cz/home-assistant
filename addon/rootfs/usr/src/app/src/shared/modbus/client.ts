@@ -159,7 +159,6 @@ export async function withTempModbusClient<T>(
 ): Promise<T> {
   const client = getSharedModbusClient(cfg, logger);
 
-  // If not connected, try to connect. If it fails, let it throw to the caller.
   if (!client.isConnected()) {
     await client.connect();
   }
@@ -167,8 +166,6 @@ export async function withTempModbusClient<T>(
   try {
     return await fn(client);
   } catch (err) {
-    // If the error looks like a connection issue, we've already handled it in the client
-    // by calling handleDisconnect(), but we should log it here as well.
     logger.debug({ err }, "Operation failed in withTempModbusClient");
     throw err;
   }

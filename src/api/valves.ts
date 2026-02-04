@@ -27,14 +27,10 @@ export async function fetchValves(): Promise<Valve[]> {
   if (!res.ok) throw new Error("Failed to fetch valves");
 
   const data = (await res.json()) as HaState[];
-  // If the backend returns a wrapped object or array, handle it.
-  // Based on usage in ValvesPage.tsx, it returns HaState[] directly (or something ValvesPage treats as such).
 
   if (Array.isArray(data)) {
     return data.map(mapValve);
   }
-
-  // Fallback if data is wrapped (unlikely based on ValvesPage analysis but safe)
   const wrapped = data as unknown as { valves?: HaState[] };
   return (wrapped.valves ?? []).map(mapValve);
 }

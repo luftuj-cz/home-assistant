@@ -1,17 +1,26 @@
-import type {
-  HassState,
-  HassStateChangedEvent,
-  HomeAssistantClient,
-} from "../services/homeAssistantClient";
+import type { HassStateChangedEvent, HomeAssistantClient } from "../services/homeAssistantClient";
 import type { Logger } from "pino";
 import { Mutex } from "../utils/mutex";
 import { storeValveSnapshots } from "../services/database";
-export type ValveSnapshot = HassState;
+import { z } from "zod";
 
-export interface BroadcastMessage {
-  type: "snapshot" | "update";
-  payload: ValveSnapshot[] | ValveSnapshot;
-}
+export const HassStateSchema = z.object({
+  entity_id: z.string(),
+  state: z.string(),
+  attributes: z.record(z.string(), z.unknown()),
+  last_changed: z.string().optional(),
+  last_updated: z.string().optional(),
+  context: z.record(z.string(), z.unknown()).optional(),
+});
+
+export type ValveSnapshot = z.infer<typeof HassStateSchema>;
+
+export const BroadcastMessageSchema = z.object({
+  type: z.enum(["snapshot", "update"]),
+  payload: z.union([z.array(HassStateSchema), HassStateSchema]),
+});
+
+export type BroadcastMessage = z.infer<typeof BroadcastMessageSchema>;
 
 export type BroadcastFn = (message: BroadcastMessage) => Promise<void>;
 
@@ -21,6 +30,12 @@ export interface ValveController {
   getSnapshot(): Promise<ValveSnapshot[]>;
   setValue(entityId: string, value: number): Promise<ValveSnapshot>;
 }
+
+export const HassStateChangedEventSchema = z.object({
+  entity_id: z.string(),
+  new_state: HassStateSchema.nullable(),
+  old_state: HassStateSchema.nullable(),
+});
 
 export class ValveManager implements ValveController {
   private readonly mutex = new Mutex();
@@ -56,13 +71,16 @@ export class ValveManager implements ValveController {
 
   async refresh(): Promise<void> {
     this.logger.debug("Fetching valve snapshot from Home Assistant");
-    const snapshot = await this.client.fetchLuftatorEntities();
+    const rawSnapshot = await this.client.fetchLuftatorEntities();
+    const snapshot = z.array(HassStateSchema).parse(rawSnapshot);
+
     await this.mutex.runExclusive(async () => {
       this.valves.clear();
       for (const valve of snapshot) {
         this.valves.set(valve.entity_id, valve);
       }
     });
+
     await this.broadcast({ type: "snapshot", payload: snapshot });
     storeValveSnapshots(
       snapshot.map((valve) => ({
@@ -91,10 +109,10 @@ export class ValveManager implements ValveController {
     this.logger.debug({ entityId, value }, "Forwarding setValue to Home Assistant");
     await this.client.setValveValue(entityId, value);
 
-    const updated: ValveSnapshot = {
+    const updated: ValveSnapshot = HassStateSchema.parse({
       ...(valve as ValveSnapshot),
       state: value.toString(),
-    };
+    });
 
     await this.mutex.runExclusive(async () => {
       this.valves.set(entityId, updated);
@@ -123,7 +141,8 @@ export class ValveManager implements ValveController {
   }
 
   private async handleEvent(event: HassStateChangedEvent): Promise<void> {
-    const { entity_id: entityId, new_state: newState } = event;
+    const validatedEvent = HassStateChangedEventSchema.parse(event);
+    const { entity_id: entityId, new_state: newState } = validatedEvent;
     if (!newState) {
       return;
     }

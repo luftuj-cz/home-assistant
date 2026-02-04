@@ -9,7 +9,6 @@ export function useTimelineModes(t: TFunction) {
   const [savingMode, setSavingMode] = useState(false);
   const tRef = useRef(t);
 
-  // Keep tRef updated
   useEffect(() => {
     tRef.current = t;
   }, [t]);

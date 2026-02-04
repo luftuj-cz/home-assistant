@@ -14,7 +14,7 @@ async function ensureDistExists() {
   try {
     await access(distDir, constants.F_OK);
   } catch (error) {
-    console.error('dist/ not found. Run "npm run build" first.', error);
+    console.error('dist/ not found. Run "bun run build" first.', error);
     process.exit(1);
   }
 }

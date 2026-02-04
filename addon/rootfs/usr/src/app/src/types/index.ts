@@ -6,10 +6,10 @@ export const SUPPORTED_LANGUAGES = new Set(["en", "cs"]);
 export const HRU_SETTINGS_KEY = "hru.settings";
 
 export type HruSettings = {
-  unit: string | null; // id from HeatRecoveryUnit
+  unit: string | null;
   host: string;
   port: number;
-  unitId: number; // Modbus unit/slave id
+  unitId: number;
   maxPower?: number;
 };
 
@@ -46,6 +46,6 @@ export type TimelineMode = {
 
 export type TimelineOverride = {
   modeId: number;
-  endTime: string; // ISO 8601
+  endTime: string;
   durationMinutes: number;
 } | null;

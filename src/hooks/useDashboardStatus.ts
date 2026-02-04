@@ -137,7 +137,6 @@ export function useDashboardStatus() {
     };
   }, []);
 
-  // Poll HA Status via REST (fallback)
   useEffect(() => {
     let active = true;
     async function load() {
@@ -177,7 +176,6 @@ export function useDashboardStatus() {
     };
   }, []);
 
-  // Poll Modbus Reachability
   useEffect(() => {
     let active = true;
     async function probe() {
@@ -206,7 +204,6 @@ export function useDashboardStatus() {
     };
   }, [modbusHost, modbusPort]);
 
-  // Poll HRU Live Values
   useEffect(() => {
     let active = true;
     async function poll() {
@@ -246,7 +243,6 @@ export function useDashboardStatus() {
     };
   }, []);
 
-  // WebSocket for real-time updates
   useEffect(() => {
     let stopped = false;
 

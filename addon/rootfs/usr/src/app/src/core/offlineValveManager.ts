@@ -1,9 +1,6 @@
 import type { Logger } from "pino";
 import type { BroadcastFn, ValveController, ValveSnapshot } from "./valveManager";
 
-// Provides a stub controller when the add-on runs without Home Assistant credentials (dev/tests).
-// It keeps the backend bootable, emits an empty snapshot for the UI, and blocks valve mutations with
-// a predictable "Offline mode" error instead of crashing on missing HA connectivity.
 export class OfflineValveManager implements ValveController {
   constructor(
     private readonly logger: Logger,
@@ -26,6 +23,7 @@ export class OfflineValveManager implements ValveController {
   }
 
   async setValue(): Promise<ValveSnapshot> {
+    this.logger.error("Offline mode: valve control unavailable");
     throw new Error("Offline mode: valve control unavailable");
   }
 }

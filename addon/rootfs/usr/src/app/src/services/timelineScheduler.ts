@@ -1,7 +1,7 @@
 import type { Logger } from "pino";
 import type { ValveController } from "../core/valveManager";
 import { getTimelineEvents, getAppSetting, setAppSetting } from "./database";
-import { SettingsRepository } from "../features/settings/settings.repository";
+
 import type { HruService } from "../features/hru/hru.service";
 import {
   TIMELINE_MODES_KEY,
@@ -17,7 +17,6 @@ export interface ActiveState {
 
 export class TimelineScheduler {
   private schedulerTimer: NodeJS.Timeout | null = null;
-  private readonly settingsRepo = new SettingsRepository();
   private lastActiveState: ActiveState | null = null;
 
   constructor(
@@ -27,7 +26,6 @@ export class TimelineScheduler {
   ) {}
 
   public start(): void {
-    // Run immediately on startup then align to minute boundary
     void this.executeScheduledEvent().finally(() => this.scheduleNextTick());
   }
 
@@ -39,8 +37,7 @@ export class TimelineScheduler {
   }
 
   private mapTodayToTimelineDay(): number {
-    // UI uses Monday = 0 ... Sunday = 6
-    const jsDay = new Date().getDay(); // Sunday = 0
+    const jsDay = new Date().getDay();
     return jsDay === 0 ? 6 : jsDay - 1;
   }
 
@@ -60,7 +57,6 @@ export class TimelineScheduler {
     const today = this.mapTodayToTimelineDay();
     const allEvents = getTimelineEvents();
 
-    // Check today, then yesterday, then the day before... up to 7 days
     for (let d = 0; d < 7; d++) {
       const targetDay = (today - d + 7) % 7;
       const dayCandidates = allEvents.filter(
@@ -69,12 +65,10 @@ export class TimelineScheduler {
 
       let filtered = dayCandidates;
       if (d === 0) {
-        // For today, only consider events that have already started
         filtered = dayCandidates.filter((e) => this.timeToMinutes(e.startTime) <= nowMinutes);
       }
 
       if (filtered.length > 0) {
-        // Pick latest start time on this specific day, then highest priority
         filtered.sort((a, b) => {
           const timeA = this.timeToMinutes(a.startTime);
           const timeB = this.timeToMinutes(b.startTime);
@@ -149,7 +143,6 @@ export class TimelineScheduler {
             };
           }
         } else if (override) {
-          // Expired
           setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
         }
       } catch (err) {
@@ -160,10 +153,8 @@ export class TimelineScheduler {
     if (!activePayload) {
       const event = this.pickActiveEvent();
       if (event) {
-        // Look up the mode name if hruConfig.mode contains an ID
         let displayModeName = event.hruConfig?.mode;
 
-        // If mode looks like a number (mode ID), try to look up the actual mode name
         if (displayModeName && /^\d+$/.test(displayModeName)) {
           try {
             const modesRaw = getAppSetting(TIMELINE_MODES_KEY);
@@ -175,8 +166,11 @@ export class TimelineScheduler {
                 displayModeName = foundMode.name;
               }
             }
-          } catch {
-            // If lookup fails, use the original value
+          } catch (err) {
+            this.logger.warn(
+              { err },
+              "TimelineScheduler: failed to parse mode name. Using default value.",
+            );
           }
         }
 
@@ -202,7 +196,6 @@ export class TimelineScheduler {
 
     const { hruConfig, luftatorConfig, source, id } = activePayload;
 
-    // Extract mode name for display
     let modeName: string | undefined;
     if (source === "boost" || source === "schedule") {
       modeName = hruConfig?.mode;
@@ -212,7 +205,6 @@ export class TimelineScheduler {
       );
     }
 
-    // Update active state
     this.lastActiveState = {
       source,
       modeName,
@@ -249,7 +241,6 @@ export class TimelineScheduler {
       }
     }
 
-    // Apply HRU settings
     if (hasHru && hruConfig) {
       try {
         await this.hruService.writeValues({
@@ -268,7 +259,6 @@ export class TimelineScheduler {
     if (this.schedulerTimer) {
       clearTimeout(this.schedulerTimer);
     }
-    // Run every 10 seconds for more responsive boost expiration and schedule transitions
     this.schedulerTimer = setTimeout(() => {
       void this.executeScheduledEvent().finally(() => {
         this.scheduleNextTick();

@@ -7,6 +7,8 @@ import type { MqttService } from "../services/mqttService";
 import { getAppSetting } from "../services/database";
 import { HRU_SETTINGS_KEY, type HruSettings } from "../types";
 import { APP_VERSION } from "../constants";
+import { validateQuery } from "../middleware/validateRequest";
+import { type ModbusStatusQuery, modbusStatusQuerySchema } from "../schemas/status";
 
 export function createStatusRouter(
   haClient: HomeAssistantClient | null,
@@ -35,8 +37,8 @@ export function createStatusRouter(
         done = true;
         try {
           socket.destroy();
-        } catch {
-          /* empty */
+        } catch (err) {
+          logger.error({ err }, "Failed to destroy socket");
         }
         if (err) reject(err);
         else resolve();
@@ -48,34 +50,45 @@ export function createStatusRouter(
     });
   }
 
-  router.get("/modbus/status", async (request: Request, response: Response) => {
-    const hostQ = String((request.query.host as string | undefined) ?? "").trim();
-    const portQ = String((request.query.port as string | undefined) ?? "").trim();
+  router.get(
+    "/modbus/status",
+    validateQuery(modbusStatusQuerySchema),
+    async (
+      request: Request<
+        Record<string, never>,
+        Record<string, never>,
+        Record<string, never>,
+        ModbusStatusQuery
+      >,
+      response: Response,
+    ) => {
+      const query = request.query;
+      const hostQ = query.host;
+      const portQ = query.port;
 
-    let savedSettings: HruSettings | null;
-    try {
-      const raw = getAppSetting(HRU_SETTINGS_KEY);
-      savedSettings = raw ? (JSON.parse(String(raw)) as HruSettings) : null;
-    } catch {
-      savedSettings = null;
-    }
+      let savedSettings: HruSettings | null;
+      try {
+        const raw = getAppSetting(HRU_SETTINGS_KEY);
+        savedSettings = raw ? (JSON.parse(String(raw)) as HruSettings) : null;
+      } catch {
+        savedSettings = null;
+      }
 
-    const host = hostQ || savedSettings?.host || "localhost";
-    const parsedPort = Number.parseInt(portQ, 10);
-    const port = Number.isFinite(parsedPort)
-      ? parsedPort
-      : Number.isFinite(savedSettings?.port)
-        ? (savedSettings?.port as number)
-        : 502;
+      const host = hostQ || savedSettings?.host || "localhost";
+      const port = portQ ?? savedSettings?.port ?? 502;
 
-    try {
-      await probeTcp(host, port);
-      response.json({ reachable: true });
-    } catch (err) {
-      logger.warn({ host, port, err }, "Modbus TCP probe failed");
-      response.json({ reachable: false, error: err instanceof Error ? err.message : String(err) });
-    }
-  });
+      try {
+        await probeTcp(host, port);
+        response.json({ reachable: true });
+      } catch (err) {
+        logger.warn({ host, port, err }, "Modbus TCP probe failed");
+        response.json({
+          reachable: false,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      }
+    },
+  );
 
   return router;
 }

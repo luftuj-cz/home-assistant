@@ -53,7 +53,6 @@ export async function fetchTimelineEvents(): Promise<TimelineEvent[]> {
     .map((e) => ({
       id: e.id,
       startTime: e.startTime ?? e.start_time ?? "08:00",
-      endTime: e.endTime ?? e.end_time ?? "08:30",
       dayOfWeek: (e.dayOfWeek ?? e.day_of_week ?? 0) as number,
       hruConfig: e.hruConfig ?? e.hru_config ?? null,
       luftatorConfig: e.luftatorConfig ?? e.luftator_config ?? null,
@@ -66,7 +65,6 @@ export async function saveTimelineEvent(event: TimelineEvent): Promise<TimelineE
   const payload = {
     id: event.id,
     startTime: event.startTime,
-    endTime: event.endTime,
     dayOfWeek: event.dayOfWeek,
     hruConfig: event.hruConfig,
     luftatorConfig: event.luftatorConfig,

@@ -148,7 +148,6 @@
       "sunday": "Sunday",
       "form": {
         "startTime": "Start Time",
-        "endTime": "End Time",
         "dayOfWeek": "Day of Week",
         "priority": "Priority",
         "hruSettings": "HRU Settings",
@@ -173,7 +172,6 @@
         "deleteFailedMessage": "{{message}}",
         "validationFailedTitle": "Validation failed",
         "invalidTimeFormat": "Time must be in HH:MM format (24-hour)",
-        "startTimeBeforeEnd": "Start time must be before end time",
         "modeNameRequired": "Mode name is required",
         "modeCreated": "Mode created",
         "modeUpdated": "Mode updated",
