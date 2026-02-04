@@ -51,6 +51,7 @@ export function useDashboardStatus() {
 
   const valvesWsRef = useRef<WebSocket | null>(null);
   const valvesReconnectRef = useRef<number | null>(null);
+  const configRef = useRef({ maxPower: 100, powerUnit: "%" });
 
   // Load Modbus Settings and HRU Units
   useEffect(() => {
@@ -62,7 +63,7 @@ export function useDashboardStatus() {
         : (envPortRaw as number | undefined);
 
     setModbusHost(envHost ?? "localhost");
-    setModbusPort(envPort ?? 502);
+    setModbusPort(Number.isFinite(envPort) ? (envPort as number) : 502);
 
     let canceled = false;
     async function loadData() {
@@ -111,13 +112,18 @@ export function useDashboardStatus() {
         }
 
         const activeUnit = allUnits.find((u) => u.id === unitId) || allUnits[0];
+        if (activeUnit) {
+          configRef.current = {
+            maxPower: activeUnit.maxValue ?? 100,
+            powerUnit: activeUnit.controlUnit ?? "%",
+          };
+        }
 
         setHruStatus((prev) => {
           if (!prev || !("power" in prev)) return prev;
           return {
             ...prev,
-            maxPower: activeUnit?.maxValue ?? 100,
-            powerUnit: activeUnit?.controlUnit ?? "%",
+            ...configRef.current,
           };
         });
 
@@ -222,9 +228,11 @@ export function useDashboardStatus() {
             temperature?: { unit?: string; scale?: number; precision?: number };
           };
         };
-        if (data?.value) {
+        const val = data?.value;
+        if (val) {
           setHruStatus({
-            ...data.value,
+            ...val,
+            ...configRef.current,
             registers: data.registers,
           });
           setModbusStatus("reachable");

@@ -76,7 +76,7 @@ export function createStatusRouter(
       }
 
       const host = hostQ || savedSettings?.host || "localhost";
-      const port = portQ ?? savedSettings?.port ?? 502;
+      const port = portQ ? Number(portQ) : (savedSettings?.port ?? 502);
 
       if (isModbusReachable(host, port)) {
         response.json({ reachable: true });

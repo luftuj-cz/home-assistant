@@ -65,12 +65,11 @@ export function validateParams<T extends z.ZodTypeAny>(schema: T) {
 export function validateQuery<T extends z.ZodTypeAny>(schema: T) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      const validated = schema.parse(req.query);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      req.query = validated as any;
+      schema.parse(req.query);
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
+        console.error("Zod errors:", JSON.stringify(error.issues, null, 2));
         const errors = error.issues.map((err) => ({
           field: err.path.join("."),
           message: err.message,

@@ -141,16 +141,7 @@ export function BoostButtons({ modes, t }: BoostButtonsProps) {
   if (boostModes.length === 0) return null;
 
   return (
-    <Card
-      withBorder
-      radius="lg"
-      padding="xl"
-      style={{
-        backgroundColor: "rgba(255, 255, 255, 0.03)",
-        backdropFilter: "blur(12px)",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-      }}
-    >
+    <Card withBorder radius="lg" padding="xl">
       <Stack gap="xl">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="md">
@@ -158,7 +149,7 @@ export function BoostButtons({ modes, t }: BoostButtonsProps) {
               style={{
                 padding: 8,
                 borderRadius: 12,
-                backgroundColor: "rgba(255, 140, 0, 0.15)",
+                backgroundColor: "var(--mantine-color-orange-light)",
                 display: "flex",
               }}
             >
@@ -194,132 +185,136 @@ export function BoostButtons({ modes, t }: BoostButtonsProps) {
         <Divider style={{ opacity: 0.1 }} />
 
         <Flex direction={{ base: "column", md: "row" }} gap="xl" justify="center" align="center">
-          <Stack
-            gap="md"
+          <Card
+            withBorder
+            radius="xl"
+            p="lg"
+            variant="light"
+            shadow="none"
             w={{ base: "100%", md: 360 }}
-            style={{
-              backgroundColor: "rgba(255,255,255,0.02)",
-              padding: "24px",
-              borderRadius: 24,
-            }}
           >
-            <Stack gap="xs">
-              <Group gap="xs">
-                <IconClock
-                  size={16}
-                  color={activeBoost ? "orange" : "var(--mantine-color-dimmed)"}
-                />
-                <Text size="sm" fw={700} c={activeBoost ? "orange" : "dimmed"} tt="uppercase">
-                  {activeBoost
-                    ? t("dashboard.boostTimeRemaining", { defaultValue: "Time Remaining" })
-                    : t("dashboard.boostSetDuration", { defaultValue: "Set Duration" })}
-                </Text>
-              </Group>
+            <Stack gap="md">
+              <Stack gap="xs">
+                <Group gap="xs">
+                  <IconClock
+                    size={16}
+                    color={activeBoost ? "orange" : "var(--mantine-color-dimmed)"}
+                  />
+                  <Text size="sm" fw={700} c={activeBoost ? "orange" : "dimmed"} tt="uppercase">
+                    {activeBoost
+                      ? t("dashboard.boostTimeRemaining", { defaultValue: "Time Remaining" })
+                      : t("dashboard.boostSetDuration", { defaultValue: "Set Duration" })}
+                  </Text>
+                </Group>
 
-              {!activeBoost && (
-                <Group gap={6} justify="center">
-                  {[5, 15, 30, 60, 120, 240].map((v) => (
-                    <Button
-                      key={v}
-                      variant={duration === v ? "filled" : "light"}
+                {!activeBoost && (
+                  <Group gap={6} justify="center">
+                    {[5, 15, 30, 60, 120, 240].map((v) => (
+                      <Button
+                        key={v}
+                        variant={duration === v ? "filled" : "default"}
+                        color="orange"
+                        size="xs"
+                        radius="md"
+                        disabled={loadingModeId !== null || isCancelling}
+                        onClick={() => setDuration(v)}
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 700,
+                          minWidth: 40,
+                          height: 30,
+                          padding: "0 4px",
+                          transition: "all 0.2s ease",
+                        }}
+                      >
+                        {v}
+                      </Button>
+                    ))}
+                  </Group>
+                )}
+              </Stack>
+
+              <Center h={100}>
+                <Group gap="xl" align="center">
+                  {!activeBoost && (
+                    <ActionIcon
+                      variant="subtle"
                       color="orange"
-                      size="xs"
-                      radius="md"
-                      disabled={loadingModeId !== null || isCancelling}
-                      onClick={() => setDuration(v)}
+                      onClick={() => setDuration((d) => Math.max(5, d - 5))}
+                      size="lg"
+                      radius="xl"
+                    >
+                      <IconMinus size={22} />
+                    </ActionIcon>
+                  )}
+
+                  <Stack gap={0} align="center">
+                    <Text
+                      size="xl"
+                      fw={900}
                       style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        minWidth: 40,
-                        height: 30,
-                        padding: "0 4px",
-                        transition: "all 0.2s ease",
+                        fontSize: 52,
+                        lineHeight: 0.8,
+                        letterSpacing: -2,
+                        color: activeBoost ? "var(--mantine-color-orange-6)" : "inherit",
                       }}
                     >
-                      {v}
-                    </Button>
-                  ))}
+                      {activeBoost ? (
+                        <motion.span>{roundedMinutes}</motion.span>
+                      ) : (
+                        <motion.span>{roundedMinutes}</motion.span>
+                      )}
+                    </Text>
+                    <Text size="xs" fw={700} c="dimmed" tt="uppercase" mt={10}>
+                      {t("dashboard.boostMinutes", { defaultValue: "minutes" })}
+                    </Text>
+                  </Stack>
+
+                  {!activeBoost && (
+                    <ActionIcon
+                      variant="subtle"
+                      color="orange"
+                      onClick={() => setDuration((d) => Math.min(240, d + 5))}
+                      size="lg"
+                      radius="xl"
+                    >
+                      <IconPlus size={22} />
+                    </ActionIcon>
+                  )}
                 </Group>
-              )}
+              </Center>
+
+              <Slider
+                value={activeBoost ? remainingMinutes : duration}
+                onChange={activeBoost ? undefined : setDuration}
+                min={activeBoost ? 0 : 5}
+                max={activeBoost ? activeBoost.durationMinutes : 240}
+                step={activeBoost ? 1 : 5}
+                label={null}
+                size="lg"
+                color="orange"
+                disabled={!!activeBoost || loadingModeId !== null || isCancelling}
+                styles={{
+                  thumb: {
+                    borderWidth: 2,
+                    padding: 3,
+                    width: 22,
+                    height: 22,
+                    display: activeBoost ? "none" : "block",
+                  },
+                  track: { backgroundColor: "rgba(255,255,255,0.15)" },
+                }}
+              />
             </Stack>
-
-            <Center h={100}>
-              <Group gap="xl" align="center">
-                {!activeBoost && (
-                  <ActionIcon
-                    variant="subtle"
-                    color="orange"
-                    onClick={() => setDuration((d) => Math.max(5, d - 5))}
-                    size="lg"
-                    radius="xl"
-                  >
-                    <IconMinus size={22} />
-                  </ActionIcon>
-                )}
-
-                <Stack gap={0} align="center">
-                  <Text
-                    size="xl"
-                    fw={900}
-                    style={{
-                      fontSize: 52,
-                      lineHeight: 0.8,
-                      letterSpacing: -2,
-                      color: activeBoost ? "var(--mantine-color-orange-6)" : "inherit",
-                    }}
-                  >
-                    {activeBoost ? (
-                      <motion.span>{roundedMinutes}</motion.span>
-                    ) : (
-                      <motion.span>{roundedMinutes}</motion.span>
-                    )}
-                  </Text>
-                  <Text size="xs" fw={700} c="dimmed" tt="uppercase" mt={10}>
-                    {t("dashboard.boostMinutes", { defaultValue: "minutes" })}
-                  </Text>
-                </Stack>
-
-                {!activeBoost && (
-                  <ActionIcon
-                    variant="subtle"
-                    color="orange"
-                    onClick={() => setDuration((d) => Math.min(240, d + 5))}
-                    size="lg"
-                    radius="xl"
-                  >
-                    <IconPlus size={22} />
-                  </ActionIcon>
-                )}
-              </Group>
-            </Center>
-
-            <Slider
-              value={activeBoost ? remainingMinutes : duration}
-              onChange={activeBoost ? undefined : setDuration}
-              min={activeBoost ? 0 : 5}
-              max={activeBoost ? activeBoost.durationMinutes : 240}
-              step={activeBoost ? 1 : 5}
-              label={null}
-              size="lg"
-              color="orange"
-              disabled={!!activeBoost || loadingModeId !== null || isCancelling}
-              styles={{
-                thumb: {
-                  borderWidth: 2,
-                  padding: 3,
-                  width: 22,
-                  height: 22,
-                  display: activeBoost ? "none" : "block",
-                },
-                track: { backgroundColor: "rgba(255,255,255,0.05)" },
-              }}
-            />
-          </Stack>
+          </Card>
 
           <Stack gap="md" style={{ flex: 1 }} align="center">
             <Group gap="xs" w="100%" justify="center">
-              <IconPlayerPlay size={16} color="var(--mantine-color-dimmed)" />
-              <Text size="sm" fw={700} c="dimmed" tt="uppercase">
+              <IconPlayerPlay
+                size={16}
+                color={activeBoost ? "orange" : "var(--mantine-color-dimmed)"}
+              />
+              <Text size="sm" fw={700} c={activeBoost ? "orange" : "dimmed"} tt="uppercase">
                 {activeBoost
                   ? t("dashboard.boostActiveMode", { defaultValue: "Active Mode" })
                   : t("dashboard.boostSelectMode", { defaultValue: "Select Mode" })}
@@ -345,10 +340,6 @@ export function BoostButtons({ modes, t }: BoostButtonsProps) {
                       width: 130,
                       height: 130,
                       transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
-                      border:
-                        isActive || loadingModeId === m.id
-                          ? "none"
-                          : "1px solid rgba(255,255,255,0.05)",
                       padding: 16,
                       opacity:
                         (activeBoost !== null && !isActive) ||

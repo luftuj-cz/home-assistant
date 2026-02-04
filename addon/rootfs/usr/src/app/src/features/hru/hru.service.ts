@@ -53,7 +53,11 @@ export class HruService {
     const configData = this.getResolvedConfiguration();
     if (!configData) throw new Error("HRU not configured");
     const { settings, strategy, unit } = configData;
-    const config = { host: settings.host, port: settings.port, unitId: settings.unitId };
+    const config = {
+      host: settings.host,
+      port: Number(settings.port) || 502,
+      unitId: Number(settings.unitId) || 1,
+    };
 
     let variables: Record<string, number> = {};
 
@@ -105,7 +109,11 @@ export class HruService {
     const configData = this.getResolvedConfiguration();
     if (!configData) throw new Error("HRU not configured");
     const { settings, strategy } = configData;
-    const config = { host: settings.host, port: settings.port, unitId: settings.unitId };
+    const config = {
+      host: settings.host,
+      port: Number(settings.port) || 502,
+      unitId: Number(settings.unitId) || 1,
+    };
 
     if (data.power !== undefined && strategy.powerCommands?.write) {
       await this.repository.executeScript(config, strategy.powerCommands.write, {

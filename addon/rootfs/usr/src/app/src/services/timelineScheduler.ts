@@ -154,6 +154,9 @@ export class TimelineScheduler {
       const event = this.pickActiveEvent();
       if (event) {
         let displayModeName = event.hruConfig?.mode;
+        let effectivePower = event.hruConfig?.power;
+        let effectiveTemperature = event.hruConfig?.temperature;
+        let effectiveLuftatorConfig = event.luftatorConfig;
 
         if (displayModeName && /^\d+$/.test(displayModeName)) {
           try {
@@ -164,12 +167,17 @@ export class TimelineScheduler {
               const foundMode = modes.find((m) => m.id === modeId);
               if (foundMode) {
                 displayModeName = foundMode.name;
+                // Dynamically use the current mode settings instead of the snapshot
+                if (foundMode.power !== undefined) effectivePower = foundMode.power;
+                if (foundMode.temperature !== undefined)
+                  effectiveTemperature = foundMode.temperature;
+                if (foundMode.luftatorConfig) effectiveLuftatorConfig = foundMode.luftatorConfig;
               }
             }
           } catch (err) {
             this.logger.warn(
               { err },
-              "TimelineScheduler: failed to parse mode name. Using default value.",
+              "TimelineScheduler: failed to parse mode name/config. Using default value.",
             );
           }
         }
@@ -179,9 +187,11 @@ export class TimelineScheduler {
             ? {
                 ...event.hruConfig,
                 mode: displayModeName,
+                power: effectivePower,
+                temperature: effectiveTemperature,
               }
             : event.hruConfig,
-          luftatorConfig: event.luftatorConfig,
+          luftatorConfig: effectiveLuftatorConfig,
           source: "schedule",
           id: event.id,
         };
