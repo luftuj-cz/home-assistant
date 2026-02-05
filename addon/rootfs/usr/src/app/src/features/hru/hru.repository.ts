@@ -62,6 +62,10 @@ export class HruRepository {
             const data = await mb.readInput(arg0, count);
             return data[0] ?? 0;
           }
+          case "modbus_write_holding_multi": {
+            await mb.writeHolding(arg0, evaluatedArgs.splice(1));
+            return arg1;
+          }
           case "modbus_write_holding": {
             await mb.writeHolding(arg0, arg1);
             return arg1;

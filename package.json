@@ -16,6 +16,7 @@
     "docs:start": "npm --prefix docs run start"
   },
   "dependencies": {
+    "@emotion/is-prop-valid": "^1.4.0",
     "@mantine/core": "^7.17.8",
     "@mantine/form": "^8.3.14",
     "@mantine/hooks": "^7.17.8",

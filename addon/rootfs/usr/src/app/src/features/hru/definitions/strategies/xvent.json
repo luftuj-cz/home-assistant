@@ -26,7 +26,7 @@
       {
         "type": "action",
         "expression": {
-          "function": "modbus_write_holding",
+          "function": "modbus_write_holding_multi",
           "args": [
             "0x9C40",
             {
