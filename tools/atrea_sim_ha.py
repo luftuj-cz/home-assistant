@@ -87,7 +87,7 @@ class HruSimulator:
         self.registers[10301] = 220 # Supply 22.0
         
         self.internal_state = {
-            "$power": 40.0,
+            "$power": 0.0,
             "$temperature": 22.5,
             "$mode": 2.0,
             "$rawTemp": 225.0
@@ -143,7 +143,7 @@ class HruSimulator:
                 if addr not in self.dirty_registers:
                     current = self.registers.get(addr, 0)
                     mask = ~(15 << 6)
-                    self.registers[addr] = (current & mask) | (int(raw_power) << 6)
+                    self.registers[addr] = (current & mask) | ((int(raw_power) & 15) << 6)
             else:
                 self.sync_component("powerCommands", "$power")
         
