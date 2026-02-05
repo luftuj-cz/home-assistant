@@ -15,9 +15,9 @@
           "args": [
             {
               "function": "bit_rshift",
-              "args": [{ "function": "modbus_read_holding", "args": [40000] }, 6]
+              "args": [{ "function": "modbus_read_holding", "args": ["0x9C40"] }, 6]
             },
-            15
+            "0xF"
           ]
         }
       }
@@ -28,17 +28,17 @@
         "expression": {
           "function": "modbus_write_holding",
           "args": [
-            40000,
+            "0x9C40",
             {
               "function": "bit_or",
               "args": [
                 {
                   "function": "bit_and",
-                  "args": [{ "function": "modbus_read_holding", "args": [40000] }, 64573]
+                  "args": [{ "function": "modbus_read_holding", "args": ["0x9C40"] }, "0xFC3D"]
                 },
                 {
                   "function": "bit_or",
-                  "args": [{ "function": "bit_lshift", "args": ["$power", 6] }, 1]
+                  "args": [{ "function": "bit_lshift", "args": ["$power", 6] }, "0x1"]
                 }
               ]
             }
