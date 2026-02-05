@@ -574,7 +574,7 @@ export class MqttService extends EventEmitter {
     // Process ALL modes: register boosts, explicitly delete non-boosts OR modes from other units
     for (const m of modes) {
       const slug = this.slugify(m.name);
-      const isRelevantUnit = !m.hruId || m.hruId === currentUnitId;
+      const isRelevantUnit = !m.hruId || this.slugify(m.hruId) === currentUnitId;
 
       if (m.isBoost && isRelevantUnit) {
         currentBoostMap[m.id] = slug;
