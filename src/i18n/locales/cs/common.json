@@ -1,6 +1,11 @@
 {
   "app": {
     "title": "Ovládací panel Luftátoru",
+    "units": {
+      "level": "stupeň",
+      "m3/h": "m³/h",
+      "%": "%"
+    },
     "nav": {
       "dashboard": "Přehled",
       "valves": "Ventily",

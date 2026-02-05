@@ -142,7 +142,7 @@ export function TimelineModeModal({
         <Group grow>
           {hruCapabilities?.hasPowerControl !== false && (
             <NumberInput
-              label={`${t("settings.timeline.modePower", { defaultValue: "Power" })} (${powerUnit})`}
+              label={`${t("settings.timeline.modePower", { defaultValue: "Power" })} (${t(`app.units.${powerUnit}`, { defaultValue: powerUnit })})`}
               placeholder="50"
               value={power}
               onChange={(value) => setPower(typeof value === "number" ? value : undefined)}

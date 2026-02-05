@@ -74,7 +74,8 @@ export class HruService {
       variables = { ...variables, ...vars };
     }
 
-    const power = variables["$power"] ?? 0;
+    const maxAllowed = (unit.isConfigurable && settings.maxPower) || unit.maxValue;
+    const power = Math.min(variables["$power"] ?? 0, maxAllowed);
     const temperature = variables["$temperature"] ?? 0;
     const mode = variables["$mode"] ?? 0;
 
@@ -90,7 +91,7 @@ export class HruService {
           unit: strategy.capabilities.powerUnit || unit.controlUnit || "%",
           scale: strategy.capabilities.powerStep ?? 1,
           precision: 0,
-          maxValue: (unit.isConfigurable && settings.maxPower) || unit.maxValue,
+          maxValue: maxAllowed,
         },
         temperature: {
           unit: strategy.capabilities.temperatureUnit || "°C",
@@ -116,8 +117,12 @@ export class HruService {
     };
 
     if (data.power !== undefined && strategy.powerCommands?.write) {
+      const { unit } = configData;
+      const maxAllowed = (unit.isConfigurable && settings.maxPower) || unit.maxValue;
+      const safePower = Math.min(data.power, maxAllowed);
+
       await this.repository.executeScript(config, strategy.powerCommands.write, {
-        $power: data.power,
+        $power: safePower,
       });
     }
 

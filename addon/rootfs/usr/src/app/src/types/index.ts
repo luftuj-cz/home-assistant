@@ -42,6 +42,7 @@ export type TimelineMode = {
   temperature?: number;
   luftatorConfig?: Record<string, number>;
   isBoost?: boolean;
+  hruId?: string;
 };
 
 export type TimelineOverride = {

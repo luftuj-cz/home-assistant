@@ -5,6 +5,7 @@ import { copyFileSync, existsSync, mkdirSync } from "fs";
 import { promises as fsp } from "fs";
 import path from "path";
 import type { Logger } from "pino";
+import { TIMELINE_MODES_KEY, type TimelineMode } from "../types";
 
 const DEFAULT_DATA_DIR = "/data";
 const FALLBACK_DATA_DIR = path.resolve(process.cwd(), "../../data");
@@ -95,6 +96,13 @@ const migrations: Migration[] = [
     id: "004_remove_legacy_end_time",
     statements: [`ALTER TABLE timeline_events DROP COLUMN end_time;`],
   },
+  {
+    id: "005_add_hru_id_to_timeline",
+    statements: [
+      `ALTER TABLE timeline_events ADD COLUMN hru_id TEXT;`,
+      `CREATE INDEX IF NOT EXISTS idx_timeline_events_hru_id ON timeline_events(hru_id);`,
+    ],
+  },
 ];
 
 let db: Database | null = null;
@@ -108,6 +116,8 @@ type StatementMap = {
   getTimelineEvents: Statement;
   upsertTimelineEvent: Statement;
   deleteTimelineEvent: Statement;
+  assignLegacyEvents: Statement;
+  deleteEventsByMode: Statement;
 };
 
 let moduleLogger: Logger | null = null;
@@ -218,12 +228,14 @@ function prepareStatements(database: Database): StatementMap {
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
     ),
     getTimelineEvents: database.prepare(
-      `SELECT id, start_time, day_of_week, hru_config, luftator_config, enabled, priority, created_at, updated_at
-       FROM timeline_events ORDER BY day_of_week ASC NULLS LAST, start_time ASC, priority DESC`,
+      `SELECT id, start_time, day_of_week, hru_config, luftator_config, enabled, priority, hru_id, created_at, updated_at
+       FROM timeline_events
+       WHERE hru_id = ?
+       ORDER BY day_of_week ASC NULLS LAST, start_time ASC, priority DESC`,
     ),
     upsertTimelineEvent: database.prepare(
-      `INSERT INTO timeline_events (id, start_time, day_of_week, hru_config, luftator_config, enabled, priority)
-       VALUES (?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO timeline_events (id, start_time, day_of_week, hru_config, luftator_config, enabled, priority, hru_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          start_time = excluded.start_time,
          day_of_week = excluded.day_of_week,
@@ -231,9 +243,16 @@ function prepareStatements(database: Database): StatementMap {
          luftator_config = excluded.luftator_config,
          enabled = excluded.enabled,
          priority = excluded.priority,
+         hru_id = excluded.hru_id,
          updated_at = datetime("now")`,
     ),
     deleteTimelineEvent: database.prepare(`DELETE FROM timeline_events WHERE id = ?`),
+    assignLegacyEvents: database.prepare(
+      `UPDATE timeline_events SET hru_id = ? WHERE hru_id IS NULL`,
+    ),
+    deleteEventsByMode: database.prepare(
+      `DELETE FROM timeline_events WHERE CAST(json_extract(hru_config, '$.mode') AS INTEGER) = ?`,
+    ),
   };
 }
 
@@ -361,6 +380,7 @@ export interface TimelineEvent {
   luftatorConfig?: Record<string, number> | null;
   enabled: boolean;
   priority: number;
+  hruId?: string | null;
 }
 
 export interface TimelineEventRecord {
@@ -371,6 +391,7 @@ export interface TimelineEventRecord {
   luftator_config: string | null;
   enabled: boolean;
   priority: number;
+  hru_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -385,6 +406,7 @@ function normaliseTimelineEvent(
     luftator_config: event.luftatorConfig ? JSON.stringify(event.luftatorConfig) : null,
     enabled: event.enabled,
     priority: event.priority,
+    hru_id: event.hruId ?? null,
   };
 }
 
@@ -397,10 +419,11 @@ function denormaliseTimelineEvent(record: TimelineEventRecord): TimelineEvent {
     luftatorConfig: record.luftator_config ? JSON.parse(record.luftator_config) : null,
     enabled: Boolean(record.enabled),
     priority: record.priority,
+    hruId: record.hru_id,
   };
 }
 
-export function getTimelineEvents(): TimelineEvent[] {
+export function getTimelineEvents(hruId?: string | null): TimelineEvent[] {
   if (!db || !statements) {
     setupDatabase();
   }
@@ -409,8 +432,38 @@ export function getTimelineEvents(): TimelineEvent[] {
     throw new Error("Database not initialised");
   }
 
-  const records = statements.getTimelineEvents.all() as TimelineEventRecord[];
+  const targetHruId = hruId ?? "";
+
+  const records = statements.getTimelineEvents.all(targetHruId) as TimelineEventRecord[];
   return records.map(denormaliseTimelineEvent);
+}
+
+export function getTimelineModes(): TimelineMode[] {
+  const raw = getAppSetting(TIMELINE_MODES_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(String(raw)) as TimelineMode[];
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+}
+
+export function saveTimelineModes(modes: TimelineMode[]): void {
+  setAppSetting(TIMELINE_MODES_KEY, JSON.stringify(modes));
+}
+
+export function assignLegacyEventsToUnit(hruId: string): void {
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!statements) {
+    moduleLogger?.error("Database not initialised in assignLegacyEventsToUnit");
+    throw new Error("Database not initialised");
+  }
+
+  statements.assignLegacyEvents.run(hruId);
 }
 
 export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
@@ -424,18 +477,17 @@ export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
 
   const normalised = normaliseTimelineEvent(event);
 
-  // Use single upsert statement for both insert and update
   const result = statements.upsertTimelineEvent.run(
-    event.id ?? null, // id can be null for new records
+    event.id ?? null,
     normalised.start_time,
     normalised.day_of_week,
     normalised.hru_config,
     normalised.luftator_config,
     normalised.enabled,
     normalised.priority,
+    normalised.hru_id,
   ) as { lastInsertRowid: number | bigint; changes: number };
 
-  // Return the event with proper ID
   const persistedId = event.id ?? Number(result.lastInsertRowid);
   return {
     ...event,
@@ -453,6 +505,17 @@ export function deleteTimelineEvent(id: number): void {
   }
 
   statements.deleteTimelineEvent.run(id);
+}
+
+export function deleteTimelineEventsByMode(modeId: number): void {
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!statements) {
+    moduleLogger?.error({ modeId }, "Database not initialised in deleteTimelineEventsByMode");
+    throw new Error("Database not initialised");
+  }
+  statements.deleteEventsByMode.run(modeId);
 }
 
 export async function createDatabaseBackup(): Promise<string | null> {

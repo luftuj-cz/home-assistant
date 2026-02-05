@@ -114,6 +114,18 @@ export function createSettingsRouter(
       logger.warn({ raw }, "Failed to parse stored HRU settings; falling back to defaults");
       value = { unit: null, host: "localhost", port: 502, unitId: 1 };
     }
+
+    if (value.unit) {
+      const unitDef = hruService.getAllUnits().find((u) => u.id === value.unit);
+      if (unitDef) {
+        if (!unitDef.isConfigurable) {
+          value.maxPower = undefined;
+        } else if (value.maxPower !== undefined && unitDef.maxValue !== undefined) {
+          value.maxPower = Math.min(value.maxPower, unitDef.maxValue);
+        }
+      }
+    }
+
     response.json(value);
   });
 

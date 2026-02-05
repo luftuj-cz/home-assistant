@@ -48,12 +48,11 @@ export function TimelinePage() {
   >({});
   const [powerUnit, setPowerUnit] = useState<string>("%");
   const [maxPower, setMaxPower] = useState<number>(100);
+  const [activeUnitId, setActiveUnitId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     async function init() {
       setLoading(true);
-      await Promise.all([loadModes(), loadEvents()]);
-
       try {
         const valves = await valveApi.fetchValves().catch(() => []);
         setValves(valves);
@@ -66,12 +65,17 @@ export function TimelinePage() {
         ]);
 
         const activeUnit = units.find((u) => u.id === settingsRes.unit) || units[0];
+        const unitId = activeUnit?.id;
+        setActiveUnitId(unitId);
 
         if (activeUnit) {
           setHruCapabilities(activeUnit.capabilities || {});
           setPowerUnit(activeUnit.controlUnit || "%");
           setMaxPower(activeUnit.maxValue || 100);
         }
+
+        // Now load modes and events with the explicit unitId
+        await Promise.all([loadModes(unitId), loadEvents(unitId)]);
       } catch (err) {
         console.error("Failed to load HRU context:", err);
       } finally {
@@ -226,6 +230,16 @@ export function TimelinePage() {
     [saveMode],
   );
 
+  const handleDeleteMode = useCallback(
+    async (id: number) => {
+      const success = await deleteMode(id);
+      if (success) {
+        void loadEvents(activeUnitId);
+      }
+    },
+    [deleteMode, loadEvents, activeUnitId],
+  );
+
   return (
     <Container size="xl">
       <Stack gap="xl">
@@ -243,7 +257,7 @@ export function TimelinePage() {
           modes={modes}
           onAdd={handleAddMode}
           onEdit={handleEditMode}
-          onDelete={deleteMode}
+          onDelete={handleDeleteMode}
           t={t}
           powerUnit={powerUnit}
           temperatureUnit={tempUnit}

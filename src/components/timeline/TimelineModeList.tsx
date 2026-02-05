@@ -122,7 +122,7 @@ export function TimelineModeList({
                         {m.power !== undefined && (
                           <Badge size="md" variant="outline" color="blue" radius="sm" fw={700}>
                             {m.power}
-                            {powerUnit}
+                            {t(`app.units.${powerUnit}`, { defaultValue: powerUnit })}
                           </Badge>
                         )}
                         {m.temperature !== undefined && (

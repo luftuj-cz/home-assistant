@@ -13,9 +13,9 @@ export function useTimelineModes(t: TFunction) {
     tRef.current = t;
   }, [t]);
 
-  const loadModes = useCallback(async () => {
+  const loadModes = useCallback(async (unitId?: string) => {
     try {
-      const data = await api.fetchTimelineModes();
+      const data = await api.fetchTimelineModes(unitId);
       setModes(data);
     } catch {
       notifications.show({
@@ -84,6 +84,7 @@ export function useTimelineModes(t: TFunction) {
         }),
         color: "green",
       });
+      return true;
     } catch (err) {
       notifications.show({
         title: tRef.current("settings.timeline.notifications.deleteFailedTitle"),
@@ -93,6 +94,7 @@ export function useTimelineModes(t: TFunction) {
             : tRef.current("settings.timeline.notifications.deleteFailedMessage"),
         color: "red",
       });
+      return false;
     }
   }, []);
 

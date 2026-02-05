@@ -2,7 +2,7 @@ import mqtt from "mqtt";
 import { EventEmitter } from "events";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/options";
-import type { HeatRecoveryUnit } from "../features/hru/hru.definitions";
+import type { HeatRecoveryUnit, RegulationCapabilities } from "../features/hru/hru.definitions";
 import { type MqttSettings, type TimelineOverride } from "../types";
 import type { SettingsRepository } from "../features/settings/settings.repository";
 import type { TimelineScheduler } from "./timelineScheduler";
@@ -24,6 +24,7 @@ const LOCALIZED_STRINGS: Record<
     boost_label: string;
     boost_remaining: string;
     boost_mode: string;
+    level_unit: string;
   }
 > = {
   en: {
@@ -36,6 +37,7 @@ const LOCALIZED_STRINGS: Record<
     boost_label: "Boost: {{name}}",
     boost_remaining: "Boost Time Remaining",
     boost_mode: "Active Boost",
+    level_unit: "level",
   },
   cs: {
     power: "Požadovaný výkon",
@@ -47,6 +49,7 @@ const LOCALIZED_STRINGS: Record<
     boost_label: "Boost: {{name}}",
     boost_remaining: "Zbývající čas boostu",
     boost_mode: "Aktivní boost",
+    level_unit: "stupeň",
   },
 };
 
@@ -57,6 +60,7 @@ export class MqttService extends EventEmitter {
 
   private discoveryTimer: NodeJS.Timeout | null = null;
   private cachedDiscoveryUnit: HeatRecoveryUnit | null = null;
+  private cachedCapabilities: RegulationCapabilities | null = null;
 
   constructor(
     private readonly envConfig: AppConfig["mqtt"],
@@ -131,8 +135,12 @@ export class MqttService extends EventEmitter {
     }
   }
 
-  public async publishDiscovery(unit: HeatRecoveryUnit): Promise<boolean> {
+  public async publishDiscovery(
+    unit: HeatRecoveryUnit,
+    capabilities: RegulationCapabilities,
+  ): Promise<boolean> {
     this.cachedDiscoveryUnit = unit;
+    this.cachedCapabilities = capabilities;
     this.ensureDiscoveryLoop();
 
     return true;
@@ -370,14 +378,21 @@ export class MqttService extends EventEmitter {
     }
 
     try {
-      await this.internalSendDiscovery(this.cachedDiscoveryUnit);
+      if (this.cachedCapabilities) {
+        await this.internalSendDiscovery(this.cachedDiscoveryUnit, this.cachedCapabilities);
+      } else {
+        await this.internalSendDiscovery(this.cachedDiscoveryUnit);
+      }
       this.lastSuccessAt = Date.now();
     } catch (err) {
       this.logger.warn({ err }, "MQTT: Discovery cycle failed");
     }
   }
 
-  private async internalSendDiscovery(unit: HeatRecoveryUnit) {
+  private async internalSendDiscovery(
+    unit: HeatRecoveryUnit,
+    capabilities?: RegulationCapabilities,
+  ) {
     if (!this.client) return;
 
     const unitId = this.slugify(unit.code || unit.name);
@@ -431,8 +446,9 @@ export class MqttService extends EventEmitter {
       );
     };
 
-    const powerUnit = unit.controlUnit || "%";
-    const powerCls = powerUnit === "%" ? "power_factor" : null;
+    const powerUnitRaw = unit.controlUnit || "%";
+    const powerUnit = powerUnitRaw === "level" ? strings.level_unit || "level" : powerUnitRaw;
+    const powerCls = powerUnitRaw === "%" ? "power_factor" : null;
 
     await publishSensor(
       "power",
@@ -442,21 +458,39 @@ export class MqttService extends EventEmitter {
       powerUnit,
       powerCls || undefined,
     );
-    await publishSensor(
-      "temperature",
-      strings.temperature,
-      "{{ value_json.temperature }}",
-      "mdi:thermometer",
-      "°C",
-      "temperature",
-    );
+    if (capabilities?.hasTemperatureControl !== false) {
+      await publishSensor(
+        "temperature",
+        strings.temperature,
+        "{{ value_json.temperature }}",
+        "mdi:thermometer",
+        "°C",
+        "temperature",
+      );
+    } else {
+      await this.client.publishAsync(
+        `${DISCOVERY_PREFIX}/sensor/luftuj_hru_${unitId}/temperature/config`,
+        "",
+        { qos: 1, retain: true },
+      );
+    }
+
     await publishSensor("mode", strings.mode, "{{ value_json.mode_formatted }}", "mdi:fan");
-    await publishSensor(
-      "native_mode",
-      strings.native_mode,
-      "{{ value_json.native_mode_formatted }}",
-      "mdi:cog",
-    );
+
+    if (capabilities?.hasModeControl !== false) {
+      await publishSensor(
+        "native_mode",
+        strings.native_mode,
+        "{{ value_json.native_mode_formatted }}",
+        "mdi:cog",
+      );
+    } else {
+      await this.client.publishAsync(
+        `${DISCOVERY_PREFIX}/sensor/luftuj_hru_${unitId}/native_mode/config`,
+        "",
+        { qos: 1, retain: true },
+      );
+    }
     await publishSensor(
       "boost_remaining",
       strings.boost_remaining,
@@ -529,16 +563,20 @@ export class MqttService extends EventEmitter {
 
     // ID-to-Slug mapping for reliable cleanup
     const prevBoostMap = this.settingsRepo.getDiscoveredBoosts();
-    const currentBoostMap: Record<number, string> = {};
+    const currentBoostMap: Record<number, string> = { ...prevBoostMap };
 
     const modes = this.settingsRepo.getTimelineModes();
     let activeBoostCount = 0;
 
-    // Process ALL modes: register boosts, explicitly delete non-boosts
+    // Determine current unit ID slug for filtering
+    const currentUnitId = unitId;
+
+    // Process ALL modes: register boosts, explicitly delete non-boosts OR modes from other units
     for (const m of modes) {
       const slug = this.slugify(m.name);
+      const isRelevantUnit = !m.hruId || m.hruId === currentUnitId;
 
-      if (m.isBoost) {
+      if (m.isBoost && isRelevantUnit) {
         currentBoostMap[m.id] = slug;
         activeBoostCount++;
 
@@ -567,25 +605,34 @@ export class MqttService extends EventEmitter {
           { qos: 1, retain: true },
         );
       } else {
-        // Mode exists but 'isBoost' is false - EXPLICITLY ensure no discovery button remains
+        // Mode either:
+        // 1. Is not a boost
+        // 2. Belongs to a different unit
+        // -> Ensure no discovery button remains for THIS unit
         await this.client.publishAsync(
           `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/boost_${slug}/config`,
           "",
           { qos: 1, retain: true },
         );
+        // If it was previously tracked for this unit but now belongs to another/is not boost, remove from map
+        if (currentBoostMap[m.id]) {
+          delete currentBoostMap[m.id];
+        }
       }
     }
 
-    // Cleanup modes that were deleted from the DB entirely
+    // Cleanup types that were deleted from DB entirely (present in prevBoostMap but not in modes)
+    const modeIds = new Set(modes.map((m) => m.id));
     for (const modeIdStr of Object.keys(prevBoostMap)) {
       const modeId = parseInt(modeIdStr, 10);
-      if (!currentBoostMap[modeId] && !modes.find((m) => m.id === modeId)) {
+      if (!modeIds.has(modeId)) {
         const oldSlug = prevBoostMap[modeId];
         await this.client.publishAsync(
           `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/boost_${oldSlug}/config`,
           "",
           { qos: 1, retain: true },
         );
+        delete currentBoostMap[modeId];
       }
     }
 

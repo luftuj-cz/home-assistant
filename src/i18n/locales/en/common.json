@@ -1,7 +1,17 @@
 {
   "app": {
     "title": "Luftator Control",
+    "units": {
+      "level": "level",
+      "m3/h": "m³/h",
+      "%": "%"
+    },
     "nav": {
+      "units": {
+        "level": "level",
+        "m3/h": "m³/h",
+        "%": "%"
+      },
       "dashboard": "Dashboard",
       "valves": "Valves",
       "timeline": "Timeline",

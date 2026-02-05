@@ -7,9 +7,12 @@ import {
   getTimelineEvents,
   upsertTimelineEvent,
   deleteTimelineEvent,
+  deleteTimelineEventsByMode,
+  getTimelineModes,
+  saveTimelineModes,
+  assignLegacyEventsToUnit,
 } from "../services/database";
 import {
-  TIMELINE_MODES_KEY,
   TIMELINE_OVERRIDE_KEY,
   HRU_SETTINGS_KEY,
   type TimelineMode,
@@ -35,20 +38,20 @@ export function createTimelineRouter(
 ) {
   const router = Router();
 
-  function getTimelineModes(): TimelineMode[] {
-    const raw = getAppSetting(TIMELINE_MODES_KEY);
-    if (!raw) return [];
+  function getCurrentUnitId(unitIdOverride?: string): string | null {
     try {
-      const parsed = JSON.parse(String(raw)) as TimelineMode[];
-      if (Array.isArray(parsed)) return parsed;
-      return [];
-    } catch {
-      return [];
-    }
-  }
+      if (unitIdOverride) return unitIdOverride;
 
-  function saveTimelineModes(modes: TimelineMode[]) {
-    setAppSetting(TIMELINE_MODES_KEY, JSON.stringify(modes));
+      const raw = getAppSetting(HRU_SETTINGS_KEY);
+      const settings = raw ? (JSON.parse(raw) as HruSettings) : null;
+      if (settings?.unit) return settings.unit;
+
+      // Fallback to first available unit if none selected, matches frontend fallback
+      const units = hruService.getAllUnits();
+      return units[0]?.id || null;
+    } catch {
+      return null;
+    }
   }
 
   function getHruMaxPower(): number {
@@ -116,23 +119,34 @@ export function createTimelineRouter(
       return false;
     }
 
-    if (payload.luftatorConfig) {
-      for (const [valve, value] of Object.entries(payload.luftatorConfig)) {
-        if (value > maxPower) {
-          response.status(400).json({
-            detail: `Valve ${valve} opening must be between 0 and ${maxPower}`,
-          });
-          return false;
-        }
-      }
-    }
-
     return true;
   }
 
   // Timeline Modes
-  router.get("/modes", (_request: Request, response: Response) => {
-    response.json({ modes: getTimelineModes() });
+  router.get("/modes", (request: Request, response: Response) => {
+    const allModes = getTimelineModes();
+    const currentUnitId = getCurrentUnitId(request.query.unitId as string) || "";
+
+    // Migration: legacy modes without hruId belong to the FIRST system unit (default)
+    const firstUnitId = hruService.getAllUnits()[0]?.id || "";
+
+    let changed = false;
+    const migratedModes = allModes.map((m) => {
+      if (m.hruId === undefined) {
+        changed = true;
+        // Tag legacy modes to the first unit so they stay isolated there
+        return { ...m, hruId: firstUnitId };
+      }
+      return m;
+    });
+
+    if (changed) {
+      saveTimelineModes(migratedModes);
+    }
+
+    // Filter by current unit
+    const filteredModes = migratedModes.filter((m) => m.hruId === currentUnitId);
+    response.json({ modes: filteredModes });
   });
 
   router.post(
@@ -140,6 +154,7 @@ export function createTimelineRouter(
     validateRequest(timelineModeInputSchema),
     (request: Request, response: Response) => {
       const payload = request.body as TimelineModeInput;
+      const currentUnitId = getCurrentUnitId();
 
       // Validate against HRU max power
       if (!validatePowerAndValves(payload, response)) {
@@ -156,6 +171,7 @@ export function createTimelineRouter(
         temperature: payload.temperature,
         luftatorConfig: payload.luftatorConfig,
         isBoost: payload.isBoost ?? false,
+        hruId: currentUnitId || "",
       };
       modes.push(newMode);
       saveTimelineModes(modes);
@@ -199,6 +215,7 @@ export function createTimelineRouter(
         temperature: payload.temperature,
         luftatorConfig: payload.luftatorConfig,
         isBoost: payload.isBoost ?? false,
+        hruId: baseMode.hruId || getCurrentUnitId() || "",
       };
       modes[idx] = updated;
       saveTimelineModes(modes);
@@ -218,15 +235,75 @@ export function createTimelineRouter(
       response.status(404).json({ detail: "Mode not found" });
       return;
     }
+
+    // Cascade: delete events using this mode
+    try {
+      deleteTimelineEventsByMode(id);
+    } catch (err) {
+      logger.error({ err, id }, "Failed to delete associated timeline events");
+    }
+
+    // Cascade: clear boost if it uses this mode
+    try {
+      const rawOverride = getAppSetting(TIMELINE_OVERRIDE_KEY);
+      if (rawOverride && rawOverride !== "null") {
+        const override = JSON.parse(rawOverride) as TimelineOverride;
+        if (override?.modeId === id) {
+          setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
+          logger.info({ id }, "Cleared active boost because its mode was deleted");
+        }
+      }
+    } catch (err) {
+      logger.warn({ err }, "Failed to check/clear boost during mode deletion");
+    }
+
     saveTimelineModes(filtered);
     response.status(204).end();
   });
 
   // Timeline Events
-  router.get("/events", (_request: Request, response: Response) => {
+  router.get("/events", (request: Request, response: Response) => {
     try {
-      const events = getTimelineEvents();
-      response.json(events);
+      const hruId = getCurrentUnitId(request.query.unitId as string);
+      if (hruId) {
+        // Adopt legacy events if any exist (lazy migration)
+        try {
+          assignLegacyEventsToUnit(hruId);
+        } catch (err) {
+          logger.warn({ err }, "Failed to assign legacy events during fetch");
+        }
+      }
+
+      const events = getTimelineEvents(hruId);
+
+      // Self-healing: purge orphaned events (referencing non-existent modes)
+      const modes = getTimelineModes();
+      const modeIds = new Set(modes.map((m) => m.id));
+      const orphanedIds = events
+        .filter((e) => {
+          const hruConfig = e.hruConfig as { mode?: number | string } | null;
+          const modeId = hruConfig?.mode;
+          if (modeId === undefined) return false;
+          return !modeIds.has(Number(modeId));
+        })
+        .map((e) => e.id)
+        .filter((id): id is number => typeof id === "number");
+
+      if (orphanedIds.length > 0) {
+        logger.info({ count: orphanedIds.length }, "Purging orphaned timeline events");
+        for (const id of orphanedIds) {
+          try {
+            deleteTimelineEvent(id);
+          } catch (err) {
+            logger.warn({ err, id }, "Failed to purge orphaned event");
+          }
+        }
+        // Return filtered list to UI immediately
+        const orphanSet = new Set(orphanedIds);
+        response.json(events.filter((e) => e.id === undefined || !orphanSet.has(e.id)));
+      } else {
+        response.json(events);
+      }
     } catch (error) {
       logger.warn({ error }, "Failed to get timeline events");
       response.status(500).json({ detail: "Failed to retrieve timeline events" });
@@ -248,19 +325,8 @@ export function createTimelineRouter(
         return;
       }
 
-      // Validate luftator config against max power
-      if (body.luftatorConfig) {
-        for (const [valve, value] of Object.entries(body.luftatorConfig)) {
-          if (value > maxPower) {
-            response.status(400).json({
-              detail: `Valve ${valve} opening must be between 0 and ${maxPower}`,
-            });
-            return;
-          }
-        }
-      }
-
       try {
+        const hruId = getCurrentUnitId();
         const event = upsertTimelineEvent({
           id: body.id,
           startTime: body.startTime,
@@ -269,6 +335,7 @@ export function createTimelineRouter(
           luftatorConfig: body.luftatorConfig,
           enabled: body.enabled ?? true,
           priority: body.priority ?? 0,
+          hruId: hruId,
         });
         response.json(event);
       } catch (error) {

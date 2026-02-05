@@ -25,18 +25,21 @@ export function useTimelineEvents(modes: Mode[], t: TFunction) {
     return map;
   }, [events]);
 
-  const loadEvents = useCallback(async () => {
-    try {
-      const loaded = await api.fetchTimelineEvents();
-      setEvents(loaded);
-    } catch {
-      notifications.show({
-        title: t("settings.timeline.notifications.loadFailedTitle"),
-        message: t("settings.timeline.notifications.loadFailedMessage"),
-        color: "red",
-      });
-    }
-  }, [t]);
+  const loadEvents = useCallback(
+    async (unitId?: string) => {
+      try {
+        const loaded = await api.fetchTimelineEvents(unitId);
+        setEvents(loaded);
+      } catch {
+        notifications.show({
+          title: t("settings.timeline.notifications.loadFailedTitle"),
+          message: t("settings.timeline.notifications.loadFailedMessage"),
+          color: "red",
+        });
+      }
+    },
+    [t],
+  );
 
   const saveEvent = useCallback(
     async (event: TimelineEvent) => {

@@ -14,6 +14,8 @@ interface TimelineEventModalProps {
   t: TFunction;
   hruCapabilities?: {
     hasModeControl?: boolean;
+    hasPowerControl?: boolean;
+    hasTemperatureControl?: boolean;
   };
 }
 
@@ -58,7 +60,9 @@ export function TimelineEventModal({
             />
           </Group>
 
-          {hruCapabilities?.hasModeControl !== false && (
+          {(hruCapabilities?.hasModeControl !== false ||
+            hruCapabilities?.hasPowerControl !== false ||
+            hruCapabilities?.hasTemperatureControl !== false) && (
             <Select
               label={t("schedule.modeSelect", { defaultValue: "Select mode" })}
               data={modeOptions}

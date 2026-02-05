@@ -37,4 +37,5 @@ export interface Mode {
   temperature?: number;
   luftatorConfig?: Record<string, number>;
   isBoost?: boolean;
+  hruId?: string;
 }

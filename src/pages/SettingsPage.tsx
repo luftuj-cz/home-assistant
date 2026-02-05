@@ -42,13 +42,15 @@ import { resolveApiUrl } from "../utils/api";
 import { logger } from "../utils/logger";
 import { setLanguage } from "../i18n";
 import { MotionSwitch } from "../components/common/MotionSwitch";
+import { formatTemperature, getTemperatureLabel } from "../utils/temperature";
+import { type TemperatureUnit } from "../utils/temperature";
 
 export function SettingsPage() {
   const [uploading, setUploading] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
   const [savingLanguage, setSavingLanguage] = useState(false);
   const [loadingUnits, setLoadingUnits] = useState(false);
-  const [tempUnit, setTempUnit] = useState("c");
+  const [tempUnit, setTempUnit] = useState<TemperatureUnit>("c");
   const [savingTempUnit, setSavingTempUnit] = useState(false);
   const [savingHru, setSavingHru] = useState(false);
   const [probingHru, setProbingHru] = useState(false);
@@ -275,7 +277,7 @@ export function SettingsPage() {
 
   const handleTempUnitChange = useCallback(
     (value: string) => {
-      setTempUnit(value);
+      setTempUnit(value as TemperatureUnit);
       void persistTempUnitPreference(value);
     },
     [persistTempUnitPreference],
@@ -792,7 +794,9 @@ export function SettingsPage() {
                             label={t("settings.hru.configuration.maxPowerLabel")}
                             description={t("settings.hru.configuration.maxPowerHint", {
                               default: selectedUnit.maxValue,
-                              unit: selectedUnit.controlUnit || "%",
+                              unit: t(`app.units.${selectedUnit.controlUnit || "%"}`, {
+                                defaultValue: selectedUnit.controlUnit || "%",
+                              }),
                             })}
                             min={1}
                             max={10000}
@@ -836,46 +840,67 @@ export function SettingsPage() {
                     onClose={() => setProbeResult(null)}
                     radius="md"
                   >
-                    <SimpleGrid cols={{ base: 1, sm: 3 }} spacing="sm">
-                      <Group gap="xs">
-                        <Badge color="green" variant="light" circle>
-                          P
-                        </Badge>
-                        <div>
-                          <Text size="xs" c="dimmed">
-                            {t("settings.hru.powerLabel")}
-                          </Text>
-                          <Text fw={600} size="lg">
-                            {probeResult.power}%
-                          </Text>
-                        </div>
-                      </Group>
-                      <Group gap="xs">
-                        <Badge color="orange" variant="light" circle>
-                          T
-                        </Badge>
-                        <div>
-                          <Text size="xs" c="dimmed">
-                            {t("settings.hru.temperatureLabel")}
-                          </Text>
-                          <Text fw={600} size="lg">
-                            {probeResult.temperature}°C
-                          </Text>
-                        </div>
-                      </Group>
-                      <Group gap="xs">
-                        <Badge color="blue" variant="light" circle>
-                          M
-                        </Badge>
-                        <div>
-                          <Text size="xs" c="dimmed">
-                            {t("settings.hru.modeLabel")}
-                          </Text>
-                          <Text fw={600} size="lg">
-                            {probeResult.mode}
-                          </Text>
-                        </div>
-                      </Group>
+                    <SimpleGrid
+                      cols={{
+                        base: 1,
+                        sm:
+                          (selectedUnit?.capabilities?.hasPowerControl !== false ? 1 : 0) +
+                          (selectedUnit?.capabilities?.hasTemperatureControl !== false ? 1 : 0) +
+                          (selectedUnit?.capabilities?.hasModeControl !== false ? 1 : 0),
+                      }}
+                      spacing="sm"
+                    >
+                      {selectedUnit?.capabilities?.hasPowerControl !== false && (
+                        <Group gap="xs">
+                          <Badge color="green" variant="light" circle>
+                            P
+                          </Badge>
+                          <div>
+                            <Text size="xs" c="dimmed">
+                              {t("settings.hru.powerLabel")}
+                            </Text>
+                            <Text fw={600} size="lg">
+                              {probeResult.power}
+                              {t(`app.units.${selectedUnit?.controlUnit || "%"}`, {
+                                defaultValue: selectedUnit?.controlUnit || "%",
+                              })}
+                            </Text>
+                          </div>
+                        </Group>
+                      )}
+
+                      {selectedUnit?.capabilities?.hasTemperatureControl !== false && (
+                        <Group gap="xs">
+                          <Badge color="orange" variant="light" circle>
+                            T
+                          </Badge>
+                          <div>
+                            <Text size="xs" c="dimmed">
+                              {t("settings.hru.temperatureLabel")}
+                            </Text>
+                            <Text fw={600} size="lg">
+                              {formatTemperature(probeResult.temperature, tempUnit)}
+                              {getTemperatureLabel(tempUnit)}
+                            </Text>
+                          </div>
+                        </Group>
+                      )}
+
+                      {selectedUnit?.capabilities?.hasModeControl !== false && (
+                        <Group gap="xs">
+                          <Badge color="blue" variant="light" circle>
+                            M
+                          </Badge>
+                          <div>
+                            <Text size="xs" c="dimmed">
+                              {t("settings.hru.modeLabel")}
+                            </Text>
+                            <Text fw={600} size="lg">
+                              {probeResult.mode}
+                            </Text>
+                          </div>
+                        </Group>
+                      )}
                     </SimpleGrid>
                   </Alert>
                 )}

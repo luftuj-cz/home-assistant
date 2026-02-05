@@ -24,6 +24,11 @@ export type HruState =
       mode: string;
       maxPower?: number;
       powerUnit?: string;
+      capabilities?: {
+        hasPowerControl?: boolean;
+        hasTemperatureControl?: boolean;
+        hasModeControl?: boolean;
+      };
       registers?: {
         power?: RegisterInfo;
         temperature?: RegisterInfo;
@@ -51,7 +56,15 @@ export function useDashboardStatus() {
 
   const valvesWsRef = useRef<WebSocket | null>(null);
   const valvesReconnectRef = useRef<number | null>(null);
-  const configRef = useRef({ maxPower: 100, powerUnit: "%" });
+  const configRef = useRef({
+    maxPower: 100,
+    powerUnit: "%",
+    capabilities: {} as {
+      hasPowerControl?: boolean;
+      hasTemperatureControl?: boolean;
+      hasModeControl?: boolean;
+    },
+  });
 
   // Load Modbus Settings and HRU Units
   useEffect(() => {
@@ -77,8 +90,17 @@ export function useDashboardStatus() {
         if (canceled) return;
 
         let unitId: string | null = null;
-        let allUnits: Array<{ id: string; name: string; maxValue?: number; controlUnit?: string }> =
-          [];
+        let allUnits: Array<{
+          id: string;
+          name: string;
+          maxValue?: number;
+          controlUnit?: string;
+          capabilities?: {
+            hasPowerControl?: boolean;
+            hasTemperatureControl?: boolean;
+            hasModeControl?: boolean;
+          };
+        }> = [];
 
         if (settingsRes.ok) {
           const data = (await settingsRes.json()) as {
@@ -94,12 +116,7 @@ export function useDashboardStatus() {
         }
 
         if (unitsRes.ok) {
-          allUnits = (await unitsRes.json()) as Array<{
-            id: string;
-            name: string;
-            maxValue?: number;
-            controlUnit?: string;
-          }>;
+          allUnits = await unitsRes.json();
         }
 
         if (tempUnitRes.ok) {
@@ -116,6 +133,7 @@ export function useDashboardStatus() {
           configRef.current = {
             maxPower: activeUnit.maxValue ?? 100,
             powerUnit: activeUnit.controlUnit ?? "%",
+            capabilities: activeUnit.capabilities ?? {},
           };
         }
 

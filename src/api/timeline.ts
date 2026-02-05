@@ -1,8 +1,11 @@
 import { resolveApiUrl } from "../utils/api";
 import type { Mode, TimelineEvent, ApiTimelineEvent } from "../types/timeline";
 
-export async function fetchTimelineModes(): Promise<Mode[]> {
-  const res = await fetch(resolveApiUrl("/api/timeline/modes"));
+export async function fetchTimelineModes(unitId?: string): Promise<Mode[]> {
+  const url = unitId
+    ? resolveApiUrl(`/api/timeline/modes?unitId=${encodeURIComponent(unitId)}`)
+    : resolveApiUrl("/api/timeline/modes");
+  const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to load modes");
   const data = (await res.json()) as { modes?: Mode[] };
   return data.modes ?? [];
@@ -44,8 +47,11 @@ export async function deleteTimelineMode(id: number): Promise<void> {
   }
 }
 
-export async function fetchTimelineEvents(): Promise<TimelineEvent[]> {
-  const res = await fetch(resolveApiUrl("/api/timeline/events"));
+export async function fetchTimelineEvents(unitId?: string): Promise<TimelineEvent[]> {
+  const url = unitId
+    ? resolveApiUrl(`/api/timeline/events?unitId=${encodeURIComponent(unitId)}`)
+    : resolveApiUrl("/api/timeline/events");
+  const res = await fetch(url);
   if (!res.ok) throw new Error("Failed to load events");
   const rawEvents = (await res.json()) as ApiTimelineEvent[];
 

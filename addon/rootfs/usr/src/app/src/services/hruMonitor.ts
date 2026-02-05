@@ -54,7 +54,10 @@ export class HruMonitor {
 
     if (sendDiscovery) {
       this.logger.info("HRU Monitor: Attempting MQTT discovery refresh...");
-      const success = await this.mqttService.publishDiscovery(config.unit);
+      const success = await this.mqttService.publishDiscovery(
+        config.unit,
+        config.strategy.capabilities,
+      );
       if (success) {
         this.mqttService.setLastDiscoveryTime(new Date().toISOString());
       }

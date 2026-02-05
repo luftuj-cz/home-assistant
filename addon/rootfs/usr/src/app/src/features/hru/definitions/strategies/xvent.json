@@ -32,8 +32,14 @@
             {
               "function": "bit_or",
               "args": [
-                { "function": "modbus_read_holding", "args": [40000] },
-                { "function": "bit_lshift", "args": ["$power", 6] }
+                {
+                  "function": "bit_and",
+                  "args": [{ "function": "modbus_read_holding", "args": [40000] }, 64573]
+                },
+                {
+                  "function": "bit_or",
+                  "args": [{ "function": "bit_lshift", "args": ["$power", 6] }, 1]
+                }
               ]
             }
           ]
