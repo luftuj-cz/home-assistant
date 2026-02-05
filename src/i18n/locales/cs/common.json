@@ -349,6 +349,7 @@
   },
   "onboarding": {
     "title": "Vítejte!",
+    "step": "Krok {{current}} z {{total}}",
     "welcome": {
       "label": "Vítejte",
       "description": "Začínáme",

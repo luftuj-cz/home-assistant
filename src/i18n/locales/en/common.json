@@ -361,6 +361,7 @@
   },
   "onboarding": {
     "title": "Welcome!",
+    "step": "Step {{current}} of {{total}}",
     "welcome": {
       "label": "Welcome",
       "description": "Get started",

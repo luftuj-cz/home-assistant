@@ -1,6 +1,5 @@
 import { useState } from "react";
 import {
-  Stepper,
   Button,
   Group,
   TextInput,
@@ -19,6 +18,8 @@ import {
   Center,
   useMantineTheme,
   Flex,
+  SimpleGrid,
+  Progress,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
 import { useMediaQuery } from "@mantine/hooks";
@@ -406,141 +407,315 @@ export function OnboardingPage() {
   return (
     <Container size="sm" py="xl">
       <Paper p={{ base: "md", sm: "xl" }} radius="md" withBorder shadow="sm">
-        <Title order={2} ta="center" mb="lg">
+        <Title order={2} ta="center" mb="xl">
           {t("onboarding.title")}
         </Title>
-        <Stepper
-          active={active}
-          onStepClick={setActive}
-          allowNextStepsSelect={false}
-          orientation={isMobile ? "vertical" : "horizontal"}
-          size={isMobile ? "sm" : "md"}
-        >
-          {/* STEP 0: Welcome */}
-          <Stepper.Step
-            label={t("onboarding.welcome.label")}
-            description={t("onboarding.welcome.description")}
-            icon={<IconRocket size={18} />}
-          >
-            <Stack align="center" py="xl">
-              <ThemeIcon size={80} radius="xl" variant="light" color="blue">
-                <IconRocket size={48} />
-              </ThemeIcon>
-              <Title order={3}>{t("onboarding.welcome.title")}</Title>
-              <Text c="dimmed" ta="center" maw={400}>
-                {t("onboarding.welcome.text")}
+
+        {/* Mobile Header */}
+        <Stack gap="xs" mb="xl" hiddenFrom="sm">
+          <Group justify="space-between" align="center">
+            <Text c="dimmed" size="xs" fw={700} tt="uppercase">
+              {t("onboarding.step", { current: active + 1, total: 6 })}
+            </Text>
+            <Text c="dimmed" size="xs" fw={700}>
+              {Math.round(((active + 1) / 6) * 100)}%
+            </Text>
+          </Group>
+          <Progress value={((active + 1) / 6) * 100} size="sm" radius="xl" />
+          <Group mt="xs">
+            {(() => {
+              const steps = [
+                {
+                  label: t("onboarding.welcome.label"),
+                  description: t("onboarding.welcome.description"),
+                  icon: IconRocket,
+                },
+                {
+                  label: t("onboarding.preferences.label"),
+                  description: t("onboarding.preferences.description"),
+                  icon: IconAdjustments,
+                },
+                {
+                  label: t("onboarding.modbus.label"),
+                  description: t("onboarding.modbus.description"),
+                  icon: IconServer,
+                },
+                {
+                  label: t("onboarding.mqtt.label"),
+                  description: t("onboarding.mqtt.description"),
+                  icon: IconPlugConnected,
+                },
+                {
+                  label: t("onboarding.unit.label"),
+                  description: t("onboarding.unit.description"),
+                  icon: IconWind,
+                },
+                {
+                  label: t("onboarding.status.label"),
+                  description: t("onboarding.status.description"),
+                  icon: IconAdjustments,
+                },
+              ];
+              const currentStep = steps[active];
+              const Icon = currentStep.icon;
+              return (
+                <>
+                  <ThemeIcon size={32} radius="xl" variant="light" color="blue">
+                    <Icon size={16} />
+                  </ThemeIcon>
+                  <div>
+                    <Text size="sm" fw={700} lh={1.2}>
+                      {currentStep.label}
+                    </Text>
+                    <Text size="xs" c="dimmed" lh={1.2}>
+                      {currentStep.description}
+                    </Text>
+                  </div>
+                </>
+              );
+            })()}
+          </Group>
+        </Stack>
+
+        {/* Desktop Grid */}
+        <SimpleGrid cols={3} spacing="lg" mb={50} visibleFrom="sm">
+          {[
+            {
+              step: 0,
+              label: t("onboarding.welcome.label"),
+              description: t("onboarding.welcome.description"),
+              icon: IconRocket,
+            },
+            {
+              step: 1,
+              label: t("onboarding.preferences.label"),
+              description: t("onboarding.preferences.description"),
+              icon: IconAdjustments,
+            },
+            {
+              step: 2,
+              label: t("onboarding.modbus.label"),
+              description: t("onboarding.modbus.description"),
+              icon: IconServer,
+            },
+            {
+              step: 3,
+              label: t("onboarding.mqtt.label"),
+              description: t("onboarding.mqtt.description"),
+              icon: IconPlugConnected,
+            },
+            {
+              step: 4,
+              label: t("onboarding.unit.label"),
+              description: t("onboarding.unit.description"),
+              icon: IconWind,
+            },
+            {
+              step: 5,
+              label: t("onboarding.status.label"),
+              description: t("onboarding.status.description"),
+              icon: IconAdjustments,
+            },
+          ].map((item) => {
+            const isActive = active === item.step;
+            const isCompleted = active > item.step;
+            const Icon = item.icon;
+
+            return (
+              <Group key={item.step} gap="sm">
+                <ThemeIcon
+                  size={42}
+                  radius="xl"
+                  variant={isActive ? "filled" : "light"}
+                  color={isActive || isCompleted ? "blue" : "gray"}
+                >
+                  <Icon size={20} />
+                </ThemeIcon>
+                <div style={{ flex: 1 }}>
+                  <Text size="sm" fw={isActive ? 700 : 500} c={isActive ? undefined : "dimmed"}>
+                    {item.label}
+                  </Text>
+                  <Text size="xs" c="dimmed">
+                    {item.description}
+                  </Text>
+                </div>
+              </Group>
+            );
+          })}
+        </SimpleGrid>
+
+        <Stack align="center" py="xl" display={active === 0 ? "flex" : "none"}>
+          <ThemeIcon size={80} radius="xl" variant="light" color="blue">
+            <IconRocket size={48} />
+          </ThemeIcon>
+          <Title order={3}>{t("onboarding.welcome.title")}</Title>
+          <Text c="dimmed" ta="center" maw={400}>
+            {t("onboarding.welcome.text")}
+          </Text>
+          <Button size="lg" mt="md" rightSection={<IconArrowRight size={18} />} onClick={nextStep}>
+            {t("onboarding.welcome.button")}
+          </Button>
+        </Stack>
+
+        <Stack gap="md" py="lg" display={active === 1 ? "flex" : "none"}>
+          <Select
+            label={t("onboarding.preferences.languageLabel")}
+            placeholder={t("onboarding.preferences.languagePlaceholder")}
+            leftSection={<IconLanguage size={16} />}
+            data={[
+              { value: "en", label: "English" },
+              { value: "cs", label: "Čeština" },
+            ]}
+            value={selectedLanguage}
+            onChange={(val) => {
+              if (val && isSupportedLanguage(val)) {
+                setSelectedLanguage(val);
+                void setLanguage(val);
+              }
+            }}
+          />
+
+          <Select
+            label={t("onboarding.preferences.themeLabel")}
+            placeholder={t("onboarding.preferences.themePlaceholder")}
+            leftSection={<IconPalette size={16} />}
+            data={[
+              { value: "light", label: t("onboarding.preferences.themes.light") },
+              { value: "dark", label: t("onboarding.preferences.themes.dark") },
+            ]}
+            value={selectedTheme}
+            onChange={(val) => {
+              if (val) {
+                const theme = val as "light" | "dark";
+                setSelectedTheme(theme);
+                setColorScheme(theme);
+                sessionStorage.setItem("luftujha-theme-synced", "true");
+              }
+            }}
+          />
+
+          <Select
+            label={t("onboarding.preferences.tempUnitLabel")}
+            placeholder={t("onboarding.preferences.tempUnitPlaceholder")}
+            leftSection={<IconTemperature size={16} />}
+            data={[
+              { value: "c", label: t("onboarding.preferences.tempUnits.c") },
+              { value: "f", label: t("onboarding.preferences.tempUnits.f") },
+            ]}
+            value={selectedTempUnit}
+            onChange={(val) => {
+              if (val) {
+                setSelectedTempUnit(val as TemperatureUnit);
+              }
+            }}
+          />
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={prevStep}>
+              {t("onboarding.back")}
+            </Button>
+            <Button
+              onClick={handlePreferencesSubmit}
+              loading={saveLanguageMutation.isPending || saveThemeMutation.isPending}
+            >
+              {t("onboarding.next")}
+            </Button>
+          </Group>
+        </Stack>
+
+        <Stack gap="md" py="lg" display={active === 2 ? "flex" : "none"}>
+          <Text fw={500}>{t("onboarding.modbus.title")}</Text>
+          <TextInput
+            label={t("onboarding.modbus.hostLabel")}
+            placeholder="192.168.1.10"
+            required
+            {...modbusForm.getInputProps("host")}
+          />
+          <Flex direction={isMobile ? "column" : "row"} gap="md">
+            <NumberInput
+              label={t("onboarding.modbus.portLabel")}
+              required
+              min={1}
+              max={65535}
+              {...modbusForm.getInputProps("port")}
+              style={{ flex: 1 }}
+            />
+            <NumberInput
+              label={t("onboarding.modbus.unitIdLabel")}
+              required
+              min={0}
+              max={255}
+              {...modbusForm.getInputProps("unitId")}
+              style={{ flex: 1 }}
+            />
+          </Flex>
+
+          <Group>
+            <Button
+              variant="light"
+              size="xs"
+              loading={testModbusMutation.isPending}
+              onClick={() => testModbusMutation.mutate(modbusForm.values)}
+            >
+              {t("onboarding.modbus.test")}
+            </Button>
+            {testModbusMutation.isSuccess && (
+              <Text c="green" size="sm" fw={500}>
+                {t("onboarding.modbus.connected")}
               </Text>
-              <Button
-                size="lg"
-                mt="md"
-                rightSection={<IconArrowRight size={18} />}
-                onClick={nextStep}
-              >
-                {t("onboarding.welcome.button")}
-              </Button>
-            </Stack>
-          </Stepper.Step>
+            )}
+            {testModbusMutation.isError && (
+              <Text c="red" size="sm" fw={500}>
+                {t("onboarding.modbus.failed")}
+              </Text>
+            )}
+          </Group>
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={prevStep}>
+              {t("onboarding.back")}
+            </Button>
+            <Button onClick={handleModbusSubmit}>{t("onboarding.next")}</Button>
+          </Group>
+        </Stack>
 
-          <Stepper.Step
-            label={t("onboarding.preferences.label")}
-            description={t("onboarding.preferences.description")}
-            icon={<IconAdjustments size={18} />}
-          >
-            <Stack gap="md" py="lg">
-              <Select
-                label={t("onboarding.preferences.languageLabel")}
-                placeholder={t("onboarding.preferences.languagePlaceholder")}
-                leftSection={<IconLanguage size={16} />}
-                data={[
-                  { value: "en", label: "English" },
-                  { value: "cs", label: "Čeština" },
-                ]}
-                value={selectedLanguage}
-                onChange={(val) => {
-                  if (val && isSupportedLanguage(val)) {
-                    setSelectedLanguage(val);
-                    void setLanguage(val);
-                  }
-                }}
-              />
+        <Stack gap="md" py="lg" display={active === 3 ? "flex" : "none"}>
+          <Group justify="space-between">
+            <Text fw={500}>{t("onboarding.mqtt.title")}</Text>
+            <Switch
+              label={t("onboarding.mqtt.enable")}
+              {...mqttForm.getInputProps("enabled", { type: "checkbox" })}
+            />
+          </Group>
 
-              <Select
-                label={t("onboarding.preferences.themeLabel")}
-                placeholder={t("onboarding.preferences.themePlaceholder")}
-                leftSection={<IconPalette size={16} />}
-                data={[
-                  { value: "light", label: t("onboarding.preferences.themes.light") },
-                  { value: "dark", label: t("onboarding.preferences.themes.dark") },
-                ]}
-                value={selectedTheme}
-                onChange={(val) => {
-                  if (val) {
-                    const theme = val as "light" | "dark";
-                    setSelectedTheme(theme);
-                    setColorScheme(theme);
-                    sessionStorage.setItem("luftujha-theme-synced", "true");
-                  }
-                }}
-              />
-
-              <Select
-                label={t("onboarding.preferences.tempUnitLabel")}
-                placeholder={t("onboarding.preferences.tempUnitPlaceholder")}
-                leftSection={<IconTemperature size={16} />}
-                data={[
-                  { value: "c", label: t("onboarding.preferences.tempUnits.c") },
-                  { value: "f", label: t("onboarding.preferences.tempUnits.f") },
-                ]}
-                value={selectedTempUnit}
-                onChange={(val) => {
-                  if (val) {
-                    setSelectedTempUnit(val as TemperatureUnit);
-                  }
-                }}
-              />
-            </Stack>
-            <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={prevStep}>
-                {t("onboarding.back")}
-              </Button>
-              <Button
-                onClick={handlePreferencesSubmit}
-                loading={saveLanguageMutation.isPending || saveThemeMutation.isPending}
-              >
-                {t("onboarding.next")}
-              </Button>
-            </Group>
-          </Stepper.Step>
-
-          {/* STEP 2: Modbus */}
-          <Stepper.Step
-            label={t("onboarding.modbus.label")}
-            description={t("onboarding.modbus.description")}
-            icon={<IconServer size={18} />}
-          >
-            <Stack gap="md" py="lg">
-              <Text fw={500}>{t("onboarding.modbus.title")}</Text>
-              <TextInput
-                label={t("onboarding.modbus.hostLabel")}
-                placeholder="192.168.1.10"
-                required
-                {...modbusForm.getInputProps("host")}
-              />
+          {mqttForm.values.enabled && (
+            <>
               <Flex direction={isMobile ? "column" : "row"} gap="md">
-                <NumberInput
-                  label={t("onboarding.modbus.portLabel")}
+                <TextInput
+                  label={t("onboarding.mqtt.hostLabel")}
+                  placeholder="homeassistant" // Common for addons
                   required
-                  min={1}
-                  max={65535}
-                  {...modbusForm.getInputProps("port")}
+                  {...mqttForm.getInputProps("host")}
                   style={{ flex: 1 }}
                 />
                 <NumberInput
-                  label={t("onboarding.modbus.unitIdLabel")}
+                  label={t("onboarding.mqtt.portLabel")}
                   required
-                  min={0}
-                  max={255}
-                  {...modbusForm.getInputProps("unitId")}
+                  min={1}
+                  max={65535}
+                  {...mqttForm.getInputProps("port")}
+                  style={{ flex: 1 }}
+                />
+              </Flex>
+              <Flex direction={isMobile ? "column" : "row"} gap="md">
+                <TextInput
+                  label={t("onboarding.mqtt.userLabel")}
+                  placeholder="Optional"
+                  {...mqttForm.getInputProps("user")}
+                  style={{ flex: 1 }}
+                />
+                <PasswordInput
+                  label={t("onboarding.mqtt.passLabel")}
+                  placeholder="Optional"
+                  {...mqttForm.getInputProps("password")}
                   style={{ flex: 1 }}
                 />
               </Flex>
@@ -549,209 +724,118 @@ export function OnboardingPage() {
                 <Button
                   variant="light"
                   size="xs"
-                  loading={testModbusMutation.isPending}
-                  onClick={() => testModbusMutation.mutate(modbusForm.values)}
+                  loading={testMqttMutation.isPending}
+                  onClick={() => testMqttMutation.mutate(mqttForm.values)}
                 >
-                  {t("onboarding.modbus.test")}
+                  {t("onboarding.mqtt.test")}
                 </Button>
-                {testModbusMutation.isSuccess && (
+                {testMqttMutation.isSuccess && (
                   <Text c="green" size="sm" fw={500}>
-                    {t("onboarding.modbus.connected")}
+                    {t("onboarding.mqtt.connected")}
                   </Text>
                 )}
-                {testModbusMutation.isError && (
+                {testMqttMutation.isError && (
                   <Text c="red" size="sm" fw={500}>
-                    {t("onboarding.modbus.failed")}
+                    {t("onboarding.mqtt.failed")}
                   </Text>
                 )}
               </Group>
-            </Stack>
-            <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={prevStep}>
-                {t("onboarding.back")}
-              </Button>
-              <Button onClick={handleModbusSubmit}>{t("onboarding.next")}</Button>
-            </Group>
-          </Stepper.Step>
+            </>
+          )}
+          {!mqttForm.values.enabled && (
+            <Alert color="yellow" title="Warning">
+              {t("onboarding.mqtt.warning")}
+            </Alert>
+          )}
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={prevStep}>
+              {t("onboarding.back")}
+            </Button>
+            <Button onClick={handleMqttSubmit} loading={saveMqttMutation.isPending}>
+              {t("onboarding.next")}
+            </Button>
+          </Group>
+        </Stack>
 
-          <Stepper.Step
-            label={t("onboarding.mqtt.label")}
-            description={t("onboarding.mqtt.description")}
-            icon={<IconPlugConnected size={18} />}
-          >
-            <Stack gap="md" py="lg">
-              <Group justify="space-between">
-                <Text fw={500}>{t("onboarding.mqtt.title")}</Text>
-                <Switch
-                  label={t("onboarding.mqtt.enable")}
-                  {...mqttForm.getInputProps("enabled", { type: "checkbox" })}
-                />
+        <Stack gap="md" py="lg" display={active === 4 ? "flex" : "none"}>
+          <Text fw={500}>{t("onboarding.unit.title")}</Text>
+          {unitsQuery.isLoading ? (
+            <Center p="xl">
+              <Loader />
+            </Center>
+          ) : unitsQuery.isError ? (
+            <Alert color="red">{t("onboarding.unit.loadFailed")}</Alert>
+          ) : (
+            <Select
+              label={t("onboarding.unit.modelLabel")}
+              placeholder={t("onboarding.unit.modelPlaceholder")}
+              data={unitsQuery.data?.map((u) => ({ value: u.id, label: u.name })) || []}
+              value={selectedUnit}
+              onChange={setSelectedUnit}
+              searchable
+            />
+          )}
+          <Text size="sm" c="dimmed">
+            {t("onboarding.unit.hint")}
+          </Text>
+          <Group justify="flex-end" mt="md">
+            <Button variant="default" onClick={prevStep}>
+              {t("onboarding.back")}
+            </Button>
+            <Button
+              onClick={handleUnitSubmit}
+              loading={saveHruMutation.isPending}
+              disabled={!selectedUnit}
+            >
+              {t("onboarding.next")}
+            </Button>
+          </Group>
+        </Stack>
+
+        <Stack gap="lg" py="xl" align="center" display={active === 5 ? "flex" : "none"}>
+          {statusQuery.isLoading ? (
+            <Loader size="lg" />
+          ) : (
+            <>
+              <Group>
+                <ThemeIcon
+                  size={42}
+                  radius="xl"
+                  color={statusQuery.data?.luftatorAvailable ? "green" : "orange"}
+                  variant="light"
+                >
+                  {statusQuery.data?.luftatorAvailable ? <IconCheck /> : <IconX />}
+                </ThemeIcon>
+                <Stack gap={0}>
+                  <Text fw={700} size="lg">
+                    {statusQuery.data?.luftatorAvailable
+                      ? t("onboarding.status.found")
+                      : t("onboarding.status.notFound")}
+                  </Text>
+                  <Text c="dimmed" size="sm">
+                    {t("onboarding.status.integrationStatus")}
+                  </Text>
+                </Stack>
               </Group>
 
-              {mqttForm.values.enabled && (
-                <>
-                  <Flex direction={isMobile ? "column" : "row"} gap="md">
-                    <TextInput
-                      label={t("onboarding.mqtt.hostLabel")}
-                      placeholder="homeassistant" // Common for addons
-                      required
-                      {...mqttForm.getInputProps("host")}
-                      style={{ flex: 1 }}
-                    />
-                    <NumberInput
-                      label={t("onboarding.mqtt.portLabel")}
-                      required
-                      min={1}
-                      max={65535}
-                      {...mqttForm.getInputProps("port")}
-                      style={{ flex: 1 }}
-                    />
-                  </Flex>
-                  <Flex direction={isMobile ? "column" : "row"} gap="md">
-                    <TextInput
-                      label={t("onboarding.mqtt.userLabel")}
-                      placeholder="Optional"
-                      {...mqttForm.getInputProps("user")}
-                      style={{ flex: 1 }}
-                    />
-                    <PasswordInput
-                      label={t("onboarding.mqtt.passLabel")}
-                      placeholder="Optional"
-                      {...mqttForm.getInputProps("password")}
-                      style={{ flex: 1 }}
-                    />
-                  </Flex>
-
-                  <Group>
-                    <Button
-                      variant="light"
-                      size="xs"
-                      loading={testMqttMutation.isPending}
-                      onClick={() => testMqttMutation.mutate(mqttForm.values)}
-                    >
-                      {t("onboarding.mqtt.test")}
-                    </Button>
-                    {testMqttMutation.isSuccess && (
-                      <Text c="green" size="sm" fw={500}>
-                        {t("onboarding.mqtt.connected")}
-                      </Text>
-                    )}
-                    {testMqttMutation.isError && (
-                      <Text c="red" size="sm" fw={500}>
-                        {t("onboarding.mqtt.failed")}
-                      </Text>
-                    )}
-                  </Group>
-                </>
-              )}
-              {!mqttForm.values.enabled && (
-                <Alert color="yellow" title="Warning">
-                  {t("onboarding.mqtt.warning")}
+              {!statusQuery.data?.luftatorAvailable && (
+                <Alert color="orange" title={t("onboarding.status.waitingTitle")} maw={500}>
+                  {t("onboarding.status.waitingHA")}
                 </Alert>
               )}
-            </Stack>
-            <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={prevStep}>
-                {t("onboarding.back")}
-              </Button>
-              <Button onClick={handleMqttSubmit} loading={saveMqttMutation.isPending}>
-                {t("onboarding.next")}
-              </Button>
-            </Group>
-          </Stepper.Step>
-
-          <Stepper.Step
-            label={t("onboarding.unit.label")}
-            description={t("onboarding.unit.description")}
-            icon={<IconWind size={18} />}
-          >
-            <Stack gap="md" py="lg">
-              <Text fw={500}>{t("onboarding.unit.title")}</Text>
-              {unitsQuery.isLoading ? (
-                <Center p="xl">
-                  <Loader />
-                </Center>
-              ) : unitsQuery.isError ? (
-                <Alert color="red">{t("onboarding.unit.loadFailed")}</Alert>
-              ) : (
-                <Select
-                  label={t("onboarding.unit.modelLabel")}
-                  placeholder={t("onboarding.unit.modelPlaceholder")}
-                  data={unitsQuery.data?.map((u) => ({ value: u.id, label: u.name })) || []}
-                  value={selectedUnit}
-                  onChange={setSelectedUnit}
-                  searchable
-                />
+              {statusQuery.data?.luftatorAvailable && (
+                <Alert color="green" title={t("onboarding.status.readyTitle")} maw={500}>
+                  {t("onboarding.status.ready")}
+                </Alert>
               )}
-              <Text size="sm" c="dimmed">
-                {t("onboarding.unit.hint")}
-              </Text>
-            </Stack>
-            <Group justify="flex-end" mt="md">
-              <Button variant="default" onClick={prevStep}>
-                {t("onboarding.back")}
-              </Button>
-              <Button
-                onClick={handleUnitSubmit}
-                loading={saveHruMutation.isPending}
-                disabled={!selectedUnit}
-              >
-                {t("onboarding.next")}
-              </Button>
-            </Group>
-          </Stepper.Step>
-
-          <Stepper.Step
-            label={t("onboarding.status.label")}
-            description={t("onboarding.status.description")}
-            icon={<IconAdjustments size={18} />}
-          >
-            <Stack gap="lg" py="xl" align="center">
-              {statusQuery.isLoading ? (
-                <Loader size="lg" />
-              ) : (
-                <>
-                  <Group>
-                    <ThemeIcon
-                      size={42}
-                      radius="xl"
-                      color={statusQuery.data?.luftatorAvailable ? "green" : "orange"}
-                      variant="light"
-                    >
-                      {statusQuery.data?.luftatorAvailable ? <IconCheck /> : <IconX />}
-                    </ThemeIcon>
-                    <Stack gap={0}>
-                      <Text fw={700} size="lg">
-                        {statusQuery.data?.luftatorAvailable
-                          ? t("onboarding.status.found")
-                          : t("onboarding.status.notFound")}
-                      </Text>
-                      <Text c="dimmed" size="sm">
-                        {t("onboarding.status.integrationStatus")}
-                      </Text>
-                    </Stack>
-                  </Group>
-
-                  {!statusQuery.data?.luftatorAvailable && (
-                    <Alert color="orange" title={t("onboarding.status.waitingTitle")} maw={500}>
-                      {t("onboarding.status.waitingHA")}
-                    </Alert>
-                  )}
-                  {statusQuery.data?.luftatorAvailable && (
-                    <Alert color="green" title={t("onboarding.status.readyTitle")} maw={500}>
-                      {t("onboarding.status.ready")}
-                    </Alert>
-                  )}
-                </>
-              )}
-            </Stack>
-            <Group justify="center" mt="xl">
-              <Button size="lg" onClick={handleFinish}>
-                {t("onboarding.status.dashboard")}
-              </Button>
-            </Group>
-          </Stepper.Step>
-        </Stepper>
+            </>
+          )}
+          <Group justify="center" mt="xl">
+            <Button size="lg" onClick={handleFinish}>
+              {t("onboarding.status.dashboard")}
+            </Button>
+          </Group>
+        </Stack>
       </Paper>
     </Container>
   );
