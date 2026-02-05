@@ -101,7 +101,7 @@ const hruController = new HruController(hruService, logger);
 // Routes
 app.use("/api/hru", createHruRouter(hruController));
 app.use("/api/timeline", createTimelineRouter(logger, timelineScheduler, hruService));
-app.use("/api/settings", createSettingsRouter(hruService, mqttService, logger));
+app.use("/api/settings", createSettingsRouter(hruService, mqttService, haClient, logger));
 app.use(
   "/api/database",
   createDatabaseRouter(valveManager, mqttService, timelineScheduler, logger),

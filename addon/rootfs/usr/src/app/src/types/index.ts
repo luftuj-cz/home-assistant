@@ -4,6 +4,7 @@ export const TEMP_UNIT_SETTING_KEY = "ui.temperature_unit";
 export const SUPPORTED_LANGUAGES = new Set(["en", "cs"]);
 
 export const HRU_SETTINGS_KEY = "hru.settings";
+export const ONBOARDING_DONE_KEY = "onboarding.done";
 
 export type HruSettings = {
   unit: string | null;

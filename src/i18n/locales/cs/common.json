@@ -346,5 +346,88 @@
       "title": "Inicializace překladů selhala",
       "message": "Texty uživatelského rozhraní se zobrazí pouze anglicky. Obnovte prosím stránku."
     }
+  },
+  "onboarding": {
+    "title": "Vítejte!",
+    "welcome": {
+      "label": "Vítejte",
+      "description": "Začínáme",
+      "title": "Pojďme nastavit váš systém",
+      "text": "Nakonfigurujeme připojení k rekuperační jednotce (Modbus) a Home Assistantu (MQTT).",
+      "button": "Spustit nastavení"
+    },
+    "preferences": {
+      "label": "Předvolby",
+      "description": "Jazyk a vzhled",
+      "languageLabel": "Jazyk",
+      "languagePlaceholder": "Vyberte jazyk",
+      "themeLabel": "Vzhled",
+      "themePlaceholder": "Vyberte vzhled",
+      "themes": {
+        "light": "Světlý",
+        "dark": "Tmavý"
+      },
+      "tempUnitLabel": "Jednotka teploty",
+      "tempUnitPlaceholder": "Vyberte jednotku",
+      "tempUnits": {
+        "c": "Celsius (°C)",
+        "f": "Fahrenheit (°F)"
+      }
+    },
+    "modbus": {
+      "label": "Modbus",
+      "description": "Připojení jednotky",
+      "title": "Připojte se k rekuperaci přes Modbus TCP",
+      "hostLabel": "IP adresa hostitele",
+      "portLabel": "Port",
+      "unitIdLabel": "ID jednotky",
+      "test": "Testovat připojení",
+      "connected": "Připojeno k rekuperaci",
+      "failed": "Připojení k rekuperaci selhalo"
+    },
+    "mqtt": {
+      "label": "MQTT",
+      "description": "Integrace do HA",
+      "title": "Konfigurace MQTT",
+      "enable": "Povolit MQTT",
+      "hostLabel": "Broker hostitel",
+      "portLabel": "Port",
+      "userLabel": "Uživatelské jméno",
+      "passLabel": "Heslo",
+      "test": "Testovat připojení",
+      "testing": "Testování...",
+      "connected": "Připojeno!",
+      "failed": "Připojení selhalo",
+      "warning": "Vypnutí MQTT znamená, že nebude fungovat integrace s Home Assistantem. Můžete jej povolit později v nastavení."
+    },
+    "unit": {
+      "label": "Jednotka",
+      "description": "Výběr modelu",
+      "title": "Vyberte model vaší rekuperační jednotky",
+      "modelLabel": "Model",
+      "modelPlaceholder": "Vyberte jednotku...",
+      "hint": "Tím se aplikuje správná mapa registrů a funkcí pro vaše zařízení.",
+      "error": "Vyberte prosím jednotku",
+      "loadFailed": "Nepodařilo se načíst modely jednotek. Zkuste prosím obnovit stránku.",
+      "saveFailed": "Nepodařilo se uložit nastavení jednotky"
+    },
+    "status": {
+      "label": "Status",
+      "description": "Kontrola systému",
+      "found": "Luftátor nalezen!",
+      "notFound": "Luftátor zatím nebyl nalezen.",
+      "integrationStatus": "Stav integrace",
+      "waitingTitle": "Čekání na Home Assistant...",
+      "waitingHA": "Jsme nakonfigurováni, ale Home Assistant zatím zařízení nezaregistroval. To obvykle trvá asi 60 sekund po připojení MQTT.\n\nMůžete pokračovat na hlavní panel, entity se objeví automaticky.",
+      "readyTitle": "HOTOVO!",
+      "ready": "Systém je plně funkční a připojen k Home Assistantu.",
+      "dashboard": "Přejít na hlavní panel"
+    },
+    "errors": {
+      "prefSaveFailed": "Nepodařilo se uložit předvolby",
+      "mqttSaveFailed": "Nepodařilo se uložit nastavení MQTT"
+    },
+    "back": "Zpět",
+    "next": "Další"
   }
 }

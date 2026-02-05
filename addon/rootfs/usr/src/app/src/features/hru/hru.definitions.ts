@@ -60,6 +60,7 @@ export interface RegulationStrategy {
 export type ControlUnit = "%" | "m3/h" | "level";
 
 interface BaseHRU {
+  id: string;
   code?: string;
   name: string;
   regulationTypeId: string;

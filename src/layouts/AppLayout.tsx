@@ -19,6 +19,8 @@ import {
   Badge,
   ThemeIcon,
   NavLink,
+  Loader,
+  Center,
 } from "@mantine/core";
 import { motion } from "framer-motion";
 import { APP_VERSION } from "../config";
@@ -31,10 +33,11 @@ import {
   IconSettings,
   IconBug,
 } from "@tabler/icons-react";
-import { Link, Outlet, useLocation } from "@tanstack/react-router";
+import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useDisclosure } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
-import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useMemo, useEffect } from "react";
 import logoFull from "../assets/logo-big-with-text.svg";
 import logoMark from "../assets/logo.svg";
 
@@ -42,9 +45,39 @@ export function AppLayout() {
   const [mobileNavOpened, { toggle, close }] = useDisclosure(false);
   const { t } = useTranslation();
   const location = useLocation();
+  const navigate = useNavigate();
   const footerLink = import.meta.env.VITE_FOOTER_LINK ?? "https://www.luftuj.cz/";
 
+  // Check Onboarding Status
+  const { data: onboardingStatus, isLoading: isLoadingStatus } = useQuery({
+    queryKey: ["onboarding-layout-check"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings/onboarding-status");
+      if (!res.ok) return null; // Fail silently
+      return (await res.json()) as { onboardingDone: boolean };
+    },
+    // Don't refetch too often, just initial load is critical
+    refetchOnWindowFocus: false,
+  });
+
+  useEffect(() => {
+    if (isLoadingStatus) return;
+    if (!onboardingStatus) return;
+
+    const isDoingOnboarding = location.pathname === "/onboarding";
+
+    if (onboardingStatus.onboardingDone === false && !isDoingOnboarding) {
+      navigate({ to: "/onboarding" });
+    } else if (onboardingStatus.onboardingDone === true && isDoingOnboarding) {
+      navigate({ to: "/" });
+    }
+  }, [onboardingStatus, isLoadingStatus, location.pathname, navigate]);
+
+  const isOnboarding = location.pathname === "/onboarding";
+  const showNav = onboardingStatus?.onboardingDone !== false;
+
   const navItems = useMemo(() => {
+    if (!showNav) return [];
     const items = [
       { to: "/", label: t("app.nav.dashboard"), icon: IconLayoutDashboard },
       { to: "/valves", label: t("app.nav.valves"), icon: IconDeviceFloppy },
@@ -57,7 +90,7 @@ export function AppLayout() {
     }
 
     return items;
-  }, [t]);
+  }, [t, showNav]);
 
   function isActive(to: string) {
     return location.pathname === to;
@@ -117,96 +150,100 @@ export function AppLayout() {
               </motion.div>
             </UnstyledButton>
 
-            <Group gap="sm" visibleFrom="md">
-              <Paper
-                px="xs"
-                py={4}
-                radius="lg"
-                style={{
-                  backgroundColor: "var(--mantine-color-default-hover)",
-                  border: "1px solid var(--mantine-color-default-border)",
-                  position: "relative",
-                  zIndex: 1,
-                }}
-              >
-                <Group gap={4} wrap="nowrap">
-                  {navItems.map((item) => {
-                    const active = isActive(item.to);
-                    const IconComponent = item.icon;
-                    return (
-                      <Button
-                        key={item.to}
-                        component={Link}
-                        to={item.to}
-                        variant="subtle"
-                        size="sm"
-                        radius="md"
-                        leftSection={
-                          <motion.div
-                            animate={{
-                              scale: active ? 1.1 : 1,
-                              color: active
-                                ? "var(--mantine-color-primary-filled)"
-                                : "var(--mantine-color-dimmed)",
-                            }}
-                            transition={{ duration: 0.2 }}
-                          >
-                            <IconComponent size={18} stroke={active ? 2.5 : 2} />
-                          </motion.div>
-                        }
-                        styles={{
-                          root: {
-                            fontWeight: active ? 700 : 500,
-                            transition: "color 0.2s ease",
-                            border: "none",
-                            backgroundColor: "transparent",
-                            position: "relative",
-                            zIndex: 2,
-                            color: active
-                              ? "var(--mantine-color-text)"
-                              : "var(--mantine-color-dimmed)",
-                            "&:hover": {
+            {showNav && (
+              <Group gap="sm" visibleFrom="md">
+                <Paper
+                  px="xs"
+                  py={4}
+                  radius="lg"
+                  style={{
+                    backgroundColor: "var(--mantine-color-default-hover)",
+                    border: "1px solid var(--mantine-color-default-border)",
+                    position: "relative",
+                    zIndex: 1,
+                  }}
+                >
+                  <Group gap={4} wrap="nowrap">
+                    {navItems.map((item) => {
+                      const active = isActive(item.to);
+                      const IconComponent = item.icon;
+                      return (
+                        <Button
+                          key={item.to}
+                          component={Link}
+                          to={item.to}
+                          variant="subtle"
+                          size="sm"
+                          radius="md"
+                          leftSection={
+                            <motion.div
+                              animate={{
+                                scale: active ? 1.1 : 1,
+                                color: active
+                                  ? "var(--mantine-color-primary-filled)"
+                                  : "var(--mantine-color-dimmed)",
+                              }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <IconComponent size={18} stroke={active ? 2.5 : 2} />
+                            </motion.div>
+                          }
+                          styles={{
+                            root: {
+                              fontWeight: active ? 700 : 500,
+                              transition: "color 0.2s ease",
+                              border: "none",
                               backgroundColor: "transparent",
-                              color: "var(--mantine-color-text)",
+                              position: "relative",
+                              zIndex: 2,
+                              color: active
+                                ? "var(--mantine-color-text)"
+                                : "var(--mantine-color-dimmed)",
+                              "&:hover": {
+                                backgroundColor: "transparent",
+                                color: "var(--mantine-color-text)",
+                              },
                             },
-                          },
-                        }}
-                      >
-                        <Box style={{ position: "relative", zIndex: 2 }}>{item.label}</Box>
-                        {active && (
-                          <motion.div
-                            layoutId="nav-active-pill"
-                            style={{
-                              position: "absolute",
-                              inset: 0,
-                              backgroundColor: "rgba(255, 255, 255, 0.08)",
-                              borderRadius: "var(--mantine-radius-md)",
-                              zIndex: 1,
-                              border: "1px solid rgba(255, 255, 255, 0.1)",
-                              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
-                            }}
-                            transition={{
-                              type: "spring",
-                              stiffness: 380,
-                              damping: 30,
-                            }}
-                          />
-                        )}
-                      </Button>
-                    );
-                  })}
-                </Group>
-              </Paper>
-            </Group>
+                          }}
+                        >
+                          <Box style={{ position: "relative", zIndex: 2 }}>{item.label}</Box>
+                          {active && (
+                            <motion.div
+                              layoutId="nav-active-pill"
+                              style={{
+                                position: "absolute",
+                                inset: 0,
+                                backgroundColor: "rgba(255, 255, 255, 0.08)",
+                                borderRadius: "var(--mantine-radius-md)",
+                                zIndex: 1,
+                                border: "1px solid rgba(255, 255, 255, 0.1)",
+                                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                              }}
+                              transition={{
+                                type: "spring",
+                                stiffness: 380,
+                                damping: 30,
+                              }}
+                            />
+                          )}
+                        </Button>
+                      );
+                    })}
+                  </Group>
+                </Paper>
+              </Group>
+            )}
 
-            <Box hiddenFrom="md" style={{ display: "flex", alignItems: "center" }}>
-              <Burger
-                opened={mobileNavOpened}
-                onClick={toggle}
-                aria-label="Toggle navigation"
-                size="md"
-              />
-            </Box>
+            {showNav && (
+              <Box hiddenFrom="md" style={{ display: "flex", alignItems: "center" }}>
+                <Burger
+                  opened={mobileNavOpened}
+                  onClick={toggle}
+                  aria-label="Toggle navigation"
+                  size="md"
+                />
+              </Box>
+            )}
           </Group>
         </Container>
       </AppShell.Header>
@@ -288,7 +325,20 @@ export function AppLayout() {
 
       <AppShell.Main>
         <Box p={{ base: "sm", sm: "md" }} style={{ flex: 1 }}>
-          <Outlet />
+          {isLoadingStatus && !isOnboarding ? (
+            <Center style={{ height: "60vh" }}>
+              <Loader size="xl" />
+            </Center>
+          ) : !showNav && !isOnboarding ? (
+            <Center style={{ height: "60vh" }}>
+              <Stack align="center">
+                <Loader size="lg" />
+                <Text c="dimmed">{t("onboarding.status.waitingTitle")}</Text>
+              </Stack>
+            </Center>
+          ) : (
+            <Outlet />
+          )}
         </Box>
 
         <Box

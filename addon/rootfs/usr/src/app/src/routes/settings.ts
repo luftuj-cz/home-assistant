@@ -2,6 +2,7 @@ import { Router } from "express";
 import type { Request, Response } from "express";
 import type { Logger } from "pino";
 import { getAppSetting, setAppSetting } from "../services/database";
+import type { HomeAssistantClient } from "../services/homeAssistantClient";
 import type { MqttService } from "../services/mqttService";
 import {
   HRU_SETTINGS_KEY,
@@ -11,6 +12,7 @@ import {
   THEME_SETTING_KEY,
   LANGUAGE_SETTING_KEY,
   TEMP_UNIT_SETTING_KEY,
+  ONBOARDING_DONE_KEY,
   type HruSettings,
   MQTT_SETTINGS_KEY,
   type MqttSettings,
@@ -30,11 +32,63 @@ import { validateRequest } from "../middleware/validateRequest";
 export function createSettingsRouter(
   hruService: HruService,
   mqttService: MqttService,
+  haClient: HomeAssistantClient | null,
   logger: Logger,
 ) {
   const router = Router();
 
-  // MQTT Settings
+  router.get("/onboarding-status", async (_request: Request, response: Response) => {
+    function isTruthy(val: string | null) {
+      return val === "true" || val === "1" || val === "yes";
+    }
+
+    const hruSettings = getAppSetting(HRU_SETTINGS_KEY);
+    const hruConfigured = !!(hruSettings && JSON.parse(String(hruSettings)).unit);
+
+    const mqttSettings = getAppSetting(MQTT_SETTINGS_KEY);
+    const mqttConfigured = !!(mqttSettings && JSON.parse(String(mqttSettings)).enabled);
+
+    let luftatorAvailable = false;
+    if (haClient) {
+      try {
+        const entities = await haClient.fetchLuftatorEntities();
+        luftatorAvailable = entities.length > 0;
+      } catch (err) {
+        logger.warn({ err }, "Failed to check Luftator status in HASS");
+      }
+    }
+
+    const onboardingDone = isTruthy(getAppSetting(ONBOARDING_DONE_KEY));
+
+    response.json({
+      onboardingDone,
+      hruConfigured,
+      mqttConfigured,
+      luftatorAvailable,
+    });
+  });
+
+  router.post("/onboarding-finish", (_request: Request, response: Response) => {
+    setAppSetting(ONBOARDING_DONE_KEY, "true");
+    response.status(204).end();
+  });
+
+  router.post("/onboarding-reset", (_request: Request, response: Response) => {
+    setAppSetting(ONBOARDING_DONE_KEY, "false");
+    response.status(204).end();
+  });
+
+  router.get("/units", (_request: Request, response: Response) => {
+    const units = hruService.getAllUnits();
+    response.json(
+      units.map((u) => ({
+        id: u.id,
+        name: u.name,
+        code: u.code,
+      })),
+    );
+  });
+
   router.get("/mqtt", (_request: Request, response: Response) => {
     const raw = getAppSetting(MQTT_SETTINGS_KEY);
     let value: MqttSettings;
@@ -69,7 +123,6 @@ export function createSettingsRouter(
       };
       setAppSetting(MQTT_SETTINGS_KEY, JSON.stringify(settings));
 
-      // Trigger reload
       await mqttService.reloadConfig();
 
       response.status(204).end();
@@ -102,7 +155,6 @@ export function createSettingsRouter(
     },
   );
 
-  // HRU Settings
   router.get("/hru", (_request: Request, response: Response) => {
     const raw = getAppSetting(HRU_SETTINGS_KEY);
     let value: HruSettings;
@@ -169,7 +221,6 @@ export function createSettingsRouter(
     },
   );
 
-  // Addon Mode
   router.get("/mode", (_request: Request, response: Response) => {
     const raw = getAppSetting(ADDON_MODE_KEY);
     const mode = ADDON_MODES.includes(raw as AddonMode) ? raw : "manual";
@@ -186,7 +237,6 @@ export function createSettingsRouter(
     },
   );
 
-  // Theme
   router.get("/theme", (_request: Request, response: Response) => {
     const theme = getAppSetting(THEME_SETTING_KEY) ?? "light";
     response.json({ theme });
@@ -202,7 +252,6 @@ export function createSettingsRouter(
     },
   );
 
-  // Language
   router.get("/language", (_request: Request, response: Response) => {
     const language = getAppSetting(LANGUAGE_SETTING_KEY) ?? "cs";
     response.json({ language });
@@ -218,7 +267,6 @@ export function createSettingsRouter(
     },
   );
 
-  // Temperature Unit
   router.get("/temperature-unit", (_request: Request, response: Response) => {
     const temperatureUnit = getAppSetting(TEMP_UNIT_SETTING_KEY) ?? "c";
     response.json({ temperatureUnit });

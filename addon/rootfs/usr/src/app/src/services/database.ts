@@ -81,6 +81,7 @@ const migrations: Migration[] = [
       `CREATE TABLE IF NOT EXISTS timeline_events (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         start_time TEXT NOT NULL, -- HH:MM format
+        end_time TEXT, -- Legacy field, removed by 004
         day_of_week INTEGER, -- 0-6 (Sunday=0), NULL for all days
         hru_config TEXT, -- JSON: {mode, power, temperature}
         luftator_config TEXT, -- JSON: {entity_id: value}
@@ -174,7 +175,18 @@ function applyMigrations(database: Database, logger?: Logger): void {
     database.run("BEGIN");
     try {
       for (const sql of migration.statements) {
-        database.run(sql);
+        try {
+          database.run(sql);
+        } catch (error) {
+          if (
+            migration.id === "004_remove_legacy_end_time" &&
+            String(error).includes("no such column")
+          ) {
+            activeLogger?.info("Migration 004: end_time column already removed, skipping.");
+            continue;
+          }
+          throw error;
+        }
       }
       insertMigration.run(migration.id);
       database.run("COMMIT");

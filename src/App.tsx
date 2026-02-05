@@ -8,8 +8,9 @@ import {
 } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { RouterProvider } from "@tanstack/react-router";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, useMemo } from "react";
 
 import { router } from "./router";
 import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from "./i18n";
@@ -97,6 +98,11 @@ function ThemeInitializer() {
   useEffect(() => {
     let active = true;
 
+    // Only synchronise once per session to avoid loops when theme changes
+    if (sessionStorage.getItem("luftujha-theme-synced")) {
+      return;
+    }
+
     async function synchroniseTheme() {
       try {
         const response = await fetch("/api/settings/theme");
@@ -109,6 +115,7 @@ function ThemeInitializer() {
         }
         if (data.theme === "dark" || data.theme === "light") {
           setColorScheme(data.theme);
+          sessionStorage.setItem("luftujha-theme-synced", "true");
         }
       } catch (error) {
         logger.error("Failed to load persisted theme", { error });
@@ -160,21 +167,25 @@ function LanguageInitializer() {
 }
 
 export default function App() {
+  const queryClient = useMemo(() => new QueryClient(), []);
+
   return (
-    <I18nextProvider i18n={i18n} defaultNS="common">
-      <MantineProvider
-        theme={theme}
-        withCssVariables
-        colorSchemeManager={colorSchemeManager}
-        defaultColorScheme="dark"
-      >
-        <LanguageInitializer />
-        <ThemeInitializer />
-        <Notifications position="bottom-left" limit={3} zIndex={4000} containerWidth={440} />
-        <Suspense fallback={null}>
-          <RouterProvider router={router} />
-        </Suspense>
-      </MantineProvider>
-    </I18nextProvider>
+    <QueryClientProvider client={queryClient}>
+      <I18nextProvider i18n={i18n} defaultNS="common">
+        <MantineProvider
+          theme={theme}
+          withCssVariables
+          colorSchemeManager={colorSchemeManager}
+          defaultColorScheme="dark"
+        >
+          <LanguageInitializer />
+          <ThemeInitializer />
+          <Notifications position="bottom-left" limit={3} zIndex={4000} containerWidth={440} />
+          <Suspense fallback={null}>
+            <RouterProvider router={router} />
+          </Suspense>
+        </MantineProvider>
+      </I18nextProvider>
+    </QueryClientProvider>
   );
 }

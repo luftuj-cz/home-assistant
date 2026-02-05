@@ -2,7 +2,22 @@ import type { HruRepository } from "./hru.repository";
 import type { SettingsRepository } from "../settings/settings.repository";
 import type { Logger } from "pino";
 import { HruLoader } from "./hru.loader";
-import { type RegulationStrategy, type HeatRecoveryUnit } from "./hru.definitions";
+import {
+  type RegulationStrategy,
+  type HeatRecoveryUnit,
+  type RegulationCapabilities,
+} from "./hru.definitions";
+
+export interface HruUnitDefinition {
+  id: string;
+  code?: string;
+  name: string;
+  isConfigurable: boolean;
+  maxValue: number;
+  controlUnit: string;
+  capabilities: RegulationCapabilities | null;
+  registers: null;
+}
 
 export interface HruReadResult {
   raw: { power: number; temperature: number; mode: number };
@@ -27,9 +42,10 @@ export class HruService {
     this.strategies = loader.loadStrategies();
   }
 
-  getAllUnits() {
+  getAllUnits(): HruUnitDefinition[] {
     return this.units.map((u) => ({
       id: u.code || u.name,
+      code: u.code,
       name: u.name,
       isConfigurable: u.isConfigurable,
       maxValue: u.maxValue,

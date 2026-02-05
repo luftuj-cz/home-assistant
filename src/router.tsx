@@ -11,6 +11,7 @@ import { ValvesPage } from "./pages/ValvesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { TimelinePage } from "./pages/TimelinePage";
 import { DebugPage } from "./pages/DebugPage";
+import { OnboardingPage } from "./pages/OnboardingPage";
 
 const rootRoute = createRootRoute({
   component: AppLayout,
@@ -46,12 +47,19 @@ const debugRoute = createRoute({
   component: DebugPage,
 });
 
+const onboardingRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/onboarding",
+  component: OnboardingPage,
+});
+
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
   valvesRoute,
   settingsRoute,
   timelineRoute,
   debugRoute,
+  onboardingRoute,
 ]);
 
 const hashHistory = createHashHistory();

@@ -358,5 +358,88 @@
       "title": "Translation initialisation failed",
       "message": "UI texts may appear in English only. Please reload the page."
     }
+  },
+  "onboarding": {
+    "title": "Welcome!",
+    "welcome": {
+      "label": "Welcome",
+      "description": "Get started",
+      "title": "Let's set up your system",
+      "text": "We'll configure your connection to the Heat Recovery Unit (Modbus) and Home Assistant (MQTT).",
+      "button": "Start Setup"
+    },
+    "preferences": {
+      "label": "Preferences",
+      "description": "Language & Theme",
+      "languageLabel": "Language",
+      "languagePlaceholder": "Select language",
+      "themeLabel": "Appearance",
+      "themePlaceholder": "Select theme",
+      "themes": {
+        "light": "Light",
+        "dark": "Dark"
+      },
+      "tempUnitLabel": "Temperature Unit",
+      "tempUnitPlaceholder": "Select unit",
+      "tempUnits": {
+        "c": "Celsius (°C)",
+        "f": "Fahrenheit (°F)"
+      }
+    },
+    "modbus": {
+      "label": "Modbus",
+      "description": "Connect unit",
+      "title": "Connect to your HRU via Modbus TCP",
+      "hostLabel": "Host IP",
+      "portLabel": "Port",
+      "unitIdLabel": "Unit ID",
+      "test": "Test Connection",
+      "connected": "Connected to HRU",
+      "failed": "Connection to HRU failed"
+    },
+    "mqtt": {
+      "label": "MQTT",
+      "description": "HA Integration",
+      "title": "MQTT Configuration",
+      "enable": "Enable MQTT",
+      "hostLabel": "Broker Host",
+      "portLabel": "Port",
+      "userLabel": "Username",
+      "passLabel": "Password",
+      "test": "Test Connection",
+      "testing": "Testing...",
+      "connected": "Connected!",
+      "failed": "Connection Failed",
+      "warning": "Disabling MQTT means no integration with Home Assistant. You can enable it later in Settings."
+    },
+    "unit": {
+      "label": "Unit",
+      "description": "Select Model",
+      "title": "Select your Heat Recovery Unit Model",
+      "modelLabel": "Model",
+      "modelPlaceholder": "Select a unit...",
+      "hint": "This applies the correct register map and capabilities for your device.",
+      "error": "Please select a unit",
+      "loadFailed": "Failed to load units. Please try refreshing.",
+      "saveFailed": "Failed to save Unit settings"
+    },
+    "status": {
+      "label": "Status",
+      "description": "System Check",
+      "found": "Luftator Found!",
+      "notFound": "Luftator not found yet.",
+      "integrationStatus": "Integration Status",
+      "waitingTitle": "Waiting for Home Assistant...",
+      "waitingHA": "We are configured, but Home Assistant hasn't picked up the devices yet. This usually takes about 60 seconds after MQTT connects.\n\nYou can proceed to the dashboard, entities will appear automatically.",
+      "readyTitle": "Ready!",
+      "ready": "System is fully operational and connected to Home Assistant.",
+      "dashboard": "Go to Dashboard"
+    },
+    "errors": {
+      "prefSaveFailed": "Failed to save preferences",
+      "mqttSaveFailed": "Failed to save MQTT settings"
+    },
+    "back": "Back",
+    "next": "Next"
   }
 }

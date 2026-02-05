@@ -33,7 +33,7 @@ export const addonModeInputSchema = z.object({
 
 // Theme Setting Schema
 export const themeSettingInputSchema = z.object({
-  theme: z.enum(["light", "dark", "auto"]),
+  theme: z.enum(["light", "dark"]),
 });
 
 // Language Setting Schema
