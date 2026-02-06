@@ -15,7 +15,7 @@ addon/rootfs/usr/src/app/.env
 addon/rootfs/usr/src/app/.venv
 
 # Home Assistant add-on data store
-addon/rootfs/usr/data/luftator.db*
+addon/rootfs/usr/src/app/data
 
 # Editor directories and files
 .vscode/*

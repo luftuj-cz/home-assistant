@@ -8,16 +8,18 @@ import type { Logger } from "pino";
 import { TIMELINE_MODES_KEY, type TimelineMode } from "../types";
 
 const DEFAULT_DATA_DIR = "/data";
-const FALLBACK_DATA_DIR = path.resolve(process.cwd(), "../../data");
+const IS_HA_ADDON = Boolean(process.env.SUPERVISOR_TOKEN);
+const PROJECT_DATA_DIR = path.resolve(process.cwd(), "data");
 
 const dataDir = (() => {
   if (process.env.LUFTATOR_DB_PATH) {
     return path.dirname(process.env.LUFTATOR_DB_PATH);
   }
-  if (existsSync(DEFAULT_DATA_DIR)) {
+  if (IS_HA_ADDON && existsSync(DEFAULT_DATA_DIR)) {
     return DEFAULT_DATA_DIR;
   }
-  return FALLBACK_DATA_DIR;
+  // Fallback to local project data directory for development
+  return PROJECT_DATA_DIR;
 })();
 
 if (!existsSync(dataDir)) {
