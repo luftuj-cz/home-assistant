@@ -21,6 +21,7 @@ import {
   NavLink,
   Loader,
   Center,
+  useComputedColorScheme,
 } from "@mantine/core";
 import { motion } from "framer-motion";
 import { APP_VERSION } from "../config";
@@ -38,8 +39,10 @@ import { useDisclosure } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useEffect } from "react";
-import logoFull from "../assets/logo-big-with-text.svg";
-import logoMark from "../assets/logo.svg";
+import logoFullLight from "../assets/logo-full-light.svg";
+import logoFullDark from "../assets/logo-full-dark.svg";
+import logoMarkLight from "../assets/logo-mark-light.svg";
+import logoMarkDark from "../assets/logo-mark-dark.svg";
 
 export function AppLayout() {
   const [mobileNavOpened, { toggle, close }] = useDisclosure(false);
@@ -47,6 +50,10 @@ export function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const footerLink = import.meta.env.VITE_FOOTER_LINK ?? "https://www.luftuj.cz/";
+  const computedColorScheme = useComputedColorScheme("light", { getInitialValueInEffect: true });
+
+  const logoFull = computedColorScheme === "dark" ? logoFullDark : logoFullLight;
+  const logoMark = computedColorScheme === "dark" ? logoMarkDark : logoMarkLight;
 
   // Check Onboarding Status
   const { data: onboardingStatus, isLoading: isLoadingStatus } = useQuery({
