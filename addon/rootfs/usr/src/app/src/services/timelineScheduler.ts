@@ -72,7 +72,10 @@ export class TimelineScheduler {
         "TimelineScheduler: failed to parse HRU settings, treating as global/no unit",
       );
     }
-    return undefined;
+
+    // Fallback: use first available unit if specific setting is missing
+    const units = this.hruService.getAllUnits();
+    return units[0]?.id;
   }
 
   private pickActiveEvent(): ReturnType<typeof getTimelineEvents>[number] | null {
@@ -157,6 +160,7 @@ export class TimelineScheduler {
     try {
       const override = JSON.parse(overrideRaw) as TimelineOverride;
       if (!override || !override.endTime) return 0;
+      if (override.durationMinutes === 999999) return 999999;
       const diff = new Date(override.endTime).getTime() - Date.now();
       return Math.max(0, Math.ceil(diff / 60000));
     } catch {

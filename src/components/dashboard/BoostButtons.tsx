@@ -34,6 +34,8 @@ interface BoostButtonsProps {
   activeUnitId?: string;
 }
 
+const INFINITE_DURATION = 999999;
+
 export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
   const boostModes = modes.filter((m) => m.isBoost);
   const [duration, setDuration] = useState<number>(15);
@@ -209,8 +211,13 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                 </Group>
 
                 {!activeBoost && (
-                  <Group gap={6} justify="center">
-                    {[5, 15, 30, 60, 120, 240].map((v) => (
+                  <Group
+                    gap={6}
+                    justify="center"
+                    style={{ flexWrap: "wrap", maxWidth: 280 }}
+                    mx="auto"
+                  >
+                    {[5, 15, 30, 60, 120, INFINITE_DURATION].map((v) => (
                       <Button
                         key={v}
                         variant={duration === v ? "filled" : "default"}
@@ -228,7 +235,13 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                           transition: "all 0.2s ease",
                         }}
                       >
-                        {v}
+                        {v === INFINITE_DURATION
+                          ? "∞"
+                          : v >= 60
+                            ? v % 60 === 0
+                              ? `${v / 60}h`
+                              : `${v / 60}h`
+                            : v}
                       </Button>
                     ))}
                   </Group>
@@ -237,11 +250,11 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
 
               <Center h={100}>
                 <Group gap="xl" align="center">
-                  {!activeBoost && (
+                  {!activeBoost && duration !== INFINITE_DURATION && (
                     <ActionIcon
                       variant="subtle"
                       color="orange"
-                      onClick={() => setDuration((d) => Math.max(5, d - 5))}
+                      onClick={() => setDuration((d) => Math.max(1, d - 1))}
                       size="lg"
                       radius="xl"
                     >
@@ -261,7 +274,13 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                       }}
                     >
                       {activeBoost ? (
-                        <motion.span>{roundedMinutes}</motion.span>
+                        activeBoost.durationMinutes === INFINITE_DURATION ? (
+                          "∞"
+                        ) : (
+                          <motion.span>{roundedMinutes}</motion.span>
+                        )
+                      ) : duration === INFINITE_DURATION ? (
+                        "∞"
                       ) : (
                         <motion.span>{roundedMinutes}</motion.span>
                       )}
@@ -271,11 +290,11 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                     </Text>
                   </Stack>
 
-                  {!activeBoost && (
+                  {!activeBoost && duration !== INFINITE_DURATION && (
                     <ActionIcon
                       variant="subtle"
                       color="orange"
-                      onClick={() => setDuration((d) => Math.min(240, d + 5))}
+                      onClick={() => setDuration((d) => Math.min(240, d + 1))}
                       size="lg"
                       radius="xl"
                     >
@@ -285,27 +304,38 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                 </Group>
               </Center>
 
-              <Slider
-                value={activeBoost ? remainingMinutes : duration}
-                onChange={activeBoost ? undefined : setDuration}
-                min={activeBoost ? 0 : 5}
-                max={activeBoost ? activeBoost.durationMinutes : 240}
-                step={activeBoost ? 1 : 5}
-                label={null}
-                size="lg"
-                color="orange"
-                disabled={!!activeBoost || loadingModeId !== null || isCancelling}
-                styles={{
-                  thumb: {
-                    borderWidth: 2,
-                    padding: 3,
-                    width: 22,
-                    height: 22,
-                    display: activeBoost ? "none" : "block",
-                  },
-                  track: { backgroundColor: "rgba(255,255,255,0.15)" },
-                }}
-              />
+              {(!activeBoost || activeBoost.durationMinutes !== INFINITE_DURATION) && (
+                <Slider
+                  value={
+                    (activeBoost ? remainingMinutes : duration) === INFINITE_DURATION
+                      ? 481
+                      : activeBoost
+                        ? remainingMinutes
+                        : duration
+                  }
+                  onChange={(val) => {
+                    if (activeBoost) return;
+                    setDuration(val === 481 ? INFINITE_DURATION : val);
+                  }}
+                  min={activeBoost ? 0 : 1}
+                  max={activeBoost ? activeBoost.durationMinutes : 481}
+                  step={1}
+                  label={null}
+                  size="lg"
+                  color="orange"
+                  disabled={!!activeBoost || loadingModeId !== null || isCancelling}
+                  styles={{
+                    thumb: {
+                      borderWidth: 2,
+                      padding: 3,
+                      width: 22,
+                      height: 22,
+                      display: activeBoost ? "none" : "block",
+                    },
+                    track: { backgroundColor: "rgba(255,255,255,0.15)" },
+                  }}
+                />
+              )}
             </Stack>
           </Card>
 

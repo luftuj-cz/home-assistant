@@ -369,6 +369,7 @@ export class MqttService extends EventEmitter {
       await this.client.subscribeAsync(`${unitBaseTopic}/boost_duration/set`);
       await this.client.subscribeAsync(`${unitBaseTopic}/boost/cancel`);
       await this.client.subscribeAsync(`${unitBaseTopic}/boost/+/start`);
+      await this.client.subscribeAsync(`${unitBaseTopic}/boost/+/start_infinite`);
       this.logger.debug({ unitId }, "MQTT: Subscribed to unit commands");
     } catch (err) {
       this.logger.warn({ err, unitId }, "MQTT: Failed to subscribe to commands");
@@ -391,8 +392,8 @@ export class MqttService extends EventEmitter {
       // 1. Duration Set
       if (topic === `${unitBaseTopic}/boost_duration/set`) {
         const duration = parseInt(payload, 10);
-        // Validate payload (5-240)
-        if (!isNaN(duration) && duration >= 5 && duration <= 240) {
+        // Validate payload (5-480)
+        if (!isNaN(duration) && duration >= 5 && duration <= 480) {
           this.logger.info({ duration }, "MQTT: Execute Boost Duration Set");
           this.settingsRepo.setBoostDuration(duration);
           await this.client?.publishAsync(
@@ -405,7 +406,7 @@ export class MqttService extends EventEmitter {
           );
           this.logger.info({ duration }, "MQTT: Boost duration updated");
         } else {
-          this.logger.warn({ payload }, "MQTT: Invalid duration received (must be 5-240)");
+          this.logger.warn({ payload }, "MQTT: Invalid duration received (must be 5-480)");
         }
       }
 
@@ -429,8 +430,11 @@ export class MqttService extends EventEmitter {
 
         const modeId = parseInt(modeIdStr, 10);
         const duration = this.settingsRepo.getBoostDuration();
+
+        const durationMinutes = duration;
         const endTime = new Date(Date.now() + duration * 60 * 1000).toISOString();
-        const override: TimelineOverride = { modeId, endTime, durationMinutes: duration };
+
+        const override: TimelineOverride = { modeId, endTime, durationMinutes };
 
         this.logger.info({ modeId, duration, override }, "MQTT: Execute Boost Start");
 
@@ -439,6 +443,32 @@ export class MqttService extends EventEmitter {
         this.emit("command-received");
 
         this.logger.info("MQTT: Boost activated successfully");
+      }
+
+      // 4. Start Infinite Boost
+      const startInfiniteBoostMatch = topic.match(
+        new RegExp(`${unitBaseTopic}/boost/(\\d+)/start_infinite`),
+      );
+      if (startInfiniteBoostMatch && payload === "START") {
+        const modeIdStr = startInfiniteBoostMatch[1];
+        if (!modeIdStr) {
+          this.logger.warn("MQTT: Infinite Boost start matched but no ID found");
+          return;
+        }
+
+        const modeId = parseInt(modeIdStr, 10);
+        const durationMinutes = 999999;
+        const endTime = new Date("9999-12-31T23:59:59.999Z").toISOString();
+
+        const override: TimelineOverride = { modeId, endTime, durationMinutes };
+
+        this.logger.info({ modeId, override }, "MQTT: Execute Infinite Boost Start");
+
+        this.settingsRepo.setTimelineOverride(override);
+        await this.timelineScheduler.executeScheduledEvent();
+        this.emit("command-received");
+
+        this.logger.info("MQTT: Infinite Boost activated successfully");
       }
     } catch (err) {
       this.logger.error({ err, topic }, "MQTT: Error handling incoming message");
@@ -599,7 +629,7 @@ export class MqttService extends EventEmitter {
       device,
       availability,
       5,
-      240,
+      480,
       5,
       "min",
       "mdi:clock-fast",
@@ -803,6 +833,18 @@ export class MqttService extends EventEmitter {
           availability,
           "mdi:rocket-launch",
         );
+
+        // Publish Infinite Boost Button
+        await this.publishButton(
+          unitId,
+          `boost_${slug}_infinite`,
+          `${boostBtnName} ∞`,
+          `${BASE_TOPIC}/${unitId}/boost/${m.id}/start_infinite`,
+          "START",
+          device,
+          availability,
+          "mdi:all-inclusive",
+        );
       } else {
         // Mode is NOT a boost anymore (or not relevant unit)
 
@@ -814,12 +856,14 @@ export class MqttService extends EventEmitter {
             "MQTT: Removing boost button (tracked)",
           );
           await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}`);
+          await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}_infinite`);
           delete currentBoostMap[m.id];
         }
 
         // 2. FALLBACK: Always try to remove using the CURRENT name slug too
         // This handles cases where we lost track (prevBoostMap empty) but the button exists.
         await this.removeDiscoveryEntity(unitId, "button", `boost_${slug}`);
+        await this.removeDiscoveryEntity(unitId, "button", `boost_${slug}_infinite`);
       }
     }
 
@@ -834,6 +878,7 @@ export class MqttService extends EventEmitter {
           "MQTT: Removing boost button (mode was deleted)",
         );
         await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}`);
+        await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}_infinite`);
         delete currentBoostMap[modeId];
       }
     }
