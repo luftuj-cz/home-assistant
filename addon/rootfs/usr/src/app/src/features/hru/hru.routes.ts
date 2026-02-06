@@ -7,6 +7,7 @@ export function createHruRouter(controller: HruController): Router {
   router.get("/units", controller.getUnits);
   router.get("/modes", controller.getModes);
   router.get("/read", controller.read);
+  router.post("/test", controller.test);
   router.post("/write", controller.write);
 
   return router;

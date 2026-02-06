@@ -467,7 +467,11 @@ export function SettingsPage() {
     }
     setProbingHru(true);
     try {
-      const response = await fetch(resolveApiUrl("/api/hru/read"));
+      const response = await fetch(resolveApiUrl("/api/hru/test"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(hruSettings),
+      });
       if (!response.ok) {
         const detail = await response.text();
         setProbeResult(null);
@@ -492,7 +496,7 @@ export function SettingsPage() {
     } finally {
       setProbingHru(false);
     }
-  }, [hruSettings.unit, t]);
+  }, [hruSettings, t]);
 
   async function handleExport() {
     try {

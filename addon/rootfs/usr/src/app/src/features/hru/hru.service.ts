@@ -1,3 +1,4 @@
+import type { HruSettings } from "../../types";
 import type { HruRepository } from "./hru.repository";
 import type { SettingsRepository } from "../settings/settings.repository";
 import type { Logger } from "pino";
@@ -76,8 +77,8 @@ export class HruService {
     }));
   }
 
-  async readValues(): Promise<HruReadResult> {
-    const configData = this.getResolvedConfiguration();
+  async readValues(settingsOverride?: HruSettings): Promise<HruReadResult> {
+    const configData = this.getResolvedConfiguration(settingsOverride);
     if (!configData) throw new Error("HRU not configured");
     const { settings, strategy, unit } = configData;
     const config = {
@@ -184,8 +185,8 @@ export class HruService {
     return this.units.find((u) => u.name === id || u.code === id);
   }
 
-  public getResolvedConfiguration() {
-    const raw = this.settingsRepo.getHruSettings();
+  public getResolvedConfiguration(settingsOverride?: HruSettings) {
+    const raw = settingsOverride || this.settingsRepo.getHruSettings();
     if (!raw?.unit) return null;
     const unit = this.getUnitById(raw.unit);
     if (!unit) return null;

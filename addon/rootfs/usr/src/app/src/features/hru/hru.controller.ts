@@ -35,6 +35,17 @@ export class HruController {
     }
   };
 
+  test = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
+    try {
+      const settings = req.body;
+      const result = await this.service.readValues(settings);
+      res.json(result);
+    } catch (error) {
+      this.logger.error({ error }, "Failed to test HRU connection");
+      next(error);
+    }
+  };
+
   write = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
     const { power, temperature, mode } = req.body as {
       power?: number;
