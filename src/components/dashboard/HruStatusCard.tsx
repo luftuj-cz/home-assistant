@@ -225,7 +225,7 @@ export function HruStatusCard({
               </Text>
               {activeMode ? (
                 <>
-                  <Title order={3} c="grape" lineClamp={1}>
+                  <Title order={3} c="grape">
                     {activeMode.source === "manual"
                       ? t("dashboard.activeMode.manual")
                       : activeMode.source === "boost"
