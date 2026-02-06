@@ -44,16 +44,18 @@ export class HruService {
   }
 
   getAllUnits(): HruUnitDefinition[] {
-    return this.units.map((u) => ({
-      id: u.code || u.name,
-      code: u.code,
-      name: u.name,
-      isConfigurable: u.isConfigurable,
-      maxValue: u.maxValue,
-      controlUnit: u.controlUnit,
-      capabilities: this.getStrategyForUnit(u)?.capabilities ?? null,
-      registers: null,
-    }));
+    return this.units
+      .map((u) => ({
+        id: u.code || u.name,
+        code: u.code,
+        name: u.name,
+        isConfigurable: u.isConfigurable,
+        maxValue: u.maxValue,
+        controlUnit: u.controlUnit,
+        capabilities: this.getStrategyForUnit(u)?.capabilities ?? null,
+        registers: null,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   getModes(unitIdOverride?: string): { id: number; name: string }[] {
@@ -71,10 +73,12 @@ export class HruService {
 
     if (!strategy) return [];
     const modes = strategy.modeCommands?.availableModes ?? {};
-    return Object.entries(modes).map(([id, name]) => ({
-      id: Number(id),
-      name: name as string,
-    }));
+    return Object.entries(modes)
+      .map(([id, name]) => ({
+        id: Number(id),
+        name: name as string,
+      }))
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   async readValues(settingsOverride?: HruSettings): Promise<HruReadResult> {

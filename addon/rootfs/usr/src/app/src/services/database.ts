@@ -563,17 +563,19 @@ export function getTimelineModes(hruId?: string): TimelineMode[] {
 
   const records = statements.getTimelineModes.all(hruId ?? null) as TimelineModeRecord[];
 
-  return records.map((r) => ({
-    id: r.id,
-    name: r.name,
-    color: r.color ?? undefined,
-    power: r.power ?? undefined,
-    temperature: r.temperature ?? undefined,
-    luftatorConfig: r.luftator_config ? JSON.parse(r.luftator_config) : undefined,
-    isBoost: Boolean(r.is_boost),
-    hruId: r.hru_id ?? undefined,
-    nativeMode: r.native_mode ?? undefined,
-  }));
+  return records
+    .map((r) => ({
+      id: r.id,
+      name: r.name,
+      color: r.color ?? undefined,
+      power: r.power ?? undefined,
+      temperature: r.temperature ?? undefined,
+      luftatorConfig: r.luftator_config ? JSON.parse(r.luftator_config) : undefined,
+      isBoost: Boolean(r.is_boost),
+      hruId: r.hru_id ?? undefined,
+      nativeMode: r.native_mode ?? undefined,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 }
 
 export function getTimelineMode(id: number): TimelineMode | null {
