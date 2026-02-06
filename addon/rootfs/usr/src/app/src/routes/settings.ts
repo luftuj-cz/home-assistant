@@ -181,7 +181,7 @@ export function createSettingsRouter(
   router.post(
     "/hru",
     validateRequest(hruSettingsInputSchema),
-    (request: Request, response: Response) => {
+    async (request: Request, response: Response) => {
       const { unit, host, port, unitId, maxPower } = request.body;
 
       if (unit !== undefined && !hruService.getAllUnits().some((u) => u.id === unit)) {
@@ -214,6 +214,17 @@ export function createSettingsRouter(
         maxPower,
       };
       setAppSetting(HRU_SETTINGS_KEY, JSON.stringify(settings));
+
+      // Trigger MQTT discovery update
+      try {
+        const config = hruService.getResolvedConfiguration(settings);
+        if (config) {
+          await mqttService.publishDiscovery(config.unit, config.strategy.capabilities);
+        }
+      } catch (err) {
+        logger.warn({ err }, "Failed to update MQTT discovery after HRU settings change");
+      }
+
       response.status(204).end();
     },
   );
@@ -257,9 +268,17 @@ export function createSettingsRouter(
   router.post(
     "/language",
     validateRequest(languageSettingInputSchema),
-    (request: Request, response: Response) => {
+    async (request: Request, response: Response) => {
       const { language } = request.body;
       setAppSetting(LANGUAGE_SETTING_KEY, language);
+
+      // Trigger MQTT discovery update to refresh localized names
+      try {
+        await mqttService.refreshDiscovery();
+      } catch (err) {
+        logger.warn({ err }, "Failed to update MQTT discovery after language change");
+      }
+
       response.status(204).end();
     },
   );

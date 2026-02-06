@@ -144,15 +144,44 @@ export class MqttService extends EventEmitter {
     unit: HeatRecoveryUnit,
     capabilities: RegulationCapabilities,
   ): Promise<boolean> {
+    const oldUnitId = this.cachedDiscoveryUnit
+      ? this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name)
+      : null;
+
     this.cachedDiscoveryUnit = unit;
     this.cachedCapabilities = capabilities;
 
-    // If already connected, run discovery immediately
+    // If already connected, handle subscriptions and run discovery
     if (this.connected) {
+      const newUnitId = this.slugify(unit.code || unit.name);
+
+      if (oldUnitId && oldUnitId !== newUnitId) {
+        this.logger.info(
+          { oldUnitId, newUnitId },
+          "MQTT: Unit changed, updating command subscriptions",
+        );
+        await this.unsubscribeFromCommands(oldUnitId);
+        await this.subscribeToCommands(newUnitId);
+      }
+
       void this.runDiscoveryCycle();
     }
 
     return true;
+  }
+
+  private async unsubscribeFromCommands(unitId: string) {
+    if (!this.client) return;
+    const unitBaseTopic = `${BASE_TOPIC}/${unitId}`;
+    try {
+      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost_duration/set`);
+      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/cancel`);
+      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/+/start`);
+      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/+/start_infinite`);
+      this.logger.debug({ unitId }, "MQTT: Unsubscribed from old unit commands");
+    } catch (err) {
+      this.logger.warn({ err, unitId }, "MQTT: Failed to unsubscribe from commands");
+    }
   }
 
   /**
