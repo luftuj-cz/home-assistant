@@ -275,7 +275,7 @@ export function TimelineModeModal({
                 // Use a consistent key for storage (state/config)
                 const storageKey = v.entityId || key;
 
-                const backendValue = valveOpenings[storageKey] ?? 90;
+                const backendValue = valveOpenings[storageKey] ?? 0;
 
                 // Backend 0 (Open) -> UI 90 (Max). Backend 90 (Closed) -> UI 0.
                 const uiValue = 90 - backendValue;
@@ -284,8 +284,8 @@ export function TimelineModeModal({
                   backendValue >= 90 ? "red" : backendValue <= 0 ? "green" : "orange";
 
                 let badgeText = `${Math.round(90 - backendValue)}°`;
-                if (backendValue === 0) badgeText = "OPEN";
-                if (backendValue >= 90) badgeText = "CLOSED";
+                if (backendValue === 0) badgeText = t("valves.status.open");
+                if (backendValue >= 90) badgeText = t("valves.status.closed");
 
                 return (
                   <Stack key={key} gap={0}>
