@@ -18,6 +18,7 @@ export function createStatusRouter(
   timelineScheduler: {
     getActiveState: () => { source: string; modeName?: string | number } | null;
   },
+  baseUrl: string,
 ) {
   const router = Router();
 
@@ -29,6 +30,22 @@ export function createStatusRouter(
     };
     const timeline = timelineScheduler.getActiveState();
     response.json({ ha, mqtt, timeline, version: APP_VERSION });
+  });
+
+  router.get("/system-info", (_request: Request, response: Response) => {
+    let hassHost = "localhost";
+    try {
+      if (baseUrl && baseUrl !== "http://supervisor/core") {
+        const url = new URL(baseUrl);
+        hassHost = url.hostname;
+      } else if (baseUrl === "http://supervisor/core") {
+        hassHost = "homeassistant.local";
+      }
+    } catch (err) {
+      logger.warn({ err, baseUrl }, "Failed to parse HA baseUrl for system-info");
+    }
+
+    response.json({ hassHost });
   });
 
   async function probeTcp(host: string, port: number, timeoutMs = 1500): Promise<void> {

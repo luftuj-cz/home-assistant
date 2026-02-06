@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Button,
   Group,
@@ -139,8 +139,24 @@ export function OnboardingPage() {
       logger.info("Fetched units successfully", { count: data.length });
       return data;
     },
-    enabled: active === 4,
+    enabled: active === 2,
   });
+
+  const systemInfoQuery = useQuery({
+    queryKey: ["system-info"],
+    queryFn: async () => {
+      const res = await fetch("/api/system-info");
+      if (!res.ok) throw new Error("Failed to fetch system info");
+      return (await res.json()) as { hassHost: string };
+    },
+    staleTime: Infinity,
+  });
+
+  useEffect(() => {
+    if (systemInfoQuery.data?.hassHost && !mqttForm.values.host) {
+      mqttForm.setFieldValue("host", systemInfoQuery.data.hassHost);
+    }
+  }, [systemInfoQuery.data, mqttForm]);
 
   const saveHruMutation = useMutation({
     mutationFn: async (data: { host: string; port: number; unitId: number; unit: string }) => {
@@ -336,9 +352,33 @@ export function OnboardingPage() {
     const result = modbusForm.validate();
     if (!result.hasErrors) {
       logger.info("Modbus configuration validated", modbusForm.values);
-      nextStep();
+      handleHruAndModbusSave();
     } else {
       logger.warn("Modbus configuration validation failed", result.errors);
+    }
+  }
+
+  async function handleHruAndModbusSave() {
+    if (!selectedUnit) {
+      notifications.show({ title: "Error", message: "Please select a unit", color: "red" });
+      setActive(2); // Jump back to unit selection if missing
+      return;
+    }
+
+    try {
+      await saveHruMutation.mutateAsync({
+        ...modbusForm.values,
+        unit: selectedUnit,
+      });
+      logger.info("HRU & Modbus settings saved successfully", { unit: selectedUnit });
+      nextStep();
+    } catch (err) {
+      notifications.show({
+        title: t("onboarding.mqtt.failed"),
+        message: t("onboarding.unit.saveFailed"),
+        color: "red",
+      });
+      logger.error("Failed to save HRU/Modbus settings", { error: err });
     }
   }
 
@@ -368,22 +408,7 @@ export function OnboardingPage() {
       notifications.show({ title: "Error", message: "Please select a unit", color: "red" });
       return;
     }
-
-    try {
-      await saveHruMutation.mutateAsync({
-        ...modbusForm.values,
-        unit: selectedUnit,
-      });
-      logger.info("HRU settings saved successfully", { unit: selectedUnit });
-      nextStep();
-    } catch (err) {
-      notifications.show({
-        title: t("onboarding.mqtt.failed"),
-        message: t("onboarding.unit.saveFailed"),
-        color: "red",
-      });
-      logger.error("Failed to save Unit settings", { error: err });
-    }
+    nextStep();
   }
 
   const queryClient = useQueryClient();
@@ -436,9 +461,9 @@ export function OnboardingPage() {
                   icon: IconAdjustments,
                 },
                 {
-                  label: t("onboarding.modbus.label"),
-                  description: t("onboarding.modbus.description"),
-                  icon: IconServer,
+                  label: t("onboarding.unit.label"),
+                  description: t("onboarding.unit.description"),
+                  icon: IconWind,
                 },
                 {
                   label: t("onboarding.mqtt.label"),
@@ -446,9 +471,9 @@ export function OnboardingPage() {
                   icon: IconPlugConnected,
                 },
                 {
-                  label: t("onboarding.unit.label"),
-                  description: t("onboarding.unit.description"),
-                  icon: IconWind,
+                  label: t("onboarding.modbus.label"),
+                  description: t("onboarding.modbus.description"),
+                  icon: IconServer,
                 },
                 {
                   label: t("onboarding.status.label"),
@@ -494,9 +519,9 @@ export function OnboardingPage() {
             },
             {
               step: 2,
-              label: t("onboarding.modbus.label"),
-              description: t("onboarding.modbus.description"),
-              icon: IconServer,
+              label: t("onboarding.unit.label"),
+              description: t("onboarding.unit.description"),
+              icon: IconWind,
             },
             {
               step: 3,
@@ -506,9 +531,9 @@ export function OnboardingPage() {
             },
             {
               step: 4,
-              label: t("onboarding.unit.label"),
-              description: t("onboarding.unit.description"),
-              icon: IconWind,
+              label: t("onboarding.modbus.label"),
+              description: t("onboarding.modbus.description"),
+              icon: IconServer,
             },
             {
               step: 5,
@@ -623,57 +648,37 @@ export function OnboardingPage() {
         </Stack>
 
         <Stack gap="md" py="lg" display={active === 2 ? "flex" : "none"}>
-          <Text fw={500}>{t("onboarding.modbus.title")}</Text>
-          <TextInput
-            label={t("onboarding.modbus.hostLabel")}
-            placeholder="192.168.1.10"
-            required
-            {...modbusForm.getInputProps("host")}
-          />
-          <Flex direction={isMobile ? "column" : "row"} gap="md">
-            <NumberInput
-              label={t("onboarding.modbus.portLabel")}
-              required
-              min={1}
-              max={65535}
-              {...modbusForm.getInputProps("port")}
-              style={{ flex: 1 }}
+          <Text fw={500}>{t("onboarding.unit.title")}</Text>
+          {unitsQuery.isLoading ? (
+            <Center p="xl">
+              <Loader />
+            </Center>
+          ) : unitsQuery.isError ? (
+            <Alert color="red">{t("onboarding.unit.loadFailed")}</Alert>
+          ) : (
+            <Select
+              label={t("onboarding.unit.modelLabel")}
+              placeholder={t("onboarding.unit.modelPlaceholder")}
+              data={unitsQuery.data?.map((u) => ({ value: u.id, label: u.name })) || []}
+              value={selectedUnit}
+              onChange={setSelectedUnit}
+              searchable
             />
-            <NumberInput
-              label={t("onboarding.modbus.unitIdLabel")}
-              required
-              min={0}
-              max={255}
-              {...modbusForm.getInputProps("unitId")}
-              style={{ flex: 1 }}
-            />
-          </Flex>
-
-          <Group>
-            <Button
-              variant="light"
-              size="xs"
-              loading={testModbusMutation.isPending}
-              onClick={() => testModbusMutation.mutate(modbusForm.values)}
-            >
-              {t("onboarding.modbus.test")}
-            </Button>
-            {testModbusMutation.isSuccess && (
-              <Text c="green" size="sm" fw={500}>
-                {t("onboarding.modbus.connected")}
-              </Text>
-            )}
-            {testModbusMutation.isError && (
-              <Text c="red" size="sm" fw={500}>
-                {t("onboarding.modbus.failed")}
-              </Text>
-            )}
-          </Group>
+          )}
+          <Text size="sm" c="dimmed">
+            {t("onboarding.unit.hint")}
+          </Text>
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={prevStep}>
               {t("onboarding.back")}
             </Button>
-            <Button onClick={handleModbusSubmit}>{t("onboarding.next")}</Button>
+            <Button
+              onClick={handleUnitSubmit}
+              loading={saveHruMutation.isPending}
+              disabled={!selectedUnit}
+            >
+              {t("onboarding.next")}
+            </Button>
           </Group>
         </Stack>
 
@@ -758,35 +763,57 @@ export function OnboardingPage() {
         </Stack>
 
         <Stack gap="md" py="lg" display={active === 4 ? "flex" : "none"}>
-          <Text fw={500}>{t("onboarding.unit.title")}</Text>
-          {unitsQuery.isLoading ? (
-            <Center p="xl">
-              <Loader />
-            </Center>
-          ) : unitsQuery.isError ? (
-            <Alert color="red">{t("onboarding.unit.loadFailed")}</Alert>
-          ) : (
-            <Select
-              label={t("onboarding.unit.modelLabel")}
-              placeholder={t("onboarding.unit.modelPlaceholder")}
-              data={unitsQuery.data?.map((u) => ({ value: u.id, label: u.name })) || []}
-              value={selectedUnit}
-              onChange={setSelectedUnit}
-              searchable
+          <Text fw={500}>{t("onboarding.modbus.title")}</Text>
+          <TextInput
+            label={t("onboarding.modbus.hostLabel")}
+            placeholder="192.168.1.10"
+            required
+            {...modbusForm.getInputProps("host")}
+          />
+          <Flex direction={isMobile ? "column" : "row"} gap="md">
+            <NumberInput
+              label={t("onboarding.modbus.portLabel")}
+              required
+              min={1}
+              max={65535}
+              {...modbusForm.getInputProps("port")}
+              style={{ flex: 1 }}
             />
-          )}
-          <Text size="sm" c="dimmed">
-            {t("onboarding.unit.hint")}
-          </Text>
+            <NumberInput
+              label={t("onboarding.modbus.unitIdLabel")}
+              required
+              min={0}
+              max={255}
+              {...modbusForm.getInputProps("unitId")}
+              style={{ flex: 1 }}
+            />
+          </Flex>
+
+          <Group>
+            <Button
+              variant="light"
+              size="xs"
+              loading={testModbusMutation.isPending}
+              onClick={() => testModbusMutation.mutate(modbusForm.values)}
+            >
+              {t("onboarding.modbus.test")}
+            </Button>
+            {testModbusMutation.isSuccess && (
+              <Text c="green" size="sm" fw={500}>
+                {t("onboarding.modbus.connected")}
+              </Text>
+            )}
+            {testModbusMutation.isError && (
+              <Text c="red" size="sm" fw={500}>
+                {t("onboarding.modbus.failed")}
+              </Text>
+            )}
+          </Group>
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={prevStep}>
               {t("onboarding.back")}
             </Button>
-            <Button
-              onClick={handleUnitSubmit}
-              loading={saveHruMutation.isPending}
-              disabled={!selectedUnit}
-            >
+            <Button onClick={handleModbusSubmit} loading={saveHruMutation.isPending}>
               {t("onboarding.next")}
             </Button>
           </Group>

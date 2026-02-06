@@ -111,11 +111,6 @@ export function createSettingsRouter(
     async (request: Request, response: Response) => {
       const { enabled, host, port, user, password } = request.body as MqttSettings;
 
-      if (enabled && !host) {
-        response.status(400).json({ detail: "Missing host" });
-        return;
-      }
-
       const settings: MqttSettings = {
         enabled,
         host: host ?? "",

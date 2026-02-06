@@ -10,13 +10,18 @@ export const hruSettingsInputSchema = z.object({
 });
 
 // MQTT Settings Schema
-export const mqttSettingsInputSchema = z.object({
-  enabled: z.boolean(),
-  host: z.string().trim().min(1, "Host is required when MQTT is enabled").optional(),
-  port: z.number().int().min(1).max(65535, "Port must be between 1 and 65535").optional(),
-  user: z.string().optional(),
-  password: z.string().optional(),
-});
+export const mqttSettingsInputSchema = z
+  .object({
+    enabled: z.boolean(),
+    host: z.string().trim().optional(),
+    port: z.number().int().min(1).max(65535, "Port must be between 1 and 65535").optional(),
+    user: z.string().optional(),
+    password: z.string().optional(),
+  })
+  .refine((data) => !data.enabled || (data.host && data.host.length > 0), {
+    message: "Host is required when MQTT is enabled",
+    path: ["host"],
+  });
 
 // MQTT Test Schema (more relaxed for testing)
 export const mqttTestInputSchema = z.object({

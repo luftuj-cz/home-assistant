@@ -107,7 +107,10 @@ app.use(
   createDatabaseRouter(valveManager, mqttService, timelineScheduler, logger),
 );
 app.use("/api/valves", createValvesRouter(valveManager, logger));
-app.use("/api", createStatusRouter(haClient, mqttService, logger, timelineScheduler));
+app.use(
+  "/api",
+  createStatusRouter(haClient, mqttService, logger, timelineScheduler, config.baseUrl),
+);
 
 const staticRoot = config.staticRoot;
 const assetsPath = path.join(staticRoot, "assets");
