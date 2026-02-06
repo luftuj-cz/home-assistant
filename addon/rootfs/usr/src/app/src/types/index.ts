@@ -49,7 +49,13 @@ export type TimelineMode = {
 };
 
 export type TimelineOverride = {
-  modeId: number;
+  modeId?: number; // Optional now, since test modes don't have IDs
+  customConfig?: {
+    nativeMode?: number;
+    power?: number;
+    temperature?: number;
+    luftatorConfig?: Record<string, number>;
+  };
   endTime: string;
   durationMinutes: number;
 } | null;

@@ -30,8 +30,10 @@ import {
   timelineModeInputSchema,
   timelineEventInputSchema,
   boostOverrideInputSchema,
+  testOverrideInputSchema,
   type TimelineModeInput,
   type TimelineEventInput,
+  type TestOverrideInput,
 } from "../schemas/timeline";
 
 export function createTimelineRouter(
@@ -436,6 +438,42 @@ export function createTimelineRouter(
 
     response.status(204).end();
   });
+
+  router.post(
+    "/test",
+    validateRequest(testOverrideInputSchema),
+    async (request: Request, response: Response) => {
+      const { durationMinutes, config } = request.body as TestOverrideInput;
+
+      // Validate max power just like regular creation
+      if (!validatePowerAndValves(config, response)) {
+        return;
+      }
+
+      // Add 5s buffer to account for network latency and timer drift
+      // This ensures the frontend timer finishes (reverting UI) before the backend actually reverts the mode
+      const endTime = new Date(Date.now() + durationMinutes * 60 * 1000 + 5000).toISOString();
+      const override: TimelineOverride = {
+        modeId: undefined,
+        customConfig: {
+          nativeMode: config.nativeMode,
+          power: config.power,
+          temperature: config.temperature,
+          luftatorConfig: config.luftatorConfig,
+        },
+        endTime,
+        durationMinutes,
+      };
+
+      setAppSetting(TIMELINE_OVERRIDE_KEY, JSON.stringify(override));
+      logger.info({ durationMinutes, endTime }, "Timeline test mode activated");
+
+      // Trigger immediate execution
+      await timelineScheduler.executeScheduledEvent();
+
+      response.json({ active: override });
+    },
+  );
 
   return router;
 }

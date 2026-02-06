@@ -48,3 +48,9 @@ export const boostOverrideInputSchema = z.object({
 export type TimelineModeInput = z.infer<typeof timelineModeInputSchema>;
 export type TimelineEventInput = z.infer<typeof timelineEventInputSchema>;
 export type BoostOverrideInput = z.infer<typeof boostOverrideInputSchema>;
+
+export const testOverrideInputSchema = z.object({
+  durationMinutes: z.number().int().positive().default(1),
+  config: timelineModeInputSchema,
+});
+export type TestOverrideInput = z.infer<typeof testOverrideInputSchema>;

@@ -171,6 +171,7 @@ export class TimelineScheduler {
   public getActiveBoostName(): string | null {
     const state = this.lastActiveState;
     if (state?.source === "boost" && state.modeName !== undefined) {
+      if (state.modeName === "Test Mode") return "Test Mode";
       return String(state.modeName);
     }
     return null;
@@ -203,26 +204,39 @@ export class TimelineScheduler {
         try {
           const override = JSON.parse(overrideRaw) as TimelineOverride;
           if (override && new Date(override.endTime) > new Date()) {
-            const currentUnitId = this.getCurrentUnitId();
-            const modes = getTimelineModes(currentUnitId);
-            const mode = modes.find((m) => m.id === override.modeId);
-            if (mode) {
+            if (override.modeId) {
+              const currentUnitId = this.getCurrentUnitId();
+              const modes = getTimelineModes(currentUnitId);
+              const mode = modes.find((m) => m.id === override.modeId);
+              if (mode) {
+                activePayload = {
+                  hruConfig: {
+                    mode: mode.nativeMode ?? mode.name,
+                    power: mode.power,
+                    temperature: mode.temperature,
+                  },
+                  luftatorConfig: mode.luftatorConfig,
+                  source: "boost",
+                  friendlyModeName: mode.name,
+                };
+              } else {
+                this.logger.warn(
+                  { modeId: override.modeId },
+                  "TimelineScheduler: boost mode not found, skipping",
+                );
+                setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
+              }
+            } else if (override.customConfig) {
               activePayload = {
                 hruConfig: {
-                  mode: mode.nativeMode ?? mode.name,
-                  power: mode.power,
-                  temperature: mode.temperature,
+                  mode: override.customConfig.nativeMode,
+                  power: override.customConfig.power,
+                  temperature: override.customConfig.temperature,
                 },
-                luftatorConfig: mode.luftatorConfig,
-                source: "boost",
-                friendlyModeName: mode.name,
+                luftatorConfig: override.customConfig.luftatorConfig,
+                source: "boost", // Treat as boost/manual override
+                friendlyModeName: "Test Mode",
               };
-            } else {
-              this.logger.warn(
-                { modeId: override.modeId },
-                "TimelineScheduler: boost mode not found, skipping",
-              );
-              setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
             }
           } else if (override) {
             setAppSetting(TIMELINE_OVERRIDE_KEY, "null");

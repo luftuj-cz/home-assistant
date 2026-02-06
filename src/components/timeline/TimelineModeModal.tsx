@@ -24,8 +24,9 @@ import {
   IconPalette,
   IconSettings,
   IconAlertCircle,
+  IconTestPipe,
 } from "@tabler/icons-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { TFunction } from "i18next";
 import type { Mode } from "../../types/timeline";
 import type { Valve } from "../../types/valve";
@@ -91,6 +92,8 @@ export function TimelineModeModal({
     { value: string; label: string }[]
   >([]);
   const [submitted, setSubmitted] = useState(false);
+  const [testRemainingSeconds, setTestRemainingSeconds] = useState<number | null>(null);
+  const testTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   useEffect(() => {
     if (opened && hruCapabilities?.hasModeControl) {
@@ -132,15 +135,67 @@ export function TimelineModeModal({
         setValveOpenings({});
         setNativeMode(null);
       }
+    } else {
+      // Clear test state on close
+      setTestRemainingSeconds(null);
+      if (testTimerRef.current) {
+        clearInterval(testTimerRef.current);
+        testTimerRef.current = null;
+      }
     }
   }, [opened, mode, temperatureUnit]);
 
-  function handleSave() {
-    setSubmitted(true);
-    // Duplicate Check
+  // Countdown timer effect
+  useEffect(() => {
+    if (testRemainingSeconds !== null && testRemainingSeconds > 0) {
+      testTimerRef.current = setInterval(() => {
+        setTestRemainingSeconds((prev) => {
+          if (prev === null || prev <= 1) {
+            clearInterval(testTimerRef.current!);
+            return null;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+    return () => {
+      if (testTimerRef.current) clearInterval(testTimerRef.current);
+    };
+  }, [testRemainingSeconds]);
+
+  function getModePayload() {
+    const trimmedName = name.trim();
+    const cleanedValveOpenings = valves.reduce(
+      (acc, valve) => {
+        const key = valve.entityId || valve.name;
+        if (!key) return acc;
+
+        const value = valveOpenings[key] ?? 0;
+
+        if (typeof value === "number" && !Number.isNaN(value) && value >= 0 && value <= 100) {
+          acc[key] = value;
+        }
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
+
+    return {
+      // id is ignored by create but used by update, handled by wrapper
+      name: trimmedName,
+      power,
+      temperature:
+        temperature !== undefined ? parseTemperature(temperature, temperatureUnit) : undefined,
+      color: color || undefined,
+      isBoost,
+      luftatorConfig: Object.keys(cleanedValveOpenings).length ? cleanedValveOpenings : undefined,
+      nativeMode: nativeMode ? parseInt(nativeMode, 10) : undefined,
+    };
+  }
+
+  function validateForm(): boolean {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      // Just in case, though required field handles UI
       import("@mantine/notifications").then(({ notifications }) => {
         notifications.show({
           title: t("settings.timeline.notifications.validationFailedTitle", {
@@ -150,11 +205,122 @@ export function TimelineModeModal({
           color: "red",
         });
       });
+      return false;
+    }
+
+    // Capability Validation
+    if (hruCapabilities?.hasModeControl && !nativeMode) {
+      import("@mantine/notifications").then(({ notifications }) => {
+        notifications.show({
+          title: t("settings.timeline.notifications.validationFailedTitle", {
+            defaultValue: "Validation Error",
+          }),
+          message: t("validation.nativeModeRequired", {
+            defaultValue: "Native Unit Mode is required",
+          }),
+          color: "red",
+        });
+      });
+      return false;
+    }
+
+    if (hruCapabilities?.hasPowerControl !== false && power === undefined) {
+      import("@mantine/notifications").then(({ notifications }) => {
+        notifications.show({
+          title: t("settings.timeline.notifications.validationFailedTitle", {
+            defaultValue: "Validation Error",
+          }),
+          message: t("validation.powerRequired", { defaultValue: "Power is required" }),
+          color: "red",
+        });
+      });
+      return false;
+    }
+
+    if (hruCapabilities?.hasTemperatureControl !== false && temperature === undefined) {
+      import("@mantine/notifications").then(({ notifications }) => {
+        notifications.show({
+          title: t("settings.timeline.notifications.validationFailedTitle", {
+            defaultValue: "Validation Error",
+          }),
+          message: t("validation.temperatureRequired", { defaultValue: "Temperature is required" }),
+          color: "red",
+        });
+      });
+      return false;
+    }
+
+    return true;
+  }
+
+  function handleTest() {
+    if (testRemainingSeconds !== null) {
+      // STOP Test
+      import("../../api/timeline").then(({ cancelBoost }) => {
+        cancelBoost().then(() => {
+          setTestRemainingSeconds(null);
+          if (testTimerRef.current) {
+            clearInterval(testTimerRef.current);
+            testTimerRef.current = null;
+          }
+          import("@mantine/notifications").then(({ notifications }) => {
+            notifications.show({
+              title: t("settings.timeline.notifications.testStoppedTitle", {
+                defaultValue: "Test Stopped",
+              }),
+              message: t("settings.timeline.notifications.testStoppedMessage", {
+                defaultValue: "Mode reverted to schedule",
+              }),
+            });
+          });
+        });
+      });
       return;
     }
 
+    setSubmitted(true);
+    if (!validateForm()) return;
+
+    const payload = getModePayload();
+
+    // Dynamic import to avoid circular dependencies if any, although unlikely here
+    import("../../api/timeline").then(({ testTimelineMode }) => {
+      testTimelineMode(payload, 1)
+        .then(() => {
+          setTestRemainingSeconds(60);
+          import("@mantine/notifications").then(({ notifications }) => {
+            notifications.show({
+              title: t("settings.timeline.notifications.testStartedTitle", {
+                defaultValue: "Test Activated",
+              }),
+              message: t("settings.timeline.notifications.testStartedMessage", {
+                defaultValue: "Mode activated for 60 seconds",
+              }),
+              color: "blue",
+            });
+          });
+        })
+        .catch((err) => {
+          import("@mantine/notifications").then(({ notifications }) => {
+            notifications.show({
+              title: "Error",
+              message: err.message || "Failed to start test mode",
+              color: "red",
+            });
+          });
+        });
+    });
+  }
+
+  function handleSave() {
+    setSubmitted(true);
+    if (!validateForm()) return;
+
+    const payload = getModePayload();
+
+    // Duplicate Check only for Save
     const isDuplicate = existingModes.some(
-      (m) => m.name.toLowerCase() === trimmedName.toLowerCase() && (!mode || m.id !== mode.id), // Ignore self usage if editing
+      (m) => m.name.toLowerCase() === payload.name.toLowerCase() && (!mode || m.id !== mode.id),
     );
 
     if (isDuplicate) {
@@ -172,74 +338,7 @@ export function TimelineModeModal({
       return;
     }
 
-    // Capability Validation
-    if (hruCapabilities?.hasModeControl && !nativeMode) {
-      import("@mantine/notifications").then(({ notifications }) => {
-        notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle", {
-            defaultValue: "Validation Error",
-          }),
-          message: t("validation.nativeModeRequired", {
-            defaultValue: "Native Unit Mode is required",
-          }),
-          color: "red",
-        });
-      });
-      return;
-    }
-
-    if (hruCapabilities?.hasPowerControl !== false && power === undefined) {
-      import("@mantine/notifications").then(({ notifications }) => {
-        notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle", {
-            defaultValue: "Validation Error",
-          }),
-          message: t("validation.powerRequired", { defaultValue: "Power is required" }),
-          color: "red",
-        });
-      });
-      return;
-    }
-
-    if (hruCapabilities?.hasTemperatureControl !== false && temperature === undefined) {
-      import("@mantine/notifications").then(({ notifications }) => {
-        notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle", {
-            defaultValue: "Validation Error",
-          }),
-          message: t("validation.temperatureRequired", { defaultValue: "Temperature is required" }),
-          color: "red",
-        });
-      });
-      return;
-    }
-
-    const cleanedValveOpenings = valves.reduce(
-      (acc, valve) => {
-        const key = valve.entityId || valve.name;
-        if (!key) return acc;
-
-        const value = valveOpenings[key] ?? 0;
-
-        if (typeof value === "number" && !Number.isNaN(value) && value >= 0 && value <= 100) {
-          acc[key] = value;
-        }
-        return acc;
-      },
-      {} as Record<string, number>,
-    );
-
-    onSave({
-      id: mode?.id,
-      name: trimmedName,
-      power,
-      temperature:
-        temperature !== undefined ? parseTemperature(temperature, temperatureUnit) : undefined,
-      color: color || undefined,
-      isBoost,
-      luftatorConfig: Object.keys(cleanedValveOpenings).length ? cleanedValveOpenings : undefined,
-      nativeMode: nativeMode ? parseInt(nativeMode, 10) : undefined,
-    });
+    onSave({ ...payload, id: mode?.id });
   }
 
   return (
@@ -450,6 +549,18 @@ export function TimelineModeModal({
         <Group justify="flex-end" gap="sm" mt="xs">
           <Button variant="light" onClick={onClose} radius="md">
             {t("settings.timeline.modal.cancel")}
+          </Button>
+          <Button
+            variant="outline"
+            leftSection={<IconTestPipe size={16} />}
+            onClick={handleTest}
+            color={testRemainingSeconds !== null ? "red" : "blue"}
+          >
+            {testRemainingSeconds !== null
+              ? t("settings.timeline.modal.testingStop", {
+                  defaultValue: `Stop Test (${testRemainingSeconds}s)`,
+                })
+              : t("settings.timeline.modal.test", { defaultValue: "Test (1m)" })}
           </Button>
           <Button onClick={handleSave} loading={saving} radius="md">
             {t(mode ? "settings.timeline.modeUpdateAction" : "settings.timeline.modeCreateAction", {

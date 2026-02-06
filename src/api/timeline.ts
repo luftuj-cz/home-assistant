@@ -47,6 +47,21 @@ export async function deleteTimelineMode(id: number): Promise<void> {
   }
 }
 
+export async function testTimelineMode(
+  mode: Omit<Mode, "id">,
+  durationMinutes: number,
+): Promise<void> {
+  const res = await fetch(resolveApiUrl("/api/timeline/test"), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ config: mode, durationMinutes }),
+  });
+  if (!res.ok) {
+    const detail = await res.text();
+    throw new Error(detail || "Failed to start test mode");
+  }
+}
+
 export async function fetchTimelineEvents(unitId?: string): Promise<TimelineEvent[]> {
   const url = unitId
     ? resolveApiUrl(`/api/timeline/events?unitId=${encodeURIComponent(unitId)}`)
