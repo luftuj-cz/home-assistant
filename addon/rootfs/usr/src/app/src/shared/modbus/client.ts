@@ -46,7 +46,10 @@ export class ModbusTcpClient {
       this.logger.info({ host: this.cfg.host, port: this.cfg.port }, "Connecting Modbus TCP");
       this.client.connectTCP(this.cfg.host, { port: this.cfg.port }, (err?: Error) => {
         if (err) {
-          this.logger.warn({ err }, "Modbus TCP connect failed");
+          this.logger.warn(
+            { err, host: this.cfg.host, port: this.cfg.port },
+            "Modbus TCP connect failed",
+          );
           this.handleDisconnect();
           reject(err);
           return;

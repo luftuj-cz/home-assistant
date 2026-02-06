@@ -87,7 +87,7 @@ export function DashboardPage() {
             <Title order={1}>{t("dashboard.title")}</Title>
           </Group>
           <Text size="lg" c="dimmed" mt="xs">
-            {t("dashboard.description", { defaultValue: "System status overview" })}
+            {t("dashboard.systemStatus", { defaultValue: "System status overview" })}
           </Text>
         </Stack>
 

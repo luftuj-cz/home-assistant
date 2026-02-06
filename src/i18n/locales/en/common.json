@@ -137,6 +137,9 @@
       "modeIsBoost": "Show as boost button",
       "modeIsBoostBadge": "BOOST",
       "modeIsBoostDescription": "Display this mode as a quick-action button on the dashboard.",
+      "nativeMode": "Native Unit Mode",
+      "nativeModePlaceholder": "Select mode...",
+      "modeValves": "Valve openings",
       "noModesCreated": "Create a mode first",
       "noModesCreatedDescription": "You need to create at least one ventilation mode before you can schedule timeline events.",
       "noModes": "No modes yet.",
@@ -315,6 +318,7 @@
   "dashboard": {
     "title": "Dashboard",
     "description": "Real-time status of your ventilation system and connected services.",
+    "systemStatus": "System status overview",
     "boostTitle": "Quick Boost",
     "boostDescription": "Temporary overrides for the ventilation schedule.",
     "boostActive": "Boost active ({{minutes}}m remaining)",

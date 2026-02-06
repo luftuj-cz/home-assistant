@@ -111,6 +111,9 @@
       "modeIsBoost": "Zobrazit jako tlačítko manuální akce",
       "modeIsBoostBadge": "MANUÁLNÍ",
       "modeIsBoostDescription": "Zobrazí tento režim jako tlačítko rychlé akce na palubní desce.",
+      "nativeMode": "Režim jednotky",
+      "nativeModePlaceholder": "Vyberte režim...",
+      "modeValves": "Otevření ventilů",
       "noModesCreated": "Nejdříve vytvořte režim",
       "noModesCreatedDescription": "Před plánováním událostí v časové ose musíte vytvořit alespoň jeden režim větrání.",
       "noModes": "Zatím žádné režimy.",
@@ -285,6 +288,7 @@
   },
   "dashboard": {
     "title": "Přehled",
+    "systemStatus": "Přehled stavu systému",
     "boostTitle": "Manuální režim",
     "boostDescription": "Dočasné přepsání časového plánu větrání.",
     "boostActive": "Manuální režim aktivní (zbývá {{minutes}}m)",

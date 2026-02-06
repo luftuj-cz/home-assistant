@@ -81,6 +81,11 @@ export class HruService {
     const configData = this.getResolvedConfiguration(settingsOverride);
     if (!configData) throw new Error("HRU not configured");
     const { settings, strategy, unit } = configData;
+
+    if (!settings.host) {
+      throw new Error("HRU host not configured");
+    }
+
     const config = {
       host: settings.host,
       port: Number(settings.port) || 502,
@@ -138,6 +143,11 @@ export class HruService {
     const configData = this.getResolvedConfiguration();
     if (!configData) throw new Error("HRU not configured");
     const { settings, strategy } = configData;
+
+    if (!settings.host) {
+      throw new Error("HRU host not configured");
+    }
+
     const config = {
       host: settings.host,
       port: Number(settings.port) || 502,

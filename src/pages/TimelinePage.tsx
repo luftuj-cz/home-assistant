@@ -280,7 +280,7 @@ export function TimelinePage() {
             label={
               <Group gap="xs">
                 <Text fw={700} size="sm">
-                  Weekly Schedule
+                  {t("schedule.title", { defaultValue: "Weekly Schedule" })}
                 </Text>
               </Group>
             }
