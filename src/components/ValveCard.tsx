@@ -1,4 +1,4 @@
-import { Badge, Card, Group, Slider, Stack, Text, ThemeIcon, rem } from "@mantine/core";
+import { Badge, Card, Group, Slider, Stack, Text, ThemeIcon, rem, Tooltip } from "@mantine/core";
 import { IconAdjustments } from "@tabler/icons-react";
 
 import type { Valve } from "../types/valve";
@@ -52,12 +52,16 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
               <IconAdjustments size={24} />
             </ThemeIcon>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <Text fw={600} size="lg" truncate style={{ lineHeight: 1.2 }}>
-                {valve.name}
-              </Text>
-              <Text size="xs" c="dimmed" truncate mt={2}>
-                {valve.entityId}
-              </Text>
+              <Tooltip label={valve.name} openDelay={500} withArrow>
+                <Text fw={600} size="lg" truncate style={{ lineHeight: 1.2, cursor: "pointer" }}>
+                  {valve.name}
+                </Text>
+              </Tooltip>
+              <Tooltip label={valve.entityId} openDelay={500} withArrow>
+                <Text size="xs" c="dimmed" truncate mt={2} style={{ cursor: "pointer" }}>
+                  {valve.entityId}
+                </Text>
+              </Tooltip>
             </div>
           </Group>
           <Badge
