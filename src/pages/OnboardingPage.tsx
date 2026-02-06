@@ -361,7 +361,7 @@ export function OnboardingPage() {
   async function handleHruAndModbusSave() {
     if (!selectedUnit) {
       notifications.show({ title: "Error", message: "Please select a unit", color: "red" });
-      setActive(2); // Jump back to unit selection if missing
+      setActive(2);
       return;
     }
 

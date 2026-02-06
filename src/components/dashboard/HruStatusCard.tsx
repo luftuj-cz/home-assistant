@@ -227,19 +227,17 @@ export function HruStatusCard({
                 <>
                   <Title order={3} c="grape" lineClamp={1}>
                     {activeMode.source === "manual"
-                      ? t("dashboard.activeMode.manual", { defaultValue: "Manual" })
+                      ? t("dashboard.activeMode.manual")
                       : activeMode.source === "boost"
                         ? t("dashboard.activeMode.boost", {
-                            defaultValue: "Boost: {{name}}",
                             name: activeMode.modeName || "?",
                           })
                         : t("dashboard.activeMode.schedule", {
-                            defaultValue: "Schedule: {{name}}",
                             name: activeMode.modeName || "?",
                           })}
                   </Title>
                   <Text size="sm" c="dimmed" mt={4}>
-                    {t("dashboard.nativeMode", { defaultValue: "Native mode" })}: {modeValue}
+                    {t("dashboard.nativeMode")}: {modeValue}
                   </Text>
                 </>
               ) : (

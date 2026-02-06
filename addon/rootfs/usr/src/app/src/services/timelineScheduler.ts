@@ -13,6 +13,7 @@ import type { HruService } from "../features/hru/hru.service";
 import {
   TIMELINE_OVERRIDE_KEY,
   HRU_SETTINGS_KEY,
+  LANGUAGE_SETTING_KEY,
   type TimelineOverride,
   type HruSettings,
 } from "../types";
@@ -135,9 +136,18 @@ export class TimelineScheduler {
 
   public getFormattedActiveMode(): string {
     const state = this.lastActiveState;
-    if (!state || state.source === "manual") return "Manual";
+    if (!state) return "?";
 
-    const prefix = state.source.charAt(0).toUpperCase() + state.source.slice(1);
+    const lang = getAppSetting(LANGUAGE_SETTING_KEY) || "en";
+    const isCs = lang === "cs";
+
+    if (state.source === "manual") {
+      return isCs ? "Manuální" : "Manual";
+    }
+
+    const prefix =
+      state.source === "boost" ? (isCs ? "Manuální režim" : "Boost") : isCs ? "Plán" : "Schedule";
+
     return `${prefix}: ${state.modeName || "?"}`;
   }
 
@@ -182,6 +192,7 @@ export class TimelineScheduler {
         luftatorConfig?: Record<string, number> | null;
         source: "manual" | "schedule" | "boost";
         id?: number;
+        friendlyModeName?: string;
       } | null = null;
 
       if (overrideRaw) {
@@ -200,6 +211,7 @@ export class TimelineScheduler {
                 },
                 luftatorConfig: mode.luftatorConfig,
                 source: "boost",
+                friendlyModeName: mode.name,
               };
             } else {
               this.logger.warn(
@@ -227,10 +239,10 @@ export class TimelineScheduler {
           let modeToSend: string | number | undefined = event.hruConfig?.mode;
           let isValidEvent = true;
 
+          let foundMode;
           if (displayModeName) {
             const currentUnitId = this.getCurrentUnitId();
             const modes = getTimelineModes(currentUnitId);
-            let foundMode;
 
             if (typeof displayModeName === "number" || /^\d+$/.test(displayModeName)) {
               const modeId = parseInt(String(displayModeName), 10);
@@ -268,6 +280,7 @@ export class TimelineScheduler {
               luftatorConfig: effectiveLuftatorConfig,
               source: "schedule",
               id: event.id,
+              friendlyModeName: foundMode?.name,
             };
           }
         }
@@ -283,10 +296,10 @@ export class TimelineScheduler {
 
       let modeName: string | number | undefined;
       if (source === "boost" || source === "schedule") {
-        modeName = hruConfig?.mode;
+        modeName = activePayload.friendlyModeName || hruConfig?.mode;
         this.logger.info(
           { source, id, modeName, hruConfig },
-          "TimelineScheduler: extracted mode name",
+          "TimelineScheduler: resolved friendly mode name",
         );
       }
 

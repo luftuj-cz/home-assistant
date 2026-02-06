@@ -116,7 +116,7 @@ export function TimelineModeList({
                       <Group gap={6}>
                         {m.isBoost && (
                           <Badge size="xs" color="orange" variant="light" radius="sm">
-                            BOOST
+                            {t("settings.timeline.modeIsBoostBadge", { defaultValue: "BOOST" })}
                           </Badge>
                         )}
                         {m.power !== undefined && (

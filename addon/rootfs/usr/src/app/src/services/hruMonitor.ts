@@ -21,8 +21,8 @@ export class HruMonitor {
     this.isRunning = true;
     this.logger.info("Starting HRU Monitor");
 
-    // No pre-check, runCycle will handle the refresh logic
-    void this.runCycle(false);
+    // Run initial cycle WITH discovery to ensure cache is populated
+    void this.runCycle(true);
 
     this.mqttService.on("command-received", () => {
       if (this.isRunning) {
@@ -31,8 +31,16 @@ export class HruMonitor {
       }
     });
 
+    this.mqttService.on("connect", () => {
+      if (this.isRunning) {
+        this.logger.info("HRU Monitor: MQTT connected, triggering immediate state refresh");
+        void this.runCycle(false); // State only, let MqttService handle discovery
+      }
+    });
+
     this.timer = setInterval(() => {
-      void this.runCycle(true); // Send discovery every minute
+      // Periodic update - state only, no discovery to prevent flooding
+      void this.runCycle(false);
     }, POLLING_INTERVAL_MS);
   }
 
@@ -45,45 +53,60 @@ export class HruMonitor {
     this.logger.info("Stopped HRU Monitor");
   }
 
+  private isRefreshing = false;
+
   private async runCycle(sendDiscovery: boolean): Promise<void> {
-    const config = this.hruService.getResolvedConfiguration();
-    if (!config) {
-      this.logger.debug("HRU Monitor: HRU unit not configured, skipping cycle");
+    if (this.isRefreshing) {
+      if (sendDiscovery) {
+        this.logger.debug(
+          "HRU Monitor: Cycle skipped (already running), but discovery was requested. Will retry next cycle.",
+        );
+      }
       return;
     }
-
-    if (sendDiscovery) {
-      this.logger.info("HRU Monitor: Attempting MQTT discovery refresh...");
-      const success = await this.mqttService.publishDiscovery(
-        config.unit,
-        config.strategy.capabilities,
-      );
-      if (success) {
-        this.mqttService.setLastDiscoveryTime(new Date().toISOString());
-      }
-    }
+    this.isRefreshing = true;
 
     try {
-      const result = await this.hruService.readValues();
-      const addonMode = this.timelineScheduler.getFormattedActiveMode();
-      const boostRemaining = this.timelineScheduler.getBoostRemainingMinutes();
-      const boostActiveName = this.timelineScheduler.getActiveBoostName();
+      const config = this.hruService.getResolvedConfiguration();
+      if (!config) {
+        this.logger.debug("HRU Monitor: HRU unit not configured, skipping cycle");
+        return;
+      }
 
-      this.logger.info(
-        { ...result.value, addonMode, boostRemaining, boostActiveName },
-        "HRU Monitor: Read successful, publishing to MQTT",
-      );
+      if (sendDiscovery) {
+        this.logger.info("HRU Monitor: Attempting MQTT discovery refresh...");
+        const success = await this.mqttService.publishDiscovery(
+          config.unit,
+          config.strategy.capabilities,
+        );
+        if (success) {
+          this.mqttService.setLastDiscoveryTime(new Date().toISOString());
+        }
+      }
 
-      // Always try to publish; MqttService will handle its internal state
-      await this.mqttService.publishState({
-        ...result.value,
-        mode_formatted: addonMode,
-        native_mode_formatted: result.value.mode,
-        boost_remaining: boostRemaining,
-        boost_name: boostActiveName || "-",
-      });
-    } catch (err) {
-      this.logger.warn({ err }, "HRU Monitor: Failed to read from HRU");
+      try {
+        const result = await this.hruService.readValues();
+        const addonMode = this.timelineScheduler.getFormattedActiveMode();
+        const boostRemaining = this.timelineScheduler.getBoostRemainingMinutes();
+        const boostActiveName = this.timelineScheduler.getActiveBoostName();
+
+        this.logger.info(
+          { ...result.value, addonMode, boostRemaining, boostActiveName },
+          "HRU Monitor: Read successful, publishing to MQTT",
+        );
+
+        await this.mqttService.publishState({
+          ...result.value,
+          mode_formatted: addonMode,
+          native_mode_formatted: result.value.mode,
+          boost_remaining: boostRemaining,
+          boost_name: boostActiveName || "-",
+        });
+      } catch (err) {
+        this.logger.warn({ err }, "HRU Monitor: Failed to read from HRU");
+      }
+    } finally {
+      this.isRefreshing = false;
     }
   }
 }

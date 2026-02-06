@@ -9,8 +9,7 @@ import type { TimelineScheduler } from "./timelineScheduler";
 
 const DISCOVERY_PREFIX = "homeassistant";
 const BASE_TOPIC = "luftuj/hru";
-const STATIC_CLIENT_ID = "luftuj-addon-static-client";
-const DISCOVERY_INTERVAL_MS = 60_000;
+const STATIC_CLIENT_ID_PREFIX = "luftuj-addon-client";
 
 const LOCALIZED_STRINGS: Record<
   string,
@@ -43,12 +42,12 @@ const LOCALIZED_STRINGS: Record<
     power: "Požadovaný výkon",
     temperature: "Požadovaná teplota",
     mode: "Režim",
-    native_mode: "Nativní režim",
-    boost_duration: "Doba boostu",
-    cancel_boost: "Zrušit boost",
-    boost_label: "Boost: {{name}}",
-    boost_remaining: "Zbývající čas boostu",
-    boost_mode: "Aktivní boost",
+    native_mode: "Režim rekuperační jednotky",
+    boost_duration: "Doba manuálního režimu",
+    cancel_boost: "Zrušit manuální režim",
+    boost_label: "Manuální režim: {{name}}",
+    boost_remaining: "Zbývající čas manuálního režimu",
+    boost_mode: "Aktivní manuální režim",
     level_unit: "stupeň",
   },
 };
@@ -58,9 +57,9 @@ export class MqttService extends EventEmitter {
   private connected = false;
   private lastSuccessAt = 0;
 
-  private discoveryTimer: NodeJS.Timeout | null = null;
   private cachedDiscoveryUnit: HeatRecoveryUnit | null = null;
   private cachedCapabilities: RegulationCapabilities | null = null;
+  private messageQueue: Promise<void> = Promise.resolve();
 
   constructor(
     private readonly envConfig: AppConfig["mqtt"],
@@ -89,29 +88,37 @@ export class MqttService extends EventEmitter {
     }
 
     const brokerUrl = `mqtt://${config.host}:${config.port}`;
+    const instanceId = Math.random().toString(16).slice(2, 6);
+    const clientId = `${STATIC_CLIENT_ID_PREFIX}-${instanceId}`;
+
     this.logger.info(
       {
         brokerUrl,
-        clientId: STATIC_CLIENT_ID,
+        clientId,
         user: config.user,
       },
       "MQTT: Initializing service (v5)",
     );
 
     try {
-      this.client = mqtt.connect(brokerUrl, {
+      // Use explicit host/port instead of URL to ensure family option is applied
+      // URL-based connections may not properly forward socket options
+      this.client = mqtt.connect({
+        host: config.host,
+        port: config.port,
+        protocol: "mqtt",
         username: config.user ?? undefined,
         password: config.password ?? undefined,
-        clientId: STATIC_CLIENT_ID,
+        clientId,
         clean: true,
         keepalive: 60,
         protocolVersion: 5,
         reconnectPeriod: 5000,
         connectTimeout: 10000,
-        properties: {
-          sessionExpiryInterval: 120,
-        },
-      });
+        // Force IPv4 to prevent "Happy Eyeballs" race condition
+        // where multiple IPv6 addresses are tried and cause unstable connections
+        family: 4,
+      } as mqtt.IClientOptions & { family?: 4 | 6 });
 
       this.setupEventListeners();
     } catch (err) {
@@ -121,8 +128,6 @@ export class MqttService extends EventEmitter {
   }
 
   public async disconnect(): Promise<void> {
-    this.stopDiscoveryLoop();
-
     if (this.client) {
       this.logger.info("MQTT: Disconnecting...");
       try {
@@ -141,9 +146,21 @@ export class MqttService extends EventEmitter {
   ): Promise<boolean> {
     this.cachedDiscoveryUnit = unit;
     this.cachedCapabilities = capabilities;
-    this.ensureDiscoveryLoop();
+
+    // If already connected, run discovery immediately
+    if (this.connected) {
+      void this.runDiscoveryCycle();
+    }
 
     return true;
+  }
+
+  /**
+   * Manually trigger a discovery refresh (e.g. after mode changes)
+   */
+  public async refreshDiscovery() {
+    this.logger.info("MQTT: Manual discovery refresh triggered");
+    await this.runDiscoveryCycle();
   }
 
   public async publishState(state: {
@@ -170,6 +187,7 @@ export class MqttService extends EventEmitter {
   }
 
   public async reloadConfig(): Promise<void> {
+    this.logger.info("MQTT: reloadConfig() called, reconnecting...");
     await this.disconnect();
     await this.connect();
   }
@@ -186,13 +204,18 @@ export class MqttService extends EventEmitter {
     settings: MqttSettings,
     logger: Logger,
   ): Promise<{ success: boolean; message?: string }> {
-    const brokerUrl = `mqtt://${settings.host}:${settings.port}`;
     const clientId = `luftuj-test-${Math.random().toString(16).slice(2, 8)}`;
 
-    logger.info({ brokerUrl, clientId }, "MQTT: Testing connection (v5)");
+    logger.info(
+      { host: settings.host, port: settings.port, clientId },
+      "MQTT: Testing connection (v5)",
+    );
 
     return new Promise((resolve) => {
-      const client = mqtt.connect(brokerUrl, {
+      const client = mqtt.connect({
+        host: settings.host,
+        port: settings.port,
+        protocol: "mqtt",
         username: settings.user ?? undefined,
         password: settings.password ?? undefined,
         clientId,
@@ -201,12 +224,16 @@ export class MqttService extends EventEmitter {
         connectTimeout: 5000,
         reconnectPeriod: 0,
         manualConnect: true,
-      });
+        family: 4,
+      } as mqtt.IClientOptions & { family?: 4 | 6 });
 
       let finished = false;
+      let timer: NodeJS.Timeout | null = null;
+
       function finish(ok: boolean, msg?: string) {
         if (finished) return;
         finished = true;
+        if (timer) clearTimeout(timer);
         client.end(true);
         resolve({ success: ok, message: msg });
       }
@@ -221,7 +248,7 @@ export class MqttService extends EventEmitter {
         finish(false, e instanceof Error ? e.message : "Unknown error");
       }
 
-      setTimeout(() => finish(false, "Timeout"), 6000);
+      timer = setTimeout(() => finish(false, "Timeout"), 6000);
     });
   }
 
@@ -245,24 +272,59 @@ export class MqttService extends EventEmitter {
     if (!this.client) return;
 
     this.client.on("connect", (connack) => {
-      this.logger.info({ connack }, "MQTT: Connected");
+      this.logger.info({ connack, clientId: this.client?.options?.clientId }, "MQTT: Connected");
       this.connected = true;
       this.lastSuccessAt = Date.now();
-      this.emit("connect");
 
-      if (this.cachedDiscoveryUnit) {
-        const unitId = this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name);
-        void this.publishAvailability(unitId, "online");
-        void this.subscribeToCommands(unitId);
-      }
+      // Sequence all operations to prevent flooding the broker
+      // The broker has receiveMaximum limit (e.g., 20) that can be exceeded
+      // if we fire all operations in parallel
+      void this.handleConnectSequence();
     });
+
+    // Register remaining event handlers
+    this.setupEventListenersContinued();
+  }
+
+  private async handleConnectSequence(): Promise<void> {
+    if (!this.cachedDiscoveryUnit) {
+      // No unit cached, just emit connect
+      this.emit("connect");
+      return;
+    }
+
+    const unitId = this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name);
+
+    try {
+      // 1. Subscribe to commands first (3 subscriptions)
+      await this.subscribeToCommands(unitId);
+
+      // 2. Publish availability
+      await this.publishAvailability(unitId, "online");
+
+      // 3. Run discovery cycle (publishes many messages)
+      await this.runDiscoveryCycle();
+
+      // 4. Finally emit connect so HruMonitor can publish state
+      this.emit("connect");
+    } catch (err) {
+      this.logger.warn({ err }, "MQTT: Connect sequence failed, emitting connect anyway");
+      this.emit("connect");
+    }
+  }
+
+  private setupEventListenersContinued() {
+    if (!this.client) return;
 
     this.client.on("reconnect", () => {
       this.logger.info("MQTT: Attempting reconnect...");
     });
 
     this.client.on("error", (err) => {
-      this.logger.error({ err }, "MQTT: Error");
+      this.logger.error(
+        { err, code: err?.name, message: err?.message },
+        "MQTT: Error event received",
+      );
       this.connected = false;
       this.emit("disconnect");
     });
@@ -273,19 +335,30 @@ export class MqttService extends EventEmitter {
       }
       this.connected = false;
       this.emit("disconnect");
-
-      if (this.cachedDiscoveryUnit) {
-        const unitId = this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name);
-        void this.publishAvailability(unitId, "offline");
-      }
+      // Note: Can't publish availability here - connection is already closed
+      // The broker's LWT or clean session should handle this
     });
 
     this.client.on("offline", () => {
-      this.logger.warn("MQTT: Client offline");
+      this.logger.warn("MQTT: Client offline event received");
+    });
+
+    this.client.on("disconnect", (packet) => {
+      this.logger.warn(
+        { reasonCode: packet?.reasonCode, properties: packet?.properties },
+        "MQTT: Disconnect packet received from broker",
+      );
     });
 
     this.client.on("message", (topic, message) => {
-      this.handleIncomingMessage(topic, message.toString());
+      // Sequence message processing to prevent race conditions
+      this.messageQueue = this.messageQueue
+        .then(async () => {
+          await this.handleIncomingMessage(topic, message.toString());
+        })
+        .catch((err) => {
+          this.logger.error({ err }, "MQTT: Message processing error");
+        });
     });
   }
 
@@ -302,76 +375,84 @@ export class MqttService extends EventEmitter {
     }
   }
 
-  private async handleIncomingMessage(topic: string, payload: string) {
-    if (!this.cachedDiscoveryUnit) return;
-    const unitId = this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name);
-    const unitBaseTopic = `${BASE_TOPIC}/${unitId}`;
-
-    // 1. Duration Set
-    if (topic === `${unitBaseTopic}/boost_duration/set`) {
-      const duration = parseInt(payload, 10);
-      if (!isNaN(duration)) {
-        this.settingsRepo.setBoostDuration(duration);
-        await this.client?.publishAsync(`${unitBaseTopic}/boost_duration/state`, String(duration), {
-          qos: 1,
-          retain: true,
-        });
-        this.logger.info({ duration }, "MQTT: Boost duration updated");
+  private async handleIncomingMessage(topic: string, rawPayload: string) {
+    try {
+      if (!this.cachedDiscoveryUnit) {
+        this.logger.warn({ topic }, "MQTT: Received message but no discovery unit cached");
+        return;
       }
-    }
 
-    // 2. Cancel Boost
-    if (topic === `${unitBaseTopic}/boost/cancel` && payload === "CANCEL") {
-      this.settingsRepo.setTimelineOverride(null);
-      await this.timelineScheduler.executeScheduledEvent();
-      this.emit("command-received");
-      this.logger.info("MQTT: Boost cancelled");
-    }
+      const payload = rawPayload.trim();
+      const unitId = this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name);
+      const unitBaseTopic = `${BASE_TOPIC}/${unitId}`;
 
-    // 3. Start Boost
-    const startBoostMatch = topic.match(new RegExp(`${unitBaseTopic}/boost/(\\d+)/start`));
-    if (startBoostMatch && payload === "START") {
-      const modeIdStr = startBoostMatch[1];
-      if (!modeIdStr) return;
+      this.logger.info({ topic, payload, unitBaseTopic }, "MQTT: Incoming message processing");
 
-      const modeId = parseInt(modeIdStr, 10);
-      const duration = this.settingsRepo.getBoostDuration();
-      const endTime = new Date(Date.now() + duration * 60 * 1000).toISOString();
-      const override: TimelineOverride = { modeId, endTime, durationMinutes: duration };
+      // 1. Duration Set
+      if (topic === `${unitBaseTopic}/boost_duration/set`) {
+        const duration = parseInt(payload, 10);
+        // Validate payload (5-240)
+        if (!isNaN(duration) && duration >= 5 && duration <= 240) {
+          this.logger.info({ duration }, "MQTT: Execute Boost Duration Set");
+          this.settingsRepo.setBoostDuration(duration);
+          await this.client?.publishAsync(
+            `${unitBaseTopic}/boost_duration/state`,
+            String(duration),
+            {
+              qos: 1,
+              retain: true,
+            },
+          );
+          this.logger.info({ duration }, "MQTT: Boost duration updated");
+        } else {
+          this.logger.warn({ payload }, "MQTT: Invalid duration received (must be 5-240)");
+        }
+      }
 
-      this.settingsRepo.setTimelineOverride(override);
-      this.logger.info({ modeId, duration, endTime }, "MQTT: Boost activated");
+      // 2. Cancel Boost
+      if (topic === `${unitBaseTopic}/boost/cancel` && payload === "CANCEL") {
+        this.logger.info("MQTT: Execute Boost Cancel");
+        this.settingsRepo.setTimelineOverride(null);
+        await this.timelineScheduler.executeScheduledEvent();
+        this.emit("command-received");
+        this.logger.info("MQTT: Boost cancelled");
+      }
 
-      await this.timelineScheduler.executeScheduledEvent();
-      this.emit("command-received");
+      // 3. Start Boost
+      const startBoostMatch = topic.match(new RegExp(`${unitBaseTopic}/boost/(\\d+)/start`));
+      if (startBoostMatch && payload === "START") {
+        const modeIdStr = startBoostMatch[1];
+        if (!modeIdStr) {
+          this.logger.warn("MQTT: Boost start matched but no ID found");
+          return;
+        }
+
+        const modeId = parseInt(modeIdStr, 10);
+        const duration = this.settingsRepo.getBoostDuration();
+        const endTime = new Date(Date.now() + duration * 60 * 1000).toISOString();
+        const override: TimelineOverride = { modeId, endTime, durationMinutes: duration };
+
+        this.logger.info({ modeId, duration, override }, "MQTT: Execute Boost Start");
+
+        this.settingsRepo.setTimelineOverride(override);
+        await this.timelineScheduler.executeScheduledEvent();
+        this.emit("command-received");
+
+        this.logger.info("MQTT: Boost activated successfully");
+      }
+    } catch (err) {
+      this.logger.error({ err, topic }, "MQTT: Error handling incoming message");
     }
   }
 
   private slugify(text: string): string {
     return text
+      .normalize("NFD") // Split accented chars
+      .replace(/[\u0300-\u036f]/g, "") // Remove accents
       .toLowerCase()
+      .trim()
       .replace(/[^a-z0-9]+/g, "_")
-      .replace(/(^_|_$)/g, "");
-  }
-
-  private ensureDiscoveryLoop() {
-    if (this.discoveryTimer) return;
-
-    this.logger.info("MQTT: Starting discovery loop");
-
-    void this.runDiscoveryCycle();
-
-    this.discoveryTimer = setInterval(() => {
-      void this.runDiscoveryCycle();
-    }, DISCOVERY_INTERVAL_MS);
-  }
-
-  private stopDiscoveryLoop() {
-    if (this.discoveryTimer) {
-      clearInterval(this.discoveryTimer);
-      this.discoveryTimer = null;
-      this.logger.info("MQTT: Stopped discovery loop");
-    }
+      .replace(/(^_|_$)/g, ""); // Remove leading/trailing underscores
   }
 
   private async runDiscoveryCycle() {
@@ -380,40 +461,51 @@ export class MqttService extends EventEmitter {
     }
 
     try {
-      if (this.cachedCapabilities) {
-        await this.internalSendDiscovery(this.cachedDiscoveryUnit, this.cachedCapabilities);
-      } else {
-        await this.internalSendDiscovery(this.cachedDiscoveryUnit);
-      }
+      await this.internalSendDiscovery(this.cachedDiscoveryUnit, this.cachedCapabilities);
       this.lastSuccessAt = Date.now();
     } catch (err) {
-      this.logger.warn({ err }, "MQTT: Discovery cycle failed");
+      this.logger.warn({ err }, "MQTT: Simple discovery cycle failed");
     }
   }
 
   private async internalSendDiscovery(
     unit: HeatRecoveryUnit,
-    capabilities?: RegulationCapabilities,
+    capabilities?: RegulationCapabilities | null,
   ) {
-    if (!this.client) return;
+    if (!this.client || !this.connected) {
+      this.logger.debug("MQTT: internalSendDiscovery called but not connected, skipping");
+      return;
+    }
 
+    // Use stable ID if available, valid fallback otherwise
+    // unit.id should be the database UUID
+    const stableId = unit.id ? `${unit.id}` : this.slugify(unit.code || "default_hru");
+
+    // Mutable name for display/topics
     const unitId = this.slugify(unit.code || unit.name);
+
+    // Device Info - Identifiers MUST be stable and unique
     const device = {
-      identifiers: [`luftuj_hru_${unitId}`],
+      identifiers: [`luftuj_hru_device_${stableId}`],
       name: `Luftuj (${unit.name})`,
       manufacturer: "Luftuj s.r.o.",
       model: unit.code || "HRU",
     };
 
     const unitBaseTopic = `${BASE_TOPIC}/${unitId}`;
-    await this.client.subscribeAsync(`${unitBaseTopic}/boost_duration/set`);
-    await this.client.subscribeAsync(`${unitBaseTopic}/boost/cancel`);
-    await this.client.subscribeAsync(`${unitBaseTopic}/boost/+/start`);
+    const availability = [
+      {
+        topic: `${unitBaseTopic}/status`,
+        payload_available: "online",
+        payload_not_available: "offline",
+      },
+    ];
 
-    const availability = [{ topic: `${unitBaseTopic}/status` }];
+    // Note: Subscriptions are handled in subscribeToCommands() on connect
+    // No need to re-subscribe here - duplicates can cause issues
 
+    // Get strings
     const strings = LOCALIZED_STRINGS[this.settingsRepo.getLanguage()] || LOCALIZED_STRINGS.en;
-
     if (!strings) {
       this.logger.error("MQTT: Failed to load localization strings for discovery");
       return;
@@ -421,110 +513,96 @@ export class MqttService extends EventEmitter {
 
     // --- 1. Sensors & Configuration ---
 
-    // Shared sensor helper
-    const publishSensor = async (
-      id: string,
-      name: string,
-      template: string,
-      icon?: string,
-      unit_of_measure?: string,
-      device_class?: string,
-    ) => {
-      const payload = {
-        name,
-        unique_id: `luftuj_hru_${unitId}_${id}`,
-        state_topic: `${unitBaseTopic}/state`,
-        value_template: template,
-        device,
-        availability,
-        ...(icon ? { icon } : {}),
-        ...(unit_of_measure ? { unit_of_measurement: unit_of_measure } : {}),
-        ...(device_class ? { device_class } : {}),
-      };
-      await this.client!.publishAsync(
-        `${DISCOVERY_PREFIX}/sensor/luftuj_hru_${unitId}/${id}/config`,
-        JSON.stringify(payload),
-        { qos: 1, retain: true },
-      );
-    };
-
     const powerUnitRaw = unit.controlUnit || "%";
     const powerUnit = powerUnitRaw === "level" ? strings.level_unit || "level" : powerUnitRaw;
-    const powerCls = powerUnitRaw === "%" ? "power_factor" : null;
+    const powerCls = powerUnitRaw === "%" ? "power_factor" : undefined;
 
-    await publishSensor(
+    await this.publishSensor(
+      unitId,
       "power",
       strings.power,
       "{{ value_json.power }}",
+      device,
+      availability,
       "mdi:fan",
       powerUnit,
-      powerCls || undefined,
+      powerCls,
     );
+
     if (capabilities?.hasTemperatureControl !== false) {
-      await publishSensor(
+      await this.publishSensor(
+        unitId,
         "temperature",
         strings.temperature,
         "{{ value_json.temperature }}",
+        device,
+        availability,
         "mdi:thermometer",
         "°C",
         "temperature",
       );
     } else {
-      await this.client.publishAsync(
-        `${DISCOVERY_PREFIX}/sensor/luftuj_hru_${unitId}/temperature/config`,
-        "",
-        { qos: 1, retain: true },
-      );
+      await this.removeDiscoveryEntity(unitId, "sensor", "temperature");
     }
 
-    await publishSensor("mode", strings.mode, "{{ value_json.mode_formatted }}", "mdi:fan");
+    await this.publishSensor(
+      unitId,
+      "mode",
+      strings.mode,
+      "{{ value_json.mode_formatted }}",
+      device,
+      availability,
+      "mdi:fan",
+    );
 
     if (capabilities?.hasModeControl !== false) {
-      await publishSensor(
+      await this.publishSensor(
+        unitId,
         "native_mode",
         strings.native_mode,
         "{{ value_json.native_mode_formatted }}",
+        device,
+        availability,
         "mdi:cog",
       );
     } else {
-      await this.client.publishAsync(
-        `${DISCOVERY_PREFIX}/sensor/luftuj_hru_${unitId}/native_mode/config`,
-        "",
-        { qos: 1, retain: true },
-      );
+      await this.removeDiscoveryEntity(unitId, "sensor", "native_mode");
     }
-    await publishSensor(
+
+    await this.publishSensor(
+      unitId,
       "boost_remaining",
       strings.boost_remaining,
       "{{ value_json.boost_remaining }}",
+      device,
+      availability,
       "mdi:timer-sand",
       "min",
     );
-    await publishSensor(
+    await this.publishSensor(
+      unitId,
       "boost_mode",
       strings.boost_mode,
       "{{ value_json.boost_name }}",
+      device,
+      availability,
       "mdi:rocket",
     );
 
     // Boost Duration Number Control
-    const durationPayload = {
-      name: strings.boost_duration,
-      unique_id: `luftuj_hru_${unitId}_boost_duration`,
-      state_topic: `${unitBaseTopic}/boost_duration/state`,
-      command_topic: `${unitBaseTopic}/boost_duration/set`,
-      min: 5,
-      max: 240,
-      step: 5,
-      unit_of_measurement: "min",
-      icon: "mdi:clock-fast",
+    await this.publishNumber(
+      unitId,
+      "boost_duration",
+      strings.boost_duration,
+      `${unitBaseTopic}/boost_duration/state`,
+      `${unitBaseTopic}/boost_duration/set`,
       device,
       availability,
-    };
-    await this.client.publishAsync(
-      `${DISCOVERY_PREFIX}/number/luftuj_hru_${unitId}/boost_duration/config`,
-      JSON.stringify(durationPayload),
-      { qos: 1, retain: true },
+      5,
+      240,
+      5,
+      "min",
+      "mdi:clock-fast",
     );
 
     // Initial publish of boost duration
@@ -532,27 +610,133 @@ export class MqttService extends EventEmitter {
     await this.client.publishAsync(
       `${unitBaseTopic}/boost_duration/state`,
       String(currentDuration),
-      { qos: 1, retain: true },
+      { qos: 0, retain: true },
     );
 
     // Cancel Boost Button
-    const cancelPayload = {
-      name: strings.cancel_boost,
-      unique_id: `luftuj_hru_${unitId}_cancel_boost`,
-      command_topic: `${unitBaseTopic}/boost/cancel`,
-      payload_press: "CANCEL",
-      icon: "mdi:stop-circle-outline",
+    await this.publishButton(
+      unitId,
+      "cancel_boost",
+      strings.cancel_boost,
+      `${unitBaseTopic}/boost/cancel`,
+      "CANCEL",
       device,
       availability,
-    };
-    await this.client.publishAsync(
-      `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/cancel_boost/config`,
-      JSON.stringify(cancelPayload),
-      { qos: 1, retain: true },
+      "mdi:stop-circle-outline",
     );
 
     // --- 2. Boost Controls Lifecycle ---
+    await this.updateBoostDiscovery(unitId, unit, strings, device, availability);
 
+    // Finalize
+    await this.publishAvailability(unitId, "online");
+    this.logger.info({ unitId, stableId }, "MQTT: Discovery cycle complete (Optimized)");
+  }
+
+  private async publishSensor(
+    unitId: string,
+    id: string,
+    name: string,
+    template: string,
+    device: object,
+    availability: object[],
+    icon?: string,
+    unit_of_measure?: string,
+    device_class?: string,
+  ) {
+    const payload = {
+      name,
+      unique_id: `luftuj_hru_${unitId}_${id}`,
+      state_topic: `${BASE_TOPIC}/${unitId}/state`,
+      value_template: template,
+      device,
+      availability,
+      ...(icon ? { icon } : {}),
+      ...(unit_of_measure ? { unit_of_measurement: unit_of_measure } : {}),
+      ...(device_class ? { device_class } : {}),
+    };
+    await this.client?.publishAsync(
+      `${DISCOVERY_PREFIX}/sensor/luftuj_hru_${unitId}/${id}/config`,
+      JSON.stringify(payload),
+      { qos: 0, retain: true },
+    );
+  }
+
+  private async publishNumber(
+    unitId: string,
+    id: string,
+    name: string,
+    state_topic: string,
+    command_topic: string,
+    device: object,
+    availability: object[],
+    min: number,
+    max: number,
+    step: number,
+    unit_of_measurement: string,
+    icon: string,
+  ) {
+    const payload = {
+      name,
+      unique_id: `luftuj_hru_${unitId}_${id}`,
+      state_topic,
+      command_topic,
+      min,
+      max,
+      step,
+      unit_of_measurement,
+      icon,
+      device,
+      availability,
+    };
+    await this.client?.publishAsync(
+      `${DISCOVERY_PREFIX}/number/luftuj_hru_${unitId}/${id}/config`,
+      JSON.stringify(payload),
+      { qos: 0, retain: true },
+    );
+  }
+
+  private async publishButton(
+    unitId: string,
+    id: string,
+    name: string,
+    command_topic: string,
+    payload_press: string,
+    device: object,
+    availability: object[],
+    icon: string,
+  ) {
+    const payload = {
+      name,
+      unique_id: `luftuj_hru_${unitId}_${id}`,
+      command_topic,
+      payload_press,
+      icon,
+      device,
+      availability,
+    };
+    await this.client?.publishAsync(
+      `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/${id}/config`,
+      JSON.stringify(payload),
+      { qos: 0, retain: true },
+    );
+  }
+
+  private async removeDiscoveryEntity(unitId: string, outputType: string, id: string) {
+    await this.client?.publishAsync(
+      `${DISCOVERY_PREFIX}/${outputType}/luftuj_hru_${unitId}/${id}/config`,
+      "",
+      { qos: 0, retain: true },
+    );
+  }
+
+  private async updateBoostDiscovery(
+    unitId: string,
+    unit: HeatRecoveryUnit,
+    strings: Record<string, string>,
+    device: object,
+    availability: object[],
+  ) {
     // Tracking for Unit ID changes
     const lastUnitId = this.settingsRepo.getLastUnitId();
     if (lastUnitId && lastUnitId !== unitId) {
@@ -567,32 +751,35 @@ export class MqttService extends EventEmitter {
     const prevBoostMap = this.settingsRepo.getDiscoveredBoosts();
     const currentBoostMap: Record<number, string> = { ...prevBoostMap };
 
-    // Get raw ID for DB lookup
-    const rawUnitId = unit.code || unit.name;
-    const modes = this.settingsRepo.getTimelineModes(rawUnitId);
-    this.logger.info(
-      {
-        rawUnitId,
-        modeCount: modes.length,
-        modes: modes.map((m) => ({ id: m.id, name: m.name, isBoost: m.isBoost, hruId: m.hruId })),
-      },
-      "MQTT: Discovery modes lookup",
-    );
+    // Get unit ID for DB lookup - modes are stored with hruId from HRU settings, not unit.id
+    // This aligns with how the API retrieves modes via getCurrentUnitId()
+    const hruSettings = this.settingsRepo.getHruSettings();
+    const settingsUnitId = hruSettings?.unit || unit.id;
+    const modes = this.settingsRepo.getTimelineModes(settingsUnitId);
     let activeBoostCount = 0;
 
-    // Determine current unit ID slug for filtering
-    const currentUnitId = unitId;
+    // Debug: Log what we're working with
+    const boostModes = modes.filter((m) => m.isBoost);
+    this.logger.info(
+      {
+        settingsUnitId,
+        unitId,
+        totalModes: modes.length,
+        boostModes: boostModes.length,
+        prevBoostCount: Object.keys(prevBoostMap).length,
+      },
+      "MQTT: Boost discovery starting",
+    );
 
     // Process ALL modes: register boosts, explicitly delete non-boosts OR modes from other units
     for (const m of modes) {
       const slug = this.slugify(m.name);
-      // Log filtering logic
-      const isRelevantUnit = !m.hruId || this.slugify(m.hruId) === currentUnitId;
+      // Compare m.hruId with settingsUnitId directly (no slugification needed)
+      // Modes are stored with the raw settings unit ID, not slugified
+      const isRelevantUnit = !m.hruId || m.hruId === settingsUnitId;
+
       if (!isRelevantUnit && m.isBoost) {
-        this.logger.warn(
-          { mode: m.name, hruId: m.hruId, currentUnitId },
-          "MQTT: Skipping boost mode for other unit",
-        );
+        // skip silent or debug log
       }
 
       if (m.isBoost && isRelevantUnit) {
@@ -602,70 +789,64 @@ export class MqttService extends EventEmitter {
         // Delete old slug topic if renamed
         if (prevBoostMap[m.id] && prevBoostMap[m.id] !== slug) {
           const oldSlug = prevBoostMap[m.id];
-          await this.client.publishAsync(
-            `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/boost_${oldSlug}/config`,
-            "",
-            { qos: 1, retain: true },
-          );
+          await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}`);
         }
 
-        const boostBtnPayload = {
-          name: strings.boost_label.replace("{{name}}", m.name),
-          unique_id: `luftuj_hru_${unitId}_boost_${m.id}`,
-          command_topic: `${unitBaseTopic}/boost/${m.id}/start`,
-          payload_press: "START",
-          icon: "mdi:rocket-launch",
+        const boostBtnName = (strings.boost_label || "Boost: {{name}}").replace("{{name}}", m.name);
+        await this.publishButton(
+          unitId,
+          `boost_${slug}`,
+          boostBtnName,
+          `${BASE_TOPIC}/${unitId}/boost/${m.id}/start`,
+          "START",
           device,
           availability,
-        };
-        await this.client.publishAsync(
-          `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/boost_${slug}/config`,
-          JSON.stringify(boostBtnPayload),
-          { qos: 1, retain: true },
+          "mdi:rocket-launch",
         );
       } else {
-        // Mode either:
-        // 1. Is not a boost
-        // 2. Belongs to a different unit
-        // -> Ensure no discovery button remains for THIS unit
-        await this.client.publishAsync(
-          `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/boost_${slug}/config`,
-          "",
-          { qos: 1, retain: true },
-        );
-        // If it was previously tracked for this unit but now belongs to another/is not boost, remove from map
-        if (currentBoostMap[m.id]) {
+        // Mode is NOT a boost anymore (or not relevant unit)
+
+        // 1. Check if it was previously published as a boost (using tracked slug) and remove it
+        if (prevBoostMap[m.id]) {
+          const oldSlug = prevBoostMap[m.id];
+          this.logger.info(
+            { modeId: m.id, modeName: m.name, slug: oldSlug },
+            "MQTT: Removing boost button (tracked)",
+          );
+          await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}`);
           delete currentBoostMap[m.id];
         }
+
+        // 2. FALLBACK: Always try to remove using the CURRENT name slug too
+        // This handles cases where we lost track (prevBoostMap empty) but the button exists.
+        await this.removeDiscoveryEntity(unitId, "button", `boost_${slug}`);
       }
     }
 
-    // Cleanup types that were deleted from DB entirely (present in prevBoostMap but not in modes)
+    // Cleanup modes that were deleted from DB entirely (present in prevBoostMap but not in modes)
     const modeIds = new Set(modes.map((m) => m.id));
     for (const modeIdStr of Object.keys(prevBoostMap)) {
       const modeId = parseInt(modeIdStr, 10);
       if (!modeIds.has(modeId)) {
         const oldSlug = prevBoostMap[modeId];
-        await this.client.publishAsync(
-          `${DISCOVERY_PREFIX}/button/luftuj_hru_${unitId}/boost_${oldSlug}/config`,
-          "",
-          { qos: 1, retain: true },
+        this.logger.info(
+          { modeId, slug: oldSlug },
+          "MQTT: Removing boost button (mode was deleted)",
         );
+        await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}`);
         delete currentBoostMap[modeId];
       }
     }
 
-    // Finalize
     this.settingsRepo.setDiscoveredBoosts(currentBoostMap);
-    await this.publishAvailability(unitId, "online");
-    this.logger.info({ unitId, boostCount: activeBoostCount }, "MQTT: Discovery cycle complete");
+    this.logger.info({ count: activeBoostCount }, "MQTT: Boost discovery updated");
   }
 
   private async publishAvailability(unitId: string, status: "online" | "offline") {
     if (!this.client) return;
     try {
       await this.client.publishAsync(`${BASE_TOPIC}/${unitId}/status`, status, {
-        qos: 1,
+        qos: 0,
         retain: true,
       });
     } catch {

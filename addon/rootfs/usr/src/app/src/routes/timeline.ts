@@ -24,6 +24,7 @@ import {
 
 import type { TimelineScheduler } from "../services/timelineScheduler";
 import type { HruService } from "../features/hru/hru.service";
+import type { MqttService } from "../services/mqttService";
 import { validateRequest } from "../middleware/validateRequest";
 import {
   timelineModeInputSchema,
@@ -37,6 +38,7 @@ export function createTimelineRouter(
   logger: Logger,
   timelineScheduler: TimelineScheduler,
   hruService: HruService,
+  mqttService: MqttService,
 ) {
   const router = Router();
 
@@ -164,6 +166,12 @@ export function createTimelineRouter(
         // We need to pass undefined ID for creation, but type expects number.
         // upsertTimelineMode handles null/undefined ID for creation logic.
         const created = upsertTimelineMode({ ...newMode, id: undefined as unknown as number });
+
+        // Trigger MQTT discovery refresh to publish new boost buttons if needed
+        mqttService.refreshDiscovery().catch((err) => {
+          logger.warn({ err }, "Failed to refresh MQTT discovery after mode creation");
+        });
+
         response.status(201).json(created);
       } catch (err) {
         if (err instanceof Error && err.message.includes("UNIQUE constraint failed")) {
@@ -212,6 +220,12 @@ export function createTimelineRouter(
         };
 
         const saved = upsertTimelineMode(updated);
+
+        // Trigger MQTT discovery refresh to update boost buttons
+        mqttService.refreshDiscovery().catch((err) => {
+          logger.warn({ err }, "Failed to refresh MQTT discovery after mode update");
+        });
+
         response.json(saved);
       } catch (err) {
         if (err instanceof Error && err.message.includes("UNIQUE constraint failed")) {
@@ -254,7 +268,13 @@ export function createTimelineRouter(
 
     try {
       deleteTimelineMode(id);
-      response.status(204).end();
+
+      // Trigger MQTT discovery refresh to remove buttons for deleted mode
+      mqttService.refreshDiscovery().catch((err) => {
+        logger.warn({ err }, "Failed to refresh MQTT discovery after mode deletion");
+      });
+
+      response.status(204).send();
     } catch (err) {
       logger.error({ err, id }, "Failed to delete timeline mode");
       response.status(500).json({ detail: "Failed to delete mode" });

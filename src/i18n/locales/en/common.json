@@ -135,6 +135,7 @@
       "modeCreateAction": "Create",
       "modeUpdateAction": "Update",
       "modeIsBoost": "Show as boost button",
+      "modeIsBoostBadge": "BOOST",
       "modeIsBoostDescription": "Display this mode as a quick-action button on the dashboard.",
       "noModesCreated": "Create a mode first",
       "noModesCreatedDescription": "You need to create at least one ventilation mode before you can schedule timeline events.",
@@ -324,6 +325,12 @@
     "boostSelectMode": "Select Mode",
     "boostActiveMode": "Active Mode",
     "boostCancel": "Cancel Boost",
+    "nativeMode": "Native mode",
+    "activeMode": {
+      "manual": "Manual",
+      "boost": "Boost: {{name}}",
+      "schedule": "Schedule: {{name}}"
+    },
     "haStatusTitle": "Home Assistant",
     "haStatusDescription": "Backend connection to Home Assistant WebSocket",
     "haStatus": {
