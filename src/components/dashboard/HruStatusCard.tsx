@@ -8,7 +8,6 @@ import {
   Title,
   ThemeIcon,
   SimpleGrid,
-  Paper,
   Center,
 } from "@mantine/core";
 import {
@@ -116,7 +115,7 @@ export function HruStatusCard({
   const hasTemp = capabilities.hasTemperatureControl !== false;
   const hasMode = capabilities.hasModeControl !== false;
 
-  const visibleItems = (hasPower ? 1 : 0) + (hasTemp ? 1 : 0);
+  const visibleItems = (hasPower || hasMode ? 1 : 0) + (hasTemp ? 1 : 0);
   const gridCols = Math.max(1, Math.min(2, visibleItems));
 
   return (
@@ -148,31 +147,72 @@ export function HruStatusCard({
 
       {visibleItems > 0 && (
         <SimpleGrid cols={{ base: 1, sm: gridCols }} spacing="md" p="lg" pt="md">
-          {hasPower && (
-            <Card shadow="none" withBorder radius="md" p="md" variant="light">
-              <Center>
-                <RingProgress
-                  size={140}
-                  thickness={12}
-                  roundCaps
-                  sections={[{ value: powerPercentage, color: progressColor }]}
-                  label={
-                    <Center>
-                      <Stack align="center" gap={0}>
-                        <IconWind size={24} style={{ opacity: 0.7 }} />
-                        <Text fw={700} size="xl" ta="center">
-                          {powerValue}
-                          {powerUnit}
-                        </Text>
-                        <Text c="dimmed" size="xs">
-                          {t("hru.power")}
-                        </Text>
-                      </Stack>
-                    </Center>
-                  }
-                />
-              </Center>
-            </Card>
+          {(hasPower || hasMode) && (
+            <Stack gap="md">
+              {hasPower && (
+                <Card shadow="none" withBorder radius="md" p="md" variant="light">
+                  <Center>
+                    <RingProgress
+                      size={140}
+                      thickness={12}
+                      roundCaps
+                      sections={[{ value: powerPercentage, color: progressColor }]}
+                      label={
+                        <Center>
+                          <Stack align="center" gap={0}>
+                            <IconWind size={24} style={{ opacity: 0.7 }} />
+                            <Text fw={700} size="xl" ta="center">
+                              {powerValue}
+                              {powerUnit}
+                            </Text>
+                            <Text c="dimmed" size="xs">
+                              {t("hru.power")}
+                            </Text>
+                          </Stack>
+                        </Center>
+                      }
+                    />
+                  </Center>
+                </Card>
+              )}
+
+              {hasMode && (
+                <Card shadow="none" withBorder radius="md" p="md" variant="light">
+                  <Group>
+                    <ThemeIcon color="grape" variant="light" size="xl" radius="md">
+                      <IconSettings size={28} />
+                    </ThemeIcon>
+                    <div style={{ flex: 1 }}>
+                      <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+                        {t("dashboard.hruMode", { defaultValue: "Mode" })}
+                      </Text>
+                      {activeMode ? (
+                        <>
+                          <Title order={3} c="grape">
+                            {activeMode.source === "manual"
+                              ? t("dashboard.activeMode.manual")
+                              : activeMode.source === "boost"
+                                ? t("dashboard.activeMode.boost", {
+                                    name: activeMode.modeName || "?",
+                                  })
+                                : t("dashboard.activeMode.schedule", {
+                                    name: activeMode.modeName || "?",
+                                  })}
+                          </Title>
+                          <Text size="sm" c="dimmed" mt={4}>
+                            {t("dashboard.nativeMode")}: {modeValue}
+                          </Text>
+                        </>
+                      ) : (
+                        <Title order={3} c="grape">
+                          {modeValue}
+                        </Title>
+                      )}
+                    </div>
+                  </Group>
+                </Card>
+              )}
+            </Stack>
           )}
 
           {hasTemp && (
@@ -203,51 +243,6 @@ export function HruStatusCard({
             </Card>
           )}
         </SimpleGrid>
-      )}
-
-      {hasMode && (
-        <Paper
-          p="lg"
-          radius="0"
-          style={{
-            borderTop: "1px solid var(--mantine-color-default-border)",
-            background: "var(--mantine-color-dark-6)",
-          }}
-          bg="var(--mantine-color-gray-light)"
-        >
-          <Group>
-            <ThemeIcon color="grape" variant="light" size="xl" radius="md">
-              <IconSettings size={28} />
-            </ThemeIcon>
-            <div style={{ flex: 1 }}>
-              <Text size="xs" fw={700} c="dimmed" tt="uppercase">
-                {t("dashboard.hruMode", { defaultValue: "Mode" })}
-              </Text>
-              {activeMode ? (
-                <>
-                  <Title order={3} c="grape">
-                    {activeMode.source === "manual"
-                      ? t("dashboard.activeMode.manual")
-                      : activeMode.source === "boost"
-                        ? t("dashboard.activeMode.boost", {
-                            name: activeMode.modeName || "?",
-                          })
-                        : t("dashboard.activeMode.schedule", {
-                            name: activeMode.modeName || "?",
-                          })}
-                  </Title>
-                  <Text size="sm" c="dimmed" mt={4}>
-                    {t("dashboard.nativeMode")}: {modeValue}
-                  </Text>
-                </>
-              ) : (
-                <Title order={3} c="grape" lineClamp={1}>
-                  {modeValue}
-                </Title>
-              )}
-            </div>
-          </Group>
-        </Paper>
       )}
     </Card>
   );

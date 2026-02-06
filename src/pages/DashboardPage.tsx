@@ -93,6 +93,14 @@ export function DashboardPage() {
 
         <BoostButtons modes={modes} t={t} activeUnitId={activeUnitId} />
 
+        <HruStatusCard
+          status={hruStatus}
+          hruName={hruName}
+          t={t}
+          tempUnit={tempUnit}
+          activeMode={activeMode}
+        />
+
         <StatusCard
           title={t("dashboard.haStatusTitle", { defaultValue: "Home Assistant" })}
           description={t("dashboard.haStatusDescription", {
@@ -136,14 +144,6 @@ export function DashboardPage() {
               ? t("dashboard.haStatus.loading")
               : t(`dashboard.mqttStatus.${mqttStatus}`)
           }
-        />
-
-        <HruStatusCard
-          status={hruStatus}
-          hruName={hruName}
-          t={t}
-          tempUnit={tempUnit}
-          activeMode={activeMode}
         />
       </Stack>
     </Container>
