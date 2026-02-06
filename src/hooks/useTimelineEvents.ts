@@ -4,7 +4,7 @@ import type { TFunction } from "i18next";
 import type { TimelineEvent, Mode } from "../types/timeline";
 import * as api from "../api/timeline";
 
-export function useTimelineEvents(modes: Mode[], t: TFunction) {
+export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: string) {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
   const [saving, setSaving] = useState(false);
 
@@ -56,11 +56,14 @@ export function useTimelineEvents(modes: Mode[], t: TFunction) {
 
       setSaving(true);
       try {
-        const saved = await api.saveTimelineEvent({
-          ...event,
-          hruConfig: mergedHruConfig,
-          luftatorConfig: mergedLuftatorConfig,
-        });
+        const saved = await api.saveTimelineEvent(
+          {
+            ...event,
+            hruConfig: mergedHruConfig,
+            luftatorConfig: mergedLuftatorConfig,
+          },
+          activeUnitId,
+        );
 
         setEvents((prev) => {
           const idx = prev.findIndex((e) => e.id === saved.id);
@@ -92,7 +95,7 @@ export function useTimelineEvents(modes: Mode[], t: TFunction) {
         setSaving(false);
       }
     },
-    [modes, t],
+    [modes, t, activeUnitId],
   );
 
   const deleteEvent = useCallback(

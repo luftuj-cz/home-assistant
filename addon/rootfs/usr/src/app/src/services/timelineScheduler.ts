@@ -6,6 +6,7 @@ import {
   setAppSetting,
   getTimelineModes,
   assignLegacyEventsToUnit,
+  migrateLegacyEventsForUnit,
 } from "./database";
 
 import type { HruService } from "../features/hru/hru.service";
@@ -18,7 +19,7 @@ import {
 
 export interface ActiveState {
   source: "manual" | "schedule" | "boost";
-  modeName?: string;
+  modeName?: string | number;
 }
 
 export class TimelineScheduler {
@@ -56,20 +57,13 @@ export class TimelineScheduler {
     return hh * 60 + mm;
   }
 
-  private pickActiveEvent(): ReturnType<typeof getTimelineEvents>[number] | null {
-    const nowMinutes = this.timeToMinutes(
-      `${new Date().getHours().toString().padStart(2, "0")}:${new Date().getMinutes().toString().padStart(2, "0")}`,
-    );
-    const today = this.mapTodayToTimelineDay();
-
-    // Get current HRU unit ID to scope events
-    let currentUnitId: string | undefined;
+  private getCurrentUnitId(): string | undefined {
     try {
       const rawSettings = getAppSetting(HRU_SETTINGS_KEY);
       if (rawSettings) {
         const settings = JSON.parse(rawSettings) as HruSettings;
         if (settings.unit) {
-          currentUnitId = settings.unit;
+          return settings.unit;
         }
       }
     } catch {
@@ -77,10 +71,22 @@ export class TimelineScheduler {
         "TimelineScheduler: failed to parse HRU settings, treating as global/no unit",
       );
     }
+    return undefined;
+  }
+
+  private pickActiveEvent(): ReturnType<typeof getTimelineEvents>[number] | null {
+    const nowMinutes = this.timeToMinutes(
+      `${new Date().getHours().toString().padStart(2, "0")}:${new Date().getMinutes().toString().padStart(2, "0")}`,
+    );
+    const today = this.mapTodayToTimelineDay();
+
+    // Get current HRU unit ID to scope events
+    const currentUnitId = this.getCurrentUnitId();
 
     if (currentUnitId) {
       try {
         assignLegacyEventsToUnit(currentUnitId);
+        migrateLegacyEventsForUnit(currentUnitId);
       } catch (err) {
         this.logger.warn({ err }, "TimelineScheduler: failed to migrate legacy events");
       }
@@ -94,7 +100,7 @@ export class TimelineScheduler {
         (e) => e.enabled && (e.dayOfWeek === null || e.dayOfWeek === targetDay),
       );
 
-      const modes = getTimelineModes();
+      const modes = getTimelineModes(currentUnitId);
       const modeIdSet = new Set(modes.map((m) => m.id));
 
       let filtered = dayCandidates.filter((e) => {
@@ -150,17 +156,29 @@ export class TimelineScheduler {
 
   public getActiveBoostName(): string | null {
     const state = this.lastActiveState;
-    if (state?.source === "boost") {
-      return state.modeName || null;
+    if (state?.source === "boost" && state.modeName !== undefined) {
+      return String(state.modeName);
     }
     return null;
   }
 
   public async executeScheduledEvent(): Promise<void> {
     try {
+      // Periodic State Reporting
+      try {
+        const snapshot = await this.valveManager.getSnapshot();
+        const states = snapshot.reduce(
+          (acc, v) => ({ ...acc, [v.entity_id]: v.state }),
+          {} as Record<string, string>,
+        );
+        this.logger.info({ states }, "TimelineScheduler: Current valve states");
+      } catch (err) {
+        this.logger.warn({ err }, "Failed to report valve states");
+      }
+
       const overrideRaw = getAppSetting(TIMELINE_OVERRIDE_KEY);
       let activePayload: {
-        hruConfig?: { mode?: string; power?: number; temperature?: number } | null;
+        hruConfig?: { mode?: string | number; power?: number; temperature?: number } | null;
         luftatorConfig?: Record<string, number> | null;
         source: "manual" | "schedule" | "boost";
         id?: number;
@@ -170,12 +188,13 @@ export class TimelineScheduler {
         try {
           const override = JSON.parse(overrideRaw) as TimelineOverride;
           if (override && new Date(override.endTime) > new Date()) {
-            const modes = getTimelineModes();
+            const currentUnitId = this.getCurrentUnitId();
+            const modes = getTimelineModes(currentUnitId);
             const mode = modes.find((m) => m.id === override.modeId);
             if (mode) {
               activePayload = {
                 hruConfig: {
-                  mode: mode.name,
+                  mode: mode.nativeMode ?? mode.name,
                   power: mode.power,
                   temperature: mode.temperature,
                 },
@@ -205,40 +224,52 @@ export class TimelineScheduler {
           let effectiveTemperature = event.hruConfig?.temperature;
           let effectiveLuftatorConfig = event.luftatorConfig;
 
-          if (displayModeName && /^\d+$/.test(displayModeName)) {
-            const modes = getTimelineModes();
-            const modeId = parseInt(displayModeName, 10);
-            const foundMode = modes.find((m) => m.id === modeId);
+          let modeToSend: string | number | undefined = event.hruConfig?.mode;
+          let isValidEvent = true;
+
+          if (displayModeName) {
+            const currentUnitId = this.getCurrentUnitId();
+            const modes = getTimelineModes(currentUnitId);
+            let foundMode;
+
+            if (typeof displayModeName === "number" || /^\d+$/.test(displayModeName)) {
+              const modeId = parseInt(String(displayModeName), 10);
+              foundMode = modes.find((m) => m.id === modeId);
+            } else {
+              foundMode = modes.find((m) => m.name === displayModeName);
+            }
+
             if (foundMode) {
               displayModeName = foundMode.name;
-              // Dynamically use the current mode settings instead of the snapshot
+              modeToSend = foundMode.nativeMode ?? foundMode.name;
+
               if (foundMode.power !== undefined) effectivePower = foundMode.power;
               if (foundMode.temperature !== undefined) effectiveTemperature = foundMode.temperature;
               if (foundMode.luftatorConfig) effectiveLuftatorConfig = foundMode.luftatorConfig;
             } else {
-              // Mode no longer exists - skip this event
-              // Note: pickActiveEvent should have filtered this out already, but we keep this as double safety
+              isValidEvent = false;
               this.logger.warn(
-                { modeId, eventId: event.id },
+                { mode: displayModeName, eventId: event.id },
                 "TimelineScheduler: event mode not found, skipping",
               );
-              activePayload = null;
             }
           }
 
-          activePayload = {
-            hruConfig: event.hruConfig
-              ? {
-                  ...event.hruConfig,
-                  mode: displayModeName,
-                  power: effectivePower,
-                  temperature: effectiveTemperature,
-                }
-              : event.hruConfig,
-            luftatorConfig: effectiveLuftatorConfig,
-            source: "schedule",
-            id: event.id,
-          };
+          if (isValidEvent) {
+            activePayload = {
+              hruConfig: event.hruConfig
+                ? {
+                    ...event.hruConfig,
+                    mode: modeToSend,
+                    power: effectivePower,
+                    temperature: effectiveTemperature,
+                  }
+                : event.hruConfig,
+              luftatorConfig: effectiveLuftatorConfig,
+              source: "schedule",
+              id: event.id,
+            };
+          }
         }
       }
 
@@ -250,7 +281,7 @@ export class TimelineScheduler {
 
       const { hruConfig, luftatorConfig, source, id } = activePayload;
 
-      let modeName: string | undefined;
+      let modeName: string | number | undefined;
       if (source === "boost" || source === "schedule") {
         modeName = hruConfig?.mode;
         this.logger.info(
@@ -280,6 +311,9 @@ export class TimelineScheduler {
           id,
           hasValves,
           hasHru,
+          luftatorConfig,
+          schedulerTime: `${new Date().getHours()}:${new Date().getMinutes()}`, // Log scheduler's view of time
+          activeModeName: modeName, // Log the mode name it resolved
         },
         "TimelineScheduler: applying active state",
       );
@@ -288,11 +322,16 @@ export class TimelineScheduler {
         for (const [entityId, opening] of Object.entries(luftatorConfig)) {
           if (opening === undefined || opening === null) continue;
           try {
-            await this.valveManager.setValue(entityId, opening);
+            const result = await this.valveManager.setValue(entityId, opening);
+            // Verification: Log success if no error thrown
+            this.logger.info(
+              { entityId, target: opening, actual: result.state },
+              "TimelineScheduler: VERIFIED valve move command executed",
+            );
           } catch (err) {
             this.logger.warn(
               { entityId, err, source },
-              "Failed to apply valve opening from timeline scheduler",
+              "TimelineScheduler: VERIFICATION FAILED - could not move valve",
             );
           }
         }

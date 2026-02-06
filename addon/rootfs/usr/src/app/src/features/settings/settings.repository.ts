@@ -1,4 +1,4 @@
-import { getAppSetting, setAppSetting } from "../../services/database";
+import { getAppSetting, setAppSetting, getTimelineModes } from "../../services/database";
 import {
   HRU_SETTINGS_KEY,
   LANGUAGE_SETTING_KEY,
@@ -7,7 +7,6 @@ import {
   MQTT_DISCOVERED_BOOSTS_KEY,
   MQTT_LAST_UNIT_ID_KEY,
   TIMELINE_OVERRIDE_KEY,
-  TIMELINE_MODES_KEY,
   BOOST_DURATION_KEY,
   type HruSettings,
   type MqttSettings,
@@ -50,9 +49,8 @@ export class SettingsRepository {
     setAppSetting(TIMELINE_OVERRIDE_KEY, override ? JSON.stringify(override) : "null");
   }
 
-  getTimelineModes(): TimelineMode[] {
-    const raw = getAppSetting(TIMELINE_MODES_KEY);
-    return raw ? (JSON.parse(String(raw)) as TimelineMode[]) : [];
+  getTimelineModes(hruId?: string): TimelineMode[] {
+    return getTimelineModes(hruId);
   }
 
   getLastDiscoveryTime(): string | null {

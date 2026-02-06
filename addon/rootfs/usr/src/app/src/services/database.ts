@@ -104,6 +104,28 @@ const migrations: Migration[] = [
       `CREATE INDEX IF NOT EXISTS idx_timeline_events_hru_id ON timeline_events(hru_id);`,
     ],
   },
+  {
+    id: "006_extract_modes_table",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS timeline_modes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        color TEXT,
+        power REAL,
+        temperature REAL,
+        luftator_config TEXT,
+        is_boost BOOLEAN DEFAULT 0,
+        hru_id TEXT,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(name, hru_id)
+      );`,
+    ],
+  },
+  {
+    id: "007_add_native_mode",
+    statements: [`ALTER TABLE timeline_modes ADD COLUMN native_mode INTEGER;`],
+  },
 ];
 
 let db: Database | null = null;
@@ -119,6 +141,10 @@ type StatementMap = {
   deleteTimelineEvent: Statement;
   assignLegacyEvents: Statement;
   deleteEventsByMode: Statement;
+  getTimelineModes: Statement;
+  upsertTimelineMode: Statement;
+  deleteTimelineMode: Statement;
+  getTimelineMode: Statement;
 };
 
 let moduleLogger: Logger | null = null;
@@ -265,6 +291,25 @@ function prepareStatements(database: Database): StatementMap {
     deleteEventsByMode: database.prepare(
       `DELETE FROM timeline_events WHERE CAST(json_extract(hru_config, '$.mode') AS INTEGER) = ?`,
     ),
+    getTimelineModes: database.prepare(
+      `SELECT * FROM timeline_modes WHERE hru_id = ? OR hru_id IS NULL ORDER BY name ASC`,
+    ),
+    upsertTimelineMode: database.prepare(
+      `INSERT INTO timeline_modes (id, name, color, power, temperature, luftator_config, is_boost, hru_id, native_mode)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET
+         name = excluded.name,
+         color = excluded.color,
+         power = excluded.power,
+         temperature = excluded.temperature,
+         luftator_config = excluded.luftator_config,
+         is_boost = excluded.is_boost,
+         hru_id = excluded.hru_id,
+         native_mode = excluded.native_mode,
+         updated_at = datetime("now")`,
+    ),
+    deleteTimelineMode: database.prepare(`DELETE FROM timeline_modes WHERE id = ?`),
+    getTimelineMode: database.prepare(`SELECT * FROM timeline_modes WHERE id = ?`),
   };
 }
 
@@ -281,6 +326,50 @@ export function setupDatabase(logger?: Logger): void {
   db = openDatabase(moduleLogger || undefined);
   applyMigrations(db, moduleLogger || undefined);
   statements = prepareStatements(db);
+
+  migrateModesToTable();
+}
+
+function migrateModesToTable(): void {
+  if (!db || !statements) return;
+
+  const raw = getAppSetting(TIMELINE_MODES_KEY);
+  if (!raw) return;
+
+  try {
+    const oldModes = JSON.parse(raw) as TimelineMode[];
+    if (Array.isArray(oldModes) && oldModes.length > 0) {
+      moduleLogger?.info(
+        { count: oldModes.length },
+        "Migrating modes from JSON settings to SQL table",
+      );
+
+      db.transaction(() => {
+        for (const mode of oldModes) {
+          try {
+            statements!.upsertTimelineMode.run(
+              mode.id,
+              mode.name,
+              mode.color ?? null,
+              mode.power ?? null,
+              mode.temperature ?? null,
+              mode.luftatorConfig ? JSON.stringify(mode.luftatorConfig) : null,
+              mode.isBoost ? 1 : 0,
+              mode.hruId ?? null,
+            );
+          } catch (err) {
+            moduleLogger?.warn(
+              { name: mode.name, err },
+              "Skipping duplicate mode during migration",
+            );
+          }
+        }
+        statements!.upsertSetting.run(TIMELINE_MODES_KEY, "");
+      })();
+    }
+  } catch (err) {
+    moduleLogger?.error({ err }, "Failed to migrate modes to table");
+  }
 }
 
 export interface ValveSnapshotRecord {
@@ -385,7 +474,7 @@ export interface TimelineEvent {
   startTime: string; // HH:MM
   dayOfWeek?: number | null; // 0-6 (Sunday=0), null for all days
   hruConfig?: {
-    mode?: string;
+    mode?: string | number;
     power?: number;
     temperature?: number;
   } | null;
@@ -450,20 +539,99 @@ export function getTimelineEvents(hruId?: string | null): TimelineEvent[] {
   return records.map(denormaliseTimelineEvent);
 }
 
-export function getTimelineModes(): TimelineMode[] {
-  const raw = getAppSetting(TIMELINE_MODES_KEY);
-  if (!raw) return [];
-  try {
-    const parsed = JSON.parse(String(raw)) as TimelineMode[];
-    if (Array.isArray(parsed)) return parsed;
-    return [];
-  } catch {
-    return [];
-  }
+export interface TimelineModeRecord {
+  id: number;
+  name: string;
+  color: string | null;
+  power: number | null;
+  temperature: number | null;
+  luftator_config: string | null;
+  is_boost: number;
+  hru_id: string | null;
+  native_mode: number | null;
 }
 
-export function saveTimelineModes(modes: TimelineMode[]): void {
-  setAppSetting(TIMELINE_MODES_KEY, JSON.stringify(modes));
+export function getTimelineModes(hruId?: string): TimelineMode[] {
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!statements) {
+    return [];
+  }
+
+  const records = statements.getTimelineModes.all(hruId ?? null) as TimelineModeRecord[];
+
+  return records.map((r) => ({
+    id: r.id,
+    name: r.name,
+    color: r.color ?? undefined,
+    power: r.power ?? undefined,
+    temperature: r.temperature ?? undefined,
+    luftatorConfig: r.luftator_config ? JSON.parse(r.luftator_config) : undefined,
+    isBoost: Boolean(r.is_boost),
+    hruId: r.hru_id ?? undefined,
+    nativeMode: r.native_mode ?? undefined,
+  }));
+}
+
+export function getTimelineMode(id: number): TimelineMode | null {
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!statements) {
+    return null;
+  }
+
+  const record = statements.getTimelineMode.get(id) as TimelineModeRecord | undefined;
+  if (!record) return null;
+
+  return {
+    id: record.id,
+    name: record.name,
+    color: record.color ?? undefined,
+    power: record.power ?? undefined,
+    temperature: record.temperature ?? undefined,
+    luftatorConfig: record.luftator_config ? JSON.parse(record.luftator_config) : undefined,
+    isBoost: Boolean(record.is_boost),
+    hruId: record.hru_id ?? undefined,
+    nativeMode: record.native_mode ?? undefined,
+  };
+}
+
+export function upsertTimelineMode(mode: TimelineMode): TimelineMode {
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!statements) {
+    throw new Error("Database not initialised");
+  }
+
+  const result = statements.upsertTimelineMode.run(
+    mode.id ?? null, // Auto-increment if null
+    mode.name,
+    mode.color ?? null,
+    mode.power ?? null,
+    mode.temperature ?? null,
+    mode.luftatorConfig ? JSON.stringify(mode.luftatorConfig) : null,
+    mode.isBoost ? 1 : 0,
+    mode.hruId ?? null,
+    mode.nativeMode ?? null,
+  ) as { lastInsertRowid: number | bigint };
+
+  return {
+    ...mode,
+    id: mode.id ?? Number(result.lastInsertRowid),
+  };
+}
+
+export function deleteTimelineMode(id: number): void {
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!statements) {
+    throw new Error("Database not initialised");
+  }
+  statements.deleteTimelineMode.run(id);
 }
 
 export function assignLegacyEventsToUnit(hruId: string): void {
@@ -476,6 +644,40 @@ export function assignLegacyEventsToUnit(hruId: string): void {
   }
 
   statements.assignLegacyEvents.run(hruId);
+}
+
+export function migrateLegacyEventsForUnit(hruId: string): void {
+  const modes = getTimelineModes();
+  const events = getTimelineEvents(hruId);
+  let migratedCount = 0;
+
+  for (const event of events) {
+    const rawMode = event.hruConfig?.mode;
+    if (rawMode && !/^\d+$/.test(String(rawMode))) {
+      // It's a name (e.g. "Vypnuto")
+      const foundMode = modes.find((m) => m.name === rawMode);
+      if (foundMode) {
+        // Update to ID
+        const updatedEvent = {
+          ...event,
+          hruConfig: {
+            ...event.hruConfig,
+            mode: foundMode.id.toString(),
+          },
+        };
+        upsertTimelineEvent(updatedEvent);
+        migratedCount++;
+        moduleLogger?.info(
+          { eventId: event.id, oldMode: rawMode, newModeId: foundMode.id },
+          "Migrated legacy event mode name to ID",
+        );
+      }
+    }
+  }
+
+  if (migratedCount > 0) {
+    moduleLogger?.info({ count: migratedCount }, "Finished migrating legacy events for unit");
+  }
 }
 
 export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {

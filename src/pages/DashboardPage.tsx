@@ -1,12 +1,14 @@
 import { Container, Stack, Title, Group, Text } from "@mantine/core";
 import { IconLayoutDashboard } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useDashboardStatus } from "../hooks/useDashboardStatus";
 import { useTimelineModes } from "../hooks/useTimelineModes";
 import { StatusCard } from "../components/dashboard/StatusCard";
 import { HruStatusCard } from "../components/dashboard/HruStatusCard";
 import { BoostButtons } from "../components/dashboard/BoostButtons";
+import { resolveApiUrl } from "../utils/api";
+import * as hruApi from "../api/hru";
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -22,9 +24,28 @@ export function DashboardPage() {
     activeMode,
   } = useDashboardStatus();
   const { modes, loadModes } = useTimelineModes(t);
+  const [activeUnitId, setActiveUnitId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    loadModes();
+    async function init() {
+      try {
+        const [settingsRes, units] = await Promise.all([
+          fetch(resolveApiUrl("/api/settings/hru")).then(
+            (r) => r.json() as Promise<{ unit?: string }>,
+          ),
+          hruApi.fetchHruUnits().catch(() => []),
+        ]);
+
+        const activeUnit = units.find((u) => u.id === settingsRes.unit) || units[0];
+        const unitId = activeUnit?.id;
+        setActiveUnitId(unitId);
+
+        loadModes(unitId);
+      } catch (err) {
+        console.error("Failed to load dashboard context:", err);
+      }
+    }
+    void init();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -70,7 +91,7 @@ export function DashboardPage() {
           </Text>
         </Stack>
 
-        <BoostButtons modes={modes} t={t} />
+        <BoostButtons modes={modes} t={t} activeUnitId={activeUnitId} />
 
         <StatusCard
           title={t("dashboard.haStatusTitle", { defaultValue: "Home Assistant" })}

@@ -77,9 +77,7 @@ export function SettingsPage() {
     user: "",
     password: "",
   });
-  const [debugMode, setDebugMode] = useState(() => {
-    return localStorage.getItem("luftujha-debug-mode") === "true";
-  });
+  const [debugMode, setDebugMode] = useState(false);
   const { setColorScheme } = useMantineColorScheme();
   const computedColorScheme = useComputedColorScheme("dark", { getInitialValueInEffect: false });
   const { t, i18n } = useTranslation();
@@ -318,6 +316,12 @@ export function SettingsPage() {
         if (tempUnitRes.ok) {
           const { temperatureUnit } = await tempUnitRes.json();
           setTempUnit(temperatureUnit);
+        }
+
+        const debugRes = await fetch(resolveApiUrl("/api/settings/debug-mode"));
+        if (debugRes.ok) {
+          const { enabled } = await debugRes.json();
+          setDebugMode(enabled);
         }
       } catch {
         notifications.show({
@@ -1079,15 +1083,21 @@ export function SettingsPage() {
                         onChange={(e) => {
                           const checked = e.currentTarget.checked;
                           setDebugMode(checked);
-                          localStorage.setItem("luftujha-debug-mode", String(checked));
+
+                          fetch(resolveApiUrl("/api/settings/debug-mode"), {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({ enabled: checked }),
+                          }).then(() => {
+                            setTimeout(() => window.location.reload(), 800);
+                          });
+
                           notifications.show({
                             title: t("settings.developer.debugMode"),
                             message: checked ? "Debug Mode enabled" : "Debug Mode disabled",
                             color: checked ? "blue" : "gray",
                             icon: <IconBug size={20} />,
                           });
-                          // Reload to update navbar
-                          setTimeout(() => window.location.reload(), 800);
                         }}
                         size="md"
                       />

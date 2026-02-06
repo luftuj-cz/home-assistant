@@ -14,9 +14,10 @@ export class HruController {
     res.json(units);
   };
 
-  getModes = (_req: Request, res: Response, next: NextFunction): void => {
+  getModes = (req: Request, res: Response, next: NextFunction): void => {
     try {
-      const modes = this.service.getModes();
+      const unitId = req.query.unitId as string | undefined;
+      const modes = this.service.getModes(unitId);
       res.json({ modes });
     } catch (error) {
       this.logger.error({ error }, "Failed to get HRU modes");

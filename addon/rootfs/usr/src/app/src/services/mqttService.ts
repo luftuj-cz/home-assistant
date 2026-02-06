@@ -359,6 +359,8 @@ export class MqttService extends EventEmitter {
 
     this.logger.info("MQTT: Starting discovery loop");
 
+    void this.runDiscoveryCycle();
+
     this.discoveryTimer = setInterval(() => {
       void this.runDiscoveryCycle();
     }, DISCOVERY_INTERVAL_MS);
@@ -565,7 +567,17 @@ export class MqttService extends EventEmitter {
     const prevBoostMap = this.settingsRepo.getDiscoveredBoosts();
     const currentBoostMap: Record<number, string> = { ...prevBoostMap };
 
-    const modes = this.settingsRepo.getTimelineModes();
+    // Get raw ID for DB lookup
+    const rawUnitId = unit.code || unit.name;
+    const modes = this.settingsRepo.getTimelineModes(rawUnitId);
+    this.logger.info(
+      {
+        rawUnitId,
+        modeCount: modes.length,
+        modes: modes.map((m) => ({ id: m.id, name: m.name, isBoost: m.isBoost, hruId: m.hruId })),
+      },
+      "MQTT: Discovery modes lookup",
+    );
     let activeBoostCount = 0;
 
     // Determine current unit ID slug for filtering
@@ -574,7 +586,14 @@ export class MqttService extends EventEmitter {
     // Process ALL modes: register boosts, explicitly delete non-boosts OR modes from other units
     for (const m of modes) {
       const slug = this.slugify(m.name);
+      // Log filtering logic
       const isRelevantUnit = !m.hruId || this.slugify(m.hruId) === currentUnitId;
+      if (!isRelevantUnit && m.isBoost) {
+        this.logger.warn(
+          { mode: m.name, hruId: m.hruId, currentUnitId },
+          "MQTT: Skipping boost mode for other unit",
+        );
+      }
 
       if (m.isBoost && isRelevantUnit) {
         currentBoostMap[m.id] = slug;

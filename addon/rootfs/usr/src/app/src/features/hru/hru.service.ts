@@ -55,10 +55,21 @@ export class HruService {
     }));
   }
 
-  getModes(): { id: number; name: string }[] {
-    const config = this.getResolvedConfiguration();
-    if (!config) return [];
-    const modes = config.strategy.modeCommands?.availableModes ?? {};
+  getModes(unitIdOverride?: string): { id: number; name: string }[] {
+    let strategy: RegulationStrategy | null = null;
+
+    if (unitIdOverride) {
+      const unit = this.getUnitById(unitIdOverride);
+      if (unit) {
+        strategy = this.getStrategyForUnit(unit) ?? null;
+      }
+    } else {
+      const config = this.getResolvedConfiguration();
+      strategy = config?.strategy ?? null;
+    }
+
+    if (!strategy) return [];
+    const modes = strategy.modeCommands?.availableModes ?? {};
     return Object.entries(modes).map(([id, name]) => ({
       id: Number(id),
       name: name as string,

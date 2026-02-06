@@ -106,6 +106,7 @@ export class ValveManager implements ValveController {
       }
     });
 
+    // Forced update to ensure synchronization (idempotent)
     this.logger.debug({ entityId, value }, "Forwarding setValue to Home Assistant");
     await this.client.setValveValue(entityId, value);
 
@@ -141,30 +142,34 @@ export class ValveManager implements ValveController {
   }
 
   private async handleEvent(event: HassStateChangedEvent): Promise<void> {
-    const validatedEvent = HassStateChangedEventSchema.parse(event);
-    const { entity_id: entityId, new_state: newState } = validatedEvent;
-    if (!newState) {
-      return;
+    try {
+      const validatedEvent = HassStateChangedEventSchema.parse(event);
+      const { entity_id: entityId, new_state: newState } = validatedEvent;
+      if (!newState) {
+        return;
+      }
+
+      await this.mutex.runExclusive(async () => {
+        this.valves.set(entityId, newState);
+      });
+
+      await this.broadcast({ type: "update", payload: newState });
+      storeValveSnapshots([
+        {
+          entityId: newState.entity_id,
+          controllerId: this.resolveControllerId(newState.entity_id),
+          controllerName: this.resolveControllerName(newState.entity_id),
+          name: (newState.attributes?.friendly_name as string | undefined) ?? null,
+          value: Number.isFinite(Number(newState.state)) ? Number(newState.state) : null,
+          state: newState.state,
+          attributes: newState.attributes ?? {},
+          timestamp: newState.last_updated ?? newState.last_changed ?? new Date().toISOString(),
+        },
+      ]);
+      this.logger.debug({ entityId }, "Valve state updated from event");
+    } catch (err) {
+      this.logger.error({ err, entityId: event.entity_id }, "Error handling valve state event");
     }
-
-    await this.mutex.runExclusive(async () => {
-      this.valves.set(entityId, newState);
-    });
-
-    await this.broadcast({ type: "update", payload: newState });
-    storeValveSnapshots([
-      {
-        entityId: newState.entity_id,
-        controllerId: this.resolveControllerId(newState.entity_id),
-        controllerName: this.resolveControllerName(newState.entity_id),
-        name: (newState.attributes?.friendly_name as string | undefined) ?? null,
-        value: Number.isFinite(Number(newState.state)) ? Number(newState.state) : null,
-        state: newState.state,
-        attributes: newState.attributes ?? {},
-        timestamp: newState.last_updated ?? newState.last_changed ?? new Date().toISOString(),
-      },
-    ]);
-    this.logger.debug({ entityId }, "Valve state updated from event");
   }
 
   private resolveControllerId(entityId: string): string | null {

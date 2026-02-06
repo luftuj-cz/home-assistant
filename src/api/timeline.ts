@@ -67,7 +67,10 @@ export async function fetchTimelineEvents(unitId?: string): Promise<TimelineEven
     .filter((e) => e.dayOfWeek >= 0 && e.dayOfWeek <= 6);
 }
 
-export async function saveTimelineEvent(event: TimelineEvent): Promise<TimelineEvent> {
+export async function saveTimelineEvent(
+  event: TimelineEvent,
+  unitId?: string,
+): Promise<TimelineEvent> {
   const payload = {
     id: event.id,
     startTime: event.startTime,
@@ -78,7 +81,11 @@ export async function saveTimelineEvent(event: TimelineEvent): Promise<TimelineE
     priority: 0,
   };
 
-  const res = await fetch(resolveApiUrl("/api/timeline/events"), {
+  const url = unitId
+    ? resolveApiUrl(`/api/timeline/events?unitId=${encodeURIComponent(unitId)}`)
+    : resolveApiUrl("/api/timeline/events");
+
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -115,8 +122,13 @@ export async function fetchActiveBoost(): Promise<{
 export async function activateBoost(
   modeId: number,
   durationMinutes: number,
+  unitId?: string,
 ): Promise<{ modeId: number; endTime: string; durationMinutes: number }> {
-  const res = await fetch(resolveApiUrl("/api/timeline/boost"), {
+  const url = unitId
+    ? resolveApiUrl(`/api/timeline/boost?unitId=${encodeURIComponent(unitId)}`)
+    : resolveApiUrl("/api/timeline/boost");
+
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ modeId, durationMinutes }),

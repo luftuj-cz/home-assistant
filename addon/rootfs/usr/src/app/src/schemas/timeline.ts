@@ -10,6 +10,7 @@ export const timelineModeInputSchema = z.object({
     .record(z.string(), z.number().min(0, "Valve opening must be at least 0"))
     .optional(),
   isBoost: z.boolean().optional(),
+  nativeMode: z.number().int().optional(),
 });
 
 export const timelineModeUpdateSchema = timelineModeInputSchema;

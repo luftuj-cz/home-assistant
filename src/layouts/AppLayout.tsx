@@ -60,6 +60,16 @@ export function AppLayout() {
     refetchOnWindowFocus: false,
   });
 
+  const { data: debugMode } = useQuery({
+    queryKey: ["debug-mode-check"],
+    queryFn: async () => {
+      const res = await fetch("/api/settings/debug-mode");
+      if (!res.ok) return { enabled: false };
+      return (await res.json()) as { enabled: boolean };
+    },
+    refetchOnWindowFocus: false,
+  });
+
   useEffect(() => {
     if (isLoadingStatus) return;
     if (!onboardingStatus) return;
@@ -85,12 +95,12 @@ export function AppLayout() {
       { to: "/settings", label: t("app.nav.settings"), icon: IconSettings },
     ];
 
-    if (localStorage.getItem("luftujha-debug-mode") === "true") {
+    if (debugMode?.enabled) {
       items.push({ to: "/debug", label: t("app.nav.debug"), icon: IconBug });
     }
 
     return items;
-  }, [t, showNav]);
+  }, [t, showNav, debugMode?.enabled]);
 
   function isActive(to: string) {
     return location.pathname === to;

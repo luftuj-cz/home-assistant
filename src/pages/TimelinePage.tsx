@@ -20,6 +20,7 @@ import type { Valve } from "../types/valve";
 
 export function TimelinePage() {
   const { t } = useTranslation();
+  const [activeUnitId, setActiveUnitId] = useState<string | undefined>(undefined);
 
   const { modes, loadModes, saveMode, deleteMode, savingMode } = useTimelineModes(t);
   const {
@@ -28,7 +29,7 @@ export function TimelinePage() {
     saveEvent,
     deleteEvent,
     saving: savingEvent,
-  } = useTimelineEvents(modes, t);
+  } = useTimelineEvents(modes, t, activeUnitId);
 
   const { tempUnit } = useDashboardStatus();
 
@@ -41,6 +42,7 @@ export function TimelinePage() {
 
   const [modeModalOpen, setModeModalOpen] = useState(false);
   const [editingMode, setEditingMode] = useState<Mode | null>(null);
+  const [modeNameError, setModeNameError] = useState<string | null>(null);
 
   const [valves, setValves] = useState<Valve[]>([]);
   const [hruCapabilities, setHruCapabilities] = useState<
@@ -48,7 +50,6 @@ export function TimelinePage() {
   >({});
   const [powerUnit, setPowerUnit] = useState<string>("%");
   const [maxPower, setMaxPower] = useState<number>(100);
-  const [activeUnitId, setActiveUnitId] = useState<string | undefined>(undefined);
 
   useEffect(() => {
     async function init() {
@@ -211,23 +212,34 @@ export function TimelinePage() {
 
   const handleAddMode = useCallback(() => {
     setEditingMode(null);
+    setModeNameError(null);
     setModeModalOpen(true);
   }, []);
 
   const handleEditMode = useCallback((mode: Mode) => {
     setEditingMode(mode);
+    setModeNameError(null);
     setModeModalOpen(true);
   }, []);
 
   const handleSaveMode = useCallback(
     async (modeData: Partial<Mode>) => {
-      const success = await saveMode(modeData);
-      if (success) {
-        setModeModalOpen(false);
-        setEditingMode(null);
+      setModeNameError(null);
+      try {
+        const success = await saveMode(modeData);
+        if (success) {
+          setModeModalOpen(false);
+          setEditingMode(null);
+        }
+      } catch (err) {
+        if (err instanceof Error && err.message === "DUPLICATE_NAME") {
+          setModeNameError(
+            t("validation.duplicateModeName", { defaultValue: "Mode name already exists" }),
+          );
+        }
       }
     },
-    [saveMode],
+    [saveMode, t],
   );
 
   const handleDeleteMode = useCallback(
@@ -324,6 +336,9 @@ export function TimelinePage() {
           powerUnit={powerUnit}
           temperatureUnit={tempUnit}
           maxPower={maxPower}
+          existingModes={modes}
+          nameError={modeNameError}
+          onNameChange={() => setModeNameError(null)}
         />
       </Stack>
     </Container>

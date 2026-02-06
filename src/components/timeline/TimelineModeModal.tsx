@@ -11,6 +11,7 @@ import {
   Slider,
   Badge,
   Switch,
+  Select,
 } from "@mantine/core";
 import {
   IconFileText,
@@ -20,6 +21,7 @@ import {
   IconPlus,
   IconEdit,
   IconPalette,
+  IconSettings,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import type { TFunction } from "i18next";
@@ -27,6 +29,15 @@ import type { Mode } from "../../types/timeline";
 import type { Valve } from "../../types/valve";
 import { formatTemperature, parseTemperature, getTemperatureLabel } from "../../utils/temperature";
 import type { TemperatureUnit } from "../../hooks/useDashboardStatus";
+
+// Quick fetch fallback if service not imported
+async function fetchNativeModes(unitId?: string) {
+  const query = unitId ? `?unitId=${unitId}` : "";
+  const res = await fetch(`/api/hru/modes${query}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.modes as { id: number; name: string }[];
+}
 
 interface TimelineModeModalProps {
   opened: boolean;
@@ -39,10 +50,15 @@ interface TimelineModeModalProps {
   hruCapabilities?: {
     hasPowerControl?: boolean;
     hasTemperatureControl?: boolean;
+    hasModeControl?: boolean;
   };
   powerUnit?: string;
   maxPower?: number;
   temperatureUnit?: TemperatureUnit;
+  existingModes?: Mode[];
+  unitId?: string;
+  nameError?: string | null;
+  onNameChange?: () => void;
 }
 
 export function TimelineModeModal({
@@ -57,6 +73,10 @@ export function TimelineModeModal({
   powerUnit = "%",
   maxPower = 100,
   temperatureUnit = "c",
+  existingModes = [],
+  unitId,
+  nameError,
+  onNameChange,
 }: TimelineModeModalProps) {
   const [name, setName] = useState("");
   const [power, setPower] = useState<number | undefined>(undefined);
@@ -64,6 +84,18 @@ export function TimelineModeModal({
   const [color, setColor] = useState("");
   const [isBoost, setIsBoost] = useState(false);
   const [valveOpenings, setValveOpenings] = useState<Record<string, number | undefined>>({});
+  const [nativeMode, setNativeMode] = useState<string | null>(null);
+  const [availableNativeModes, setAvailableNativeModes] = useState<
+    { value: string; label: string }[]
+  >([]);
+
+  useEffect(() => {
+    if (opened && hruCapabilities?.hasModeControl) {
+      fetchNativeModes(unitId).then((modes) => {
+        setAvailableNativeModes(modes.map((m) => ({ value: m.id.toString(), label: m.name })));
+      });
+    }
+  }, [opened, hruCapabilities, unitId]);
 
   useEffect(() => {
     if (opened) {
@@ -78,6 +110,7 @@ export function TimelineModeModal({
         setColor(mode.color ?? "");
         setIsBoost(mode.isBoost ?? false);
         setValveOpenings(mode.luftatorConfig ?? {});
+        setNativeMode(mode.nativeMode !== undefined ? mode.nativeMode.toString() : null);
       } else {
         setName("");
         setPower(undefined);
@@ -85,27 +118,63 @@ export function TimelineModeModal({
         setColor("");
         setIsBoost(false);
         setValveOpenings({});
+        setNativeMode(null);
       }
     }
   }, [opened, mode, temperatureUnit]);
 
   function handleSave() {
-    const cleanedValveOpenings = Object.fromEntries(
-      Object.entries(valveOpenings).filter(
-        ([, value]) =>
-          typeof value === "number" && !Number.isNaN(value) && value >= 0 && value <= 100,
-      ),
-    ) as Record<string, number>;
+    // Duplicate Check
+    const trimmedName = name.trim();
+    if (!trimmedName) {
+      // Just in case, though required field handles UI
+      return;
+    }
+
+    const isDuplicate = existingModes.some(
+      (m) => m.name.toLowerCase() === trimmedName.toLowerCase() && (!mode || m.id !== mode.id), // Ignore self usage if editing
+    );
+
+    if (isDuplicate) {
+      import("@mantine/notifications").then(({ notifications }) => {
+        notifications.show({
+          title: t("settings.timeline.notifications.validationFailedTitle", {
+            defaultValue: "Validation Error",
+          }),
+          message: t("validation.duplicateModeName", {
+            defaultValue: "A mode with this name already exists.",
+          }),
+          color: "red",
+        });
+      });
+      return;
+    }
+
+    const cleanedValveOpenings = valves.reduce(
+      (acc, valve) => {
+        const key = valve.entityId || valve.name;
+        if (!key) return acc;
+
+        const value = valveOpenings[key] ?? 0;
+
+        if (typeof value === "number" && !Number.isNaN(value) && value >= 0 && value <= 100) {
+          acc[key] = value;
+        }
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     onSave({
       id: mode?.id,
-      name,
+      name: trimmedName,
       power,
       temperature:
         temperature !== undefined ? parseTemperature(temperature, temperatureUnit) : undefined,
       color: color || undefined,
       isBoost,
       luftatorConfig: Object.keys(cleanedValveOpenings).length ? cleanedValveOpenings : undefined,
+      nativeMode: nativeMode ? parseInt(nativeMode, 10) : undefined,
     });
   }
 
@@ -135,10 +204,29 @@ export function TimelineModeModal({
           label={t("settings.timeline.modeName", { defaultValue: "Mode name" })}
           placeholder={t("settings.timeline.modePlaceholder", { defaultValue: "e.g., Comfort" })}
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => {
+            setName(e.target.value);
+            onNameChange?.();
+          }}
           leftSection={<IconFileText size={16} stroke={1.5} />}
+          error={nameError}
           required
         />
+
+        {hruCapabilities?.hasModeControl && (
+          <Select
+            label={t("settings.timeline.nativeMode", { defaultValue: "Native Unit Mode" })}
+            placeholder={t("settings.timeline.nativeModePlaceholder", {
+              defaultValue: "Select mode...",
+            })}
+            data={availableNativeModes}
+            value={nativeMode}
+            onChange={setNativeMode}
+            leftSection={<IconSettings size={16} stroke={1.5} />}
+            clearable
+          />
+        )}
+
         <Group grow>
           {hruCapabilities?.hasPowerControl !== false && (
             <NumberInput

@@ -12,6 +12,7 @@ import {
   THEME_SETTING_KEY,
   LANGUAGE_SETTING_KEY,
   TEMP_UNIT_SETTING_KEY,
+  DEBUG_MODE_KEY,
   ONBOARDING_DONE_KEY,
   type HruSettings,
   MQTT_SETTINGS_KEY,
@@ -25,6 +26,7 @@ import {
   mqttTestInputSchema,
   temperatureUnitInputSchema,
   themeSettingInputSchema,
+  debugModeInputSchema,
 } from "../schemas/settings";
 import type { HruService } from "../features/hru/hru.service";
 import { validateRequest } from "../middleware/validateRequest";
@@ -278,6 +280,22 @@ export function createSettingsRouter(
     (request: Request, response: Response) => {
       const { temperatureUnit } = request.body;
       setAppSetting(TEMP_UNIT_SETTING_KEY, temperatureUnit);
+      response.status(204).end();
+    },
+  );
+
+  router.get("/debug-mode", (_request: Request, response: Response) => {
+    const raw = getAppSetting(DEBUG_MODE_KEY);
+    const enabled = raw === "true";
+    response.json({ enabled });
+  });
+
+  router.post(
+    "/debug-mode",
+    validateRequest(debugModeInputSchema),
+    (request: Request, response: Response) => {
+      const { enabled } = request.body;
+      setAppSetting(DEBUG_MODE_KEY, String(enabled));
       response.status(204).end();
     },
   );

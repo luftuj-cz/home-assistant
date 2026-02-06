@@ -34,6 +34,7 @@ export type AddonMode = (typeof ADDON_MODES)[number];
 export const TIMELINE_MODES_KEY = "timeline.modes";
 export const TIMELINE_OVERRIDE_KEY = "timeline.override";
 export const BOOST_DURATION_KEY = "boost.duration";
+export const DEBUG_MODE_KEY = "developer.debug_mode";
 
 export type TimelineMode = {
   id: number;
@@ -44,6 +45,7 @@ export type TimelineMode = {
   luftatorConfig?: Record<string, number>;
   isBoost?: boolean;
   hruId?: string;
+  nativeMode?: number;
 };
 
 export type TimelineOverride = {

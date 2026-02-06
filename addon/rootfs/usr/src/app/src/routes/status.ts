@@ -15,7 +15,9 @@ export function createStatusRouter(
   haClient: HomeAssistantClient | null,
   mqttService: MqttService,
   logger: Logger,
-  timelineScheduler: { getActiveState: () => { source: string; modeName?: string } | null },
+  timelineScheduler: {
+    getActiveState: () => { source: string; modeName?: string | number } | null;
+  },
 ) {
   const router = Router();
 

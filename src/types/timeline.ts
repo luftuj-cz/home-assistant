@@ -8,7 +8,7 @@ export interface TimelineEvent {
   id?: number;
   startTime: string;
   dayOfWeek: number;
-  hruConfig?: { mode?: string; power?: number; temperature?: number } | null;
+  hruConfig?: { mode?: string | number; power?: number; temperature?: number } | null;
   hruCapabilities?: HruCapabilities;
   luftatorConfig?: Record<string, number> | null;
   enabled: boolean;
@@ -38,4 +38,5 @@ export interface Mode {
   luftatorConfig?: Record<string, number>;
   isBoost?: boolean;
   hruId?: string;
+  nativeMode?: number;
 }

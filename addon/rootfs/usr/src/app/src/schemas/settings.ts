@@ -46,6 +46,11 @@ export const temperatureUnitInputSchema = z.object({
   temperatureUnit: z.enum(["c", "f"]),
 });
 
+// Debug Mode Schema
+export const debugModeInputSchema = z.object({
+  enabled: z.boolean(),
+});
+
 // Type exports
 export type HruSettingsInput = z.infer<typeof hruSettingsInputSchema>;
 export type MqttSettingsInput = z.infer<typeof mqttSettingsInputSchema>;
@@ -54,3 +59,4 @@ export type AddonModeInput = z.infer<typeof addonModeInputSchema>;
 export type ThemeSettingInput = z.infer<typeof themeSettingInputSchema>;
 export type LanguageSettingInput = z.infer<typeof languageSettingInputSchema>;
 export type TemperatureUnitInput = z.infer<typeof temperatureUnitInputSchema>;
+export type DebugModeInput = z.infer<typeof debugModeInputSchema>;

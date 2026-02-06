@@ -31,9 +31,10 @@ import { motion, useSpring, useTransform, useMotionValue } from "framer-motion";
 interface BoostButtonsProps {
   modes: Mode[];
   t: TFunction;
+  activeUnitId?: string;
 }
 
-export function BoostButtons({ modes, t }: BoostButtonsProps) {
+export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
   const boostModes = modes.filter((m) => m.isBoost);
   const [duration, setDuration] = useState<number>(15);
   const [activeBoost, setActiveBoost] = useState<{
@@ -96,7 +97,7 @@ export function BoostButtons({ modes, t }: BoostButtonsProps) {
   async function handleActivate(modeId: number) {
     setLoadingModeId(modeId);
     try {
-      const active = await activateBoost(modeId, duration);
+      const active = await activateBoost(modeId, duration, activeUnitId);
 
       const diff = new Date(active.endTime).getTime() - Date.now();
       const mins = Math.max(0, Math.ceil(diff / 60000));
