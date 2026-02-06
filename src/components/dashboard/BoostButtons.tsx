@@ -26,7 +26,6 @@ import type { Mode } from "../../types/timeline";
 import { activateBoost, cancelBoost, fetchActiveBoost } from "../../api/timeline";
 import { notifications } from "@mantine/notifications";
 import { logger } from "../../utils/logger";
-import { motion, useSpring, useTransform, useMotionValue } from "framer-motion";
 
 interface BoostButtonsProps {
   modes: Mode[];
@@ -49,17 +48,6 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
   const [isCancelling, setIsCancelling] = useState(false);
 
   const displayMinutes = activeBoost ? remainingMinutes : duration;
-  const minutesMV = useMotionValue(displayMinutes);
-  const springMinutes = useSpring(minutesMV, {
-    stiffness: 150,
-    damping: 25,
-    restDelta: 0.001,
-  });
-  const roundedMinutes = useTransform(springMinutes, (latest) => Math.round(latest));
-
-  useEffect(() => {
-    minutesMV.set(displayMinutes);
-  }, [displayMinutes, minutesMV]);
 
   const refreshActiveBoost = useCallback(async function refreshActiveBoost() {
     try {
@@ -273,17 +261,13 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                         color: activeBoost ? "var(--mantine-color-orange-6)" : "inherit",
                       }}
                     >
-                      {activeBoost ? (
-                        activeBoost.durationMinutes === INFINITE_DURATION ? (
-                          "∞"
-                        ) : (
-                          <motion.span>{roundedMinutes}</motion.span>
-                        )
-                      ) : duration === INFINITE_DURATION ? (
-                        "∞"
-                      ) : (
-                        <motion.span>{roundedMinutes}</motion.span>
-                      )}
+                      {activeBoost
+                        ? activeBoost.durationMinutes === INFINITE_DURATION
+                          ? "∞"
+                          : displayMinutes
+                        : duration === INFINITE_DURATION
+                          ? "∞"
+                          : displayMinutes}
                     </Text>
                     <Text size="xs" fw={700} c="dimmed" tt="uppercase" mt={10}>
                       {t("dashboard.boostMinutes", { defaultValue: "minutes" })}

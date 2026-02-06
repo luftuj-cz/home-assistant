@@ -146,11 +146,7 @@ export function AppLayout() {
                 textDecoration: "none",
               }}
             >
-              <motion.div
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                transition={{ type: "spring", stiffness: 400, damping: 10 }}
-              >
+              <div>
                 <Group gap="sm" align="center" wrap="nowrap">
                   <Image src={logoMark} alt={t("app.title")} h={32} w={32} fit="contain" />
                   <Title
@@ -164,7 +160,7 @@ export function AppLayout() {
                     {t("app.title")}
                   </Title>
                 </Group>
-              </motion.div>
+              </div>
             </UnstyledButton>
 
             {showNav && (
