@@ -115,7 +115,7 @@ export function HruStatusCard({
   const hasTemp = capabilities.hasTemperatureControl !== false;
   const hasMode = capabilities.hasModeControl !== false;
 
-  const visibleItems = (hasPower || hasMode ? 1 : 0) + (hasTemp ? 1 : 0);
+  const visibleItems = (hasPower || hasMode || !!activeMode ? 1 : 0) + (hasTemp ? 1 : 0);
   const gridCols = Math.max(1, Math.min(2, visibleItems));
 
   return (
@@ -147,7 +147,7 @@ export function HruStatusCard({
 
       {visibleItems > 0 && (
         <SimpleGrid cols={{ base: 1, sm: gridCols }} spacing="md" p="lg" pt="md">
-          {(hasPower || hasMode) && (
+          {(hasPower || hasMode || !!activeMode) && (
             <Stack gap="md">
               {hasPower && (
                 <Card shadow="none" withBorder radius="md" p="md" variant="light">
@@ -175,7 +175,7 @@ export function HruStatusCard({
                 </Card>
               )}
 
-              {hasMode && (
+              {(hasMode || !!activeMode) && (
                 <Card shadow="none" withBorder radius="md" p="md" variant="light">
                   <Group>
                     <ThemeIcon color="grape" variant="light" size="xl" radius="md">
@@ -198,9 +198,11 @@ export function HruStatusCard({
                                     name: activeMode.modeName || "?",
                                   })}
                           </Title>
-                          <Text size="sm" c="dimmed" mt={4}>
-                            {t("dashboard.nativeMode")}: {modeValue}
-                          </Text>
+                          {hasMode && (
+                            <Text size="sm" c="dimmed" mt={4}>
+                              {t("dashboard.nativeMode")}: {modeValue}
+                            </Text>
+                          )}
                         </>
                       ) : (
                         <Title order={3} c="grape">
