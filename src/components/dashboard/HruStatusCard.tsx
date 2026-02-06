@@ -162,8 +162,7 @@ export function HruStatusCard({
                           <Stack align="center" gap={0}>
                             <IconWind size={24} style={{ opacity: 0.7 }} />
                             <Text fw={700} size="xl" ta="center">
-                              {powerValue}
-                              {powerUnit}
+                              {powerValue} {powerUnit}
                             </Text>
                             <Text c="dimmed" size="xs">
                               {t("hru.power")}
