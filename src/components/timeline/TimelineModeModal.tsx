@@ -90,6 +90,7 @@ export function TimelineModeModal({
   const [availableNativeModes, setAvailableNativeModes] = useState<
     { value: string; label: string }[]
   >([]);
+  const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
     if (opened && hruCapabilities?.hasModeControl) {
@@ -109,6 +110,7 @@ export function TimelineModeModal({
 
   useEffect(() => {
     if (opened) {
+      setSubmitted(false);
       if (mode) {
         setName(mode.name);
         setPower(mode.power);
@@ -134,10 +136,20 @@ export function TimelineModeModal({
   }, [opened, mode, temperatureUnit]);
 
   function handleSave() {
+    setSubmitted(true);
     // Duplicate Check
     const trimmedName = name.trim();
     if (!trimmedName) {
       // Just in case, though required field handles UI
+      import("@mantine/notifications").then(({ notifications }) => {
+        notifications.show({
+          title: t("settings.timeline.notifications.validationFailedTitle", {
+            defaultValue: "Validation Error",
+          }),
+          message: t("validation.requiredField", { defaultValue: "Name is required" }),
+          color: "red",
+        });
+      });
       return;
     }
 
@@ -154,6 +166,48 @@ export function TimelineModeModal({
           message: t("validation.duplicateModeName", {
             defaultValue: "A mode with this name already exists.",
           }),
+          color: "red",
+        });
+      });
+      return;
+    }
+
+    // Capability Validation
+    if (hruCapabilities?.hasModeControl && !nativeMode) {
+      import("@mantine/notifications").then(({ notifications }) => {
+        notifications.show({
+          title: t("settings.timeline.notifications.validationFailedTitle", {
+            defaultValue: "Validation Error",
+          }),
+          message: t("validation.nativeModeRequired", {
+            defaultValue: "Native Unit Mode is required",
+          }),
+          color: "red",
+        });
+      });
+      return;
+    }
+
+    if (hruCapabilities?.hasPowerControl !== false && power === undefined) {
+      import("@mantine/notifications").then(({ notifications }) => {
+        notifications.show({
+          title: t("settings.timeline.notifications.validationFailedTitle", {
+            defaultValue: "Validation Error",
+          }),
+          message: t("validation.powerRequired", { defaultValue: "Power is required" }),
+          color: "red",
+        });
+      });
+      return;
+    }
+
+    if (hruCapabilities?.hasTemperatureControl !== false && temperature === undefined) {
+      import("@mantine/notifications").then(({ notifications }) => {
+        notifications.show({
+          title: t("settings.timeline.notifications.validationFailedTitle", {
+            defaultValue: "Validation Error",
+          }),
+          message: t("validation.temperatureRequired", { defaultValue: "Temperature is required" }),
           color: "red",
         });
       });
@@ -219,8 +273,14 @@ export function TimelineModeModal({
             onNameChange?.();
           }}
           leftSection={<IconFileText size={16} stroke={1.5} />}
-          error={nameError}
+          error={
+            nameError ||
+            (!name.trim() && submitted
+              ? t("validation.required", { defaultValue: "Required" })
+              : null)
+          }
           required
+          styles={{ error: { position: "absolute", bottom: -20 } }}
         />
 
         {hruCapabilities?.hasModeControl && (
@@ -234,6 +294,13 @@ export function TimelineModeModal({
             onChange={setNativeMode}
             leftSection={<IconSettings size={16} stroke={1.5} />}
             clearable
+            required
+            error={
+              nativeMode === null && submitted
+                ? t("validation.required", { defaultValue: "Required" })
+                : null
+            }
+            styles={{ error: { position: "absolute", bottom: -20 } }}
           />
         )}
 
@@ -248,6 +315,13 @@ export function TimelineModeModal({
               max={maxPower}
               step={1}
               leftSection={<IconBolt size={16} stroke={1.5} />}
+              required
+              error={
+                power === undefined && submitted
+                  ? t("validation.required", { defaultValue: "Required" })
+                  : null
+              }
+              styles={{ error: { position: "absolute", bottom: -20 } }}
             />
           )}
           {hruCapabilities?.hasTemperatureControl !== false && (
@@ -260,6 +334,13 @@ export function TimelineModeModal({
               max={100}
               step={0.5}
               leftSection={<IconThermometer size={16} stroke={1.5} />}
+              required
+              error={
+                temperature === undefined && submitted
+                  ? t("validation.required", { defaultValue: "Required" })
+                  : null
+              }
+              styles={{ error: { position: "absolute", bottom: -20 } }}
             />
           )}
         </Group>
