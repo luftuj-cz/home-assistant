@@ -50,6 +50,8 @@
       "setValueUnknown": "Failed to set valve value."
     },
     "alertTitle": "Error",
+    "warningTitle": "Warning",
+    "waiting": "Waiting for valves...",
     "empty": "No valves found for prefix `number.luftator`.",
     "status": {
       "open": "OPEN",

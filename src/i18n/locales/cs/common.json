@@ -343,6 +343,8 @@
       "closed": "ZAVŘENO"
     },
     "alertTitle": "Chyba",
+    "warningTitle": "Upozornění",
+    "waiting": "Čekám na ventily...",
     "empty": "Nebyly nalezeny žádné ventily s prefixem `number.luftator`.",
     "errors": {
       "load": "Nepodařilo se načíst ventily: {{message}}",

@@ -60,6 +60,15 @@ export function ValvesPage() {
     errorHandler: () => void;
   } | null>(null);
 
+  const [gracePeriodExpired, setGracePeriodExpired] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setGracePeriodExpired(true);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
   const { t } = useTranslation();
 
   const formatValveValue = useCallback(
@@ -333,14 +342,19 @@ export function ValvesPage() {
           </Alert>
         ) : null}
 
-        {loading ? (
+        {loading || (valves.length === 0 && !gracePeriodExpired) ? (
           <Group justify="center" align="center" h={240}>
             <Loader color="blue" size="lg" />
+            {!loading && (
+              <Text size="sm" c="dimmed" ml="md">
+                {t("valves.waiting")}
+              </Text>
+            )}
           </Group>
         ) : valves.length === 0 ? (
-          <Group justify="center" align="center" h={240}>
-            <Text c="dimmed">{t("valves.empty")}</Text>
-          </Group>
+          <Alert color="yellow" title={t("valves.warningTitle")}>
+            {t("valves.empty")}
+          </Alert>
         ) : (
           <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
             {valves.map((valve) => (
