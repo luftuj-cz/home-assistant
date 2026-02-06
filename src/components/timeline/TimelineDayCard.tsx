@@ -221,11 +221,6 @@ export function TimelineDayCard({
                   <Text size="xs" fw={active ? 600 : 400}>
                     {t("settings.timeline.hru")}: {mode?.name ?? ev.hruConfig?.mode ?? "-"}
                   </Text>
-                  {ev.luftatorConfig && Object.keys(ev.luftatorConfig).length > 0 && (
-                    <Text size="xs" c="dimmed" mt={2}>
-                      Valves: {Object.keys(ev.luftatorConfig).length} active
-                    </Text>
-                  )}
                 </Card>
               </Timeline.Item>
             );
