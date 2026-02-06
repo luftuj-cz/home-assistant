@@ -49,6 +49,9 @@
       "setValue": "Failed to set valve value: {{message}}",
       "setValueUnknown": "Failed to set valve value."
     },
+    "warnings": {
+      "allClosed": "Warning: If all valves are closed and the HRU is powered on, there is a risk of damage to Luftator valves!"
+    },
     "alertTitle": "Error",
     "warningTitle": "Warning",
     "waiting": "Waiting for valves...",

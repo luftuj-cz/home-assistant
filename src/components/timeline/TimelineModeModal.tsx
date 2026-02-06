@@ -12,6 +12,7 @@ import {
   Badge,
   Switch,
   Select,
+  Alert,
 } from "@mantine/core";
 import {
   IconFileText,
@@ -22,6 +23,7 @@ import {
   IconEdit,
   IconPalette,
   IconSettings,
+  IconAlertCircle,
 } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
 import type { TFunction } from "i18next";
@@ -96,6 +98,14 @@ export function TimelineModeModal({
       });
     }
   }, [opened, hruCapabilities, unitId]);
+
+  const allValvesClosed =
+    valves.length > 0 &&
+    valves.every((v) => {
+      const key = v.entityId || v.name;
+      const val = valveOpenings[key] ?? 0;
+      return val >= 90;
+    });
 
   useEffect(() => {
     if (opened) {
@@ -266,6 +276,17 @@ export function TimelineModeModal({
             }
             radius="md"
           >
+            {allValvesClosed && (
+              <Alert
+                color="orange"
+                variant="filled"
+                title={t("valves.warningTitle")}
+                icon={<IconAlertCircle size={24} />}
+                mb="md"
+              >
+                {t("valves.warnings.allClosed")}
+              </Alert>
+            )}
             <Stack gap="xs">
               {valves.map((v, idx) => {
                 const key = v.entityId || v.name || `valve-${idx}`;

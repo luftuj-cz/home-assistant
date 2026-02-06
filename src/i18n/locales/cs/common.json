@@ -352,6 +352,9 @@
       "websocket": "Nepodařilo se zpracovat živou aktualizaci ventilu.",
       "setValue": "Nepodařilo se nastavit hodnotu ventilu: {{message}}",
       "setValueUnknown": "Nepodařilo se nastavit hodnotu ventilu."
+    },
+    "warnings": {
+      "allClosed": "Pozor: Pokud jsou všechny ventily zavřené a HRU je zapnutá, hrozí poškození ventilů Luftatoru!"
     }
   },
   "errors": {

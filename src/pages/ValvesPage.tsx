@@ -10,7 +10,7 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { IconRefresh, IconAdjustments } from "@tabler/icons-react";
+import { IconRefresh, IconAdjustments, IconAlertCircle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
 import { ValveCard } from "../components";
@@ -83,6 +83,11 @@ export function ValvesPage() {
   const valves = useMemo(() => {
     return Object.values(valveMap).sort((a, b) => a.name.localeCompare(b.name));
   }, [valveMap]);
+
+  const allValvesClosed = useMemo(() => {
+    if (valves.length === 0) return false;
+    return valves.every((v) => v.value >= 90);
+  }, [valves]);
 
   const updateValve = useCallback((state: HaState) => {
     setValveMap((prev) => {
@@ -341,6 +346,18 @@ export function ValvesPage() {
             {error}
           </Alert>
         ) : null}
+
+        {allValvesClosed && (
+          <Alert
+            color="orange"
+            variant="filled"
+            title={t("valves.warningTitle")}
+            icon={<IconAlertCircle size={24} />}
+            mb="md"
+          >
+            {t("valves.warnings.allClosed")}
+          </Alert>
+        )}
 
         {loading || (valves.length === 0 && !gracePeriodExpired) ? (
           <Group justify="center" align="center" h={240}>
