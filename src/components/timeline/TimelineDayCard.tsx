@@ -1,3 +1,4 @@
+import { useState } from "react";
 import {
   Button,
   Card,
@@ -36,6 +37,7 @@ interface TimelineDayCardProps {
   onEdit: (event: TimelineEvent) => void;
   onDelete: (id: number) => void;
   onToggle: (event: TimelineEvent, enabled: boolean) => void;
+  onDropMode: (day: number, mode: Mode) => void;
   t: TFunction;
 }
 
@@ -81,21 +83,43 @@ export function TimelineDayCard({
   onEdit,
   onDelete,
   onToggle,
+  onDropMode,
   t,
 }: TimelineDayCardProps) {
   const sortedEvents = [...events].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const [isDragOver, setIsDragOver] = useState(false);
 
   return (
     <Card
       withBorder
       radius="md"
       padding="md"
+      onDragOver={(e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "copy";
+        setIsDragOver(true);
+      }}
+      onDragLeave={() => setIsDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault();
+        setIsDragOver(false);
+        try {
+          const data = e.dataTransfer.getData("application/json");
+          if (data) {
+            const mode = JSON.parse(data) as Mode;
+            onDropMode(dayIdx, mode);
+          }
+        } catch (err) {
+          console.error("Failed to parse dropped mode", err);
+        }
+      }}
       style={{
-        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+        transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
         "&:hover": {
           boxShadow: "var(--mantine-shadow-md)",
           transform: "translateY(-2px)",
         },
+        borderColor: isDragOver ? "var(--mantine-color-blue-filled)" : undefined,
       }}
     >
       <Group justify="space-between" mb="lg">

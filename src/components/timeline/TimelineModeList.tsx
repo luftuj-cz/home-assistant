@@ -81,11 +81,17 @@ export function TimelineModeList({
                 withBorder
                 padding="md"
                 radius="lg"
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("application/json", JSON.stringify(m));
+                  e.dataTransfer.effectAllowed = "copy";
+                }}
                 style={{
                   borderTop: `6px solid ${m.color || "var(--mantine-color-blue-6)"}`,
                   backgroundColor: "rgba(255, 255, 255, 0.05)",
                   backdropFilter: "blur(10px)",
                   transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                  cursor: "grab",
                 }}
                 styles={{
                   root: {

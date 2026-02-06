@@ -252,6 +252,16 @@ export function TimelinePage() {
     [deleteMode, loadEvents, activeUnitId],
   );
 
+  const handleDropMode = useCallback((day: number, mode: Mode) => {
+    setEditingEvent({
+      startTime: "08:00",
+      dayOfWeek: day,
+      hruConfig: { mode: mode.id.toString() },
+      enabled: true,
+    });
+    setEventModalOpen(true);
+  }, []);
+
   return (
     <Container size="xl">
       <Stack gap="xl">
@@ -303,6 +313,7 @@ export function TimelinePage() {
                 onEdit={handleEditEvent}
                 onDelete={deleteEvent}
                 onToggle={handleToggleEvent}
+                onDropMode={handleDropMode}
                 t={t}
               />
             ))}
