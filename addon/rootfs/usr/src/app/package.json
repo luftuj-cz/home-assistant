@@ -13,11 +13,11 @@
   },
   "dependencies": {
     "cors": "^2.8.6",
-    "dotenv": "^17.2.3",
+    "dotenv": "^17.2.4",
     "express": "^5.2.1",
     "modbus-serial": "^8.0.23",
-    "mqtt": "^5.14.1",
-    "pino": "^10.3.0",
+    "mqtt": "^5.15.0",
+    "pino": "^10.3.1",
     "ws": "^8.19.0",
     "zod": "^4.3.6"
   },
@@ -25,7 +25,7 @@
     "@types/bun": "latest",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
-    "@types/node": "^20.19.30",
+    "@types/node": "^20.19.33",
     "@types/pino": "^7.0.5",
     "@types/ws": "^8.18.1",
     "prettier": "^3.8.1",
