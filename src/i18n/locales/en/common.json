@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Luftator Control",
+    "title": "LUFTaTOR Control",
     "units": {
       "level": "level",
       "m3/h": "m³/h",
@@ -39,8 +39,8 @@
     "temperature": "Temperature"
   },
   "valves": {
-    "title": "Luftator Zones",
-    "description": "Control Luftator valve actuators installed by Luftuj across each room.",
+    "title": "LUFTaTOR Zones",
+    "description": "Control LUFTaTOR valve actuators across each room.",
     "refreshAria": "Refresh valves",
     "errors": {
       "load": "Failed to load valves: {{message}}",
@@ -50,7 +50,7 @@
       "setValueUnknown": "Failed to set valve value."
     },
     "warnings": {
-      "allClosed": "Warning: If all valves are closed and the HRU is powered on, there is a risk of damage to Luftator valves!"
+      "allClosed": "Warning: If all valves are closed and the HRU is powered on, there is a risk of damage to LUFTaTORs servos or HRU!"
     },
     "alertTitle": "Error",
     "warningTitle": "Warning",
@@ -63,7 +63,7 @@
   },
   "settings": {
     "title": "Settings",
-    "description": "Backup or restore Luftator data managed by this Home Assistant instance.",
+    "description": "Backup or restore LUFTaTOR data managed by this Home Assistant instance.",
     "appearance": {
       "title": "Appearance"
     },
@@ -125,7 +125,7 @@
     },
     "timeline": {
       "title": "Timeline Events",
-      "description": "Schedule when HRU and Luftator actions should occur throughout the week",
+      "description": "Schedule when HRU and LUFTaTOR actions should occur throughout the week",
       "addEvent": "Add Event",
       "addMode": "Add mode",
       "modesTitle": "Modes",
@@ -443,8 +443,8 @@
     "status": {
       "label": "Status",
       "description": "System Check",
-      "found": "Luftator Found!",
-      "notFound": "Luftator not found yet.",
+      "found": "LUFTaTOR Found!",
+      "notFound": "LUFTaTOR not found yet.",
       "integrationStatus": "Integration Status",
       "waitingTitle": "Waiting for Home Assistant...",
       "waitingHA": "We are configured, but Home Assistant hasn't picked up the devices yet. This usually takes about 60 seconds after MQTT connects.\n\nYou can proceed to the dashboard, entities will appear automatically.",

@@ -1,6 +1,6 @@
 {
   "app": {
-    "title": "Ovládací panel Luftátoru",
+    "title": "Ovládací panel LUFTaTOR",
     "units": {
       "level": "stupeň",
       "m3/h": "m³/h",
@@ -35,7 +35,7 @@
   },
   "settings": {
     "title": "Nastavení",
-    "description": "Zálohujte nebo obnovte data Luftatoru spravovaná touto instalací Home Assistanta.",
+    "description": "Zálohujte nebo obnovte data LUFTaTOR spravovaná touto instalací Home Assistanta.",
     "appearance": {
       "title": "Vzhled"
     },
@@ -94,7 +94,7 @@
     },
     "timeline": {
       "title": "Časová osa",
-      "description": "Naplánujte chování rekuperační jednotky a akce Luftatoru v průběhu týdne",
+      "description": "Naplánujte chování rekuperační jednotky a akce LUFTaTORu v průběhu týdne",
       "addEvent": "Přidat událost",
       "addMode": "Přidat režim",
       "modesTitle": "Režimy",
@@ -335,7 +335,7 @@
     }
   },
   "valves": {
-    "title": "Zóny Luftatoru",
+    "title": "Zóny LUFTaTORu",
     "description": "Ovládejte servopohony ventilů Luftuj v jednotlivých místnostech.",
     "refreshAria": "Obnovit ventily",
     "status": {
@@ -354,7 +354,7 @@
       "setValueUnknown": "Nepodařilo se nastavit hodnotu ventilu."
     },
     "warnings": {
-      "allClosed": "Pozor: Pokud jsou všechny ventily zavřené a HRU je zapnutá, hrozí poškození ventilů Luftatoru!"
+      "allClosed": "Pozor: Pokud jsou všechny ventily zavřené a rekuperace je zapnutá, hrozí poškození servopohonů LUFTaTORu či samotné rekuperační jednotky!"
     }
   },
   "errors": {
@@ -431,8 +431,8 @@
     "status": {
       "label": "Status",
       "description": "Kontrola systému",
-      "found": "Luftátor nalezen!",
-      "notFound": "Luftátor zatím nebyl nalezen.",
+      "found": "LUFTaTOR nalezen!",
+      "notFound": "LUFTaTOR zatím nebyl nalezen.",
       "integrationStatus": "Stav integrace",
       "waitingTitle": "Čekání na Home Assistant...",
       "waitingHA": "Jsme nakonfigurováni, ale Home Assistant zatím zařízení nezaregistroval. To obvykle trvá asi 60 sekund po připojení MQTT.\n\nMůžete pokračovat na hlavní panel, entity se objeví automaticky.",
