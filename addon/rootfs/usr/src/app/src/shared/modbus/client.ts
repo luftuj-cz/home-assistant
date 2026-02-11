@@ -126,6 +126,19 @@ export class ModbusTcpClient {
       throw err;
     }
   }
+
+  async writeCoil(start: number, values: number | number[]): Promise<void> {
+    try {
+      if (Array.isArray(values)) {
+        await this.client.writeCoils(start, values);
+      } else {
+        await this.client.writeCoil(start, values);
+      }
+    } catch (err) {
+      this.handleDisconnect();
+      throw err;
+    }
+  }
 }
 
 const clientCache = new Map<string, ModbusTcpClient>();

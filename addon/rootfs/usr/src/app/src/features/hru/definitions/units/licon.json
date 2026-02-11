@@ -1,0 +1,8 @@
+{
+  "code": "licon",
+  "name": "Licon",
+  "regulationTypeId": "modbus-licon",
+  "controlUnit": "%",
+  "maxValue": 100,
+  "isConfigurable": false
+}

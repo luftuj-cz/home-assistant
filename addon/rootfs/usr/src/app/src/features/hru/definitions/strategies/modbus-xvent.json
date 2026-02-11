@@ -1,5 +1,5 @@
 {
-  "id": "xvent",
+  "id": "modbus-xvent",
   "capabilities": {
     "hasPowerControl": true,
     "hasTemperatureControl": false,

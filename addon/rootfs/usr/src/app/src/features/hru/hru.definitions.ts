@@ -8,6 +8,7 @@ export type AllowedFunction =
   | "modbus_write_holding_multi"
   | "modbus_read_holding"
   | "modbus_read_input"
+  | "modbus_write_coil"
   | "round"
   | "multiply"
   | "divide";
