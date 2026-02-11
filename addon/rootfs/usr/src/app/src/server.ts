@@ -123,12 +123,12 @@ if (fs.existsSync(staticRoot)) {
   }
 
   // Explicit 404 for missing assets to avoid falling back to index.html
-  app.get("/assets/(.*)", (_req, res) => {
+  app.get("/assets/*path", (_req, res) => {
     res.status(404).send("Not Found");
   });
 
   // SPA Fallback - match everything else including HASS Ingress paths
-  app.get("*", (_request, response, next) => {
+  app.get("/{*path}", (_request, response, next) => {
     if (!fs.existsSync(indexPath)) {
       next();
       return;
