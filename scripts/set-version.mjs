@@ -60,6 +60,7 @@ if (configRegex.test(configContent)) {
   // Fallback
   configContent = `version: ${newVersion}\n${configContent}`;
 }
+writeFileSync(ADDON_CONFIG_PATH, configContent);
 console.log(`Updated ${ADDON_CONFIG_PATH}`);
 
 // 4. Update src/config.ts
