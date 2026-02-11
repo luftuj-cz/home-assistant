@@ -57,6 +57,11 @@ export interface RegulationStrategy {
 
     availableModes: Record<number, string>;
   };
+
+  keepAlive?: {
+    period: number;
+    commands: CommandScript;
+  };
 }
 
 export type ControlUnit = "%" | "m3/h" | "level";

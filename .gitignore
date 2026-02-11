@@ -18,6 +18,7 @@ addon/rootfs/usr/src/app/.venv
 addon/rootfs/usr/src/app/data
 
 # Editor directories and files
+.codacy
 .vscode/*
 !.vscode/extensions.json
 .idea

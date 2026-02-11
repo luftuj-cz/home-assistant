@@ -28,56 +28,53 @@ export class HruRepository {
         return evaluateExpression(val);
       }
 
+      const handlers: Record<string, (args: number[]) => Promise<number> | number> = {
+        bit_and: async ([a = 0, b = 0]) => a & b,
+        bit_or: async ([a = 0, b = 0]) => a | b,
+        bit_lshift: async ([a = 0, b = 0]) => a << b,
+        bit_rshift: async ([a = 0, b = 0]) => a >> b,
+        round: async ([a = 0]) => Math.round(a),
+        multiply: async ([a = 0, b = 0]) => a * b,
+        divide: async ([a = 0, b = 0]) => a / (b || 1),
+        delay: async ([ms = 0]) => {
+          await new Promise((resolve) => setTimeout(resolve, ms));
+          return 0;
+        },
+        modbus_read_holding: async ([addr = 0, count = 1]) => {
+          const data = await mb.readHolding(addr, count);
+          return data[0] ?? 0;
+        },
+        modbus_read_input: async ([addr = 0, count = 1]) => {
+          const data = await mb.readInput(addr, count);
+          return data[0] ?? 0;
+        },
+        modbus_write_holding_multi: async (args) => {
+          const addr = args[0] ?? 0;
+          const values = args.slice(1);
+          await mb.writeHolding(addr, values);
+          return args[1] ?? 0;
+        },
+        modbus_write_holding: async ([addr = 0, val = 0]) => {
+          await mb.writeHolding(addr, val);
+          return val;
+        },
+        modbus_write_coil: async ([addr = 0, val = 0]) => {
+          await mb.writeCoil(addr, val);
+          return val;
+        },
+      };
+
       async function evaluateExpression(expr: CommandExpression): Promise<number> {
         const { function: fn, args } = expr;
         const evaluatedArgs = await Promise.all(args.map(evaluate));
-        const arg0 = evaluatedArgs[0] ?? 0;
-        const arg1 = evaluatedArgs[1] ?? 0;
 
-        switch (fn) {
-          case "bit_and":
-            return arg0 & arg1;
-          case "bit_or":
-            return arg0 | arg1;
-          case "bit_lshift":
-            return arg0 << arg1;
-          case "bit_rshift":
-            return arg0 >> arg1;
-          case "round":
-            return Math.round(arg0);
-          case "multiply":
-            return arg0 * arg1;
-          case "divide":
-            return arg0 / (arg1 || 1);
-          case "delay":
-            await new Promise((resolve) => setTimeout(resolve, arg0));
-            return 0;
-          case "modbus_read_holding": {
-            const count = arg1 || 1;
-            const data = await mb.readHolding(arg0, count);
-            return data[0] ?? 0;
-          }
-          case "modbus_read_input": {
-            const count = arg1 || 1;
-            const data = await mb.readInput(arg0, count);
-            return data[0] ?? 0;
-          }
-          case "modbus_write_holding_multi": {
-            await mb.writeHolding(arg0, evaluatedArgs.splice(1));
-            return arg1;
-          }
-          case "modbus_write_holding": {
-            await mb.writeHolding(arg0, arg1);
-            return arg1;
-          }
-          case "modbus_write_coil": {
-            await mb.writeCoil(arg0, arg1);
-            return arg1;
-          }
-          default:
-            logger.warn(`Unknown function in HRU script: ${fn}`);
-            return 0;
+        const handler = handlers[fn];
+        if (handler) {
+          return handler(evaluatedArgs);
         }
+
+        logger.warn(`Unknown function in HRU script: ${fn}`);
+        return 0;
       }
 
       for (const step of script) {

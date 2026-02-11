@@ -206,6 +206,31 @@ export class HruService {
     }
   }
 
+  async executeKeepAlive(): Promise<number | null> {
+    const configData = this.getResolvedConfiguration();
+    if (!configData?.strategy.keepAlive) return null;
+
+    const { settings, strategy } = configData;
+    const keepAlive = strategy.keepAlive;
+
+    try {
+      if (!settings.host) return null;
+
+      const config = {
+        host: settings.host,
+        port: Number(settings.port) || 502,
+        unitId: Number(settings.unitId) || 1,
+      };
+
+      await this.repository.executeScript(config, keepAlive!.commands);
+      this.logger.debug("HRU KeepAlive executed successfully");
+      return keepAlive!.period;
+    } catch (err) {
+      this.logger.warn({ err }, "Failed to execute HRU KeepAlive");
+      return keepAlive!.period; // Return period to retry later despite error
+    }
+  }
+
   private getStrategyForUnit(unit: HeatRecoveryUnit): RegulationStrategy | undefined {
     return this.strategies.find((s) => s.id === unit.regulationTypeId);
   }

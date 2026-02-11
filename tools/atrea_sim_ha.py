@@ -24,8 +24,9 @@ STRATEGIES_PATH = os.path.join(BASE_PATH, "strategies")
 # --- DSL Interpreter ---
 
 class HruSimDSL:
-    def __init__(self, registers: Dict[int, int], variables: Dict[str, Any]):
+    def __init__(self, registers: Dict[int, int], coils: Dict[int, bool], variables: Dict[str, Any]):
         self.registers = registers
+        self.coils = coils
         self.variables = variables
 
     def eval_expr(self, expr: Any) -> Any:
@@ -40,25 +41,21 @@ class HruSimDSL:
             func = expr["function"]
             args = [self.eval_expr(arg) for arg in expr.get("args", [])]
             
-            if func == "modbus_read_holding":
-                addr = args[0]
-                return self.registers.get(addr, 0)
-            elif func == "multiply":
-                return args[0] * args[1]
-            elif func == "divide":
-                 return args[0] / args[1] if args[1] != 0 else 0
-            elif func == "bit_and":
-                return int(args[0]) & int(args[1])
-            elif func == "bit_or":
-                return int(args[0]) | int(args[1])
-            elif func == "bit_lshift":
-                return int(args[0]) << int(args[1])
-            elif func == "bit_rshift":
-                return int(args[0]) >> int(args[1])
-            elif func == "round":
-                return round(args[0])
+            operations = {
+                "modbus_read_holding": lambda a: self.registers.get(a[0], 0),
+                "exclude_modbus_read_coil": lambda a: None,
+                "multiply": lambda a: a[0] * a[1],
+                "divide": lambda a: a[0] / a[1] if a[1] != 0 else 0,
+                "bit_and": lambda a: int(a[0]) & int(a[1]),
+                "bit_or": lambda a: int(a[0]) | int(a[1]),
+                "bit_lshift": lambda a: int(a[0]) << int(a[1]),
+                "bit_rshift": lambda a: int(a[0]) >> int(a[1]),
+                "round": lambda a: round(a[0]),
+            }
             
-        return 0
+            if func in operations:
+                return operations[func](args)
+            return 0
 
     def execute_script(self, script: List[dict]):
         for stmt in script:
@@ -76,12 +73,18 @@ class HruSimDSL:
                     val = int(args[1])
                     self.registers[addr] = val
                     print(f" [MODBUS] Write Reg {addr} = {val}")
+                elif func == "modbus_write_coil":
+                    addr = args[0]
+                    val = bool(args[1])
+                    self.coils[addr] = val
+                    print(f" [MODBUS] Write Coil {addr} = {val}")
 
 # --- Simulator State ---
 
 class HruSimulator:
     def __init__(self, unit_code: str):
         self.registers = {i: 0 for i in range(1000, 11000)} # Large enough for most
+        self.coils = {} # Coils state
         # Add some default values for realism
         self.registers[10300] = 120 # Outdoor 12.0
         self.registers[10301] = 220 # Supply 22.0
@@ -96,7 +99,7 @@ class HruSimulator:
         self.unit_def = self.load_json(UNITS_PATH, unit_code)
         self.strategy_def = self.load_json(STRATEGIES_PATH, self.unit_def["regulationTypeId"], is_strategy=True)
         
-        self.dsl = HruSimDSL(self.registers, self.internal_state)
+        self.dsl = HruSimDSL(self.registers, self.coils, self.internal_state)
         self.reg_lock = threading.RLock()
         self.dirty_registers = set() # Track registers written by master
         
@@ -278,7 +281,37 @@ def handle_client(conn, addr, sim: HruSimulator):
 
             resp_payload = b''
 
-            if frame['fc'] == 3: # Read Holding
+            if frame['fc'] == 1: # Read Coils
+                start_addr, count = struct.unpack('>HH', frame['payload'][:4])
+                print(f" [MB] FC01 Read Coils {start_addr} count {count}")
+                
+                # Logic to pack bits into bytes
+                vals = []
+                with sim.reg_lock:
+                    for i in range(count):
+                        vals.append(sim.coils.get(start_addr + i, False))
+                
+                byte_count = (count + 7) // 8
+                resp_payload = struct.pack('B', byte_count)
+                
+                current_byte = 0
+                bit_pos = 0
+                packed_bytes = bytearray()
+                
+                for val in vals:
+                    if val:
+                        current_byte |= (1 << bit_pos)
+                    bit_pos += 1
+                    if bit_pos == 8:
+                        packed_bytes.append(current_byte)
+                        current_byte = 0
+                        bit_pos = 0
+                if bit_pos > 0:
+                    packed_bytes.append(current_byte)
+                
+                resp_payload += packed_bytes
+                
+            elif frame['fc'] == 3: # Read Holding
                 start_addr, count = struct.unpack('>HH', frame['payload'][:4])
                 print(f" [MB] FC03 Read {count} regs from {start_addr}")
                 vals = []
@@ -294,6 +327,17 @@ def handle_client(conn, addr, sim: HruSimulator):
                 print(f"   -> Returning: {vals[:actual_count]}")
                 for i in range(actual_count):
                     resp_payload += struct.pack('>H', int(vals[i]) & 0xFFFF)
+
+            elif frame['fc'] == 5: # Write Single Coil
+                reg_addr, reg_val = struct.unpack('>HH', frame['payload'][:4])
+                is_on = (reg_val == 0xFF00)
+                print(f" [MB] FC05 Write Coil {reg_addr} = {'ON' if is_on else 'OFF'}")
+                if reg_addr == 31: # Licon KeepAlive specific log
+                     print(f" [KEEP-ALIVE] Received heartbeat on coil 31")
+
+                with sim.reg_lock:
+                    sim.coils[reg_addr] = is_on
+                resp_payload = struct.pack('>HH', reg_addr, reg_val)
 
             elif frame['fc'] == 6: # Write Single
                 reg_addr, reg_val = struct.unpack('>HH', frame['payload'][:4])
@@ -328,6 +372,7 @@ def main():
     parser = argparse.ArgumentParser(description='Atrea HRU Simulator (Dynamic)')
     parser.add_argument('--unit', type=str, default='atrea-rd5-cf', help='Unit code (from units json)')
     parser.add_argument('--port', type=int, default=502, help='Modbus port')
+    parser.add_argument('--host', type=str, default='127.0.0.1', help='Bind address (default 127.0.0.1)')
     args = parser.parse_args()
 
     sim = HruSimulator(args.unit)
@@ -336,7 +381,7 @@ def main():
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     
     try:
-        server.bind((HOST, args.port))
+        server.bind((args.host, args.port))
     except (PermissionError, OSError) as e:
         print(f"!!! Error: Could not bind to port {args.port}: {e}")
         if args.port == 502:

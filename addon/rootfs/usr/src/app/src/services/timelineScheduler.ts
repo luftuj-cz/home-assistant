@@ -25,6 +25,7 @@ export interface ActiveState {
 
 export class TimelineScheduler {
   private schedulerTimer: NodeJS.Timeout | null = null;
+  private keepAliveTimer: NodeJS.Timeout | null = null;
   private lastActiveState: ActiveState | null = null;
 
   constructor(
@@ -37,6 +38,7 @@ export class TimelineScheduler {
     if (this.schedulerTimer) return;
     this.logger.info("TimelineScheduler: Starting scheduler service");
     void this.executeScheduledEvent().finally(() => this.scheduleNextTick());
+    this.runKeepAliveLoop();
   }
 
   public stop(): void {
@@ -44,6 +46,36 @@ export class TimelineScheduler {
       clearTimeout(this.schedulerTimer);
       this.schedulerTimer = null;
     }
+    if (this.keepAliveTimer) {
+      clearTimeout(this.keepAliveTimer);
+      this.keepAliveTimer = null;
+    }
+  }
+
+  private scheduleNextTick(): void {
+    if (this.schedulerTimer) {
+      clearTimeout(this.schedulerTimer);
+    }
+    this.schedulerTimer = setTimeout(() => {
+      void this.executeScheduledEvent().finally(() => {
+        this.scheduleNextTick();
+      });
+    }, 10_000);
+  }
+
+  private runKeepAliveLoop(): void {
+    if (this.keepAliveTimer) {
+      clearTimeout(this.keepAliveTimer);
+    }
+
+    void this.hruService.executeKeepAlive().then((period) => {
+      if (period) {
+        this.keepAliveTimer = setTimeout(() => this.runKeepAliveLoop(), period);
+      } else {
+        // Retry later if no keep-alive is currently configured/needed
+        this.keepAliveTimer = setTimeout(() => this.runKeepAliveLoop(), 60_000);
+      }
+    });
   }
 
   private mapTodayToTimelineDay(): number {
@@ -393,16 +425,5 @@ export class TimelineScheduler {
         "CRITICAL: TimelineScheduler encountered an unhandled error",
       );
     }
-  }
-
-  private scheduleNextTick(): void {
-    if (this.schedulerTimer) {
-      clearTimeout(this.schedulerTimer);
-    }
-    this.schedulerTimer = setTimeout(() => {
-      void this.executeScheduledEvent().finally(() => {
-        this.scheduleNextTick();
-      });
-    }, 10_000);
   }
 }
