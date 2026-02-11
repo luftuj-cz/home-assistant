@@ -99,8 +99,10 @@ export function loadConfig(): AppConfig {
 
   const env = envSchema.parse(process.env);
   const options = parseOptionsFile();
+  const isSupervisor = existsSync(OPTIONS_PATH);
+  const defaultLogLevel = isSupervisor ? "info" : "debug";
 
-  const logLevel = normaliseLogLevel(env.LOG_LEVEL ?? options?.log_level ?? "info");
+  const logLevel = normaliseLogLevel(env.LOG_LEVEL ?? options?.log_level ?? defaultLogLevel);
   const baseUrl = options?.ha_base_url ?? env.HA_BASE_URL ?? "http://supervisor/core";
   const token = options?.ha_token ?? env.HA_TOKEN ?? env.SUPERVISOR_TOKEN ?? null;
 
