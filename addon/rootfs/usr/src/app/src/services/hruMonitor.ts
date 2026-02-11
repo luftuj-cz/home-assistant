@@ -69,7 +69,7 @@ export class HruMonitor {
     try {
       const config = this.hruService.getResolvedConfiguration();
       if (!config) {
-        this.logger.debug("HRU Monitor: HRU unit not configured, skipping cycle");
+        this.logger.warn("HRU Monitor: HRU unit not configured, skipping cycle");
         return;
       }
 
@@ -81,6 +81,9 @@ export class HruMonitor {
         );
         if (success) {
           this.mqttService.setLastDiscoveryTime(new Date().toISOString());
+          this.logger.info("HRU Monitor: MQTT discovery refresh successful");
+        } else {
+          this.logger.error("HRU Monitor: MQTT discovery refresh failed");
         }
       }
 
@@ -102,8 +105,9 @@ export class HruMonitor {
           boost_remaining: boostRemaining,
           boost_name: boostActiveName || "-",
         });
+        this.logger.info("HRU Monitor: Successfully published state update to MQTT");
       } catch (err) {
-        this.logger.warn({ err }, "HRU Monitor: Failed to read from HRU");
+        this.logger.error({ err }, "HRU Monitor: Failed to read from HRU or publish to MQTT");
       }
     } finally {
       this.isRefreshing = false;

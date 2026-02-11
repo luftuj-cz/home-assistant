@@ -9,6 +9,7 @@ import { HruStatusCard } from "../components/dashboard/HruStatusCard";
 import { BoostButtons } from "../components/dashboard/BoostButtons";
 import { resolveApiUrl } from "../utils/api";
 import * as hruApi from "../api/hru";
+import { logger } from "../utils/logger";
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -41,8 +42,9 @@ export function DashboardPage() {
         setActiveUnitId(unitId);
 
         loadModes(unitId);
+        logger.info("Dashboard context loaded successfully", { unitId });
       } catch (err) {
-        console.error("Failed to load dashboard context:", err);
+        logger.error("Failed to load dashboard context", { error: err });
       }
     }
     void init();

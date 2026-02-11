@@ -37,9 +37,16 @@ export function createDatabaseRouter(
       response.setHeader("Content-Type", "application/octet-stream");
       response.setHeader("Content-Disposition", "attachment; filename=luftator.db");
       fs.createReadStream(dbPath)
-        .on("error", (error) => next(error))
+        .on("error", (error) => {
+          logger.error({ error }, "Error streaming database export");
+          next(error);
+        })
+        .on("close", () => {
+          logger.info("Database export finished");
+        })
         .pipe(response);
     } catch (error) {
+      logger.error({ error }, "Failed to initiate database export");
       next(error);
     }
   });
@@ -74,8 +81,10 @@ export function createDatabaseRouter(
       // Ensure Timeline Scheduler picks up new events/modes immediately
       await timelineScheduler.executeScheduledEvent();
 
+      logger.info("Database restored successfully");
       response.status(204).end();
     } catch (error) {
+      logger.error({ error }, "Failed to import database");
       next(error);
     }
   });

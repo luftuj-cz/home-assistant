@@ -1,5 +1,5 @@
-import * as fs from "fs";
-import * as path from "path";
+import { existsSync, readdirSync, readFileSync } from "fs";
+import { join } from "path";
 import type { Logger } from "pino";
 import type { HeatRecoveryUnit, RegulationStrategy } from "./hru.definitions";
 
@@ -8,23 +8,23 @@ export class HruLoader {
   private readonly unitsPath: string;
 
   constructor(private readonly logger: Logger) {
-    this.strategiesPath = path.join(__dirname, "definitions/strategies");
-    this.unitsPath = path.join(__dirname, "definitions/units");
+    this.strategiesPath = join(__dirname, "definitions/strategies");
+    this.unitsPath = join(__dirname, "definitions/units");
   }
 
   loadStrategies(): RegulationStrategy[] {
-    if (!fs.existsSync(this.strategiesPath)) {
+    if (!existsSync(this.strategiesPath)) {
       this.logger.warn(`Strategies directory not found: ${this.strategiesPath}`);
       return [];
     }
 
-    const files = fs.readdirSync(this.strategiesPath).filter((file) => file.endsWith(".json"));
+    const files = readdirSync(this.strategiesPath).filter((file) => file.endsWith(".json"));
     const strategies: RegulationStrategy[] = [];
 
     for (const file of files) {
       try {
-        const filePath = path.join(this.strategiesPath, file);
-        const content = fs.readFileSync(filePath, "utf-8");
+        const filePath = join(this.strategiesPath, file);
+        const content = readFileSync(filePath, "utf-8");
         const strategy = JSON.parse(content) as RegulationStrategy;
         strategies.push(strategy);
       } catch (error) {
@@ -32,22 +32,23 @@ export class HruLoader {
       }
     }
 
+    this.logger.info({ count: strategies.length }, "Loaded regulation strategies");
     return strategies;
   }
 
   loadUnits(): HeatRecoveryUnit[] {
-    if (!fs.existsSync(this.unitsPath)) {
+    if (!existsSync(this.unitsPath)) {
       this.logger.warn(`Units directory not found: ${this.unitsPath}`);
       return [];
     }
 
-    const files = fs.readdirSync(this.unitsPath).filter((file) => file.endsWith(".json"));
+    const files = readdirSync(this.unitsPath).filter((file) => file.endsWith(".json"));
     const units: HeatRecoveryUnit[] = [];
 
     for (const file of files) {
       try {
-        const filePath = path.join(this.unitsPath, file);
-        const content = fs.readFileSync(filePath, "utf-8");
+        const filePath = join(this.unitsPath, file);
+        const content = readFileSync(filePath, "utf-8");
         const unit = JSON.parse(content) as HeatRecoveryUnit;
         units.push(unit);
       } catch (error) {
@@ -55,6 +56,7 @@ export class HruLoader {
       }
     }
 
+    this.logger.info({ count: units.length }, "Loaded heat recovery units");
     return units;
   }
 }

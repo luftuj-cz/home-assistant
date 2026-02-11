@@ -218,8 +218,10 @@ function applyMigrations(database: Database, logger?: Logger): void {
       }
       insertMigration.run(migration.id);
       database.run("COMMIT");
+      activeLogger?.info({ migrationId: migration.id }, "Applied database migration");
     } catch (error) {
       database.run("ROLLBACK");
+      activeLogger?.error({ error, migrationId: migration.id }, "Migration failed, rolled back");
       throw error;
     }
   }
@@ -440,6 +442,7 @@ export function storeValveSnapshots(records: ValveSnapshotRecord[]): void {
   });
 
   transaction(records);
+  moduleLogger?.debug({ count: records.length }, "Stored valve snapshots");
 }
 
 export function getDatabasePath(): string {
@@ -469,6 +472,7 @@ export function setAppSetting(key: string, value: string): void {
   }
 
   statements.upsertSetting.run(key, value);
+  moduleLogger?.debug({ key }, "Updated app setting");
 }
 
 export interface TimelineEvent {
@@ -622,9 +626,12 @@ export function upsertTimelineMode(mode: TimelineMode): TimelineMode {
     mode.nativeMode ?? null,
   ) as { lastInsertRowid: number | bigint };
 
+  const id = mode.id ?? Number(result.lastInsertRowid);
+  moduleLogger?.debug({ id, name: mode.name }, "Upserted timeline mode");
+
   return {
     ...mode,
-    id: mode.id ?? Number(result.lastInsertRowid),
+    id,
   };
 }
 
@@ -636,6 +643,7 @@ export function deleteTimelineMode(id: number): void {
     throw new Error("Database not initialised");
   }
   statements.deleteTimelineMode.run(id);
+  moduleLogger?.debug({ id }, "Deleted timeline mode");
 }
 
 export function assignLegacyEventsToUnit(hruId: string): void {
@@ -648,6 +656,7 @@ export function assignLegacyEventsToUnit(hruId: string): void {
   }
 
   statements.assignLegacyEvents.run(hruId);
+  moduleLogger?.debug({ hruId }, "Assigned legacy events to unit");
 }
 
 export function migrateLegacyEventsForUnit(hruId: string): void {
@@ -707,6 +716,8 @@ export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
   ) as { lastInsertRowid: number | bigint; changes: number };
 
   const persistedId = event.id ?? Number(result.lastInsertRowid);
+  moduleLogger?.debug({ id: persistedId }, "Upserted timeline event");
+
   return {
     ...event,
     id: persistedId,
@@ -723,6 +734,7 @@ export function deleteTimelineEvent(id: number): void {
   }
 
   statements.deleteTimelineEvent.run(id);
+  moduleLogger?.debug({ id }, "Deleted timeline event");
 }
 
 export function deleteTimelineEventsByMode(modeId: number): void {
@@ -734,6 +746,7 @@ export function deleteTimelineEventsByMode(modeId: number): void {
     throw new Error("Database not initialised");
   }
   statements.deleteEventsByMode.run(modeId);
+  moduleLogger?.debug({ modeId }, "Deleted timeline events by mode");
 }
 
 export async function createDatabaseBackup(): Promise<string | null> {
@@ -744,6 +757,7 @@ export async function createDatabaseBackup(): Promise<string | null> {
 
   const backupPath = `${sourcePath}.${Date.now()}.bak`;
   copyFileSync(sourcePath, backupPath);
+  moduleLogger?.info({ backupPath }, "Created database backup");
   return backupPath;
 }
 
@@ -772,6 +786,7 @@ export async function replaceDatabaseWithFile(buffer: Buffer, logger?: Logger): 
   await fsp.rename(tempPath, dbPath);
 
   setupDatabase(logger);
+  logger?.info("Database replaced from backup file");
 }
 
 export function checkpointDatabase(logger?: Logger): void {
@@ -784,4 +799,5 @@ export function checkpointDatabase(logger?: Logger): void {
   }
 
   db.run("PRAGMA wal_checkpoint(TRUNCATE);");
+  logger?.debug("Database WAL checkpoint completed");
 }

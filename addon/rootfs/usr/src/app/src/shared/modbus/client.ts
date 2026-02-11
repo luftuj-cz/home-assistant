@@ -57,10 +57,16 @@ export class ModbusTcpClient {
         try {
           this.client.setID(this.cfg.unitId);
           this.connected = true;
-          this.logger.info({ unitId: this.cfg.unitId }, "Modbus TCP connected");
+          this.logger.info(
+            { host: this.cfg.host, port: this.cfg.port, unitId: this.cfg.unitId },
+            "Modbus TCP connected successfully",
+          );
           resolve();
         } catch (e) {
-          this.logger.error({ e }, "Failed to set unit ID for Modbus TCP");
+          this.logger.error(
+            { e, host: this.cfg.host, port: this.cfg.port },
+            "Failed to set unit ID for Modbus TCP",
+          );
           reject(e);
         }
       });
@@ -97,8 +103,10 @@ export class ModbusTcpClient {
   async readHolding(start: number, length: number): Promise<number[]> {
     try {
       const res = await this.client.readHoldingRegisters(start, length);
+      this.logger.debug({ start, length }, "Modbus TCP: readHolding success");
       return Array.from(res.data);
     } catch (err) {
+      this.logger.error({ err, start, length }, "Modbus TCP: readHolding failed");
       this.handleDisconnect();
       throw err;
     }
@@ -107,8 +115,10 @@ export class ModbusTcpClient {
   async readInput(start: number, length: number): Promise<number[]> {
     try {
       const res = await this.client.readInputRegisters(start, length);
+      this.logger.debug({ start, length }, "Modbus TCP: readInput success");
       return Array.from(res.data);
     } catch (err) {
+      this.logger.error({ err, start, length }, "Modbus TCP: readInput failed");
       this.handleDisconnect();
       throw err;
     }
@@ -121,7 +131,9 @@ export class ModbusTcpClient {
       } else {
         await this.client.writeRegister(start, values);
       }
+      this.logger.info({ start, values }, "Modbus TCP: writeHolding success");
     } catch (err) {
+      this.logger.error({ err, start }, "Modbus TCP: writeHolding failed");
       this.handleDisconnect();
       throw err;
     }

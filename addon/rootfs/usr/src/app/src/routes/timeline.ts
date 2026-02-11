@@ -136,6 +136,10 @@ export function createTimelineRouter(
     // Migration logic removed from GET - migration is now handled by DB service on startup
     // We just return filtered modes
     const filteredModes = allModes.filter((m) => m.hruId === currentUnitId || !m.hruId);
+    logger.debug(
+      { count: filteredModes.length, unitId: currentUnitId },
+      "Retrieved timeline modes",
+    );
     response.json({ modes: filteredModes });
   });
 
@@ -174,6 +178,7 @@ export function createTimelineRouter(
           logger.warn({ err }, "Failed to refresh MQTT discovery after mode creation");
         });
 
+        logger.info({ id: created.id, name: created.name }, "Timeline mode created");
         response.status(201).json(created);
       } catch (err) {
         if (err instanceof Error && err.message.includes("UNIQUE constraint failed")) {
@@ -228,6 +233,7 @@ export function createTimelineRouter(
           logger.warn({ err }, "Failed to refresh MQTT discovery after mode update");
         });
 
+        logger.info({ id: saved.id, name: saved.name }, "Timeline mode updated");
         response.json(saved);
       } catch (err) {
         if (err instanceof Error && err.message.includes("UNIQUE constraint failed")) {
@@ -276,6 +282,7 @@ export function createTimelineRouter(
         logger.warn({ err }, "Failed to refresh MQTT discovery after mode deletion");
       });
 
+      logger.info({ id }, "Timeline mode deleted");
       response.status(204).send();
     } catch (err) {
       logger.error({ err, id }, "Failed to delete timeline mode");
@@ -324,6 +331,7 @@ export function createTimelineRouter(
         const orphanSet = new Set(orphanedIds);
         response.json(events.filter((e) => e.id === undefined || !orphanSet.has(e.id)));
       } else {
+        logger.debug({ count: events.length }, "Retrieved timeline events");
         response.json(events);
       }
     } catch (error) {
@@ -359,6 +367,10 @@ export function createTimelineRouter(
           priority: body.priority ?? 0,
           hruId: hruId,
         });
+        logger.info(
+          { id: event.id, day: event.dayOfWeek, time: event.startTime },
+          "Timeline event saved",
+        );
         response.json(event);
       } catch (error) {
         logger.warn({ error }, "Failed to save timeline event");
@@ -376,6 +388,7 @@ export function createTimelineRouter(
 
     try {
       deleteTimelineEvent(id);
+      logger.info({ id }, "Timeline event deleted");
       response.status(204).end();
     } catch (error) {
       logger.warn({ error, id }, "Failed to delete timeline event");

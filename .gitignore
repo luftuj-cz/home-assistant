@@ -30,3 +30,7 @@ addon/rootfs/usr/src/app/data
 *.iml
 /exampleui/
 /qodana.yaml
+
+
+#Ignore vscode AI rules
+.github/instructions/codacy.instructions.md

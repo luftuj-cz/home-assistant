@@ -100,7 +100,14 @@ export class HomeAssistantClient {
     }
 
     const payload = (await response.json()) as HassState[];
-    return payload.filter((entity) => entity.entity_id.startsWith(LUFTATOR_ENTITY_PREFIX));
+    const entities = payload.filter((entity) =>
+      entity.entity_id.startsWith(LUFTATOR_ENTITY_PREFIX),
+    );
+    this.logger.info(
+      { count: entities.length },
+      "Successfully fetched Luftator entities from Home Assistant",
+    );
+    return entities;
   }
 
   async setValveValue(entityId: string, value: number): Promise<void> {
@@ -118,6 +125,8 @@ export class HomeAssistantClient {
       );
       throw new Error(`Failed to set valve value for ${entityId}: ${response.status}`);
     }
+
+    this.logger.info({ entityId, value }, "Successfully set valve value in Home Assistant");
   }
 
   subscribeLuftatorEvents(handler: HassEventHandler): () => void {
@@ -242,6 +251,7 @@ export class HomeAssistantClient {
         socket.send(JSON.stringify({ type: "auth", access_token: this.token }));
         break;
       case "auth_ok":
+        this.logger.info("Home Assistant WebSocket authenticated");
         socket.send(
           JSON.stringify({
             id: Date.now(),
@@ -288,6 +298,11 @@ export class HomeAssistantClient {
       new_state: newState ?? null,
       old_state: oldState ?? null,
     };
+
+    this.logger.debug(
+      { entityId, state: newState?.state },
+      "Processing Home Assistant state changed event",
+    );
 
     void Promise.resolve(handler(event)).catch((error) => {
       this.logger.error({ error }, "Unhandled error in event handler");

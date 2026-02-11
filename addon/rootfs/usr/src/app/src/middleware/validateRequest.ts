@@ -1,5 +1,10 @@
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
+import { createLogger } from "../logger";
+import { getConfig } from "../config/options";
+
+const config = getConfig();
+const logger = createLogger(config.logLevel);
 
 /**
  * Middleware factory to validate request body against a Zod schema
@@ -9,9 +14,11 @@ export function validateRequest<T extends z.ZodTypeAny>(schema: T) {
     try {
       const validated = schema.parse(req.body);
       req.body = validated;
+      logger.debug("Request body validated");
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
+        logger.debug({ issues: error.issues }, "Request body validation failed");
         const errors = error.issues.map((err) => ({
           field: err.path.join("."),
           message: err.message,
@@ -38,9 +45,11 @@ export function validateParams<T extends z.ZodTypeAny>(schema: T) {
     try {
       const validated = schema.parse(req.params);
       req.params = validated as Record<string, string>;
+      logger.debug("URL params validated");
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
+        logger.debug({ issues: error.issues }, "URL params validation failed");
         const errors = error.issues.map((err) => ({
           field: err.path.join("."),
           message: err.message,
@@ -66,10 +75,12 @@ export function validateQuery<T extends z.ZodTypeAny>(schema: T) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       schema.parse(req.query);
+      logger.debug("Query params validated");
       next();
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("Zod errors:", JSON.stringify(error.issues, null, 2));
+        logger.debug({ issues: error.issues }, "Query params validation failed");
+
         const errors = error.issues.map((err) => ({
           field: err.path.join("."),
           message: err.message,

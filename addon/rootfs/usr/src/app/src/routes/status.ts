@@ -29,6 +29,7 @@ export function createStatusRouter(
       lastDiscovery: mqttService.getLastDiscoveryTime(),
     };
     const timeline = timelineScheduler.getActiveState();
+    logger.debug({ ha, mqtt, timeline }, "Status check");
     response.json({ ha, mqtt, timeline, version: APP_VERSION });
   });
 
@@ -45,6 +46,7 @@ export function createStatusRouter(
       logger.warn({ err, baseUrl }, "Failed to parse HA baseUrl for system-info");
     }
 
+    logger.debug({ hassHost }, "System info check");
     response.json({ hassHost });
   });
 
@@ -56,7 +58,9 @@ export function createStatusRouter(
         if (done) return;
         done = true;
         try {
-          socket.destroy();
+          if (!socket.destroyed) {
+            socket.destroy();
+          }
         } catch (err) {
           logger.error({ err }, "Failed to destroy socket");
         }
@@ -98,6 +102,7 @@ export function createStatusRouter(
       const port = portQ ? Number(portQ) : (savedSettings?.port ?? 502);
 
       if (isModbusReachable(host, port)) {
+        logger.debug({ host, port }, "Modbus reachable (cached)");
         response.json({ reachable: true });
         return;
       }
@@ -110,6 +115,7 @@ export function createStatusRouter(
             await sharedClient.connect();
           }
           if (sharedClient.isConnected()) {
+            logger.debug({ host, port }, "Modbus reachable (shared client)");
             response.json({ reachable: true });
             return;
           }
@@ -120,6 +126,7 @@ export function createStatusRouter(
 
       try {
         await probeTcp(host, port);
+        logger.info({ host, port }, "Modbus TCP probe successful");
         response.json({ reachable: true });
       } catch (err) {
         logger.warn({ host, port, err }, "Modbus TCP probe failed");

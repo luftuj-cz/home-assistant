@@ -16,8 +16,10 @@ export function createValvesRouter(valveManager: ValveController, logger: Logger
   router.get("/", async (_request: Request, response: Response, next: NextFunction) => {
     try {
       const snapshot = await valveManager.getSnapshot();
+      logger.debug({ count: Object.keys(snapshot).length }, "Retrieved valves snapshot");
       response.json(snapshot);
     } catch (error) {
+      logger.error({ error }, "Failed to get valves snapshot");
       next(error);
     }
   });
@@ -49,6 +51,7 @@ export function createValvesRouter(valveManager: ValveController, logger: Logger
             return;
           }
         }
+        logger.error({ error, entityId, value: numericValue }, "Valve value update failed");
         next(error);
       }
     },

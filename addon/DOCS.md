@@ -1,87 +1,82 @@
 # Luftator Home Assistant Add-on
 
-The Luftator add-on, built by **Luftuj**, provides a real-time dashboard for valves exposed as `number.luftator_*` entities in Home Assistant. A single Home Assistant environment can control multiple Luftator hardware controllers at once. The add-on discovers all matching entities, mirrors their state using the Supervisor WebSocket API, and offers control sliders with optional advanced automation (coming soon).
+The Luftator add-on, built by **Luftuj**, provides a real-time dashboard for valves exposed as `number.luftator_*` entities in Home Assistant. A single Home Assistant environment can control multiple Luftator hardware controllers at once. The add-on discovers all matching entities, mirrors their state using the Supervisor WebSocket API, and offers control sliders with advanced automation through a built-in Timeline Scheduler.
 
 ## Features
 
-- Discovers every `number.luftator_*` entity automatically
-- Streams live updates via Home Assistant WebSocket API
-- Provides an ingress-enabled MUI dashboard for monitoring and control
-- Proxies valve adjustments to Home Assistant using `number.set_value`
+- **Automated Discovery**: Finds every `number.luftator_*` entity automatically.
+- **Live Sync**: Streams live updates via Home Assistant WebSocket API.
+- **Timeline Scheduler**: Creates complex daily/weekly schedules for valves and HRU units.
+- **HRU Integration**: Native support for Heat Recovery Units (Atrea, etc.) via Modbus TCP.
+- **MQTT Integration**: Exposes sensors and control buttons (Boost) to Home Assistant.
+- **Ingress Dashboard**: A custom MUI dashboard for easy monitoring and configuration.
 
 ## Configuration
 
-The add-on currently exposes the following options:
+The add-on exposes the following options:
 
-- `log_level` (`trace`, `debug`, `info`, `notice`, `warning`, `error`, `fatal`) – defaults to `info`
+- `log_level` (`trace`, `debug`, `info`, `notice`, `warning`, `error`, `fatal`) – defaults to `info`.
 - `web_port` (1024-65535) - Internal port for the web server, defaults to 8099.
 
 ### MQTT Configuration (Optional)
 
-To enable HRU sensor integration into Home Assistant via MQTT Discovery:
+To enable HRU sensor integration and Boost control in Home Assistant:
 
-- `mqtt_host`: Hostname or IP of the MQTT broker (e.g., `core-mosquitto` or `192.168.1.50`). Leave empty to disable MQTT.
+- `mqtt_host`: Hostname or IP of the MQTT broker. Leave empty to disable MQTT.
 - `mqtt_port`: MQTT broker port (default `1883`).
 - `mqtt_user`: MQTT username (optional).
 - `mqtt_password`: MQTT password (optional).
 
-When configured, the add-on will publish sensors for:
+When configured, the add-on will publish:
 
-- Requested Power (%)
-- Requested Temperature (°C)
-- Mode
-
-Future versions will add automation-specific options.
+- **Sensors**: Power (%), Temperature (°C), Mode, and Boost Time Remaining.
+- **Controls**: Boost Start and Cancel buttons (with configurable duration).
 
 ## Installation
 
 1. Copy the `addon/` directory into your Home Assistant add-ons folder (e.g., `/addons/luftujha`).
 2. From the Home Assistant UI, navigate to **Settings → Add-ons → Add-on Store** and use the three-dot menu to **Repositories**, then add the repository containing this add-on.
 3. Locate "Luftujha" in the store, install it, and enable Ingress.
-4. Start the add-on. On first launch it will index all `number.luftator_*` entities and begin streaming updates.
+4. Start the add-on.
 
 ## Usage
 
-Open the add-on via Ingress to access the dashboard. Valves appear as cards with sliders reflecting their current position. Adjusting a slider sends a `number.set_value` service call back to Home Assistant; the add-on will refresh immediately on WebSocket confirmation.
+### Dashboard
 
-- **Settings → Database tools**: Export the current SQLite database (`luftator.db`) for backup or import a previously exported file when migrating Home Assistant. Imports replace the active DB after creating a timestamped backup.
+Open the add-on via Ingress. The dashboard displays valve cards with real-time sliders. Adjustments are proxied immediately to Home Assistant.
+
+### Timeline
+
+The **Timeline** page allows you to define "Modes" (preset combinations of power, temperature, and HRU mode) and schedule them across a 7-day week. The scheduler ensures that your home environment adjusts automatically throughout the day.
+
+### HRU Settings
+
+In **Settings → HRU Settings**, you can configure your hardware unit (e.g., Atrea RD5). Once configured, the add-on maintains a Modbus TCP connection to poll status and apply scheduled changes.
+
+### Database Tools
+
+In **Settings → Database tools**, you can export or import the SQLite database (`luftator.db`). Imports automatically create a backup of the existing data before applying the new file.
 
 ## Development Notes
 
-- Backend located in `addon/rootfs/usr/src/app/src/` (Bun + Express)
-- Frontend React app in `src/` (built during the add-on image build and served from `/usr/share/luftujha/www`)
-- Add-on runtime entry point is `addon/rootfs/etc/services.d/luftujha/run`
-- Persistent storage uses SQLite (`bun:sqlite`). The database file defaults to `/data/luftator.db` inside Home Assistant; local development falls back to `addon/rootfs/data/luftator.db` unless `LUFTATOR_DB_PATH` is provided. Schema migrations run automatically at startup and are tracked in the `migrations` table.
+- Backend: `addon/rootfs/usr/src/app/src/` (Bun + Express + Pino)
+- Frontend: `src/` (React + Vite + MUI)
+- Storage: SQLite (`bun:sqlite`), defaults to `/data/luftator.db`.
 
-### Local Backend Development (Bun)
+### Local Development
 
-From `addon/rootfs/usr/src/app/` install dependencies and launch the backend:
+1. **Backend**:
+   ```bash
+   cd addon/rootfs/usr/src/app
+   bun install
+   bun run dev
+   ```
+2. **Frontend**:
 
-```bash
-bun install
-bun run dev
-```
+   ```bash
+   npm install
+   VITE_API_BASE_URL=http://localhost:8000/ npm run dev
+   ```
 
-Environment variables mirror Supervisor options. Common overrides while developing outside Home Assistant:
-
-```bash
-HA_BASE_URL=http://homeassistant.local:8123 \
-HA_TOKEN=<long-lived-access-token> \
-STATIC_ROOT=/absolute/path/to/dist \
-PORT=8000 \
-bun run dev
-```
-
-If no token is provided the backend runs in offline mode and skips Home Assistant calls.
-
-### Frontend Development
-
-Run the React dev server from the repository root and point it at the Bun backend:
-
-```bash
-VITE_API_BASE_URL=http://localhost:8000/ npm run dev
-```
-
-### Building for the Add-on
-
-The production image installs Bun inside the container (`addon/Dockerfile`) and executes `bun run src/server.ts` via `addon/rootfs/etc/services.d/luftujha/run`. Ensure the frontend build assets are synced into `addon/rootfs/usr/share/luftujha/www/` before publishing.
+3. **Production Build**:
+   The React app is built and served from `/usr/share/luftujha/www` inside the add-on container.

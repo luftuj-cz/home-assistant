@@ -121,6 +121,7 @@ export class MqttService extends EventEmitter {
       } as mqtt.IClientOptions & { family?: 4 | 6 });
 
       this.setupEventListeners();
+      this.logger.info("MQTT: Client initialized successfully");
     } catch (err) {
       this.logger.error({ err }, "MQTT: Failed to initialize client");
       this.client = null;
@@ -132,8 +133,9 @@ export class MqttService extends EventEmitter {
       this.logger.info("MQTT: Disconnecting...");
       try {
         await this.client.endAsync(true);
+        this.logger.info("MQTT: Disconnected successfully");
       } catch (err) {
-        this.logger.warn({ err }, "MQTT: Error during disconnect");
+        this.logger.error({ err }, "MQTT: Error during disconnect");
       }
       this.client = null;
       this.connected = false;
@@ -164,7 +166,8 @@ export class MqttService extends EventEmitter {
         await this.subscribeToCommands(newUnitId);
       }
 
-      void this.runDiscoveryCycle();
+      await this.runDiscoveryCycle();
+      this.logger.info({ unitId: newUnitId }, "MQTT: Discovery published successfully");
     }
 
     return true;
@@ -178,9 +181,9 @@ export class MqttService extends EventEmitter {
       await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/cancel`);
       await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/+/start`);
       await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/+/start_infinite`);
-      this.logger.debug({ unitId }, "MQTT: Unsubscribed from old unit commands");
+      this.logger.info({ unitId }, "MQTT: Unsubscribed from old unit commands successfully");
     } catch (err) {
-      this.logger.warn({ err, unitId }, "MQTT: Failed to unsubscribe from commands");
+      this.logger.error({ err, unitId }, "MQTT: Failed to unsubscribe from commands");
     }
   }
 
@@ -189,7 +192,12 @@ export class MqttService extends EventEmitter {
    */
   public async refreshDiscovery() {
     this.logger.info("MQTT: Manual discovery refresh triggered");
-    await this.runDiscoveryCycle();
+    try {
+      await this.runDiscoveryCycle();
+      this.logger.info("MQTT: Manual discovery refresh successful");
+    } catch (err) {
+      this.logger.error({ err }, "MQTT: Manual discovery refresh failed");
+    }
   }
 
   public async publishState(state: {
@@ -209,7 +217,7 @@ export class MqttService extends EventEmitter {
     try {
       await this.client.publishAsync(topic, payload, { qos: 1, retain: false });
       this.lastSuccessAt = Date.now();
-      this.logger.debug({ topic }, "MQTT: State published");
+      this.logger.info({ topic }, "MQTT: State published successfully");
     } catch (err) {
       this.logger.error({ err }, "MQTT: Failed to publish state");
     }
@@ -336,8 +344,9 @@ export class MqttService extends EventEmitter {
 
       // 4. Finally emit connect so HruMonitor can publish state
       this.emit("connect");
+      this.logger.info({ unitId }, "MQTT: Connect sequence completed successfully");
     } catch (err) {
-      this.logger.warn({ err }, "MQTT: Connect sequence failed, emitting connect anyway");
+      this.logger.error({ err }, "MQTT: Connect sequence failed");
       this.emit("connect");
     }
   }
@@ -399,9 +408,9 @@ export class MqttService extends EventEmitter {
       await this.client.subscribeAsync(`${unitBaseTopic}/boost/cancel`);
       await this.client.subscribeAsync(`${unitBaseTopic}/boost/+/start`);
       await this.client.subscribeAsync(`${unitBaseTopic}/boost/+/start_infinite`);
-      this.logger.debug({ unitId }, "MQTT: Subscribed to unit commands");
+      this.logger.info({ unitId }, "MQTT: Subscribed to unit commands successfully");
     } catch (err) {
-      this.logger.warn({ err, unitId }, "MQTT: Failed to subscribe to commands");
+      this.logger.error({ err, unitId }, "MQTT: Failed to subscribe to commands");
     }
   }
 
@@ -433,7 +442,7 @@ export class MqttService extends EventEmitter {
               retain: true,
             },
           );
-          this.logger.info({ duration }, "MQTT: Boost duration updated");
+          this.logger.info({ duration }, "MQTT: Boost duration updated successfully");
         } else {
           this.logger.warn({ payload }, "MQTT: Invalid duration received (must be 5-480)");
         }
@@ -445,7 +454,7 @@ export class MqttService extends EventEmitter {
         this.settingsRepo.setTimelineOverride(null);
         await this.timelineScheduler.executeScheduledEvent();
         this.emit("command-received");
-        this.logger.info("MQTT: Boost cancelled");
+        this.logger.info("MQTT: Boost cancelled successfully");
       }
 
       // 3. Start Boost
@@ -522,8 +531,9 @@ export class MqttService extends EventEmitter {
     try {
       await this.internalSendDiscovery(this.cachedDiscoveryUnit, this.cachedCapabilities);
       this.lastSuccessAt = Date.now();
+      this.logger.debug("MQTT: Discovery cycle completed successfully");
     } catch (err) {
-      this.logger.warn({ err }, "MQTT: Simple discovery cycle failed");
+      this.logger.error({ err }, "MQTT: Discovery cycle failed");
     }
   }
 
@@ -923,8 +933,9 @@ export class MqttService extends EventEmitter {
         qos: 0,
         retain: true,
       });
-    } catch {
-      this.logger.warn({ unitId }, "MQTT: Failed to publish availability");
+      this.logger.info({ unitId, status }, "MQTT: Availability published successfully");
+    } catch (err) {
+      this.logger.error({ err, unitId }, "MQTT: Failed to publish availability");
     }
   }
 }

@@ -1,3 +1,5 @@
+import type { Logger } from "pino";
+
 export function resolveModeValue(values: Record<number, string>, mode: number | string) {
   if (typeof mode === "number") {
     return mode;
@@ -23,16 +25,35 @@ export async function applyWriteDefinition(
     }>;
   },
   inputValue: number,
+  logger?: Logger,
 ) {
-  for (const step of writeDef.steps) {
-    const value = typeof step.value === "function" ? step.value(inputValue) : step.value;
-    if (step.kind === "input") {
+  try {
+    for (const [index, step] of writeDef.steps.entries()) {
+      const value = typeof step.value === "function" ? step.value(inputValue) : step.value;
+
+      logger?.debug(
+        {
+          address: step.address,
+          kind: step.kind,
+          value,
+          step: index + 1,
+          total: writeDef.steps.length,
+        },
+        "HRU Write Utility: Executing step",
+      );
+
+      // Both kind='input' and kind='holding' currently use writeHolding
+      // as they refer to the register type in the HRU but are written via Modbus Holding registers
       await mb.writeHolding(step.address, value);
-    } else {
-      await mb.writeHolding(step.address, value);
+
+      if (step.delayMs) {
+        logger?.debug({ delayMs: step.delayMs }, "HRU Write Utility: Delaying before next step");
+        await new Promise((resolve) => setTimeout(resolve, step.delayMs));
+      }
     }
-    if (step.delayMs) {
-      await new Promise((resolve) => setTimeout(resolve, step.delayMs));
-    }
+    logger?.info("HRU Write Utility: Write definition applied successfully");
+  } catch (err) {
+    logger?.error({ err }, "HRU Write Utility: Failed to apply write definition");
+    throw err;
   }
 }

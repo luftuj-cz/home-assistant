@@ -1,3 +1,5 @@
+import type { Logger } from "pino";
+
 export class ApiError extends Error {
   constructor(
     public readonly statusCode: number,
@@ -7,6 +9,25 @@ export class ApiError extends Error {
     super(message);
     this.name = this.constructor.name;
     Error.captureStackTrace(this, this.constructor);
+  }
+
+  public log(logger: Logger): void {
+    if (this.statusCode >= 500) {
+      logger.error({ error: this, code: this.code }, this.message);
+    } else {
+      logger.warn({ error: this, code: this.code }, this.message);
+    }
+  }
+}
+
+export class ApiSuccess {
+  constructor(
+    public readonly message: string,
+    public readonly data?: unknown,
+  ) {}
+
+  public log(logger: Logger): void {
+    logger.info({ data: this.data }, this.message);
   }
 }
 

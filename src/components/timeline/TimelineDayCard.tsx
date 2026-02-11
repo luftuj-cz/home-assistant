@@ -22,6 +22,7 @@ import type { TFunction } from "i18next";
 import type { TimelineEvent, Mode } from "../../types/timeline";
 import { ActionIcon as MantineActionIcon } from "@mantine/core";
 import { MotionSwitch } from "../common/MotionSwitch";
+import { logger } from "../../utils/logger";
 
 interface TimelineDayCardProps {
   dayIdx: number;
@@ -108,9 +109,10 @@ export function TimelineDayCard({
           if (data) {
             const mode = JSON.parse(data) as Mode;
             onDropMode(dayIdx, mode);
+            logger.info("Mode dropped on day", { dayIdx, mode: mode.name });
           }
         } catch (err) {
-          console.error("Failed to parse dropped mode", err);
+          logger.error("Failed to parse dropped mode", { error: err });
         }
       }}
       style={{

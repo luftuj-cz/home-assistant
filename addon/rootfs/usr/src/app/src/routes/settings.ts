@@ -62,6 +62,8 @@ export function createSettingsRouter(
 
     const onboardingDone = isTruthy(getAppSetting(ONBOARDING_DONE_KEY));
 
+    logger.debug({ onboardingDone, hruConfigured, mqttConfigured }, "Onboarding status check");
+
     response.json({
       onboardingDone,
       hruConfigured,
@@ -72,11 +74,13 @@ export function createSettingsRouter(
 
   router.post("/onboarding-finish", (_request: Request, response: Response) => {
     setAppSetting(ONBOARDING_DONE_KEY, "true");
+    logger.info("Onboarding finished");
     response.status(204).end();
   });
 
   router.post("/onboarding-reset", (_request: Request, response: Response) => {
     setAppSetting(ONBOARDING_DONE_KEY, "false");
+    logger.info("Onboarding reset");
     response.status(204).end();
   });
 
@@ -122,6 +126,7 @@ export function createSettingsRouter(
 
       await mqttService.reloadConfig();
 
+      logger.info({ enabled, host, port }, "MQTT settings updated");
       response.status(204).end();
     },
   );
@@ -139,8 +144,10 @@ export function createSettingsRouter(
         );
 
         if (result.success) {
+          logger.info("MQTT connection test successful");
           response.json({ success: true });
         } else {
+          logger.warn({ result }, "MQTT connection test failed");
           response.status(502).json({ detail: result.message || "Connection failed" });
         }
       } catch (err) {
@@ -185,6 +192,7 @@ export function createSettingsRouter(
       const { unit, host, port, unitId, maxPower } = request.body;
 
       if (unit !== undefined && !hruService.getAllUnits().some((u) => u.id === unit)) {
+        logger.warn({ unit }, "Attempted to set unknown HRU unit");
         response.status(400).json({ detail: "Unknown HRU unit id" });
         return;
       }
@@ -198,6 +206,10 @@ export function createSettingsRouter(
         if (selectedUnit && selectedUnit.isConfigurable) {
           const unitMaxValue = selectedUnit.maxValue;
           if (maxPower > unitMaxValue) {
+            logger.warn(
+              { maxPower, unitMaxValue },
+              "Attempted to set maxPower higher than unit allows",
+            );
             response.status(400).json({
               detail: `Maximum power cannot exceed ${unitMaxValue} ${selectedUnit.controlUnit || ""}. The selected unit supports a maximum of ${unitMaxValue}.`,
             });
@@ -225,6 +237,7 @@ export function createSettingsRouter(
         logger.warn({ err }, "Failed to update MQTT discovery after HRU settings change");
       }
 
+      logger.info({ unit, host, port, unitId, maxPower }, "HRU settings updated");
       response.status(204).end();
     },
   );
@@ -241,6 +254,7 @@ export function createSettingsRouter(
     (request: Request, response: Response) => {
       const { mode } = request.body;
       setAppSetting(ADDON_MODE_KEY, mode);
+      logger.info({ mode }, "Addon mode updated");
       response.status(204).end();
     },
   );
@@ -256,6 +270,7 @@ export function createSettingsRouter(
     (request: Request, response: Response) => {
       const { theme } = request.body;
       setAppSetting(THEME_SETTING_KEY, theme);
+      logger.info({ theme }, "Theme updated");
       response.status(204).end();
     },
   );
@@ -279,6 +294,7 @@ export function createSettingsRouter(
         logger.warn({ err }, "Failed to update MQTT discovery after language change");
       }
 
+      logger.info({ language }, "Language updated");
       response.status(204).end();
     },
   );
@@ -294,6 +310,7 @@ export function createSettingsRouter(
     (request: Request, response: Response) => {
       const { temperatureUnit } = request.body;
       setAppSetting(TEMP_UNIT_SETTING_KEY, temperatureUnit);
+      logger.info({ temperatureUnit }, "Temperature unit updated");
       response.status(204).end();
     },
   );
@@ -310,6 +327,7 @@ export function createSettingsRouter(
     (request: Request, response: Response) => {
       const { enabled } = request.body;
       setAppSetting(DEBUG_MODE_KEY, String(enabled));
+      logger.info({ enabled }, "Debug mode updated");
       response.status(204).end();
     },
   );

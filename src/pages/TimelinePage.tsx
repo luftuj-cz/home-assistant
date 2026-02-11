@@ -17,6 +17,7 @@ import * as hruApi from "../api/hru";
 import * as valveApi from "../api/valves";
 import type { TimelineEvent, Mode } from "../types/timeline";
 import type { Valve } from "../types/valve";
+import { logger } from "../utils/logger";
 
 export function TimelinePage() {
   const { t } = useTranslation();
@@ -77,8 +78,9 @@ export function TimelinePage() {
 
         // Now load modes and events with the explicit unitId
         await Promise.all([loadModes(unitId), loadEvents(unitId)]);
+        logger.info("HRU context loaded successfully", { unitId });
       } catch (err) {
-        console.error("Failed to load HRU context:", err);
+        logger.error("Failed to load HRU context", { error: err });
       } finally {
         setLoading(false);
       }
@@ -176,13 +178,16 @@ export function TimelinePage() {
       if (success) {
         setEventModalOpen(false);
         setEditingEvent(null);
+        logger.info("Event saved successfully");
       }
     }
   }, [editingEvent, saveEvent, t]);
 
   const handleToggleEvent = useCallback(
     (event: TimelineEvent, enabled: boolean) => {
-      void saveEvent({ ...event, enabled });
+      void saveEvent({ ...event, enabled }).then(() => {
+        logger.info("Event toggled", { id: event.id, enabled });
+      });
     },
     [saveEvent],
   );
@@ -206,8 +211,9 @@ export function TimelinePage() {
         message: t("settings.timeline.pasteDay", { defaultValue: "Events pasted" }),
         color: "green",
       });
+      logger.info("Day pasted successfully", { targetDay: dayLabels[targetDay] });
     },
-    [copyDay, eventsByDay, saveEvent, t],
+    [copyDay, eventsByDay, saveEvent, t, dayLabels],
   );
 
   const handleAddMode = useCallback(() => {
@@ -230,6 +236,7 @@ export function TimelinePage() {
         if (success) {
           setModeModalOpen(false);
           setEditingMode(null);
+          logger.info("Mode saved successfully");
         }
       } catch (err) {
         if (err instanceof Error && err.message === "DUPLICATE_NAME") {
@@ -247,6 +254,7 @@ export function TimelinePage() {
       const success = await deleteMode(id);
       if (success) {
         void loadEvents(activeUnitId);
+        logger.info("Mode deleted successfully", { id });
       }
     },
     [deleteMode, loadEvents, activeUnitId],

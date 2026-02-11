@@ -37,6 +37,7 @@ import { closeAllSharedClients } from "./shared/modbus/client";
 loadConfig();
 const config = getConfig();
 const logger = createLogger(config.logLevel);
+logger.info("Luftuj configuration loaded");
 
 const app = express();
 app.disable("x-powered-by");
@@ -87,7 +88,7 @@ if (config.token) {
 }
 
 // Core Dependencies
-const settingsRepo = new SettingsRepository();
+const settingsRepo = new SettingsRepository(logger);
 const hruRepo = new HruRepository(logger);
 const hruService = new HruService(hruRepo, settingsRepo, logger);
 
@@ -197,6 +198,7 @@ async function start() {
   try {
     logger.info("Initializing database...");
     setupDatabase(logger);
+    logger.info("Database initialized successfully");
   } catch (err) {
     logger.fatal({ err }, "Failed to initialize database");
     throw err;
@@ -205,6 +207,7 @@ async function start() {
   try {
     logger.info("Starting Valve Manager...");
     await valveManager.start();
+    logger.info("Valve Manager started successfully");
   } catch (err) {
     logger.fatal({ err }, "Failed to start Valve Manager");
     throw err;
@@ -214,6 +217,7 @@ async function start() {
     logger.info("Starting MQTT Service...");
     await mqttService.connect();
     hruMonitor.start();
+    logger.info("MQTT Service and HRU Monitor started successfully");
   } catch (err) {
     logger.error({ err }, "Failed to start MQTT Service or HRU Monitor");
     // Continue even if MQTT fails
@@ -222,6 +226,7 @@ async function start() {
   try {
     logger.info("Starting Timeline Scheduler...");
     timelineScheduler.start();
+    logger.info("Timeline Scheduler started successfully");
   } catch (err) {
     logger.fatal({ err }, "Failed to start Timeline Scheduler");
     throw err;
@@ -257,6 +262,7 @@ async function shutdown(signal: string) {
   await mqttService.disconnect();
   await valveManager.stop();
   await closeAllSharedClients();
+  logger.info("All services stopped successfully");
 
   // Broadcast status helper
   function broadcastStatus() {

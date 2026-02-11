@@ -34,6 +34,8 @@ export class TimelineScheduler {
   ) {}
 
   public start(): void {
+    if (this.schedulerTimer) return;
+    this.logger.info("TimelineScheduler: Starting scheduler service");
     void this.executeScheduledEvent().finally(() => this.scheduleNextTick());
   }
 
@@ -67,8 +69,9 @@ export class TimelineScheduler {
           return settings.unit;
         }
       }
-    } catch {
-      this.logger.warn(
+    } catch (err) {
+      this.logger.error(
+        { err },
         "TimelineScheduler: failed to parse HRU settings, treating as global/no unit",
       );
     }
@@ -92,7 +95,7 @@ export class TimelineScheduler {
         assignLegacyEventsToUnit(currentUnitId);
         migrateLegacyEventsForUnit(currentUnitId);
       } catch (err) {
-        this.logger.warn({ err }, "TimelineScheduler: failed to migrate legacy events");
+        this.logger.error({ err }, "TimelineScheduler: failed to migrate legacy events");
       }
     }
 
@@ -186,9 +189,9 @@ export class TimelineScheduler {
           (acc, v) => ({ ...acc, [v.entity_id]: v.state }),
           {} as Record<string, string>,
         );
-        this.logger.info({ states }, "TimelineScheduler: Current valve states");
+        this.logger.info({ states }, "TimelineScheduler: Periodic valve state report successful");
       } catch (err) {
-        this.logger.warn({ err }, "Failed to report valve states");
+        this.logger.error({ err }, "TimelineScheduler: Failed to report valve states");
       }
 
       const overrideRaw = getAppSetting(TIMELINE_OVERRIDE_KEY);
@@ -240,9 +243,10 @@ export class TimelineScheduler {
             }
           } else if (override) {
             setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
+            this.logger.info("TimelineScheduler: Boost override expired, cleared");
           }
         } catch (err) {
-          this.logger.warn({ err }, "TimelineScheduler: failed to parse boost override");
+          this.logger.error({ err }, "TimelineScheduler: failed to parse boost override");
         }
       }
 
@@ -357,12 +361,12 @@ export class TimelineScheduler {
             // Verification: Log success if no error thrown
             this.logger.info(
               { entityId, target: opening, actual: result.state },
-              "TimelineScheduler: VERIFIED valve move command executed",
+              "TimelineScheduler: VALVE MOVE COMMAND EXECUTED AND VERIFIED",
             );
           } catch (err) {
-            this.logger.warn(
+            this.logger.error(
               { entityId, err, source },
-              "TimelineScheduler: VERIFICATION FAILED - could not move valve",
+              "TimelineScheduler: CRITICAL ERROR - could not move valve",
             );
           }
         }
@@ -375,9 +379,12 @@ export class TimelineScheduler {
             temperature: hruConfig.temperature,
             mode: hruConfig.mode,
           });
-          this.logger.info({ source, id, hruConfig }, "TimelineScheduler: applied HRU settings");
+          this.logger.info(
+            { source, id, hruConfig },
+            "TimelineScheduler: applied HRU settings successfully",
+          );
         } catch (err) {
-          this.logger.warn({ err, source }, "Failed to apply HRU settings from timeline scheduler");
+          this.logger.error({ err, source }, "TimelineScheduler: Failed to apply HRU settings");
         }
       }
     } catch (criticalError) {

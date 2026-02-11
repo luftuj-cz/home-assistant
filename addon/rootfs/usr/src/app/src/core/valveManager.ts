@@ -102,6 +102,7 @@ export class ValveManager implements ValveController {
     await this.mutex.runExclusive(async () => {
       valve = this.valves.get(entityId);
       if (!valve) {
+        this.logger.error({ entityId }, "Attempted to set value for unknown valve");
         throw new Error(`Unknown valve: ${entityId}`);
       }
     });

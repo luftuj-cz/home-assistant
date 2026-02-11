@@ -82,61 +82,69 @@ export class HruService {
   }
 
   async readValues(settingsOverride?: HruSettings): Promise<HruReadResult> {
-    const configData = this.getResolvedConfiguration(settingsOverride);
-    if (!configData) throw new Error("HRU not configured");
-    const { settings, strategy, unit } = configData;
+    try {
+      const configData = this.getResolvedConfiguration(settingsOverride);
+      if (!configData) throw new Error("HRU not configured");
+      const { settings, strategy, unit } = configData;
 
-    if (!settings.host) {
-      throw new Error("HRU host not configured");
-    }
+      if (!settings.host) {
+        throw new Error("HRU host not configured");
+      }
 
-    const config = {
-      host: settings.host,
-      port: Number(settings.port) || 502,
-      unitId: Number(settings.unitId) || 1,
-    };
+      const config = {
+        host: settings.host,
+        port: Number(settings.port) || 502,
+        unitId: Number(settings.unitId) || 1,
+      };
 
-    let variables: Record<string, number> = {};
+      let variables: Record<string, number> = {};
 
-    if (strategy.powerCommands?.read) {
-      const vars = await this.repository.executeScript(config, strategy.powerCommands.read);
-      variables = { ...variables, ...vars };
-    }
-    if (strategy.temperatureCommands?.read) {
-      const vars = await this.repository.executeScript(config, strategy.temperatureCommands.read);
-      variables = { ...variables, ...vars };
-    }
-    if (strategy.modeCommands?.read) {
-      const vars = await this.repository.executeScript(config, strategy.modeCommands.read);
-      variables = { ...variables, ...vars };
-    }
+      if (strategy.powerCommands?.read) {
+        const vars = await this.repository.executeScript(config, strategy.powerCommands.read);
+        variables = { ...variables, ...vars };
+      }
+      if (strategy.temperatureCommands?.read) {
+        const vars = await this.repository.executeScript(config, strategy.temperatureCommands.read);
+        variables = { ...variables, ...vars };
+      }
+      if (strategy.modeCommands?.read) {
+        const vars = await this.repository.executeScript(config, strategy.modeCommands.read);
+        variables = { ...variables, ...vars };
+      }
 
-    const maxAllowed = (unit.isConfigurable && settings.maxPower) || unit.maxValue;
-    const power = Math.min(variables["$power"] ?? 0, maxAllowed);
-    const temperature = variables["$temperature"] ?? 0;
-    const mode = variables["$mode"] ?? 0;
+      const maxAllowed = (unit.isConfigurable && settings.maxPower) || unit.maxValue;
+      const power = Math.min(variables["$power"] ?? 0, maxAllowed);
+      const temperature = variables["$temperature"] ?? 0;
+      const mode = variables["$mode"] ?? 0;
 
-    return {
-      raw: { power, temperature, mode },
-      value: {
-        power,
-        temperature,
-        mode: strategy.modeCommands?.availableModes[mode] ?? String(mode),
-      },
-      registers: {
-        power: {
-          unit: strategy.capabilities.powerUnit || unit.controlUnit || "%",
-          scale: strategy.capabilities.powerStep ?? 1,
-          precision: 0,
-          maxValue: maxAllowed,
+      const result = {
+        raw: { power, temperature, mode },
+        value: {
+          power,
+          temperature,
+          mode: strategy.modeCommands?.availableModes[mode] ?? String(mode),
         },
-        temperature: {
-          unit: strategy.capabilities.temperatureUnit || "°C",
-          scale: strategy.capabilities.temperatureStep ?? 1,
-          precision: 1,
+        registers: {
+          power: {
+            unit: strategy.capabilities.powerUnit || unit.controlUnit || "%",
+            scale: strategy.capabilities.powerStep ?? 1,
+            precision: 0,
+            maxValue: maxAllowed,
+          },
+          temperature: {
+            unit: strategy.capabilities.temperatureUnit || "°C",
+            scale: strategy.capabilities.temperatureStep ?? 1,
+            precision: 1,
+          },
         },
-      },
-    };
+      };
+
+      this.logger.debug({ result }, "HRU values read successfully");
+      return result;
+    } catch (err) {
+      this.logger.error({ err }, "Failed to read HRU values");
+      throw err;
+    }
   }
 
   async writeValues(data: {
@@ -148,46 +156,53 @@ export class HruService {
     if (!configData) throw new Error("HRU not configured");
     const { settings, strategy } = configData;
 
-    if (!settings.host) {
-      throw new Error("HRU host not configured");
-    }
-
-    const config = {
-      host: settings.host,
-      port: Number(settings.port) || 502,
-      unitId: Number(settings.unitId) || 1,
-    };
-
-    if (data.power !== undefined && strategy.powerCommands?.write) {
-      const { unit } = configData;
-      const maxAllowed = (unit.isConfigurable && settings.maxPower) || unit.maxValue;
-      const safePower = Math.min(data.power, maxAllowed);
-
-      await this.repository.executeScript(config, strategy.powerCommands.write, {
-        $power: safePower,
-      });
-    }
-
-    if (data.temperature !== undefined && strategy.temperatureCommands?.write) {
-      await this.repository.executeScript(config, strategy.temperatureCommands.write, {
-        $temperature: data.temperature,
-      });
-    }
-
-    if (data.mode !== undefined && strategy.modeCommands?.write) {
-      let modeVal: number;
-      if (typeof data.mode === "string") {
-        const entry = Object.entries(strategy.modeCommands.availableModes ?? {}).find(
-          ([, name]) => name === data.mode,
-        );
-        modeVal = entry ? Number(entry[0]) : 0;
-      } else {
-        modeVal = data.mode;
+    try {
+      if (!settings.host) {
+        throw new Error("HRU host not configured");
       }
 
-      await this.repository.executeScript(config, strategy.modeCommands.write, {
-        $mode: modeVal,
-      });
+      const config = {
+        host: settings.host,
+        port: Number(settings.port) || 502,
+        unitId: Number(settings.unitId) || 1,
+      };
+
+      if (data.power !== undefined && strategy.powerCommands?.write) {
+        const { unit } = configData;
+        const maxAllowed = (unit.isConfigurable && settings.maxPower) || unit.maxValue;
+        const safePower = Math.min(data.power, maxAllowed);
+
+        await this.repository.executeScript(config, strategy.powerCommands.write, {
+          $power: safePower,
+        });
+      }
+
+      if (data.temperature !== undefined && strategy.temperatureCommands?.write) {
+        await this.repository.executeScript(config, strategy.temperatureCommands.write, {
+          $temperature: data.temperature,
+        });
+      }
+
+      if (data.mode !== undefined && strategy.modeCommands?.write) {
+        let modeVal: number;
+        if (typeof data.mode === "string") {
+          const entry = Object.entries(strategy.modeCommands.availableModes ?? {}).find(
+            ([, name]) => name === data.mode,
+          );
+          modeVal = entry ? Number(entry[0]) : 0;
+        } else {
+          modeVal = data.mode;
+        }
+
+        await this.repository.executeScript(config, strategy.modeCommands.write, {
+          $mode: modeVal,
+        });
+      }
+
+      this.logger.info({ data }, "HRU values written successfully");
+    } catch (err) {
+      this.logger.error({ err, data }, "Failed to write HRU values");
+      throw err;
     }
   }
 
