@@ -139,14 +139,17 @@ export class ModbusTcpClient {
     }
   }
 
-  async writeCoil(start: number, values: number | number[]): Promise<void> {
+  async writeCoil(start: number, values: boolean | number | (boolean | number)[]): Promise<void> {
     try {
       if (Array.isArray(values)) {
-        await this.client.writeCoils(start, values);
+        const bools = values.map((v) => !!v);
+        await this.client.writeCoils(start, bools);
       } else {
-        await this.client.writeCoil(start, values);
+        await this.client.writeCoil(start, !!values);
       }
+      this.logger.info({ start, values }, "Modbus TCP: writeCoil success");
     } catch (err) {
+      this.logger.error({ err, start }, "Modbus TCP: writeCoil failed");
       this.handleDisconnect();
       throw err;
     }
