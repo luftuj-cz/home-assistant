@@ -123,7 +123,7 @@ if (fs.existsSync(staticRoot)) {
   }
 
   // Explicit 404 for missing assets to avoid falling back to index.html
-  app.get("/assets/*", (_req, res) => {
+  app.get("/assets/(.*)", (_req, res) => {
     res.status(404).send("Not Found");
   });
 
