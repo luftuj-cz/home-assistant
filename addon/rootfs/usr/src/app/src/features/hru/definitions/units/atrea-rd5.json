@@ -1,7 +1,7 @@
 {
   "code": "atrea-rd5",
   "name": "Atrea Duplex RD5",
-  "regulationTypeId": "atrea-rd5",
+  "regulationTypeId": "modbus-atrea-rd5",
   "controlUnit": "%",
   "maxValue": 100,
   "isConfigurable": false

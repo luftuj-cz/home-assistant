@@ -70,6 +70,10 @@ export class HruRepository {
             await mb.writeHolding(arg0, arg1);
             return arg1;
           }
+          case "modbus_write_coil": {
+            await mb.writeCoil(arg0, arg1);
+            return arg1;
+          }
           default:
             logger.warn(`Unknown function in HRU script: ${fn}`);
             return 0;

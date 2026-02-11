@@ -1,5 +1,5 @@
 {
-  "id": "atrea-rd5",
+  "id": "modbus-atrea-rd5",
   "capabilities": {
     "hasPowerControl": true,
     "hasTemperatureControl": true,

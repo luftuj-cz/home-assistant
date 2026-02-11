@@ -1,0 +1,8 @@
+{
+  "code": "licon",
+  "name": "Licon VENTBOX",
+  "regulationTypeId": "modbus-licon",
+  "controlUnit": "%",
+  "maxValue": 100,
+  "isConfigurable": false
+}

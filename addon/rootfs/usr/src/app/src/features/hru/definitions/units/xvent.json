@@ -1,7 +1,7 @@
 {
   "code": "xvent",
   "name": "XVent",
-  "regulationTypeId": "xvent",
+  "regulationTypeId": "modbus-xvent",
   "controlUnit": "level",
   "maxValue": 7,
   "isConfigurable": false
