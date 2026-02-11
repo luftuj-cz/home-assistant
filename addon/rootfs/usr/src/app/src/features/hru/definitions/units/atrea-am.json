@@ -1,6 +1,6 @@
 {
   "code": "atrea-am",
-  "name": "Atrea DUPLEX Pro-V.AM",
+  "name": "Atrea Duplex AM",
   "regulationTypeId": "modbus-atrea-am",
   "controlUnit": "%",
   "maxValue": 100,

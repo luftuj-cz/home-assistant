@@ -1,24 +1,38 @@
 {
-  "id": "modbus-atrea-am",
+  "id": "modbus-atrea-am-cf",
   "capabilities": {
     "hasPowerControl": true,
     "hasTemperatureControl": true,
     "hasModeControl": true,
-    "powerStep": 1,
+    "powerStep": 10,
     "temperatureStep": 0.1
   },
   "powerCommands": {
     "read": [
       {
         "type": "assignment",
+        "variable": "$rawPower",
+        "value": { "function": "modbus_read_input", "args": [1005, 1] }
+      },
+      {
+        "type": "assignment",
         "variable": "$power",
-        "value": { "function": "modbus_read_input", "args": [1004, 1] }
+        "value": { "function": "multiply", "args": ["$rawPower", 10] }
       }
     ],
     "write": [
       {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [1004, "$power"] }
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [
+            1005,
+            {
+              "function": "round",
+              "args": [{ "function": "multiply", "args": ["$power", 0.1] }]
+            }
+          ]
+        }
       }
     ]
   },

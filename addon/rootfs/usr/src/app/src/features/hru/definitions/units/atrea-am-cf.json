@@ -1,7 +1,7 @@
 {
   "code": "atrea-am-cf",
-  "name": "Atrea DUPLEX Pro-V.AM.CF",
-  "regulationTypeId": "modbus-atrea-am",
+  "name": "Atrea Duplex AM.CF",
+  "regulationTypeId": "modbus-atrea-am-cf",
   "controlUnit": "m3/h",
   "maxValue": 380,
   "isConfigurable": true
