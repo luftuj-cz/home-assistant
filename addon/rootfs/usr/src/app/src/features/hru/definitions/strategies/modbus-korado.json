@@ -1,5 +1,5 @@
 {
-  "id": "modbus-licon",
+  "id": "modbus-korado",
   "capabilities": {
     "hasPowerControl": true,
     "hasTemperatureControl": false,

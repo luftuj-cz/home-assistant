@@ -1,0 +1,8 @@
+{
+  "code": "korado",
+  "name": "KORADO VENTBOX",
+  "regulationTypeId": "modbus-korado",
+  "controlUnit": "%",
+  "maxValue": 100,
+  "isConfigurable": false
+}

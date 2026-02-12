@@ -332,7 +332,7 @@ def handle_client(conn, addr, sim: HruSimulator):
                 reg_addr, reg_val = struct.unpack('>HH', frame['payload'][:4])
                 is_on = (reg_val == 0xFF00)
                 print(f" [MB] FC05 Write Coil {reg_addr} = {'ON' if is_on else 'OFF'}")
-                if reg_addr == 31: # Licon KeepAlive specific log
+                if reg_addr == 31: # KORADO KeepAlive specific log
                      print(f" [KEEP-ALIVE] Received heartbeat on coil 31")
 
                 with sim.reg_lock:
