@@ -1,6 +1,7 @@
 import { Container, Title, Text, Stack, Button, Group } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 
+import { resolveApiUrl } from "../utils/api";
 export function DebugPage() {
   const { t } = useTranslation();
 
@@ -23,7 +24,7 @@ export function DebugPage() {
               color="red"
               variant="light"
               onClick={async () => {
-                await fetch("/api/settings/onboarding-reset", { method: "POST" });
+                await fetch(resolveApiUrl("/api/settings/onboarding-reset"), { method: "POST" });
                 window.location.reload();
               }}
             >
@@ -33,7 +34,7 @@ export function DebugPage() {
               color="green"
               variant="light"
               onClick={async () => {
-                await fetch("/api/settings/onboarding-finish", { method: "POST" });
+                await fetch(resolveApiUrl("/api/settings/onboarding-finish"), { method: "POST" });
                 window.location.reload();
               }}
             >

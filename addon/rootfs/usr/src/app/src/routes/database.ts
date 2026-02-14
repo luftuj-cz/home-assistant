@@ -39,7 +39,9 @@ export function createDatabaseRouter(
       fs.createReadStream(dbPath)
         .on("error", (error) => {
           logger.error({ error }, "Error streaming database export");
-          next(error);
+          if (!response.headersSent) {
+            next(error);
+          }
         })
         .on("close", () => {
           logger.info("Database export finished");

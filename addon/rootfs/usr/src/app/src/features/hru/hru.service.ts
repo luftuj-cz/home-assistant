@@ -8,6 +8,7 @@ import {
   type HeatRecoveryUnit,
   type RegulationCapabilities,
 } from "./hru.definitions";
+import { HruNotConfiguredError, HruConnectionError } from "../../shared/errors/apiErrors";
 
 export interface HruUnitDefinition {
   id: string;
@@ -84,11 +85,11 @@ export class HruService {
   async readValues(settingsOverride?: HruSettings): Promise<HruReadResult> {
     try {
       const configData = this.getResolvedConfiguration(settingsOverride);
-      if (!configData) throw new Error("HRU not configured");
+      if (!configData) throw new HruNotConfiguredError();
       const { settings, strategy, unit } = configData;
 
       if (!settings.host) {
-        throw new Error("HRU host not configured");
+        throw new HruNotConfiguredError("HRU host not configured");
       }
 
       const config = {
@@ -142,8 +143,12 @@ export class HruService {
       this.logger.debug({ result }, "HRU values read successfully");
       return result;
     } catch (err) {
+      if (err instanceof HruNotConfiguredError) {
+        this.logger.warn({ err }, "HRU read attempt while not configured");
+        throw err;
+      }
       this.logger.error({ err }, "Failed to read HRU values");
-      throw err;
+      throw new HruConnectionError("Failed to read HRU values", err);
     }
   }
 
@@ -201,8 +206,12 @@ export class HruService {
 
       this.logger.info({ data }, "HRU values written successfully");
     } catch (err) {
-      this.logger.error({ err, data }, "Failed to write HRU values");
-      throw err;
+      if (err instanceof HruNotConfiguredError) {
+        this.logger.warn({ err }, "HRU write attempt while not configured");
+        throw err;
+      }
+      this.logger.error({ err }, "Failed to write HRU values");
+      throw new HruConnectionError("Failed to write HRU values", err);
     }
   }
 

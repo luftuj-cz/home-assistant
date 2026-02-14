@@ -45,3 +45,27 @@ export class HruConnectionError extends ApiError {
     }
   }
 }
+
+export class BadRequestError extends ApiError {
+  constructor(message: string, code?: string) {
+    super(400, message, code);
+  }
+}
+
+export class NotFoundError extends ApiError {
+  constructor(message: string, code?: string) {
+    super(404, message, code);
+  }
+}
+
+export class ConflictError extends ApiError {
+  constructor(message: string, code?: string) {
+    super(409, message, code);
+  }
+}
+
+export class ServiceUnavailableError extends ApiError {
+  constructor(message: string, code?: string) {
+    super(503, message, code);
+  }
+}

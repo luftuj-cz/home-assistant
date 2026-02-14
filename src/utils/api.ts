@@ -1,7 +1,10 @@
+import { logger } from "./logger";
+
 function computeBaseUrl(): URL {
   const url = new URL(window.location.origin);
   let path = window.location.pathname;
 
+  // If the path looks like a file (e.g., ends with index.html), get the directory
   if (!path.endsWith("/") && path.split("/").pop()?.includes(".")) {
     path = path.substring(0, path.lastIndexOf("/") + 1);
   }
@@ -15,6 +18,7 @@ function computeBaseUrl(): URL {
 }
 
 const apiBase = computeBaseUrl();
+logger.info("Computed base URL", { url: apiBase.toString() });
 
 function normalisePath(path: string): string {
   if (!path) {

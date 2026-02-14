@@ -21,17 +21,6 @@ export SUPERVISOR_TOKEN="${SUPERVISOR_TOKEN}"
 # Export logging configuration
 export LOG_LEVEL=$(bashio::config 'log_level')
 
-# Export MQTT configuration if available
-if bashio::services.available "mqtt"; then
-    bashio::log.info "MQTT service found, exporting configuration..."
-    export MQTT_HOST=$(bashio::services "mqtt" "host")
-    export MQTT_PORT=$(bashio::services "mqtt" "port")
-    export MQTT_USER=$(bashio::services "mqtt" "username")
-    export MQTT_PASSWORD=$(bashio::services "mqtt" "password")
-else
-    bashio::log.info "MQTT service not found, relying on manual configuration..."
-fi
-
 bashio::log.info "Starting server (ingress port: ${INGRESS_PORT:-default})..."
 exec bun run src/server.ts || bashio::exit.nok "Failed to start the server"
 

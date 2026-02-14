@@ -1,5 +1,5 @@
 name: Luftuj
-version: 0.0.8-dev
+version: 0.0.9-dev
 slug: luftuj
 description: Luftuj Home Assistant Add-on
 url: https://github.com/luftuj-cz/home-assistant
@@ -8,8 +8,6 @@ arch:
   - amd64
 init: false
 startup: services
-services:
-  - mqtt: want
 homeassistant_api: true
 host_network: true
 hassio_api: true

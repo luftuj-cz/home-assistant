@@ -20,6 +20,7 @@ import { HruMonitor } from "./services/hruMonitor";
 
 import { createRequestLogger } from "./middleware/requestLogger";
 import { createUserContextLogger } from "./middleware/userContext";
+import { createIngressPathMiddleware } from "./middleware/ingressPath";
 import { createErrorHandler } from "./middleware/errorHandler";
 
 import { createHruRouter } from "./features/hru/hru.routes";
@@ -59,6 +60,8 @@ app.use(
 );
 
 // Middleware
+// IMPORTANT: Strip ingress path BEFORE any other middleware or routing
+app.use(createIngressPathMiddleware(logger));
 app.use(createRequestLogger(logger));
 app.use(createUserContextLogger(logger));
 
@@ -146,8 +149,25 @@ app.use(createErrorHandler(logger));
 const httpServer = createServer(app);
 
 const wss = new WebSocketServer({
-  server: httpServer,
-  path: "/ws/valves",
+  noServer: true,
+});
+
+httpServer.on("upgrade", (request, socket, head) => {
+  const pathname = new URL(request.url!, `http://${request.headers.host}`).pathname;
+  const ingressPath = request.headers["x-ingress-path"] as string | undefined;
+
+  let normalizedPath = pathname;
+  if (ingressPath && normalizedPath.startsWith(ingressPath)) {
+    normalizedPath = normalizedPath.slice(ingressPath.length) || "/";
+  }
+
+  if (normalizedPath === "/ws/valves") {
+    wss.handleUpgrade(request, socket, head, (ws: WebSocket) => {
+      wss.emit("connection", ws, request);
+    });
+  } else {
+    socket.destroy();
+  }
 });
 
 wss.on("connection", async (socket) => {

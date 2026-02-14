@@ -15,6 +15,7 @@ import { Suspense, useEffect, useMemo } from "react";
 import { router } from "./router";
 import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from "./i18n";
 import { logger } from "./utils/logger";
+import { resolveApiUrl } from "./utils/api";
 
 const theme = createTheme({
   primaryColor: "blue",
@@ -105,7 +106,7 @@ function ThemeInitializer() {
 
     async function synchroniseTheme() {
       try {
-        const response = await fetch("/api/settings/theme");
+        const response = await fetch(resolveApiUrl("/api/settings/theme"));
         if (!response.ok) {
           return;
         }
@@ -140,7 +141,7 @@ function LanguageInitializer() {
       try {
         await setLanguage(getInitialLanguage());
 
-        const response = await fetch("/api/settings/language");
+        const response = await fetch(resolveApiUrl("/api/settings/language"));
         if (!response?.ok) {
           return;
         }

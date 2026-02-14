@@ -45,6 +45,7 @@ import { useMantineColorScheme } from "@mantine/core";
 import { logger } from "../utils/logger";
 import { isSupportedLanguage, setLanguage } from "../i18n";
 import { type TemperatureUnit } from "../utils/temperature";
+import { resolveApiUrl } from "../utils/api";
 
 const modbusSchema = z.object({
   host: z.string().min(1, "Host is required"),
@@ -130,7 +131,7 @@ export function OnboardingPage() {
   const unitsQuery = useQuery({
     queryKey: ["hru-units"],
     queryFn: async () => {
-      const res = await fetch("/api/settings/units");
+      const res = await fetch(resolveApiUrl("/api/settings/units"));
       if (!res.ok) {
         logger.error("Failed to fetch units", { status: res.status, statusText: res.statusText });
         throw new Error("Failed to fetch units");
@@ -145,7 +146,7 @@ export function OnboardingPage() {
   const systemInfoQuery = useQuery({
     queryKey: ["system-info"],
     queryFn: async () => {
-      const res = await fetch("/api/system-info");
+      const res = await fetch(resolveApiUrl("/api/system-info"));
       if (!res.ok) throw new Error("Failed to fetch system info");
       return (await res.json()) as { hassHost: string };
     },
@@ -160,7 +161,7 @@ export function OnboardingPage() {
 
   const saveHruMutation = useMutation({
     mutationFn: async (data: { host: string; port: number; unitId: number; unit: string }) => {
-      const res = await fetch("/api/settings/hru", {
+      const res = await fetch(resolveApiUrl("/api/settings/hru"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -177,7 +178,7 @@ export function OnboardingPage() {
 
   const saveMqttMutation = useMutation({
     mutationFn: async (data: MqttForm) => {
-      const res = await fetch("/api/settings/mqtt", {
+      const res = await fetch(resolveApiUrl("/api/settings/mqtt"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
@@ -194,7 +195,7 @@ export function OnboardingPage() {
 
   const testMqttMutation = useMutation({
     mutationFn: async (data: MqttForm) => {
-      const res = await fetch("/api/settings/mqtt/test", {
+      const res = await fetch(resolveApiUrl("/api/settings/mqtt/test"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -222,7 +223,7 @@ export function OnboardingPage() {
         host: data.host,
         port: data.port.toString(),
       });
-      const res = await fetch(`/api/modbus/status?${params.toString()}`);
+      const res = await fetch(resolveApiUrl(`/api/modbus/status?${params.toString()}`));
       if (!res.ok) throw new Error("Failed to probe Modbus");
       const json = await res.json();
       if (!json.reachable) throw new Error(json.error || "Modbus unreachable");
@@ -238,7 +239,7 @@ export function OnboardingPage() {
 
   const saveLanguageMutation = useMutation({
     mutationFn: async (lang: string) => {
-      const res = await fetch("/api/settings/language", {
+      const res = await fetch(resolveApiUrl("/api/settings/language"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ language: lang }),
@@ -252,7 +253,7 @@ export function OnboardingPage() {
 
   const saveThemeMutation = useMutation({
     mutationFn: async (theme: string) => {
-      const res = await fetch("/api/settings/theme", {
+      const res = await fetch(resolveApiUrl("/api/settings/theme"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ theme }),
@@ -266,7 +267,7 @@ export function OnboardingPage() {
 
   const saveTempUnitMutation = useMutation({
     mutationFn: async (unit: TemperatureUnit) => {
-      const res = await fetch("/api/settings/temperature-unit", {
+      const res = await fetch(resolveApiUrl("/api/settings/temperature-unit"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ temperatureUnit: unit }),
@@ -283,7 +284,7 @@ export function OnboardingPage() {
 
   const finishOnboardingMutation = useMutation({
     mutationFn: async () => {
-      const res = await fetch("/api/settings/onboarding-finish", { method: "POST" });
+      const res = await fetch(resolveApiUrl("/api/settings/onboarding-finish"), { method: "POST" });
       if (!res.ok) {
         logger.error("Failed to finish onboarding", {
           status: res.status,
@@ -297,7 +298,7 @@ export function OnboardingPage() {
   const statusQuery = useQuery({
     queryKey: ["onboarding-status"],
     queryFn: async () => {
-      const res = await fetch("/api/settings/onboarding-status");
+      const res = await fetch(resolveApiUrl("/api/settings/onboarding-status"));
       if (!res.ok) {
         logger.error("Failed to check status", { status: res.status, statusText: res.statusText });
         throw new Error("Failed to check status");

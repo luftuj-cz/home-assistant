@@ -31,12 +31,13 @@ import type { TFunction } from "i18next";
 import type { Mode } from "../../types/timeline";
 import type { Valve } from "../../types/valve";
 import { formatTemperature, parseTemperature, getTemperatureLabel } from "../../utils/temperature";
+import { resolveApiUrl } from "../../utils/api";
 import type { TemperatureUnit } from "../../hooks/useDashboardStatus";
 
 // Quick fetch fallback if service not imported
 async function fetchNativeModes(unitId?: string) {
   const query = unitId ? `?unitId=${unitId}` : "";
-  const res = await fetch(`/api/hru/modes${query}`);
+  const res = await fetch(resolveApiUrl(`/api/hru/modes${query}`));
   if (!res.ok) return [];
   const data = await res.json();
   return data.modes as { id: number; name: string }[];

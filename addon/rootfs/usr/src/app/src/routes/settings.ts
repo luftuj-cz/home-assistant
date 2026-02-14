@@ -1,5 +1,5 @@
 import { Router } from "express";
-import type { Request, Response } from "express";
+import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
 import { getAppSetting, setAppSetting } from "../services/database";
 import type { HomeAssistantClient } from "../services/homeAssistantClient";
@@ -30,6 +30,7 @@ import {
 } from "../schemas/settings";
 import type { HruService } from "../features/hru/hru.service";
 import { validateRequest } from "../middleware/validateRequest";
+import { ApiError, BadRequestError } from "../shared/errors/apiErrors";
 
 export function createSettingsRouter(
   hruService: HruService,
@@ -72,16 +73,26 @@ export function createSettingsRouter(
     });
   });
 
-  router.post("/onboarding-finish", (_request: Request, response: Response) => {
-    setAppSetting(ONBOARDING_DONE_KEY, "true");
-    logger.info("Onboarding finished");
-    response.status(204).end();
+  router.post("/onboarding-finish", (_request: Request, response: Response, next: NextFunction) => {
+    try {
+      setAppSetting(ONBOARDING_DONE_KEY, "true");
+      logger.info("Onboarding finished");
+      response.status(204).end();
+    } catch (error) {
+      logger.error({ error }, "Failed to finish onboarding");
+      next(error);
+    }
   });
 
-  router.post("/onboarding-reset", (_request: Request, response: Response) => {
-    setAppSetting(ONBOARDING_DONE_KEY, "false");
-    logger.info("Onboarding reset");
-    response.status(204).end();
+  router.post("/onboarding-reset", (_request: Request, response: Response, next: NextFunction) => {
+    try {
+      setAppSetting(ONBOARDING_DONE_KEY, "false");
+      logger.info("Onboarding reset");
+      response.status(204).end();
+    } catch (error) {
+      logger.error({ error }, "Failed to reset onboarding");
+      next(error);
+    }
   });
 
   router.get("/units", (_request: Request, response: Response) => {
@@ -112,29 +123,34 @@ export function createSettingsRouter(
   router.post(
     "/mqtt",
     validateRequest(mqttSettingsInputSchema),
-    async (request: Request, response: Response) => {
-      const { enabled, host, port, user, password } = request.body as MqttSettings;
+    async (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const { enabled, host, port, user, password } = request.body as MqttSettings;
 
-      const settings: MqttSettings = {
-        enabled,
-        host: host ?? "",
-        port: port ?? 1883,
-        user,
-        password,
-      };
-      setAppSetting(MQTT_SETTINGS_KEY, JSON.stringify(settings));
+        const settings: MqttSettings = {
+          enabled,
+          host: host ?? "",
+          port: port ?? 1883,
+          user,
+          password,
+        };
+        setAppSetting(MQTT_SETTINGS_KEY, JSON.stringify(settings));
 
-      await mqttService.reloadConfig();
+        await mqttService.reloadConfig();
 
-      logger.info({ enabled, host, port }, "MQTT settings updated");
-      response.status(204).end();
+        logger.info({ enabled, host, port }, "MQTT settings updated");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to update MQTT settings");
+        next(error);
+      }
     },
   );
 
   router.post(
     "/mqtt/test",
     validateRequest(mqttTestInputSchema),
-    async (request: Request, response: Response) => {
+    async (request: Request, response: Response, next: NextFunction) => {
       const { host, port, user, password } = request.body;
 
       try {
@@ -148,13 +164,12 @@ export function createSettingsRouter(
           response.json({ success: true });
         } else {
           logger.warn({ result }, "MQTT connection test failed");
-          response.status(502).json({ detail: result.message || "Connection failed" });
+          throw new ApiError(502, result.message || "Connection failed", "MQTT_TEST_FAILED");
         }
       } catch (err) {
+        if (err instanceof ApiError) return next(err);
         logger.error({ err }, "MQTT test connection error");
-        response
-          .status(500)
-          .json({ detail: err instanceof Error ? err.message : "Internal error" });
+        next(err);
       }
     },
   );
@@ -188,57 +203,61 @@ export function createSettingsRouter(
   router.post(
     "/hru",
     validateRequest(hruSettingsInputSchema),
-    async (request: Request, response: Response) => {
-      const { unit, host, port, unitId, maxPower } = request.body;
+    async (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const { unit, host, port, unitId, maxPower } = request.body;
 
-      if (unit !== undefined && !hruService.getAllUnits().some((u) => u.id === unit)) {
-        logger.warn({ unit }, "Attempted to set unknown HRU unit");
-        response.status(400).json({ detail: "Unknown HRU unit id" });
-        return;
-      }
+        if (unit !== undefined && !hruService.getAllUnits().some((u) => u.id === unit)) {
+          logger.warn({ unit }, "Attempted to set unknown HRU unit");
+          throw new BadRequestError("Unknown HRU unit id", "UNKNOWN_HRU_UNIT");
+        }
 
-      const resolvedUnit = unit ?? null;
-      const resolvedUnitId = unitId ?? 1;
+        const resolvedUnit = unit ?? null;
+        const resolvedUnitId = unitId ?? 1;
 
-      // Validate maxPower against unit's actual maximum
-      if (maxPower !== undefined && resolvedUnit !== null) {
-        const selectedUnit = hruService.getAllUnits().find((u) => u.id === resolvedUnit);
-        if (selectedUnit && selectedUnit.isConfigurable) {
-          const unitMaxValue = selectedUnit.maxValue;
-          if (maxPower > unitMaxValue) {
-            logger.warn(
-              { maxPower, unitMaxValue },
-              "Attempted to set maxPower higher than unit allows",
-            );
-            response.status(400).json({
-              detail: `Maximum power cannot exceed ${unitMaxValue} ${selectedUnit.controlUnit || ""}. The selected unit supports a maximum of ${unitMaxValue}.`,
-            });
-            return;
+        // Validate maxPower against unit's actual maximum
+        if (maxPower !== undefined && resolvedUnit !== null) {
+          const selectedUnit = hruService.getAllUnits().find((u) => u.id === resolvedUnit);
+          if (selectedUnit && selectedUnit.isConfigurable) {
+            const unitMaxValue = selectedUnit.maxValue;
+            if (maxPower > unitMaxValue) {
+              logger.warn(
+                { maxPower, unitMaxValue },
+                "Attempted to set maxPower higher than unit allows",
+              );
+              throw new BadRequestError(
+                `Maximum power cannot exceed ${unitMaxValue} ${selectedUnit.controlUnit || ""}. The selected unit supports a maximum of ${unitMaxValue}.`,
+                "MAX_POWER_EXCEEDED",
+              );
+            }
           }
         }
-      }
 
-      const settings: HruSettings = {
-        unit: resolvedUnit,
-        host,
-        port,
-        unitId: resolvedUnitId,
-        maxPower,
-      };
-      setAppSetting(HRU_SETTINGS_KEY, JSON.stringify(settings));
+        const settings: HruSettings = {
+          unit: resolvedUnit,
+          host,
+          port,
+          unitId: resolvedUnitId,
+          maxPower,
+        };
+        setAppSetting(HRU_SETTINGS_KEY, JSON.stringify(settings));
 
-      // Trigger MQTT discovery update
-      try {
-        const config = hruService.getResolvedConfiguration(settings);
-        if (config) {
-          await mqttService.publishDiscovery(config.unit, config.strategy.capabilities);
+        // Trigger MQTT discovery update
+        try {
+          const config = hruService.getResolvedConfiguration(settings);
+          if (config) {
+            await mqttService.publishDiscovery(config.unit, config.strategy.capabilities);
+          }
+        } catch (err) {
+          logger.warn({ err }, "Failed to update MQTT discovery after HRU settings change");
         }
-      } catch (err) {
-        logger.warn({ err }, "Failed to update MQTT discovery after HRU settings change");
-      }
 
-      logger.info({ unit, host, port, unitId, maxPower }, "HRU settings updated");
-      response.status(204).end();
+        logger.info({ unit, host, port, unitId, maxPower }, "HRU settings updated");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to update HRU settings");
+        next(error);
+      }
     },
   );
 
@@ -251,11 +270,16 @@ export function createSettingsRouter(
   router.post(
     "/mode",
     validateRequest(addonModeInputSchema),
-    (request: Request, response: Response) => {
-      const { mode } = request.body;
-      setAppSetting(ADDON_MODE_KEY, mode);
-      logger.info({ mode }, "Addon mode updated");
-      response.status(204).end();
+    (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const { mode } = request.body;
+        setAppSetting(ADDON_MODE_KEY, mode);
+        logger.info({ mode }, "Addon mode updated");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to update addon mode");
+        next(error);
+      }
     },
   );
 
@@ -267,11 +291,16 @@ export function createSettingsRouter(
   router.post(
     "/theme",
     validateRequest(themeSettingInputSchema),
-    (request: Request, response: Response) => {
-      const { theme } = request.body;
-      setAppSetting(THEME_SETTING_KEY, theme);
-      logger.info({ theme }, "Theme updated");
-      response.status(204).end();
+    (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const { theme } = request.body;
+        setAppSetting(THEME_SETTING_KEY, theme);
+        logger.info({ theme }, "Theme updated");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to update theme");
+        next(error);
+      }
     },
   );
 
@@ -283,19 +312,24 @@ export function createSettingsRouter(
   router.post(
     "/language",
     validateRequest(languageSettingInputSchema),
-    async (request: Request, response: Response) => {
-      const { language } = request.body;
-      setAppSetting(LANGUAGE_SETTING_KEY, language);
-
-      // Trigger MQTT discovery update to refresh localized names
+    async (request: Request, response: Response, next: NextFunction) => {
       try {
-        await mqttService.refreshDiscovery();
-      } catch (err) {
-        logger.warn({ err }, "Failed to update MQTT discovery after language change");
-      }
+        const { language } = request.body;
+        setAppSetting(LANGUAGE_SETTING_KEY, language);
 
-      logger.info({ language }, "Language updated");
-      response.status(204).end();
+        // Trigger MQTT discovery update to refresh localized names
+        try {
+          await mqttService.refreshDiscovery();
+        } catch (err) {
+          logger.warn({ err }, "Failed to update MQTT discovery after language change");
+        }
+
+        logger.info({ language }, "Language updated");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to update language");
+        next(error);
+      }
     },
   );
 
@@ -307,11 +341,16 @@ export function createSettingsRouter(
   router.post(
     "/temperature-unit",
     validateRequest(temperatureUnitInputSchema),
-    (request: Request, response: Response) => {
-      const { temperatureUnit } = request.body;
-      setAppSetting(TEMP_UNIT_SETTING_KEY, temperatureUnit);
-      logger.info({ temperatureUnit }, "Temperature unit updated");
-      response.status(204).end();
+    (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const { temperatureUnit } = request.body;
+        setAppSetting(TEMP_UNIT_SETTING_KEY, temperatureUnit);
+        logger.info({ temperatureUnit }, "Temperature unit updated");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to update temperature unit");
+        next(error);
+      }
     },
   );
 
@@ -324,11 +363,16 @@ export function createSettingsRouter(
   router.post(
     "/debug-mode",
     validateRequest(debugModeInputSchema),
-    (request: Request, response: Response) => {
-      const { enabled } = request.body;
-      setAppSetting(DEBUG_MODE_KEY, String(enabled));
-      logger.info({ enabled }, "Debug mode updated");
-      response.status(204).end();
+    (request: Request, response: Response, next: NextFunction) => {
+      try {
+        const { enabled } = request.body;
+        setAppSetting(DEBUG_MODE_KEY, String(enabled));
+        logger.info({ enabled }, "Debug mode updated");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to update debug mode");
+        next(error);
+      }
     },
   );
 

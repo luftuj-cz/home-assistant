@@ -9,6 +9,7 @@ import {
   type ValveUpdateParams,
   valveUpdateParamsSchema,
 } from "../schemas/valves";
+import { ApiError, NotFoundError } from "../shared/errors/apiErrors";
 
 export function createValvesRouter(valveManager: ValveController, logger: Logger) {
   const router = Router();
@@ -42,13 +43,11 @@ export function createValvesRouter(valveManager: ValveController, logger: Logger
         if (error instanceof Error) {
           if (/Unknown valve/.test(error.message)) {
             logger.warn({ entityId }, "Valve value update failed: unknown valve");
-            response.status(404).json({ detail: error.message });
-            return;
+            return next(new NotFoundError(error.message, "UNKNOWN_VALVE"));
           }
           if (/Offline mode/.test(error.message)) {
             logger.warn({ entityId }, "Valve value update rejected: offline mode");
-            response.status(503).json({ detail: error.message });
-            return;
+            return next(new ApiError(503, error.message, "OFFLINE_MODE"));
           }
         }
         logger.error({ error, entityId, value: numericValue }, "Valve value update failed");

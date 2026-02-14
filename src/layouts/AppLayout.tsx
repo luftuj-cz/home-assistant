@@ -43,6 +43,7 @@ import logoFullLight from "../assets/logo-full-light.svg";
 import logoFullDark from "../assets/logo-full-dark.svg";
 import logoMarkLight from "../assets/logo-mark-light.svg";
 import logoMarkDark from "../assets/logo-mark-dark.svg";
+import { resolveApiUrl } from "../utils/api";
 
 export function AppLayout() {
   const [mobileNavOpened, { toggle, close }] = useDisclosure(false);
@@ -59,7 +60,7 @@ export function AppLayout() {
   const { data: onboardingStatus, isLoading: isLoadingStatus } = useQuery({
     queryKey: ["onboarding-layout-check"],
     queryFn: async () => {
-      const res = await fetch("/api/settings/onboarding-status");
+      const res = await fetch(resolveApiUrl("/api/settings/onboarding-status"));
       if (!res.ok) return null; // Fail silently
       return (await res.json()) as { onboardingDone: boolean };
     },
@@ -70,7 +71,7 @@ export function AppLayout() {
   const { data: debugMode } = useQuery({
     queryKey: ["debug-mode-check"],
     queryFn: async () => {
-      const res = await fetch("/api/settings/debug-mode");
+      const res = await fetch(resolveApiUrl("/api/settings/debug-mode"));
       if (!res.ok) return { enabled: false };
       return (await res.json()) as { enabled: boolean };
     },
