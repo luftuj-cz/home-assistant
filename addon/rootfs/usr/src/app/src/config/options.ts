@@ -112,10 +112,15 @@ export function loadConfig(): AppConfig {
   const staticRoot = env.STATIC_ROOT ?? DEFAULT_STATIC_ROOT;
   const corsOrigins = parseCorsOrigins(env.CORS_ORIGINS);
 
-  const mqttHost = options?.mqtt_host ?? env.MQTT_HOST ?? null;
-  const mqttPort = options?.mqtt_port ?? Number.parseInt(env.MQTT_PORT ?? "1883", 10);
-  const mqttUser = options?.mqtt_user ?? env.MQTT_USER ?? null;
-  const mqttPassword = options?.mqtt_password ?? env.MQTT_PASSWORD ?? null;
+  // Prefer environment variables (Service Discovery) if options are defaults/empty
+  const useEnvMqtt = !options?.mqtt_host || options.mqtt_host === "";
+
+  const mqttHost = useEnvMqtt ? (env.MQTT_HOST ?? null) : (options?.mqtt_host ?? null);
+  const mqttPort = useEnvMqtt
+    ? Number.parseInt(env.MQTT_PORT ?? "1883", 10)
+    : (options?.mqtt_port ?? 1883);
+  const mqttUser = useEnvMqtt ? (env.MQTT_USER ?? null) : (options?.mqtt_user ?? null);
+  const mqttPassword = useEnvMqtt ? (env.MQTT_PASSWORD ?? null) : (options?.mqtt_password ?? null);
 
   cachedConfig = {
     logLevel,

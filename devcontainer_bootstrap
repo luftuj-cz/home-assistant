@@ -1,0 +1,3 @@
+#!/bin/bash
+# Local devcontainer bootstrap script
+echo "DevContainer bootstrap complete."

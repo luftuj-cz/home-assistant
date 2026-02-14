@@ -19,7 +19,7 @@ addon/rootfs/usr/src/app/data
 
 # Editor directories and files
 .codacy
-.vscode/*
+.vscode/settings.json
 !.vscode/extensions.json
 .idea
 .DS_Store

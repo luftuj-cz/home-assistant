@@ -8,6 +8,8 @@ arch:
   - amd64
 init: false
 startup: services
+services:
+  - mqtt: want
 homeassistant_api: true
 host_network: true
 hassio_api: true
@@ -18,7 +20,7 @@ icon: icon.png
 logo: logo.png
 map:
   - share:rw
-  - config:rw
+  - homeassistant_config:rw
 ports:
   8099/tcp: 8099
 ports_description:

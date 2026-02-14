@@ -16,3 +16,9 @@ RUN chmod +x /etc/services.d/luftujha/run
 WORKDIR /usr/src/app
 
 RUN bun install
+
+# Labels
+LABEL \
+  io.hass.version="VERSION" \
+  io.hass.type="addon" \
+  io.hass.arch="armhf|aarch64|i386|amd64"

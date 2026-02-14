@@ -19,6 +19,7 @@ import { MqttService } from "./services/mqttService";
 import { HruMonitor } from "./services/hruMonitor";
 
 import { createRequestLogger } from "./middleware/requestLogger";
+import { createUserContextLogger } from "./middleware/userContext";
 import { createErrorHandler } from "./middleware/errorHandler";
 
 import { createHruRouter } from "./features/hru/hru.routes";
@@ -59,6 +60,7 @@ app.use(
 
 // Middleware
 app.use(createRequestLogger(logger));
+app.use(createUserContextLogger(logger));
 
 // Services Setup
 const clients = new Set<WebSocket>();
