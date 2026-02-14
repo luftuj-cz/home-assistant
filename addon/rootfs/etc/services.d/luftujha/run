@@ -5,11 +5,6 @@ set -euo pipefail
 
 bashio::log.info "Starting the Luftuj backend service..."
 
-PORT=$(bashio::config 'web_port')
-if [ -z "${PORT}" ] || [ "${PORT}" = "null" ]; then
-  PORT=8099
-fi
-
 function handle_error() {
     bashio::log.error "An error occurred while starting the Luftuj backend service."
     bashio::log.error "Error on line $1: Command '$2' exited with status $3"
@@ -37,5 +32,6 @@ else
     bashio::log.info "MQTT service not found, relying on manual configuration..."
 fi
 
-bashio::log.info "Starting server on port ${PORT}..."
-PORT="${PORT}" exec bun run src/server.ts || bashio::exit.nok "Failed to start the server"
+bashio::log.info "Starting server (ingress port: ${INGRESS_PORT:-default})..."
+exec bun run src/server.ts || bashio::exit.nok "Failed to start the server"
+

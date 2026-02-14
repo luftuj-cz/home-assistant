@@ -124,13 +124,15 @@ if (fs.existsSync(staticRoot)) {
     app.use("/assets", express.static(assetsPath, { fallthrough: true }));
   }
 
-  // Explicit 404 for missing assets to avoid falling back to index.html
-  app.get("/assets/*path", (_req, res) => {
-    res.status(404).send("Not Found");
+  app.get("/", (_request, response, next) => {
+    if (!fs.existsSync(indexPath)) {
+      next();
+      return;
+    }
+    response.sendFile(indexPath);
   });
 
-  // SPA Fallback - match everything else including HASS Ingress paths
-  app.get("/{*path}", (_request, response, next) => {
+  app.get(/^(?!\/api\/|\/ws\/|\/assets\/).*/, (_request, response, next) => {
     if (!fs.existsSync(indexPath)) {
       next();
       return;

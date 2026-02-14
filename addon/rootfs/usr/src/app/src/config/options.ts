@@ -3,7 +3,7 @@ import { z } from "zod";
 
 const OPTIONS_PATH = "/data/options.json";
 const DEFAULT_STATIC_ROOT = "/usr/share/luftujha/www";
-const DEFAULT_WEB_PORT = 8000;
+const DEFAULT_WEB_PORT = 8099;
 const VALID_LOG_LEVELS = ["trace", "debug", "info", "notice", "warning", "error", "fatal"] as const;
 
 const optionsFileSchema = z
@@ -27,6 +27,7 @@ const envSchema = z.object({
   LOG_LEVEL: z.string().optional(),
   PORT: z.string().optional(),
   WEB_PORT: z.string().optional(),
+  INGRESS_PORT: z.string().optional(),
   HA_BASE_URL: z.string().optional(),
   HA_TOKEN: z.string().optional(),
   SUPERVISOR_TOKEN: z.string().optional(),
@@ -106,9 +107,10 @@ export function loadConfig(): AppConfig {
   const baseUrl = options?.ha_base_url ?? env.HA_BASE_URL ?? "http://supervisor/core";
   const token = options?.ha_token ?? env.HA_TOKEN ?? env.SUPERVISOR_TOKEN ?? null;
 
+  const ingressPort = Number.parseInt(env.INGRESS_PORT ?? "", 10);
   const envPort = Number.parseInt(env.PORT ?? env.WEB_PORT ?? "", 10);
   const optionsPort = options?.web_port;
-  const webPort = envPort || optionsPort || DEFAULT_WEB_PORT;
+  const webPort = ingressPort || envPort || optionsPort || DEFAULT_WEB_PORT;
   const staticRoot = env.STATIC_ROOT ?? DEFAULT_STATIC_ROOT;
   const corsOrigins = parseCorsOrigins(env.CORS_ORIGINS);
 
