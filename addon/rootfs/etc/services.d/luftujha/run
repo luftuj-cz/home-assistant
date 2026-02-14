@@ -12,9 +12,10 @@ fi
 
 function handle_error() {
     bashio::log.error "An error occurred while starting the Luftuj backend service."
+    bashio::log.error "Error on line $1: Command '$2' exited with status $3"
     exit 1
 }
-trap 'handle_error' ERR
+trap 'handle_error $LINENO "$BASH_COMMAND" $?' ERR
 
 cd /usr/src/app || bashio::exit.nok "Could not change directory to /usr/src/app"
 
