@@ -1,4 +1,4 @@
-#!/command/with-contenv bashio
+#!/usr/bin/with-contenv bashio
 # shellcheck shell=bash
 
 set -euo pipefail
@@ -10,5 +10,13 @@ if [ -z "${PORT}" ] || [ "${PORT}" = "null" ]; then
   PORT=8099
 fi
 
-cd /usr/src/app
-PORT="${PORT}" exec bun run src/server.ts
+function handle_error() {
+    bashio::log.error "An error occurred while starting the Luftuj backend service."
+    exit 1
+}
+trap 'handle_error' ERR
+
+cd /usr/src/app || bashio::exit.nok "Could not change directory to /usr/src/app"
+
+bashio::log.info "Starting server on port ${PORT}..."
+PORT="${PORT}" exec bun run src/server.ts || bashio::exit.nok "Failed to start the server"
