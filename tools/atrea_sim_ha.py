@@ -372,7 +372,7 @@ def main():
     parser = argparse.ArgumentParser(description='Atrea HRU Simulator (Dynamic)')
     parser.add_argument('--unit', type=str, default='atrea-rd5-cf', help='Unit code (from units json)')
     parser.add_argument('--port', type=int, default=502, help='Modbus port')
-    parser.add_argument('--host', type=str, default='127.0.0.1', help='Bind address (default 127.0.0.1)')
+    parser.add_argument('--host', type=str, default='0.0.0.0', help='Bind address (default 0.0.0.0)')
     args = parser.parse_args()
 
     sim = HruSimulator(args.unit)
