@@ -32,6 +32,8 @@ import type { Mode } from "../../types/timeline";
 import type { Valve } from "../../types/valve";
 import { formatTemperature, parseTemperature, getTemperatureLabel } from "../../utils/temperature";
 import { resolveApiUrl } from "../../utils/api";
+import { cancelBoost, testTimelineMode } from "../../api/timeline";
+import { notifications } from "@mantine/notifications";
 import type { TemperatureUnit } from "../../hooks/useDashboardStatus";
 
 // Quick fetch fallback if service not imported
@@ -197,46 +199,38 @@ export function TimelineModeModal({
   function validateForm(): boolean {
     const trimmedName = name.trim();
     if (!trimmedName) {
-      import("@mantine/notifications").then(({ notifications }) => {
-        notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle"),
-          message: t("validation.requiredField"),
-          color: "red",
-        });
+      notifications.show({
+        title: t("settings.timeline.notifications.validationFailedTitle"),
+        message: t("validation.requiredField"),
+        color: "red",
       });
       return false;
     }
 
     // Capability Validation
     if (hruCapabilities?.hasModeControl && !nativeMode) {
-      import("@mantine/notifications").then(({ notifications }) => {
-        notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle"),
-          message: t("validation.nativeModeRequired"),
-          color: "red",
-        });
+      notifications.show({
+        title: t("settings.timeline.notifications.validationFailedTitle"),
+        message: t("validation.nativeModeRequired"),
+        color: "red",
       });
       return false;
     }
 
     if (hruCapabilities?.hasPowerControl !== false && power === undefined) {
-      import("@mantine/notifications").then(({ notifications }) => {
-        notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle"),
-          message: t("validation.powerRequired"),
-          color: "red",
-        });
+      notifications.show({
+        title: t("settings.timeline.notifications.validationFailedTitle"),
+        message: t("validation.powerRequired"),
+        color: "red",
       });
       return false;
     }
 
     if (hruCapabilities?.hasTemperatureControl !== false && temperature === undefined) {
-      import("@mantine/notifications").then(({ notifications }) => {
-        notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle"),
-          message: t("validation.temperatureRequired"),
-          color: "red",
-        });
+      notifications.show({
+        title: t("settings.timeline.notifications.validationFailedTitle"),
+        message: t("validation.temperatureRequired"),
+        color: "red",
       });
       return false;
     }
@@ -247,19 +241,15 @@ export function TimelineModeModal({
   function handleTest() {
     if (testRemainingSeconds !== null) {
       // STOP Test
-      import("../../api/timeline").then(({ cancelBoost }) => {
-        cancelBoost().then(() => {
-          setTestRemainingSeconds(null);
-          if (testTimerRef.current) {
-            clearInterval(testTimerRef.current);
-            testTimerRef.current = null;
-          }
-          import("@mantine/notifications").then(({ notifications }) => {
-            notifications.show({
-              title: t("settings.timeline.notifications.testStoppedTitle"),
-              message: t("settings.timeline.notifications.testStoppedMessage"),
-            });
-          });
+      cancelBoost().then(() => {
+        setTestRemainingSeconds(null);
+        if (testTimerRef.current) {
+          clearInterval(testTimerRef.current);
+          testTimerRef.current = null;
+        }
+        notifications.show({
+          title: t("settings.timeline.notifications.testStoppedTitle"),
+          message: t("settings.timeline.notifications.testStoppedMessage"),
         });
       });
       return;
@@ -271,28 +261,22 @@ export function TimelineModeModal({
     const payload = getModePayload();
 
     // Dynamic import to avoid circular dependencies if any, although unlikely here
-    import("../../api/timeline").then(({ testTimelineMode }) => {
-      testTimelineMode(payload, 1)
-        .then(() => {
-          setTestRemainingSeconds(60);
-          import("@mantine/notifications").then(({ notifications }) => {
-            notifications.show({
-              title: t("settings.timeline.notifications.testStartedTitle"),
-              message: t("settings.timeline.notifications.testStartedMessage"),
-              color: "blue",
-            });
-          });
-        })
-        .catch((err) => {
-          import("@mantine/notifications").then(({ notifications }) => {
-            notifications.show({
-              title: "Error",
-              message: err.message || "Failed to start test mode",
-              color: "red",
-            });
-          });
+    testTimelineMode(payload, 1)
+      .then(() => {
+        setTestRemainingSeconds(60);
+        notifications.show({
+          title: t("settings.timeline.notifications.testStartedTitle"),
+          message: t("settings.timeline.notifications.testStartedMessage"),
+          color: "blue",
         });
-    });
+      })
+      .catch((err) => {
+        notifications.show({
+          title: "Error",
+          message: err.message || "Failed to start test mode",
+          color: "red",
+        });
+      });
   }
 
   function handleSave() {
@@ -307,12 +291,10 @@ export function TimelineModeModal({
     );
 
     if (isDuplicate) {
-      import("@mantine/notifications").then(({ notifications }) => {
-        notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle"),
-          message: t("validation.duplicateModeName"),
-          color: "red",
-        });
+      notifications.show({
+        title: t("settings.timeline.notifications.validationFailedTitle"),
+        message: t("validation.duplicateModeName"),
+        color: "red",
       });
       return;
     }
