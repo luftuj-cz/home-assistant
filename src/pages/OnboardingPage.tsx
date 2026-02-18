@@ -361,7 +361,7 @@ export function OnboardingPage() {
 
   async function handleHruAndModbusSave() {
     if (!selectedUnit) {
-      notifications.show({ title: "Error", message: "Please select a unit", color: "red" });
+      notifications.show({ title: t("valves.alertTitle"), message: t("onboarding.unit.error"), color: "red" });
       setActive(2);
       return;
     }
@@ -406,7 +406,7 @@ export function OnboardingPage() {
 
   async function handleUnitSubmit() {
     if (!selectedUnit) {
-      notifications.show({ title: "Error", message: "Please select a unit", color: "red" });
+      notifications.show({ title: t("valves.alertTitle"), message: t("onboarding.unit.error"), color: "red" });
       return;
     }
     nextStep();
@@ -422,8 +422,8 @@ export function OnboardingPage() {
       navigate({ to: "/" });
     } catch (err) {
       notifications.show({
-        title: "Error",
-        message: "Failed to finalise onboarding. Please try again.",
+        title: t("valves.alertTitle"),
+        message: t("onboarding.errors.finishFailed"),
         color: "red",
       });
       logger.error("Failed to finalise onboarding", { error: err });
@@ -697,7 +697,7 @@ export function OnboardingPage() {
               <Flex direction={isMobile ? "column" : "row"} gap="md">
                 <TextInput
                   label={t("onboarding.mqtt.hostLabel")}
-                  placeholder="homeassistant" // Common for addons
+                  placeholder={t("onboarding.mqtt.hostPlaceholder")} // Common for addons
                   required
                   {...mqttForm.getInputProps("host")}
                   style={{ flex: 1 }}
@@ -714,13 +714,13 @@ export function OnboardingPage() {
               <Flex direction={isMobile ? "column" : "row"} gap="md">
                 <TextInput
                   label={t("onboarding.mqtt.userLabel")}
-                  placeholder="Optional"
+                  placeholder={t("app.nav.optional")}
                   {...mqttForm.getInputProps("user")}
                   style={{ flex: 1 }}
                 />
                 <PasswordInput
                   label={t("onboarding.mqtt.passLabel")}
-                  placeholder="Optional"
+                  placeholder={t("app.nav.optional")}
                   {...mqttForm.getInputProps("password")}
                   style={{ flex: 1 }}
                 />
@@ -749,7 +749,7 @@ export function OnboardingPage() {
             </>
           )}
           {!mqttForm.values.enabled && (
-            <Alert color="yellow" title="Warning">
+            <Alert color="yellow" title={t("valves.warningTitle")}>
               {t("onboarding.mqtt.warning")}
             </Alert>
           )}
@@ -767,7 +767,7 @@ export function OnboardingPage() {
           <Text fw={500}>{t("onboarding.modbus.title")}</Text>
           <TextInput
             label={t("onboarding.modbus.hostLabel")}
-            placeholder="192.168.1.10"
+            placeholder={t("onboarding.modbus.hostPlaceholder")}
             required
             {...modbusForm.getInputProps("host")}
           />

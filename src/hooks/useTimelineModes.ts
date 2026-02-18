@@ -20,9 +20,7 @@ export function useTimelineModes(t: TFunction) {
     } catch {
       notifications.show({
         title: tRef.current("settings.timeline.notifications.loadFailedTitle"),
-        message: tRef.current("settings.timeline.notifications.loadFailedModes", {
-          defaultValue: "Failed to load modes",
-        }),
+        message: tRef.current("settings.timeline.notifications.loadFailedModes"),
         color: "red",
       });
     }
@@ -53,7 +51,6 @@ export function useTimelineModes(t: TFunction) {
           isEdit
             ? "settings.timeline.notifications.modeUpdated"
             : "settings.timeline.notifications.modeCreated",
-          { defaultValue: isEdit ? "Mode updated" : "Mode created" },
         ),
         color: "green",
       });
@@ -87,9 +84,7 @@ export function useTimelineModes(t: TFunction) {
       setModes((prev) => prev.filter((m) => m.id !== id));
       notifications.show({
         title: tRef.current("settings.timeline.notifications.modeDeleteSuccessTitle"),
-        message: tRef.current("settings.timeline.notifications.modeDeleteSuccessMessage", {
-          defaultValue: "Mode deleted",
-        }),
+        message: tRef.current("settings.timeline.notifications.modeDeleteSuccessMessage"),
         color: "green",
       });
       return true;

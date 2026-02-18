@@ -41,14 +41,14 @@ export function TimelineModeList({
         <Group justify="space-between">
           <Group gap="xs">
             <Title order={4} fw={700}>
-              {t("settings.timeline.modesTitle", { defaultValue: "Modes" })}
+              {t("settings.timeline.modesTitle")}
             </Title>
             <Badge variant="light" color="gray" size="sm">
               {modes.length}
             </Badge>
           </Group>
           <Button size="xs" variant="outline" leftSection={<IconPlus size={14} />} onClick={onAdd}>
-            {t("settings.timeline.addMode", { defaultValue: "Add mode" })}
+            {t("settings.timeline.addMode")}
           </Button>
         </Group>
 
@@ -61,7 +61,7 @@ export function TimelineModeList({
           >
             <Stack align="center" gap="xs">
               <Text size="sm" c="dimmed">
-                {t("settings.timeline.noModes", { defaultValue: "No modes yet." })}
+                {t("settings.timeline.noModes")}
               </Text>
               <Button
                 size="xs"
@@ -122,7 +122,7 @@ export function TimelineModeList({
                       <Group gap={6}>
                         {m.isBoost && (
                           <Badge size="xs" color="orange" variant="light" radius="sm">
-                            {t("settings.timeline.modeIsBoostBadge", { defaultValue: "BOOST" })}
+                            {t("settings.timeline.modeIsBoostBadge")}
                           </Badge>
                         )}
                         {m.power !== undefined && (
@@ -144,7 +144,7 @@ export function TimelineModeList({
                       <ActionIcon
                         size="lg"
                         variant="subtle"
-                        aria-label="Edit mode"
+                        aria-label={t("settings.timeline.edit")}
                         onClick={() => onEdit(m)}
                         radius="md"
                       >
@@ -154,7 +154,7 @@ export function TimelineModeList({
                         size="lg"
                         variant="subtle"
                         color="red"
-                        aria-label="Delete mode"
+                        aria-label={t("settings.timeline.delete")}
                         onClick={() => onDelete(m.id)}
                         radius="md"
                       >

@@ -57,7 +57,7 @@ export function HruStatusCard({
             </div>
           </Group>
           <Badge color="blue" variant="light" size="lg" radius="sm">
-            Loading
+            {t("dashboard.haStatus.loading")}
           </Badge>
         </Group>
       </Card>
@@ -80,7 +80,7 @@ export function HruStatusCard({
             </div>
           </Group>
           <Badge color="red" variant="light" size="lg" radius="sm">
-            Error
+            {t("dashboard.haStatus.error")}
           </Badge>
         </Group>
         <Text size="sm" c="red" mt="sm">

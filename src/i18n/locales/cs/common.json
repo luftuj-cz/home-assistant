@@ -13,7 +13,8 @@
       "settings": "Nastavení",
       "debug": "Ladění",
       "navigate": "Navigace",
-      "toggle": "Přepnout navigaci"
+      "toggle": "Přepnout navigaci",
+      "optional": "Volitelné"
     },
     "footer": {
       "company": "Luftuj s.r.o.",
@@ -169,6 +170,11 @@
         "toggleFailedMessage": "Nepodařilo se povolit/zakázat událost",
         "unknown": "Neznámá chyba"
       },
+      "copyDay": "Kopírovat den",
+      "pasteDay": "Vložit den",
+      "copying": "Kopíruji {{day}}…",
+      "copyHint": "Vyberte den pro vložení událostí.",
+      "pasteSuccess": "Události vloženy",
       "priorityDescription": "Vyšší priorita vyhrává při překrývajících se událostech"
     },
     "hru": {
@@ -253,12 +259,28 @@
     "developer": {
       "title": "Vývojářské nastavení",
       "debugMode": "Ladicí režim",
-      "debugModeDescription": "Povolí stránku Ladění v navigačním panelu."
+      "debugModeDescription": "Povolí stránku Ladění v navigačním panelu.",
+      "debugEnabled": "Ladicí režim povolen",
+      "debugDisabled": "Ladicí režim zakázán"
     }
+  },
+  "validation": {
+    "required": "Povinné",
+    "requiredField": "Název je povinný",
+    "modeRequired": "Režim je povinný",
+    "duplicateModeName": "Název režimu již existuje",
+    "nativeModeRequired": "Nativní režim jednotky je povinný",
+    "powerRequired": "Výkon je povinný",
+    "temperatureRequired": "Teplota je povinná"
   },
   "debug": {
     "title": "Ladicí nástroje",
-    "description": "Pokročilá diagnostika a inspektor registrů."
+    "description": "Pokročilá diagnostika a inspektor registrů.",
+    "placeholder": "Tato stránka slouží jako základ pro budoucí vývojářské nástroje a ruční inspekci registrů.",
+    "onboardingTools": "Nástroje pro nastavení",
+    "resetOnboarding": "Resetovat příznak nastavení",
+    "finishOnboarding": "Dokončit příznak nastavení",
+    "resetOnboardingHint": "Toto nastaví `onboarding.done` na `false` a obnoví stránku, čímž spustí průvodce nastavením."
   },
   "schedule": {
     "title": "Týdenní plán",
@@ -312,7 +334,8 @@
       "connecting": "Připojování…",
       "disconnected": "Odpojeno",
       "offline": "Offline",
-      "loading": "Načítání…"
+      "loading": "Načítání",
+      "error": "Chyba"
     },
     "modbusStatusTitle": "Modbus TCP",
     "modbusStatusDescription": "Dostupnost nakonfigurovaného Modbus TCP serveru",
@@ -396,6 +419,7 @@
       "description": "Připojení jednotky",
       "title": "Připojte se k rekuperaci přes Modbus TCP",
       "hostLabel": "IP adresa hostitele",
+      "hostPlaceholder": "192.168.1.10",
       "portLabel": "Port",
       "unitIdLabel": "ID jednotky",
       "test": "Testovat připojení",
@@ -408,6 +432,7 @@
       "title": "Konfigurace MQTT",
       "enable": "Povolit MQTT",
       "hostLabel": "Broker hostitel",
+      "hostPlaceholder": "homeassistant",
       "portLabel": "Port",
       "userLabel": "Uživatelské jméno",
       "passLabel": "Heslo",
@@ -442,7 +467,8 @@
     },
     "errors": {
       "prefSaveFailed": "Nepodařilo se uložit předvolby",
-      "mqttSaveFailed": "Nepodařilo se uložit nastavení MQTT"
+      "mqttSaveFailed": "Nepodařilo se uložit nastavení MQTT",
+      "finishFailed": "Nepodařilo se dokončit nastavení. Zkuste to prosím znovu."
     },
     "back": "Zpět",
     "next": "Další"

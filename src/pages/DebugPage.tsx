@@ -14,11 +14,11 @@ export function DebugPage() {
         </Stack>
 
         <Text>
-          This page is a placeholder for future developer tools and manual register inspection.
+          {t("debug.placeholder")}
         </Text>
 
         <Stack gap="xs">
-          <Title order={3}>Onboarding Tools</Title>
+          <Title order={3}>{t("debug.onboardingTools")}</Title>
           <Group gap="md">
             <Button
               color="red"
@@ -28,7 +28,7 @@ export function DebugPage() {
                 window.location.reload();
               }}
             >
-              Reset Onboarding Flag
+              {t("debug.resetOnboarding")}
             </Button>
             <Button
               color="green"
@@ -38,12 +38,11 @@ export function DebugPage() {
                 window.location.reload();
               }}
             >
-              Finish Onboarding Flag
+              {t("debug.finishOnboarding")}
             </Button>
           </Group>
           <Text size="xs" c="dimmed">
-            This will set <code>onboarding.done</code> to <code>false</code> and reload the page,
-            triggering the setup wizard.
+            {t("debug.resetOnboardingHint")}
           </Text>
         </Stack>
       </Stack>

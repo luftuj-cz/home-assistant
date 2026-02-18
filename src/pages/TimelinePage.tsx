@@ -109,15 +109,12 @@ export function TimelinePage() {
         id: "copy-hint",
         icon: <IconCopy size={16} />,
         title: t("settings.timeline.copying", {
-          defaultValue: "Copying",
           day: dayLabels[copyDay],
         }),
         message: (
           <Stack gap="xs">
             <Text size="xs">
-              {t("settings.timeline.copyHint", {
-                defaultValue: "Select a day to paste events.",
-              })}
+              {t("settings.timeline.copyHint")}
             </Text>
             <Button
               size="compact-xs"
@@ -169,7 +166,7 @@ export function TimelinePage() {
       if (!editingEvent.hruConfig?.mode) {
         notifications.show({
           title: t("settings.timeline.notifications.validationFailedTitle"),
-          message: t("validation.modeRequired", { defaultValue: "Mode is required" }),
+          message: t("validation.modeRequired"),
           color: "red",
         });
         return;
@@ -208,7 +205,7 @@ export function TimelinePage() {
       setCopyDay(null);
       notifications.show({
         title: t("settings.timeline.notifications.saveSuccessTitle"),
-        message: t("settings.timeline.pasteDay", { defaultValue: "Events pasted" }),
+        message: t("settings.timeline.pasteSuccess"),
         color: "green",
       });
       logger.info("Day pasted successfully", { targetDay: dayLabels[targetDay] });
@@ -241,7 +238,7 @@ export function TimelinePage() {
       } catch (err) {
         if (err instanceof Error && err.message === "DUPLICATE_NAME") {
           setModeNameError(
-            t("validation.duplicateModeName", { defaultValue: "Mode name already exists" }),
+            t("validation.duplicateModeName"),
           );
         }
       }
@@ -298,7 +295,7 @@ export function TimelinePage() {
             label={
               <Group gap="xs">
                 <Text fw={700} size="sm">
-                  {t("schedule.title", { defaultValue: "Weekly Schedule" })}
+                  {t("schedule.title")}
                 </Text>
               </Group>
             }

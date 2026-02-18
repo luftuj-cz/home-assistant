@@ -64,7 +64,7 @@ export function TimelineEventModal({
             hruCapabilities?.hasPowerControl !== false ||
             hruCapabilities?.hasTemperatureControl !== false) && (
             <Select
-              label={t("schedule.modeSelect", { defaultValue: "Select mode" })}
+              label={t("schedule.modeSelect")}
               data={modeOptions}
               value={event.hruConfig?.mode?.toString() || null}
               onChange={(value) => {
@@ -86,7 +86,7 @@ export function TimelineEventModal({
                 modeOptions.length === 0
                   ? t("settings.timeline.noModesCreatedDescription")
                   : !event.hruConfig?.mode
-                    ? t("validation.modeRequired", { defaultValue: "Mode is required" })
+                    ? t("validation.modeRequired")
                     : null
               }
             />

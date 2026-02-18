@@ -1098,7 +1098,7 @@ export function SettingsPage() {
 
                           notifications.show({
                             title: t("settings.developer.debugMode"),
-                            message: checked ? "Debug Mode enabled" : "Debug Mode disabled",
+                            message: checked ? t("settings.developer.debugEnabled") : t("settings.developer.debugDisabled"),
                             color: checked ? "blue" : "gray",
                             icon: <IconBug size={20} />,
                           });

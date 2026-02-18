@@ -100,9 +100,9 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
         color: "green",
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not activate boost";
+      const message = err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
       notifications.show({
-        title: "Boost failed",
+        title: t("valves.alertTitle"),
         message,
         color: "red",
       });
@@ -118,9 +118,9 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
       setRemainingMinutes(0);
       setActiveBoost(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Could not cancel boost";
+      const message = err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
       notifications.show({
-        title: "Cancel failed",
+        title: t("valves.alertTitle"),
         message,
         color: "red",
       });

@@ -18,7 +18,8 @@
       "settings": "Settings",
       "debug": "Debug",
       "navigate": "Navigate",
-      "toggle": "Toggle navigation"
+      "toggle": "Toggle navigation",
+      "optional": "Optional"
     },
     "footer": {
       "company": "Luftuj s.r.o.",
@@ -202,6 +203,11 @@
         "toggleFailedMessage": "Could not enable/disable the event",
         "unknown": "Unknown error"
       },
+      "copyDay": "Copy day",
+      "pasteDay": "Paste day",
+      "copying": "Copying {{day}}…",
+      "copyHint": "Select a day to paste events.",
+      "pasteSuccess": "Events pasted",
       "priorityDescription": "Higher priority wins when events overlap"
     },
     "hru": {
@@ -287,12 +293,19 @@
     "developer": {
       "title": "Developer settings",
       "debugMode": "Debug Mode",
-      "debugModeDescription": "Enables the Debug page in the navigation bar."
+      "debugModeDescription": "Enables the Debug page in the navigation bar.",
+      "debugEnabled": "Debug Mode enabled",
+      "debugDisabled": "Debug Mode disabled"
     }
   },
   "debug": {
     "title": "Debug Tools",
-    "description": "Advanced diagnostics and register inspection."
+    "description": "Advanced diagnostics and register inspection.",
+    "placeholder": "This page is a placeholder for future developer tools and manual register inspection.",
+    "onboardingTools": "Onboarding Tools",
+    "resetOnboarding": "Reset Onboarding Flag",
+    "finishOnboarding": "Finish Onboarding Flag",
+    "resetOnboardingHint": "This will set `onboarding.done` to `false` and reload the page, triggering the setup wizard."
   },
   "schedule": {
     "title": "Weekly schedule",
@@ -347,7 +360,8 @@
       "connecting": "Connecting…",
       "disconnected": "Disconnected",
       "offline": "Offline",
-      "loading": "Loading…"
+      "loading": "Loading",
+      "error": "Error"
     },
     "modbusStatusTitle": "Modbus TCP",
     "modbusStatusDescription": "Reachability of the configured Modbus TCP server",
@@ -374,6 +388,15 @@
       "title": "Translation initialisation failed",
       "message": "UI texts may appear in English only. Please reload the page."
     }
+  },
+  "validation": {
+    "required": "Required",
+    "requiredField": "Name is required",
+    "modeRequired": "Mode is required",
+    "duplicateModeName": "Mode name already exists",
+    "nativeModeRequired": "Native Unit Mode is required",
+    "powerRequired": "Power is required",
+    "temperatureRequired": "Temperature is required"
   },
   "onboarding": {
     "title": "Welcome!",
@@ -408,6 +431,7 @@
       "description": "Connect unit",
       "title": "Connect to your HRU via Modbus TCP",
       "hostLabel": "Host IP",
+      "hostPlaceholder": "192.168.1.10",
       "portLabel": "Port",
       "unitIdLabel": "Unit ID",
       "test": "Test Connection",
@@ -420,6 +444,7 @@
       "title": "MQTT Configuration",
       "enable": "Enable MQTT",
       "hostLabel": "Broker Host",
+      "hostPlaceholder": "homeassistant",
       "portLabel": "Port",
       "userLabel": "Username",
       "passLabel": "Password",
@@ -454,7 +479,8 @@
     },
     "errors": {
       "prefSaveFailed": "Failed to save preferences",
-      "mqttSaveFailed": "Failed to save MQTT settings"
+      "mqttSaveFailed": "Failed to save MQTT settings",
+      "finishFailed": "Failed to finalise onboarding. Please try again."
     },
     "back": "Back",
     "next": "Next"

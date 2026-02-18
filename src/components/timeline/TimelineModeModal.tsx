@@ -199,10 +199,8 @@ export function TimelineModeModal({
     if (!trimmedName) {
       import("@mantine/notifications").then(({ notifications }) => {
         notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle", {
-            defaultValue: "Validation Error",
-          }),
-          message: t("validation.requiredField", { defaultValue: "Name is required" }),
+          title: t("settings.timeline.notifications.validationFailedTitle"),
+          message: t("validation.requiredField"),
           color: "red",
         });
       });
@@ -213,12 +211,8 @@ export function TimelineModeModal({
     if (hruCapabilities?.hasModeControl && !nativeMode) {
       import("@mantine/notifications").then(({ notifications }) => {
         notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle", {
-            defaultValue: "Validation Error",
-          }),
-          message: t("validation.nativeModeRequired", {
-            defaultValue: "Native Unit Mode is required",
-          }),
+          title: t("settings.timeline.notifications.validationFailedTitle"),
+          message: t("validation.nativeModeRequired"),
           color: "red",
         });
       });
@@ -228,10 +222,8 @@ export function TimelineModeModal({
     if (hruCapabilities?.hasPowerControl !== false && power === undefined) {
       import("@mantine/notifications").then(({ notifications }) => {
         notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle", {
-            defaultValue: "Validation Error",
-          }),
-          message: t("validation.powerRequired", { defaultValue: "Power is required" }),
+          title: t("settings.timeline.notifications.validationFailedTitle"),
+          message: t("validation.powerRequired"),
           color: "red",
         });
       });
@@ -241,10 +233,8 @@ export function TimelineModeModal({
     if (hruCapabilities?.hasTemperatureControl !== false && temperature === undefined) {
       import("@mantine/notifications").then(({ notifications }) => {
         notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle", {
-            defaultValue: "Validation Error",
-          }),
-          message: t("validation.temperatureRequired", { defaultValue: "Temperature is required" }),
+          title: t("settings.timeline.notifications.validationFailedTitle"),
+          message: t("validation.temperatureRequired"),
           color: "red",
         });
       });
@@ -266,12 +256,8 @@ export function TimelineModeModal({
           }
           import("@mantine/notifications").then(({ notifications }) => {
             notifications.show({
-              title: t("settings.timeline.notifications.testStoppedTitle", {
-                defaultValue: "Test Stopped",
-              }),
-              message: t("settings.timeline.notifications.testStoppedMessage", {
-                defaultValue: "Mode reverted to schedule",
-              }),
+              title: t("settings.timeline.notifications.testStoppedTitle"),
+              message: t("settings.timeline.notifications.testStoppedMessage"),
             });
           });
         });
@@ -291,12 +277,8 @@ export function TimelineModeModal({
           setTestRemainingSeconds(60);
           import("@mantine/notifications").then(({ notifications }) => {
             notifications.show({
-              title: t("settings.timeline.notifications.testStartedTitle", {
-                defaultValue: "Test Activated",
-              }),
-              message: t("settings.timeline.notifications.testStartedMessage", {
-                defaultValue: "Mode activated for 60 seconds",
-              }),
+              title: t("settings.timeline.notifications.testStartedTitle"),
+              message: t("settings.timeline.notifications.testStartedMessage"),
               color: "blue",
             });
           });
@@ -327,12 +309,8 @@ export function TimelineModeModal({
     if (isDuplicate) {
       import("@mantine/notifications").then(({ notifications }) => {
         notifications.show({
-          title: t("settings.timeline.notifications.validationFailedTitle", {
-            defaultValue: "Validation Error",
-          }),
-          message: t("validation.duplicateModeName", {
-            defaultValue: "A mode with this name already exists.",
-          }),
+          title: t("settings.timeline.notifications.validationFailedTitle"),
+          message: t("validation.duplicateModeName"),
           color: "red",
         });
       });
@@ -354,9 +332,7 @@ export function TimelineModeModal({
             <IconPlus size={20} color="var(--mantine-primary-color-5)" />
           )}
           <Text fw={600}>
-            {t(mode ? "settings.timeline.modeEditTitle" : "settings.timeline.modeDialogTitle", {
-              defaultValue: mode ? "Edit mode" : "Create mode",
-            })}
+            {t(mode ? "settings.timeline.modeEditTitle" : "settings.timeline.modeDialogTitle")}
           </Text>
         </Group>
       }
@@ -365,8 +341,8 @@ export function TimelineModeModal({
     >
       <Stack gap="md">
         <TextInput
-          label={t("settings.timeline.modeName", { defaultValue: "Mode name" })}
-          placeholder={t("settings.timeline.modePlaceholder", { defaultValue: "e.g., Comfort" })}
+          label={t("settings.timeline.modeName")}
+          placeholder={t("settings.timeline.modePlaceholder")}
           value={name}
           onChange={(e) => {
             setName(e.target.value);
@@ -376,7 +352,7 @@ export function TimelineModeModal({
           error={
             nameError ||
             (!name.trim() && submitted
-              ? t("validation.required", { defaultValue: "Required" })
+              ? t("validation.required")
               : null)
           }
           required
@@ -385,10 +361,8 @@ export function TimelineModeModal({
 
         {hruCapabilities?.hasModeControl && (
           <Select
-            label={t("settings.timeline.nativeMode", { defaultValue: "Native Unit Mode" })}
-            placeholder={t("settings.timeline.nativeModePlaceholder", {
-              defaultValue: "Select mode...",
-            })}
+            label={t("settings.timeline.nativeMode")}
+            placeholder={t("settings.timeline.nativeModePlaceholder")}
             data={availableNativeModes}
             value={nativeMode}
             onChange={setNativeMode}
@@ -397,7 +371,7 @@ export function TimelineModeModal({
             required
             error={
               nativeMode === null && submitted
-                ? t("validation.required", { defaultValue: "Required" })
+                ? t("validation.required")
                 : null
             }
             styles={{ error: { position: "absolute", bottom: -20 } }}
@@ -407,7 +381,7 @@ export function TimelineModeModal({
         <Group grow>
           {hruCapabilities?.hasPowerControl !== false && (
             <NumberInput
-              label={`${t("settings.timeline.modePower", { defaultValue: "Power" })} (${t(`app.units.${powerUnit}`, { defaultValue: powerUnit })})`}
+              label={`${t("settings.timeline.modePower")} (${t(`app.units.${powerUnit}`)})`}
               placeholder="50"
               value={power}
               onChange={(value) => setPower(typeof value === "number" ? value : undefined)}
@@ -418,7 +392,7 @@ export function TimelineModeModal({
               required
               error={
                 power === undefined && submitted
-                  ? t("validation.required", { defaultValue: "Required" })
+                  ? t("validation.required")
                   : null
               }
               styles={{ error: { position: "absolute", bottom: -20 } }}
@@ -426,7 +400,7 @@ export function TimelineModeModal({
           )}
           {hruCapabilities?.hasTemperatureControl !== false && (
             <NumberInput
-              label={`${t("settings.timeline.modeTemperature", { defaultValue: "Temperature" })} (${getTemperatureLabel(temperatureUnit)})`}
+              label={`${t("settings.timeline.modeTemperature")} (${getTemperatureLabel(temperatureUnit)})`}
               placeholder="21"
               value={temperature}
               onChange={(value) => setTemperature(typeof value === "number" ? value : undefined)}
@@ -437,7 +411,7 @@ export function TimelineModeModal({
               required
               error={
                 temperature === undefined && submitted
-                  ? t("validation.required", { defaultValue: "Required" })
+                  ? t("validation.required")
                   : null
               }
               styles={{ error: { position: "absolute", bottom: -20 } }}
@@ -451,7 +425,7 @@ export function TimelineModeModal({
               <Group gap="xs">
                 <IconDroplet size={16} color="var(--mantine-primary-color-5)" stroke={1.5} />
                 <Text size="sm" fw={600}>
-                  {t("settings.timeline.modeValves", { defaultValue: "Valve openings" })}
+                  {t("settings.timeline.modeValves")}
                 </Text>
               </Group>
             }
@@ -531,17 +505,15 @@ export function TimelineModeModal({
         )}
 
         <ColorInput
-          label={t("settings.timeline.modeColor", { defaultValue: "Color (optional)" })}
-          placeholder={t("settings.timeline.modeColorPlaceholder", {
-            defaultValue: "#228be6 or blue",
-          })}
+          label={t("settings.timeline.modeColor")}
+          placeholder={t("settings.timeline.modeColorPlaceholder")}
           value={color}
           onChange={setColor}
           leftSection={<IconPalette size={16} stroke={1.5} />}
         />
 
         <Switch
-          label={t("settings.timeline.modeIsBoost", { defaultValue: "Show as boost button" })}
+          label={t("settings.timeline.modeIsBoost")}
           description={t("settings.timeline.modeIsBoostDescription")}
           checked={isBoost}
           onChange={(e) => setIsBoost(e.currentTarget.checked)}
@@ -558,15 +530,11 @@ export function TimelineModeModal({
             color={testRemainingSeconds !== null ? "red" : "blue"}
           >
             {testRemainingSeconds !== null
-              ? t("settings.timeline.modal.testingStop", {
-                  defaultValue: `Stop Test (${testRemainingSeconds}s)`,
-                })
-              : t("settings.timeline.modal.test", { defaultValue: "Test (1m)" })}
+              ? `${t("settings.timeline.modal.cancel")} (${testRemainingSeconds}s)`
+              : t("settings.timeline.modal.test")}
           </Button>
           <Button onClick={handleSave} loading={saving} radius="md">
-            {t(mode ? "settings.timeline.modeUpdateAction" : "settings.timeline.modeCreateAction", {
-              defaultValue: mode ? "Update" : "Create",
-            })}
+            {t(mode ? "settings.timeline.modeUpdateAction" : "settings.timeline.modeCreateAction")}
           </Button>
         </Group>
       </Stack>

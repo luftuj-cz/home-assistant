@@ -130,8 +130,8 @@ export function TimelineDayCard({
         </Title>
         <Group gap="xs">
           {copyDay === null ? (
-            <Tooltip label={t("settings.timeline.copyDay", { defaultValue: "Copy day" })} withArrow>
-              <ActionIcon variant="light" aria-label="Copy day" onClick={() => onCopy(dayIdx)}>
+            <Tooltip label={t("settings.timeline.copyDay")} withArrow>
+              <ActionIcon variant="light" aria-label={t("settings.timeline.copyDay")} onClick={() => onCopy(dayIdx)}>
                 <IconCopy size={16} />
               </ActionIcon>
             </Tooltip>
@@ -140,7 +140,7 @@ export function TimelineDayCard({
               <ActionIcon
                 variant="light"
                 color="red"
-                aria-label="Cancel copy"
+                aria-label={t("settings.timeline.modal.cancel")}
                 onClick={onCancelCopy}
               >
                 <IconClipboardCheck size={16} />
@@ -148,10 +148,10 @@ export function TimelineDayCard({
             </Tooltip>
           ) : (
             <Tooltip
-              label={t("settings.timeline.pasteDay", { defaultValue: "Paste day" })}
+              label={t("settings.timeline.pasteDay")}
               withArrow
             >
-              <ActionIcon variant="light" aria-label="Paste day" onClick={() => onPaste(dayIdx)}>
+              <ActionIcon variant="light" aria-label={t("settings.timeline.pasteDay")} onClick={() => onPaste(dayIdx)}>
                 <IconClipboardCheck size={16} />
               </ActionIcon>
             </Tooltip>
@@ -216,7 +216,7 @@ export function TimelineDayCard({
                       <MantineActionIcon
                         variant="subtle"
                         size="sm"
-                        aria-label="Edit"
+                        aria-label={t("settings.timeline.edit")}
                         onClick={() => onEdit(ev)}
                       >
                         <IconEdit size={14} />
@@ -225,7 +225,7 @@ export function TimelineDayCard({
                         variant="subtle"
                         size="sm"
                         color="red"
-                        aria-label="Delete"
+                        aria-label={t("settings.timeline.delete")}
                         onClick={() => ev.id && onDelete(ev.id)}
                       >
                         <IconTrash size={14} />

@@ -253,7 +253,7 @@ export function AppLayout() {
                 <Burger
                   opened={mobileNavOpened}
                   onClick={toggle}
-                  aria-label="Toggle navigation"
+                  aria-label={t("app.nav.toggle")}
                   size="md"
                 />
               </Box>
