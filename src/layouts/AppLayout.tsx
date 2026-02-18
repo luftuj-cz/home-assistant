@@ -84,10 +84,10 @@ export function AppLayout() {
 
     const isDoingOnboarding = location.pathname === "/onboarding";
 
-    if (onboardingStatus.onboardingDone === false && !isDoingOnboarding) {
-      navigate({ to: "/onboarding" });
-    } else if (onboardingStatus.onboardingDone === true && isDoingOnboarding) {
-      navigate({ to: "/" });
+    if (!onboardingStatus.onboardingDone && !isDoingOnboarding) {
+      void navigate({ to: "/onboarding" });
+    } else if (onboardingStatus.onboardingDone && isDoingOnboarding) {
+      void navigate({ to: "/" });
     }
   }, [onboardingStatus, isLoadingStatus, location.pathname, navigate]);
 

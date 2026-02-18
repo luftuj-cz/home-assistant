@@ -97,7 +97,7 @@ export function HruStatusCard({
 
   const powerPercentage = Math.min(100, Math.max(0, (powerValue / maxPower) * 100));
 
-  let progressColor = "teal";
+  let progressColor: string;
   if (powerPercentage < 40) {
     progressColor = "green";
   } else if (powerPercentage < 70) {

@@ -349,11 +349,15 @@ export function OnboardingPage() {
     }
   }
 
-  function handleModbusSubmit() {
+  async function handleModbusSubmit() {
     const result = modbusForm.validate();
     if (!result.hasErrors) {
       logger.info("Modbus configuration validated", modbusForm.values);
-      handleHruAndModbusSave();
+      try {
+        await handleHruAndModbusSave();
+      } catch (err) {
+        logger.error("Failed during HRU & Modbus save from Modbus submit", { error: err });
+      }
     } else {
       logger.warn("Modbus configuration validation failed", result.errors);
     }
@@ -419,7 +423,7 @@ export function OnboardingPage() {
       await finishOnboardingMutation.mutateAsync();
       await queryClient.invalidateQueries({ queryKey: ["onboarding-layout-check"] });
       logger.info("Onboarding finished successfully");
-      navigate({ to: "/" });
+      await navigate({ to: "/" });
     } catch (err) {
       notifications.show({
         title: t("valves.alertTitle"),

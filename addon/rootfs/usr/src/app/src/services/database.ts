@@ -201,29 +201,33 @@ function applyMigrations(database: Database, logger?: Logger): void {
       continue;
     }
     database.run("BEGIN");
-    try {
-      for (const sql of migration.statements) {
-        try {
-          database.run(sql);
-        } catch (error) {
-          if (
-            migration.id === "004_remove_legacy_end_time" &&
-            String(error).includes("no such column")
-          ) {
-            activeLogger?.info("Migration 004: end_time column already removed, skipping.");
-            continue;
-          }
-          throw error;
+    let statementError: unknown = null;
+
+    for (const sql of migration.statements) {
+      try {
+        database.run(sql);
+      } catch (error) {
+        if (
+          migration.id === "004_remove_legacy_end_time" &&
+          String(error).includes("no such column")
+        ) {
+          activeLogger?.info("Migration 004: end_time column already removed, skipping.");
+          continue;
         }
+        statementError = error;
+        break;
       }
-      insertMigration.run(migration.id);
-      database.run("COMMIT");
-      activeLogger?.info({ migrationId: migration.id }, "Applied database migration");
-    } catch (error) {
-      database.run("ROLLBACK");
-      activeLogger?.error({ error, migrationId: migration.id }, "Migration failed, rolled back");
-      throw error;
     }
+
+    if (statementError) {
+      database.run("ROLLBACK");
+      activeLogger?.error({ error: statementError, migrationId: migration.id }, "Migration failed, rolled back");
+      throw statementError;
+    }
+
+    insertMigration.run(migration.id);
+    database.run("COMMIT");
+    activeLogger?.info({ migrationId: migration.id }, "Applied database migration");
   }
 }
 

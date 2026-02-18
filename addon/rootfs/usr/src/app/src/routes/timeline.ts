@@ -205,7 +205,7 @@ export function createTimelineRouter(
       try {
         const id = Number.parseInt(request.params.id as string, 10);
         if (!Number.isFinite(id)) {
-          throw new BadRequestError("Invalid mode id", "INVALID_MODE_ID");
+          return next(new BadRequestError("Invalid mode id", "INVALID_MODE_ID"));
         }
         const payload = request.body as TimelineModeInput;
 
@@ -216,7 +216,7 @@ export function createTimelineRouter(
 
         const original = getTimelineMode(id);
         if (!original) {
-          throw new NotFoundError("Mode not found", "MODE_NOT_FOUND");
+          return next(new NotFoundError("Mode not found", "MODE_NOT_FOUND"));
         }
 
         const updated: TimelineMode = {
@@ -257,7 +257,7 @@ export function createTimelineRouter(
     try {
       const id = Number.parseInt(request.params.id as string, 10);
       if (!Number.isFinite(id)) {
-        throw new BadRequestError("Invalid mode id", "INVALID_MODE_ID");
+        return next(new BadRequestError("Invalid mode id", "INVALID_MODE_ID"));
       }
 
       try {
@@ -357,9 +357,11 @@ export function createTimelineRouter(
         // Validate HRU config against max power
         const maxPower = getHruMaxPower();
         if (body.hruConfig?.power !== undefined && body.hruConfig.power > maxPower) {
-          throw new BadRequestError(
-            `Power must be between 0 and ${maxPower}`,
-            "POWER_LIMIT_EXCEEDED",
+          return next(
+            new BadRequestError(
+              `Power must be between 0 and ${maxPower}`,
+              "POWER_LIMIT_EXCEEDED",
+            ),
           );
         }
 
@@ -391,7 +393,7 @@ export function createTimelineRouter(
     try {
       const id = Number.parseInt(request.params.id as string, 10);
       if (!Number.isFinite(id)) {
-        throw new BadRequestError("Invalid event ID", "INVALID_EVENT_ID");
+        return next(new BadRequestError("Invalid event ID", "INVALID_EVENT_ID"));
       }
 
       deleteTimelineEvent(id);
@@ -436,7 +438,7 @@ export function createTimelineRouter(
 
         const modes = getTimelineModes(hruId || undefined);
         const mode = modes.find((m) => m.id === modeId);
-        if (!mode) throw new NotFoundError("Mode not found", "MODE_NOT_FOUND");
+        if (!mode) return next(new NotFoundError("Mode not found", "MODE_NOT_FOUND"));
 
         const endTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
         const override: TimelineOverride = { modeId, endTime, durationMinutes };

@@ -1,6 +1,6 @@
 import type { Logger } from "pino";
 import { withTempModbusClient } from "../../shared/modbus/client";
-import type { CommandScript, CommandValue, CommandExpression } from "./hru.definitions";
+import type { CommandExpression, CommandScript, CommandValue } from "./hru.definitions";
 
 export class HruRepository {
   constructor(private readonly logger: Logger) {}
@@ -31,7 +31,9 @@ export class HruRepository {
       const handlers: Record<string, (args: number[]) => Promise<number> | number> = {
         bit_and: async ([a = 0, b = 0]) => a & b,
         bit_or: async ([a = 0, b = 0]) => a | b,
-        bit_lshift: async ([a = 0, b = 0]) => a << b,
+        bit_lshift: async ([a = 0, b = 0]) => {
+          return a << b;
+        },
         bit_rshift: async ([a = 0, b = 0]) => a >> b,
         round: async ([a = 0]) => Math.round(a),
         multiply: async ([a = 0, b = 0]) => a * b,

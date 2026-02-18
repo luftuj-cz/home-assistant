@@ -164,7 +164,7 @@ export function createSettingsRouter(
           response.json({ success: true });
         } else {
           logger.warn({ result }, "MQTT connection test failed");
-          throw new ApiError(502, result.message || "Connection failed", "MQTT_TEST_FAILED");
+          return next(new ApiError(502, result.message || "Connection failed", "MQTT_TEST_FAILED"));
         }
       } catch (err) {
         if (err instanceof ApiError) return next(err);
@@ -209,7 +209,7 @@ export function createSettingsRouter(
 
         if (unit !== undefined && !hruService.getAllUnits().some((u) => u.id === unit)) {
           logger.warn({ unit }, "Attempted to set unknown HRU unit");
-          throw new BadRequestError("Unknown HRU unit id", "UNKNOWN_HRU_UNIT");
+          return next(new BadRequestError("Unknown HRU unit id", "UNKNOWN_HRU_UNIT"));
         }
 
         const resolvedUnit = unit ?? null;
@@ -225,9 +225,11 @@ export function createSettingsRouter(
                 { maxPower, unitMaxValue },
                 "Attempted to set maxPower higher than unit allows",
               );
-              throw new BadRequestError(
-                `Maximum power cannot exceed ${unitMaxValue} ${selectedUnit.controlUnit || ""}. The selected unit supports a maximum of ${unitMaxValue}.`,
-                "MAX_POWER_EXCEEDED",
+              return next(
+                new BadRequestError(
+                  `Maximum power cannot exceed ${unitMaxValue} ${selectedUnit.controlUnit || ""}. The selected unit supports a maximum of ${unitMaxValue}.`,
+                  "MAX_POWER_EXCEEDED",
+                ),
               );
             }
           }

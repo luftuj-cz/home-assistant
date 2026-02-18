@@ -83,21 +83,28 @@ export class HruService {
   }
 
   async readValues(settingsOverride?: HruSettings): Promise<HruReadResult> {
+    const configData = this.getResolvedConfiguration(settingsOverride);
+    if (!configData) {
+      const err = new HruNotConfiguredError();
+      this.logger.warn({ err }, "HRU read attempt while not configured");
+      throw err;
+    }
+
+    const { settings, strategy, unit } = configData;
+
+    if (!settings.host) {
+      const err = new HruNotConfiguredError("HRU host not configured");
+      this.logger.warn({ err }, "HRU read attempt while host not configured");
+      throw err;
+    }
+
+    const config = {
+      host: settings.host,
+      port: Number(settings.port) || 502,
+      unitId: Number(settings.unitId) || 1,
+    };
+
     try {
-      const configData = this.getResolvedConfiguration(settingsOverride);
-      if (!configData) throw new HruNotConfiguredError();
-      const { settings, strategy, unit } = configData;
-
-      if (!settings.host) {
-        throw new HruNotConfiguredError("HRU host not configured");
-      }
-
-      const config = {
-        host: settings.host,
-        port: Number(settings.port) || 502,
-        unitId: Number(settings.unitId) || 1,
-      };
-
       let variables: Record<string, number> = {};
 
       if (strategy.powerCommands?.read) {
@@ -143,10 +150,6 @@ export class HruService {
       this.logger.debug({ result }, "HRU values read successfully");
       return result;
     } catch (err) {
-      if (err instanceof HruNotConfiguredError) {
-        this.logger.warn({ err }, "HRU read attempt while not configured");
-        throw err;
-      }
       this.logger.error({ err }, "Failed to read HRU values");
       throw new HruConnectionError("Failed to read HRU values", err);
     }
@@ -158,13 +161,20 @@ export class HruService {
     mode?: number | string;
   }): Promise<void> {
     const configData = this.getResolvedConfiguration();
-    if (!configData) throw new Error("HRU not configured");
+    if (!configData) {
+      const err = new HruNotConfiguredError();
+      this.logger.warn({ err }, "HRU write attempt while not configured");
+      throw err;
+    }
     const { settings, strategy } = configData;
 
+    if (!settings.host) {
+      const err = new HruNotConfiguredError("HRU host not configured");
+      this.logger.warn({ err }, "HRU write attempt while host not configured");
+      throw err;
+    }
+
     try {
-      if (!settings.host) {
-        throw new Error("HRU host not configured");
-      }
 
       const config = {
         host: settings.host,
@@ -206,10 +216,6 @@ export class HruService {
 
       this.logger.info({ data }, "HRU values written successfully");
     } catch (err) {
-      if (err instanceof HruNotConfiguredError) {
-        this.logger.warn({ err }, "HRU write attempt while not configured");
-        throw err;
-      }
       this.logger.error({ err }, "Failed to write HRU values");
       throw new HruConnectionError("Failed to write HRU values", err);
     }

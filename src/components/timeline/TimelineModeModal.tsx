@@ -175,7 +175,7 @@ export function TimelineModeModal({
 
         const value = valveOpenings[key] ?? 0;
 
-        if (typeof value === "number" && !Number.isNaN(value) && value >= 0 && value <= 100) {
+        if (!Number.isNaN(value) && value >= 0 && value <= 100) {
           acc[key] = value;
         }
         return acc;

@@ -41,7 +41,7 @@ export function DashboardPage() {
         const unitId = activeUnit?.id;
         setActiveUnitId(unitId);
 
-        loadModes(unitId);
+        await loadModes(unitId);
         logger.info("Dashboard context loaded successfully", { unitId });
       } catch (err) {
         logger.error("Failed to load dashboard context", { error: err });
