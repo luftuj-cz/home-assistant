@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "cors": "^2.8.6",
-    "dotenv": "^17.2.4",
+    "dotenv": "^17.3.1",
     "express": "^5.2.1",
     "modbus-serial": "^8.0.23",
     "mqtt": "^5.15.0",
