@@ -32,7 +32,19 @@
   },
   "hru": {
     "power": "Výkon",
-    "temperature": "Teplota"
+    "temperature": "Teplota",
+    "mode": "Režim",
+    "modes": {
+      "off": "Vypnuto",
+      "circulationWithVentilation": "Cirkulace s větráním",
+      "circulation": "Cirkulace",
+      "ventilation": "Větrání",
+      "bypass": "Noční předchlazení",
+      "disbalance": "Rozvážení",
+      "overpressure": "Přetlak"
+    },
+    "bypass": "Noční předchlazení",
+    "boost": "Boost"
   },
   "settings": {
     "title": "Nastavení",

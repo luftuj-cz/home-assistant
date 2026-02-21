@@ -37,7 +37,19 @@
   },
   "hru": {
     "power": "Power",
-    "temperature": "Temperature"
+    "temperature": "Temperature",
+    "mode": "Mode",
+    "modes": {
+      "off": "Off",
+      "circulationWithVentilation": "Circulation with ventilation",
+      "circulation": "Circhulation",
+      "ventilation": "Ventilation",
+      "bypass": "Bypass",
+      "disbalance": "Disbalance",
+      "overpressure": "Overpressure"
+    },
+    "bypass": "Bypass",
+    "boost": "Boost"
   },
   "valves": {
     "title": "LUFTaTOR Zones",

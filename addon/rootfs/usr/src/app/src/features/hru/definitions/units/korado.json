@@ -1,8 +1,49 @@
 {
   "code": "korado",
   "name": "KORADO VENTBOX",
-  "regulationTypeId": "modbus-korado",
-  "controlUnit": "%",
-  "maxValue": 100,
-  "isConfigurable": false
+  "variables": [
+    {
+      "name": "power",
+      "type": "number",
+      "editable": true,
+      "label": { "text": "hru.power", "translate": true },
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "maxConfigurable": false,
+      "step": 5,
+      "class": "power"
+    }
+  ],
+  "interface-type": "modbus-tcp",
+  "interface": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$power",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [106, 1]
+        }
+      }
+    ],
+    "write": [
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [106, "$power"]
+        }
+      }
+    ],
+    "keepAlive": {
+      "period": 5000,
+      "commands": [
+        {
+          "type": "action",
+          "expression": { "function": "modbus_write_coil", "args": [31, 1] }
+        }
+      ]
+    }
+  }
 }

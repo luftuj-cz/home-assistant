@@ -3,6 +3,7 @@ export type AllowedFunction =
   | "bit_or"
   | "bit_lshift"
   | "bit_rshift"
+  | "non_zero"
   | "delay"
   | "modbus_write_holding"
   | "modbus_write_holding_multi"

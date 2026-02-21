@@ -35,6 +35,7 @@ export class HruRepository {
           return a << b;
         },
         bit_rshift: async ([a = 0, b = 0]) => a >> b,
+        non_zero: async ([a = 0]) => (a===0)?0:1,
         round: async ([a = 0]) => Math.round(a),
         multiply: async ([a = 0, b = 0]) => a * b,
         divide: async ([a = 0, b = 0]) => a / (b || 1),
