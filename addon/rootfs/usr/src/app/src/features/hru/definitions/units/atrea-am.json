@@ -27,8 +27,9 @@
     },
     {
       "name": "mode",
-      "label": { "text": "hru.mode", "translate": true },
       "type": "select",
+      "editable": true,
+      "label": { "text": "hru.mode", "translate": true },
       "class": "mode",
       "options": [
         { "value": 0, "label": { "text": "hru.modes.off", "translate": true } },

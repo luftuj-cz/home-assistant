@@ -28,7 +28,7 @@
     }
   ],
   "interface-type": "modbus-tcp",
-  "interface": {
+  "integration": {
     "read": [
       {
         "type": "assignment",
