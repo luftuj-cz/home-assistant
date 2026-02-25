@@ -18,7 +18,7 @@
       "name": "offset",
       "type": "number",
       "editable": true,
-      "label": { "text": "hru.bypass", "translate": true },
+      "label": { "text": "hru.offset", "translate": true },
       "min": 0,
       "max": 30,
       "defaultValue": 0,
