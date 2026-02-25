@@ -57,10 +57,7 @@
           "args": [
             {
               "function": "bit_and",
-              "args": [
-                "$frontPanel",
-                "0x10"
-              ]
+              "args": ["$frontPanel", "0x10"]
             }
           ]
         }
@@ -85,7 +82,7 @@
         "variable": "$tmpFrontPanel",
         "value": {
           "function": "bit_and",
-          "args": [{ "function": "modbus_read_holding", "args": ["0x9C40"] }, "0xFC28"]
+          "args": [{ "function": "modbus_read_holding", "args": ["0x9C40"] }, "0xFC0B"]
         }
       },
       {
@@ -93,7 +90,7 @@
         "variable": "$tmpFrontPanel",
         "value": {
           "function": "bit_or",
-          "args": ["$tmpFrontPanel", { "function": "bit_lshift", "args": ["$power", 5] }]
+          "args": ["$tmpFrontPanel", { "function": "bit_lshift", "args": ["$power", 6] }]
         }
       },
       {
@@ -109,7 +106,7 @@
         "variable": "$tmpFrontPanel",
         "value": {
           "function": "bit_or",
-          "args": ["$tmpFrontPanel", { "function": "bit_lshift", "args": ["$boost", 5] }]
+          "args": ["$tmpFrontPanel", { "function": "bit_lshift", "args": ["$boost", 4] }]
         }
       },
       {
