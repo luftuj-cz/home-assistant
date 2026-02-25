@@ -44,7 +44,10 @@
       "overpressure": "Přetlak"
     },
     "bypass": "Noční předchlazení",
-    "boost": "Boost"
+    "boost": "Boost",
+    "offset": "Procentuální rozvážení",
+    "flowOut": "Průtok výfuk",
+    "flowIn": "Průtok sání"
   },
   "settings": {
     "title": "Nastavení",

@@ -1,0 +1,134 @@
+{
+  "code": "meltem",
+  "name": "Meltem",
+  "variables": [
+    {
+      "name": "power",
+      "type": "number",
+      "editable": true,
+      "label": { "text": "hru.power", "translate": true },
+      "unit": "m³/h",
+      "min": 0,
+      "max": 100,
+      "maxConfigurable": false,
+      "step": 1,
+      "class": "power"
+    },
+    {
+      "name": "offset",
+      "type": "number",
+      "editable": true,
+      "label": { "text": "hru.bypass", "translate": true },
+      "min": 0,
+      "max": 30,
+      "defaultValue": 0,
+      "unit": "%",
+      "class": "other"
+    },
+    {
+      "name": "flowIn",
+      "type": "number",
+      "editable": false,
+      "label": { "text": "hru.flowIn", "translate": true },
+      "unit": "m³/h",
+      "class": "power"
+    },
+    {
+      "name": "flowOut",
+      "type": "number",
+      "editable": false,
+      "label": { "text": "hru.flowOut", "translate": true },
+      "unit": "m³/h",
+      "class": "power"
+    }
+  ],
+  "interface-type": "modbus-tcp",
+  "integration": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$flowOut",
+        "value": { "function": "modbus_read_holding", "args": [41020] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$flowIn",
+        "value": { "function": "modbus_read_holding", "args": [41021] }
+      }
+    ],
+    "write": [
+      {
+        "type": "assignment",
+        "variable": "$setIn",
+        "value": {
+          "function": "clamp",
+          "args": [
+            {
+              "function": "round",
+              "args": [{
+                "function": "multiply",
+                "args": [
+                  "$power",
+                  {
+                    "function": "sum",
+                    "args": [
+                      100,
+                      "$offset"
+                    ]
+                  },
+                  0.02
+                ]
+              }]
+            },
+            0,
+            100
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$setOut",
+        "value": {
+          "function": "round",
+          "args": [
+            {
+              "function": "multiply",
+              "args": [
+                "$power",
+                2
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [41120, 4]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [41121, "$setIn"]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [41122, "$setOut"]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [41132, 0]
+        }
+      }
+    ]
+  }
+}

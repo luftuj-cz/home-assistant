@@ -19,7 +19,7 @@ export class HruRepository {
         if (typeof val === "number") return val;
 
         if (typeof val === "string") {
-          if (val.startsWith("0x")) return parseInt(val, 16);
+          if (val.startsWith("0x")) return Number.parseInt(val, 16);
           if (val.startsWith("$")) {
             return variables[val] ?? 0;
           }
@@ -37,8 +37,9 @@ export class HruRepository {
         bit_rshift: async ([a = 0, b = 0]) => a >> b,
         non_zero: async ([a = 0]) => (a===0)?0:1,
         round: async ([a = 0]) => Math.round(a),
-        multiply: async ([a = 0, b = 0]) => a * b,
-        divide: async ([a = 0, b = 0]) => a / (b || 1),
+        sum: async (args) => args.reduce((a, b) => a + b, 0),
+        multiply: async (args) => args.reduce((a, b) => a * b, 1),
+        clamp: async ([a = 0, min = 0, max = 100]) => Math.min(Math.max(a, min), max),
         delay: async ([ms = 0]) => {
           await new Promise((resolve) => setTimeout(resolve, ms));
           return 0;

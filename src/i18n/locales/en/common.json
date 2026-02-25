@@ -49,7 +49,10 @@
       "overpressure": "Overpressure"
     },
     "bypass": "Bypass",
-    "boost": "Boost"
+    "boost": "Boost",
+    "offset": "Disbalance offset",
+    "flowOut": "Flow out",
+    "flowIn": "Flow in"
   },
   "valves": {
     "title": "LUFTaTOR Zones",

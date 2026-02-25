@@ -12,7 +12,8 @@ export type AllowedFunction =
   | "modbus_write_coil"
   | "round"
   | "multiply"
-  | "divide";
+  | "sum"
+  | "clamp";
 
 export type CommandValue = number | string | CommandExpression;
 
