@@ -7,10 +7,11 @@
       "type": "number",
       "editable": true,
       "label": { "text": "hru.power", "translate": true },
-      "unit": "m³/h",
+      "unit": "%",
       "min": 0,
-      "maxConfigurable": true,
-      "step": 10,
+      "max": 100,
+      "maxConfigurable": false,
+      "step": 5,
       "class": "power"
     },
     {

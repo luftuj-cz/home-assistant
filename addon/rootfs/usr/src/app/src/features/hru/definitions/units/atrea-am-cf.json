@@ -9,6 +9,7 @@
       "label": { "text": "hru.power", "translate": true },
       "unit": "m³/h",
       "min": 0,
+      "maxDefault": 380,
       "maxConfigurable": true,
       "step": 10,
       "class": "power"

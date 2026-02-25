@@ -93,7 +93,7 @@
         "variable": "$tmpFrontPanel",
         "value": {
           "function": "bit_or",
-          "args": ["$tmpFrontPanel", { "function": "bit_lshift", "args": ["$power", 6] }]
+          "args": ["$tmpFrontPanel", { "function": "bit_lshift", "args": ["$power", 5] }]
         }
       },
       {
@@ -101,7 +101,7 @@
         "variable": "$tmpFrontPanel",
         "value": {
           "function": "bit_or",
-          "args": ["$tmpFrontPanel", { "function": "bit_lshift", "args": ["$bypass", 3] }]
+          "args": ["$tmpFrontPanel", { "function": "bit_lshift", "args": ["$bypass", 2] }]
         }
       },
       {
