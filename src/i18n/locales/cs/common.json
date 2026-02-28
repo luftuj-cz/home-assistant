@@ -499,7 +499,8 @@
       "hint": "Tím se aplikuje správná mapa registrů a funkcí pro vaše zařízení.",
       "error": "Vyberte prosím jednotku",
       "loadFailed": "Nepodařilo se načíst modely jednotek. Zkuste prosím obnovit stránku.",
-      "saveFailed": "Nepodařilo se uložit nastavení jednotky"
+      "saveFailed": "Nepodařilo se uložit nastavení jednotky",
+      "maxPowerRequired": "Maximální průtok/výkon je povinný pro tuto jednotku"
     },
     "status": {
       "label": "Status",

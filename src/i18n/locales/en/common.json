@@ -499,7 +499,8 @@
       "hint": "This applies the correct register map and capabilities for your device.",
       "error": "Please select a unit",
       "loadFailed": "Failed to load units. Please try refreshing.",
-      "saveFailed": "Failed to save Unit settings"
+      "saveFailed": "Failed to save Unit settings",
+      "maxPowerRequired": "Maximum airflow/power is required for this unit"
     },
     "status": {
       "label": "Status",

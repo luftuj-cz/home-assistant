@@ -21,6 +21,7 @@ import {
   SimpleGrid,
   Progress,
 } from "@mantine/core";
+import { fetchHruUnits, type HruUnit } from "../api/hru";
 import { useForm } from "@mantine/form";
 import { useMediaQuery } from "@mantine/hooks";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -144,21 +145,39 @@ export function OnboardingPage() {
   });
 
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  const [maxPower, setMaxPower] = useState<number | undefined>(undefined);
+  const [fullUnits, setFullUnits] = useState<HruUnit[]>([]);
 
   const unitsQuery = useQuery({
     queryKey: ["hru-units"],
     queryFn: async () => {
-      const res = await fetch(resolveApiUrl("/api/settings/units"));
-      if (!res.ok) {
-        logger.error("Failed to fetch units", { status: res.status, statusText: res.statusText });
-        throw new Error("Failed to fetch units");
-      }
-      const data = (await res.json()) as Array<{ id: string; name: string }>;
-      logger.info("Fetched units successfully", { count: data.length });
-      return data;
+      const units = await fetchHruUnits();
+      logger.info("Fetched units successfully", { count: units.length });
+      setFullUnits(units);
+      return units.map((u) => ({ id: u.id, name: u.name }));
     },
     enabled: active === 2,
   });
+
+  // Get selected unit's full definition
+  const selectedUnitDef = useMemo(() => {
+    return fullUnits.find((u) => u.id === selectedUnit);
+  }, [fullUnits, selectedUnit]);
+
+  // Check if selected unit requires maxPower configuration
+  const powerVariable = useMemo(() => {
+    return selectedUnitDef?.variables.find((v) => v.class === "power");
+  }, [selectedUnitDef]);
+
+  const requiresMaxPower = powerVariable?.maxConfigurable ?? false;
+  const defaultMaxPower = powerVariable?.maxDefault ?? powerVariable?.max;
+
+  // Set default maxPower when unit is selected
+  useEffect(() => {
+    if (selectedUnit && requiresMaxPower && maxPower === undefined && defaultMaxPower !== undefined) {
+      setMaxPower(defaultMaxPower);
+    }
+  }, [selectedUnit, requiresMaxPower, defaultMaxPower, maxPower]);
 
   const systemInfoQuery = useQuery({
     queryKey: ["system-info"],
@@ -177,7 +196,7 @@ export function OnboardingPage() {
   }, [systemInfoQuery.data, mqttForm]);
 
   const saveHruMutation = useMutation({
-    mutationFn: async (data: { host: string; port: number; unitId: number; unit: string }) => {
+    mutationFn: async (data: { host: string; port: number; unitId: number; unit: string; maxPower?: number }) => {
       const res = await fetch(resolveApiUrl("/api/settings/hru"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -376,8 +395,9 @@ export function OnboardingPage() {
       await saveHruMutation.mutateAsync({
         ...modbusForm.values,
         unit: selectedUnit,
+        maxPower: requiresMaxPower ? maxPower : undefined,
       });
-      logger.info("HRU & Modbus settings saved successfully", { unit: selectedUnit });
+      logger.info("HRU & Modbus settings saved successfully", { unit: selectedUnit, maxPower });
       nextStep();
     } catch (err) {
       notifications.show({
@@ -415,6 +435,14 @@ export function OnboardingPage() {
       notifications.show({
         title: t("valves.alertTitle"),
         message: t("onboarding.unit.error"),
+        color: "red",
+      });
+      return;
+    }
+    if (requiresMaxPower && (maxPower === undefined || maxPower === null)) {
+      notifications.show({
+        title: t("valves.alertTitle"),
+        message: t("onboarding.unit.maxPowerRequired"),
         color: "red",
       });
       return;
@@ -664,6 +692,34 @@ export function OnboardingPage() {
           <Text size="sm" c="dimmed">
             {t("onboarding.unit.hint")}
           </Text>
+          {requiresMaxPower && (
+            <Paper p="sm" withBorder radius="md" bg="var(--mantine-color-blue-light)">
+              <Stack gap="xs">
+                <Text fw={500} size="sm">
+                  {t("settings.hru.configuration.title")}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {t("settings.hru.configuration.maxPowerDescription")}
+                </Text>
+                <NumberInput
+                  required
+                  value={maxPower ?? defaultMaxPower}
+                  onChange={(value) => {
+                    const numericValue = typeof value === "number" ? value : undefined;
+                    setMaxPower(numericValue);
+                  }}
+                  label={t("settings.hru.configuration.maxPowerLabel")}
+                  description={t("settings.hru.configuration.maxPowerHint", {
+                    default: defaultMaxPower,
+                    unit: typeof powerVariable?.unit === "string" ? powerVariable.unit : (powerVariable?.unit?.text ?? "%"),
+                  })}
+                  min={1}
+                  max={powerVariable?.max ?? 10000}
+                  size="md"
+                />
+              </Stack>
+            </Paper>
+          )}
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={prevStep}>
               {t("onboarding.back")}
@@ -671,7 +727,7 @@ export function OnboardingPage() {
             <Button
               onClick={handleUnitSubmit}
               loading={saveHruMutation.isPending}
-              disabled={!selectedUnit}
+              disabled={!selectedUnit || (requiresMaxPower && (maxPower === undefined || maxPower === null))}
             >
               {t("onboarding.next")}
             </Button>
