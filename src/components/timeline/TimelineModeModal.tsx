@@ -44,7 +44,6 @@ interface TimelineModeModalProps {
   onSave: (mode: Partial<Mode>) => void;
   t: TFunction;
   hruVariables?: HruVariable[];
-  powerUnit?: string;
   maxPower?: number;
   existingModes?: Mode[];
   unitId?: string;
@@ -61,6 +60,7 @@ export function TimelineModeModal({
   onSave,
   t,
   hruVariables = [],
+  maxPower,
   existingModes = [],
   nameError,
   onNameChange,
@@ -337,6 +337,12 @@ export function TimelineModeModal({
                   );
                 }
 
+                // For CF units with configurable max power, use the configured maxPower
+                const effectiveMax =
+                  variable.class === "power" && variable.maxConfigurable && maxPower != null
+                    ? maxPower
+                    : variable.max;
+
                 return (
                   <NumberInput
                     key={variable.name}
@@ -349,7 +355,7 @@ export function TimelineModeModal({
                       }))
                     }
                     min={variable.min}
-                    max={variable.max}
+                    max={effectiveMax}
                     step={variable.step}
                     leftSection={
                       variable.class === "power" ? (

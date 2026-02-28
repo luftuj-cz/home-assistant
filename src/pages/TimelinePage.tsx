@@ -56,7 +56,7 @@ export function TimelinePage() {
 
         const [settingsRes, units] = await Promise.all([
           fetch(resolveApiUrl("/api/settings/hru")).then(
-            (r) => r.json() as Promise<{ unit?: string }>,
+            (r) => r.json() as Promise<{ unit?: string; maxPower?: number }>,
           ),
           hruApi.fetchHruUnits().catch(() => []),
         ]);
@@ -72,7 +72,12 @@ export function TimelinePage() {
             setPowerUnit(
               typeof powerVar.unit === "string" ? powerVar.unit : powerVar.unit?.text || "%",
             );
-            setMaxPower(powerVar.max || 100);
+            // Use configured maxPower for CF units, otherwise use variable default
+            const effectiveMaxPower =
+              powerVar.maxConfigurable && settingsRes.maxPower != null
+                ? settingsRes.maxPower
+                : (powerVar.max ?? 100);
+            setMaxPower(effectiveMaxPower);
           }
         }
 
@@ -344,7 +349,6 @@ export function TimelinePage() {
           onSave={handleSaveMode}
           t={t}
           hruVariables={hruVariables}
-          powerUnit={powerUnit}
           maxPower={maxPower}
           existingModes={modes}
           nameError={modeNameError}

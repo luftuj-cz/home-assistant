@@ -18,9 +18,6 @@ cd /usr/src/app || bashio::exit.nok "Could not change directory to /usr/src/app"
 export HA_BASE_URL="http://supervisor/core"
 export SUPERVISOR_TOKEN="${SUPERVISOR_TOKEN}"
 
-# Export logging configuration
-export LOG_LEVEL=$(bashio::config 'log_level')
-
 bashio::log.info "Starting server (ingress port: ${INGRESS_PORT:-default})..."
 exec bun run src/server.ts || bashio::exit.nok "Failed to start the server"
 
