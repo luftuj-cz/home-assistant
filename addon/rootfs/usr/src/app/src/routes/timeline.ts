@@ -33,6 +33,7 @@ import {
   testOverrideInputSchema,
   type TimelineModeInput,
   type TimelineEventInput,
+  type BoostOverrideInput,
   type TestOverrideInput,
 } from "../schemas/timeline";
 import {
@@ -93,17 +94,19 @@ export function createTimelineRouter(
       }
 
       // Use maxPower override if unit is configurable, otherwise use unit's maxValue
+      const powerVar = currentUnit.variables.find((v) => v.class === "power");
+      const isConfigurable = powerVar?.maxConfigurable ?? false;
+      const unitMaxValue = powerVar?.max;
+
       const maxPower =
-        currentUnit.isConfigurable && settings.maxPower
-          ? settings.maxPower
-          : currentUnit.maxValue || 100;
+        isConfigurable && settings.maxPower ? settings.maxPower : unitMaxValue || 100;
 
       logger.info(
         {
           unitId,
-          unitMaxValue: currentUnit.maxValue,
+          unitMaxValue,
           settingsMaxPower: settings.maxPower,
-          isConfigurable: currentUnit.isConfigurable,
+          isConfigurable,
           finalMaxPower: maxPower,
         },
         "Retrieved HRU max power for validation",
@@ -167,6 +170,7 @@ export function createTimelineRouter(
           id: 0, // Placeholder, DB ignores/overwrites
           name: payload.name,
           color: payload.color,
+          variables: payload.variables,
           power: payload.power,
           temperature: payload.temperature,
           luftatorConfig: payload.luftatorConfig,
@@ -223,6 +227,7 @@ export function createTimelineRouter(
           id: id,
           name: payload.name,
           color: payload.color,
+          variables: payload.variables,
           power: payload.power,
           temperature: payload.temperature,
           luftatorConfig: payload.luftatorConfig,
@@ -358,10 +363,7 @@ export function createTimelineRouter(
         const maxPower = getHruMaxPower();
         if (body.hruConfig?.power !== undefined && body.hruConfig.power > maxPower) {
           return next(
-            new BadRequestError(
-              `Power must be between 0 and ${maxPower}`,
-              "POWER_LIMIT_EXCEEDED",
-            ),
+            new BadRequestError(`Power must be between 0 and ${maxPower}`, "POWER_LIMIT_EXCEEDED"),
           );
         }
 
@@ -426,12 +428,13 @@ export function createTimelineRouter(
   router.post(
     "/boost",
     validateRequest(boostOverrideInputSchema),
-    async (request: Request, response: Response, next: NextFunction) => {
+    async (
+      request: Request<Record<string, unknown>, Record<string, unknown>, BoostOverrideInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
       try {
-        const { modeId, durationMinutes } = request.body as {
-          modeId: number;
-          durationMinutes: number;
-        };
+        const { modeId, durationMinutes } = request.body;
 
         const unitId = request.query.unitId as string | undefined;
         const hruId = getCurrentUnitId(unitId);

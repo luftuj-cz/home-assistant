@@ -12,7 +12,8 @@ export interface ModbusTcpConfig {
 export class ModbusTcpClient {
   private client = new ModbusRTU();
   private connected = false;
-  private reconnectTimer: NodeJS.Timeout | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private destroyed = false;
 
   constructor(
     private readonly cfg: ModbusTcpConfig,
@@ -34,14 +35,15 @@ export class ModbusTcpClient {
   }
 
   private handleDisconnect() {
+    if (this.destroyed) return;
     this.connected = false;
     this.scheduleReconnect();
   }
 
   async connect(): Promise<void> {
-    if (this.connected) return;
+    if (this.connected || this.destroyed) return;
 
-    await this.safeDisconnect();
+    this.clearReconnectTimer();
     return new Promise((resolve, reject) => {
       this.logger.info({ host: this.cfg.host, port: this.cfg.port }, "Connecting Modbus TCP");
       this.client.connectTCP(this.cfg.host, { port: this.cfg.port }, (err?: Error) => {
@@ -74,7 +76,7 @@ export class ModbusTcpClient {
   }
 
   private scheduleReconnect() {
-    if (this.reconnectTimer) return;
+    if (this.destroyed || this.reconnectTimer) return;
     const wait = this.cfg.reconnectMs ?? 3000;
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
@@ -84,7 +86,9 @@ export class ModbusTcpClient {
     }, wait);
   }
 
-  async safeDisconnect(): Promise<void> {
+  async destroy(): Promise<void> {
+    this.destroyed = true;
+    this.clearReconnectTimer();
     if (!this.connected) return;
     try {
       this.client.close(() => {
@@ -93,6 +97,13 @@ export class ModbusTcpClient {
       });
     } catch (e) {
       this.logger.warn({ e }, "Modbus TCP disconnect error");
+    }
+  }
+
+  private clearReconnectTimer() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
   }
 
@@ -177,7 +188,7 @@ export function getSharedModbusClient(
 export async function closeAllSharedClients(): Promise<void> {
   const promises: Promise<void>[] = [];
   for (const client of clientCache.values()) {
-    promises.push(client.safeDisconnect());
+    promises.push(client.destroy());
   }
   await Promise.all(promises);
   clientCache.clear();

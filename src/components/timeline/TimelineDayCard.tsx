@@ -183,6 +183,7 @@ export function TimelineDayCard({
             const active = isEventActive(ev, sortedEvents, dayIdx);
             const mode = modes.find((m) => m.id.toString() === ev.hruConfig?.mode?.toString());
             const highlightColor = mode?.color || "blue";
+            const modeLabel = mode?.name ?? (typeof ev.hruConfig?.mode === "string" ? ev.hruConfig.mode : "-");
 
             return (
               <Timeline.Item
@@ -245,7 +246,7 @@ export function TimelineDayCard({
                   }}
                 >
                   <Text size="xs" fw={active ? 600 : 400}>
-                    {t("settings.timeline.hru")}: {mode?.name ?? ev.hruConfig?.mode ?? "-"}
+                    {t("settings.timeline.hru")}: {modeLabel}
                   </Text>
                 </Card>
               </Timeline.Item>

@@ -10,7 +10,7 @@
     <script>
       (function () {
         try {
-          var saved = window.localStorage.getItem("luftujha-color-scheme");
+          const saved = window.localStorage.getItem("luftujha-color-scheme");
           if (saved === "dark" || saved === "light") {
             document.documentElement.setAttribute("data-mantine-color-scheme", saved);
           } else {

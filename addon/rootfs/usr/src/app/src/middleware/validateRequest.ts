@@ -12,8 +12,7 @@ const logger = createLogger(config.logLevel);
 export function validateRequest<T extends z.ZodTypeAny>(schema: T) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
-      const validated = schema.parse(req.body);
-      req.body = validated;
+      req.body = schema.parse(req.body);
       logger.debug("Request body validated");
       next();
     } catch (error) {

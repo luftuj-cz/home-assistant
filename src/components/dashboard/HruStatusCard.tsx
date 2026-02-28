@@ -9,6 +9,7 @@ import {
   ThemeIcon,
   SimpleGrid,
   Center,
+  Box,
 } from "@mantine/core";
 import {
   IconFlame,
@@ -18,28 +19,56 @@ import {
   IconRefresh,
   IconAlertCircle,
   IconWind,
+  IconEye,
 } from "@tabler/icons-react";
-import type { HruState, TemperatureUnit, ActiveMode } from "../../hooks/useDashboardStatus";
+import type {
+  HruState,
+  ActiveMode,
+  HruVariable,
+  LocalizedText,
+} from "../../hooks/useDashboardStatus";
 import type { TFunction } from "i18next";
-import { formatTemperature, getTemperatureLabel } from "../../utils/temperature";
 
 interface HruStatusCardProps {
   status: HruState;
   hruName?: string | null;
   t: TFunction;
-  tempUnit?: TemperatureUnit;
   activeMode?: ActiveMode | null;
 }
 
-export function HruStatusCard({
-  status,
-  hruName,
-  t,
-  tempUnit = "c",
-  activeMode,
-}: HruStatusCardProps) {
+export function HruStatusCard({ status, hruName, t, activeMode }: HruStatusCardProps) {
   const title = t("dashboard.hruStatusTitle", { defaultValue: "HRU live values" });
   const displayTitle = hruName ? `${hruName}` : title;
+
+  function getLocalizedText(text: LocalizedText): string {
+    if (typeof text === "string") return t(text, { defaultValue: text });
+    if (text.translate) return t(text.text, { defaultValue: text.text });
+    return text.text;
+  }
+
+  function getModeText(val: unknown): string {
+    if (typeof val === "string") return t(val, { defaultValue: val });
+    return String(val ?? "?");
+  }
+
+  function getOptionLabel(variable: HruVariable | undefined, raw: unknown): string | undefined {
+    if (!variable?.options) return undefined;
+    const numeric = typeof raw === "number" ? raw : Number(raw);
+    const match = variable.options.find((o) => o.value === numeric);
+    if (!match) return undefined;
+    return getLocalizedText(match.label);
+  }
+
+  function resolveDisplayValue(
+    variable: HruVariable | undefined,
+    displayVal: unknown,
+    rawVal: unknown,
+  ) {
+    const fromOption = getOptionLabel(variable, rawVal);
+    if (fromOption) return fromOption;
+    if (typeof displayVal === "string") return t(displayVal, { defaultValue: displayVal });
+    return String(displayVal ?? rawVal ?? "?");
+  }
 
   if (status === null) {
     return (
@@ -90,33 +119,162 @@ export function HruStatusCard({
     );
   }
 
-  const powerValue = Math.round(status.power);
-  const rawPowerUnit = status.powerUnit ?? status.registers?.power?.unit ?? "%";
-  const maxPower = status.maxPower ?? 100;
-  const powerUnit = t(`app.units.${rawPowerUnit}`, { defaultValue: rawPowerUnit });
+  const { values, displayValues, variables } = status;
+  const powerVar = variables.find((v) => v.class === "power" || v.name === "power");
+  const tempVars = variables.filter((v) => v.class === "temperature");
+  const modeVar = variables.find((v) => v.class === "mode" || v.name === "mode");
+  const otherVars = variables.filter(
+    (v) =>
+      v.class !== "power" &&
+      v.class !== "temperature" &&
+      v.class !== "mode" &&
+      v.name !== "power" &&
+      v.name !== "mode",
+  );
 
-  const powerPercentage = Math.min(100, Math.max(0, (powerValue / maxPower) * 100));
+  function renderPower(variable: HruVariable) {
+    const rawVal = values[variable.name];
+    const val = typeof rawVal === "number" ? rawVal : Number(rawVal ?? 0);
+    const max = typeof variable.max === "number" ? variable.max : 100;
+    const percentage = Math.min(100, Math.max(0, (val / max) * 100));
+    const unit = variable.unit ? getLocalizedText(variable.unit) : "%";
 
-  let progressColor: string;
-  if (powerPercentage < 40) {
-    progressColor = "green";
-  } else if (powerPercentage < 70) {
-    progressColor = "orange";
-  } else {
-    progressColor = "red";
+    let color = "green";
+    if (percentage > 70) color = "red";
+    else if (percentage > 40) color = "orange";
+
+    return (
+      <Card key={variable.name} shadow="none" withBorder radius="md" p="md" variant="light">
+        <Center>
+          <RingProgress
+            size={140}
+            thickness={12}
+            roundCaps
+            sections={[{ value: percentage, color }]}
+            label={
+              <Center>
+                <Stack align="center" gap={0}>
+                  <IconWind size={24} style={{ opacity: 0.7 }} />
+                  <Text fw={700} size="xl" ta="center">
+                    {val} {unit}
+                  </Text>
+                  <Text c="dimmed" size="xs">
+                    {getLocalizedText(variable.label)}
+                  </Text>
+                </Stack>
+              </Center>
+            }
+          />
+        </Center>
+      </Card>
+    );
   }
 
-  const tempValue = formatTemperature(status.temperature, tempUnit);
-  const displayTempUnit = getTemperatureLabel(tempUnit);
-  const modeValue = status.mode;
+  function renderTemp(variable: HruVariable) {
+    const rawVal = values[variable.name];
+    const val = typeof rawVal === "number" ? rawVal : Number(rawVal ?? 0);
+    const unit = variable.unit ? getLocalizedText(variable.unit) : "°C";
 
-  const capabilities = status.capabilities ?? {};
-  const hasPower = capabilities.hasPowerControl !== false;
-  const hasTemp = capabilities.hasTemperatureControl !== false;
-  const hasMode = capabilities.hasModeControl !== false;
+    return (
+      <Card key={variable.name} shadow="none" withBorder radius="md" p="md" variant="light">
+        <Center h="100%" mih={100}>
+          <Stack align="center" gap="xs">
+            <IconThermometer size={32} color="var(--mantine-color-blue-filled)" />
+            <Text
+              fw={900}
+              size="2.5rem"
+              variant="gradient"
+              gradient={{ from: "blue", to: "cyan", deg: 90 }}
+              style={{ lineHeight: 1 }}
+            >
+              {Number.isFinite(val) ? val.toFixed(1) : String(rawVal ?? "-")}
+              <Text span size="1.2rem" c="dimmed" ml={4}>
+                {unit}
+              </Text>
+            </Text>
+            <Text c="dimmed" size="sm" tt="uppercase" fw={700}>
+              {getLocalizedText(variable.label)}
+            </Text>
+          </Stack>
+        </Center>
+      </Card>
+    );
+  }
 
-  const visibleItems = (hasPower || hasMode || !!activeMode ? 1 : 0) + (hasTemp ? 1 : 0);
-  const gridCols = Math.max(1, Math.min(2, visibleItems));
+  function renderMode() {
+    const modeDisplay = modeVar ? displayValues[modeVar.name] : "?";
+    const modeRaw = modeVar ? values[modeVar.name] : undefined;
+    const modeValue = resolveDisplayValue(modeVar, modeDisplay, modeRaw);
+
+    return (
+      <Card shadow="none" withBorder radius="md" p="md" variant="light">
+        <Group>
+          <ThemeIcon color="grape" variant="light" size="xl" radius="md">
+            <IconSettings size={28} />
+          </ThemeIcon>
+          <div style={{ flex: 1 }}>
+            <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+              {t("dashboard.hruMode", { defaultValue: "Mode" })}
+            </Text>
+            {activeMode ? (
+              <>
+                <Title order={3} c="grape">
+                  {activeMode.source === "manual"
+                    ? t("dashboard.activeMode.manual")
+                    : activeMode.source === "boost"
+                      ? t("dashboard.activeMode.boost", {
+                          name: getModeText(activeMode.modeName || modeValue),
+                        })
+                      : t("dashboard.activeMode.schedule", {
+                          name: getModeText(activeMode.modeName || modeValue),
+                        })}
+                </Title>
+                {modeVar && (
+                  <Text size="sm" c="dimmed" mt={4}>
+                    {t("dashboard.nativeMode")}: {getModeText(modeValue)}
+                  </Text>
+                )}
+              </>
+            ) : (
+              <Title order={3} c="grape">
+                {getModeText(modeValue)}
+              </Title>
+            )}
+          </div>
+        </Group>
+      </Card>
+    );
+  }
+
+  function renderOther(variable: HruVariable) {
+    const displayVal = displayValues[variable.name];
+    const rawVal = values[variable.name];
+    const unit = variable.unit ? getLocalizedText(variable.unit) : "";
+    const value = resolveDisplayValue(variable, displayVal, rawVal);
+
+    let Icon = IconEye;
+    if (variable.class === "power") Icon = IconWind;
+    else if (variable.class === "temperature") Icon = IconThermometer;
+    else if (variable.class === "mode") Icon = IconSettings;
+
+    return (
+      <Card key={variable.name} shadow="none" withBorder radius="md" p="sm" variant="light">
+        <Group wrap="nowrap" gap="sm">
+          <ThemeIcon color="gray" variant="light" size="md" radius="sm">
+            <Icon size={16} />
+          </ThemeIcon>
+          <div style={{ flex: 1, overflow: "hidden" }}>
+            <Text size="xs" c="dimmed" truncate fw={500}>
+              {getLocalizedText(variable.label)}
+            </Text>
+            <Text fw={700} size="sm" truncate>
+              {value} {unit}
+            </Text>
+          </div>
+        </Group>
+      </Card>
+    );
+  }
 
   return (
     <Card shadow="sm" padding="0" withBorder radius="md">
@@ -145,106 +303,25 @@ export function HruStatusCard({
         </Badge>
       </Group>
 
-      {visibleItems > 0 && (
-        <SimpleGrid cols={{ base: 1, sm: gridCols }} spacing="md" p="lg" pt="md">
-          {(hasPower || hasMode || !!activeMode) && (
-            <Stack gap="md">
-              {hasPower && (
-                <Card shadow="none" withBorder radius="md" p="md" variant="light">
-                  <Center>
-                    <RingProgress
-                      size={140}
-                      thickness={12}
-                      roundCaps
-                      sections={[{ value: powerPercentage, color: progressColor }]}
-                      label={
-                        <Center>
-                          <Stack align="center" gap={0}>
-                            <IconWind size={24} style={{ opacity: 0.7 }} />
-                            <Text fw={700} size="xl" ta="center">
-                              {powerValue} {powerUnit}
-                            </Text>
-                            <Text c="dimmed" size="xs">
-                              {t("hru.power")}
-                            </Text>
-                          </Stack>
-                        </Center>
-                      }
-                    />
-                  </Center>
-                </Card>
-              )}
+      <Box p="lg" pt="md">
+        <SimpleGrid cols={{ base: 1, sm: tempVars.length > 0 ? 2 : 1 }} spacing="md">
+          {/* Main Column: Power and Mode */}
+          <Stack gap="md">
+            {powerVar && renderPower(powerVar)}
+            {renderMode()}
+          </Stack>
 
-              {(hasMode || !!activeMode) && (
-                <Card shadow="none" withBorder radius="md" p="md" variant="light">
-                  <Group>
-                    <ThemeIcon color="grape" variant="light" size="xl" radius="md">
-                      <IconSettings size={28} />
-                    </ThemeIcon>
-                    <div style={{ flex: 1 }}>
-                      <Text size="xs" fw={700} c="dimmed" tt="uppercase">
-                        {t("dashboard.hruMode", { defaultValue: "Mode" })}
-                      </Text>
-                      {activeMode ? (
-                        <>
-                          <Title order={3} c="grape">
-                            {activeMode.source === "manual"
-                              ? t("dashboard.activeMode.manual")
-                              : activeMode.source === "boost"
-                                ? t("dashboard.activeMode.boost", {
-                                    name: activeMode.modeName || "?",
-                                  })
-                                : t("dashboard.activeMode.schedule", {
-                                    name: activeMode.modeName || "?",
-                                  })}
-                          </Title>
-                          {hasMode && (
-                            <Text size="sm" c="dimmed" mt={4}>
-                              {t("dashboard.nativeMode")}: {modeValue}
-                            </Text>
-                          )}
-                        </>
-                      ) : (
-                        <Title order={3} c="grape">
-                          {modeValue}
-                        </Title>
-                      )}
-                    </div>
-                  </Group>
-                </Card>
-              )}
-            </Stack>
-          )}
-
-          {hasTemp && (
-            <Card shadow="none" withBorder radius="md" p="md" variant="light">
-              <Center h="100%" mih={140}>
-                <Stack align="center" gap="xs">
-                  <IconThermometer
-                    size={32}
-                    style={{ color: "var(--mantine-color-blue-filled)" }}
-                  />
-                  <Text
-                    fw={900}
-                    size="3rem"
-                    variant="gradient"
-                    gradient={{ from: "blue", to: "cyan", deg: 90 }}
-                    style={{ lineHeight: 1 }}
-                  >
-                    {tempValue.toFixed(1)}
-                    <Text span size="1.5rem" c="dimmed" ml={4}>
-                      {displayTempUnit}
-                    </Text>
-                  </Text>
-                  <Text c="dimmed" size="sm" tt="uppercase" fw={700}>
-                    {t("hru.temperature")}
-                  </Text>
-                </Stack>
-              </Center>
-            </Card>
-          )}
+          {/* Side Column: Temperatures */}
+          {tempVars.length > 0 && <Stack gap="md">{tempVars.map((v) => renderTemp(v))}</Stack>}
         </SimpleGrid>
-      )}
+
+        {/* Footer Grid: Other variables */}
+        {otherVars.length > 0 && (
+          <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="xs" mt="md">
+            {otherVars.map((v) => renderOther(v))}
+          </SimpleGrid>
+        )}
+      </Box>
     </Card>
   );
 }

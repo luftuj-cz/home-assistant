@@ -7,7 +7,6 @@ import { useTimelineModes } from "../hooks/useTimelineModes";
 import { StatusCard } from "../components/dashboard/StatusCard";
 import { HruStatusCard } from "../components/dashboard/HruStatusCard";
 import { BoostButtons } from "../components/dashboard/BoostButtons";
-import { resolveApiUrl } from "../utils/api";
 import * as hruApi from "../api/hru";
 import { logger } from "../utils/logger";
 
@@ -21,7 +20,6 @@ export function DashboardPage() {
     hruName,
     mqttStatus,
     mqttLastDiscovery,
-    tempUnit,
     activeMode,
   } = useDashboardStatus();
   const { modes, loadModes } = useTimelineModes(t);
@@ -30,15 +28,7 @@ export function DashboardPage() {
   useEffect(() => {
     async function init() {
       try {
-        const [settingsRes, units] = await Promise.all([
-          fetch(resolveApiUrl("/api/settings/hru")).then(
-            (r) => r.json() as Promise<{ unit?: string }>,
-          ),
-          hruApi.fetchHruUnits().catch(() => []),
-        ]);
-
-        const activeUnit = units.find((u) => u.id === settingsRes.unit) || units[0];
-        const unitId = activeUnit?.id;
+        const { unitId } = await hruApi.fetchActiveUnit();
         setActiveUnitId(unitId);
 
         await loadModes(unitId);
@@ -95,13 +85,7 @@ export function DashboardPage() {
 
         <BoostButtons modes={modes} t={t} activeUnitId={activeUnitId} />
 
-        <HruStatusCard
-          status={hruStatus}
-          hruName={hruName}
-          t={t}
-          tempUnit={tempUnit}
-          activeMode={activeMode}
-        />
+        <HruStatusCard status={hruStatus} hruName={hruName} t={t} activeMode={activeMode} />
 
         <StatusCard
           title={t("dashboard.haStatusTitle", { defaultValue: "Home Assistant" })}

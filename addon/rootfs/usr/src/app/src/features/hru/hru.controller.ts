@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
 import type { HruService } from "./hru.service";
 import { ApiError } from "../../shared/errors/apiErrors";
+import type { HruWriteInput } from "../../schemas/hru";
 
 export class HruController {
   constructor(
@@ -50,12 +51,12 @@ export class HruController {
     }
   };
 
-  write = async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const { power, temperature, mode } = req.body as {
-      power?: number;
-      temperature?: number;
-      mode?: number | string;
-    };
+  write = async (
+    req: Request<Record<string, unknown>, Record<string, unknown>, HruWriteInput>,
+    res: Response,
+    next: NextFunction,
+  ): Promise<void> => {
+    const { power, temperature, mode } = req.body;
 
     if (power === undefined && temperature === undefined && mode === undefined) {
       this.logger.warn("HRU write attempt with no fields");
@@ -63,7 +64,11 @@ export class HruController {
     }
 
     try {
-      await this.service.writeValues({ power, temperature, mode });
+      const values: Record<string, number | string | boolean> = {};
+      if (power !== undefined) values.power = power;
+      if (temperature !== undefined) values.temperature = temperature;
+      if (mode !== undefined) values.mode = mode;
+      await this.service.writeValues(values);
       res.status(204).end();
       this.logger.info({ power, temperature, mode }, "HRU values written successfully");
     } catch (error) {

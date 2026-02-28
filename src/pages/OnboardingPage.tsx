@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Button,
   Group,
@@ -36,7 +36,6 @@ import {
   IconAdjustments,
   IconLanguage,
   IconPalette,
-  IconTemperature,
 } from "@tabler/icons-react";
 import { z } from "zod";
 import { notifications } from "@mantine/notifications";
@@ -44,30 +43,45 @@ import { useTranslation } from "react-i18next";
 import { useMantineColorScheme } from "@mantine/core";
 import { logger } from "../utils/logger";
 import { isSupportedLanguage, setLanguage } from "../i18n";
-import { type TemperatureUnit } from "../utils/temperature";
 import { resolveApiUrl } from "../utils/api";
 
-const modbusSchema = z.object({
-  host: z.string().min(1, "Host is required"),
-  port: z.number().min(1).max(65535),
-  unitId: z.number().min(0).max(255),
-});
-
-const mqttSchema = z
-  .object({
-    enabled: z.boolean(),
-    host: z.string().optional(),
-    port: z.number().min(1).max(65535).optional(),
-    user: z.string().optional(),
-    password: z.string().optional(),
-  })
-  .refine((data) => !data.enabled || (data.host && data.host.length > 0), {
-    message: "Host is required when MQTT is enabled",
-    path: ["host"],
+function createModbusSchema(t: (key: string) => string) {
+  return z.object({
+    host: z.string().trim().min(1, t("onboarding.modbus.hostRequired")),
+    port: z.number().min(1, t("onboarding.modbus.portRequired")).max(65535),
+    unitId: z.number().min(0, t("onboarding.modbus.unitIdRequired")).max(255),
   });
+}
 
-type ModbusForm = z.infer<typeof modbusSchema>;
-type MqttForm = z.infer<typeof mqttSchema>;
+function createMqttSchema(t: (key: string) => string) {
+  return z
+    .object({
+      enabled: z.boolean(),
+      host: z.string().trim().optional(),
+      port: z.number().min(1).max(65535).optional(),
+      user: z.string().trim().optional(),
+      password: z.string().optional(),
+    })
+    .superRefine((data, ctx) => {
+      if (data.enabled && !data.host?.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          message: t("onboarding.mqtt.hostRequired"),
+          path: ["host"],
+        });
+      }
+      if (data.enabled && (data.port === undefined || Number.isNaN(data.port))) {
+        ctx.addIssue({
+          code: "custom",
+          message: t("settings.mqtt.portInvalid"),
+          path: ["port"],
+        });
+      }
+    });
+}
+
+type ModbusForm = z.infer<ReturnType<typeof createModbusSchema>>;
+type MqttForm = z.infer<ReturnType<typeof createMqttSchema>>;
 
 export function OnboardingPage() {
   const { t, i18n } = useTranslation();
@@ -81,7 +95,10 @@ export function OnboardingPage() {
   const [selectedTheme, setSelectedTheme] = useState<"light" | "dark">(
     colorScheme === "auto" ? "dark" : (colorScheme as "light" | "dark"),
   );
-  const [selectedTempUnit, setSelectedTempUnit] = useState<TemperatureUnit>("c");
+
+  const modbusSchema = useMemo(() => createModbusSchema(t), [t]);
+
+  const mqttSchema = useMemo(() => createMqttSchema(t), [t]);
 
   const modbusForm = useForm<ModbusForm>({
     initialValues: {
@@ -118,8 +135,8 @@ export function OnboardingPage() {
         });
       }
 
-      if (values.enabled && !values.host) {
-        errors.host = "Host is required when MQTT is enabled";
+      if (values.enabled && !values.host?.trim()) {
+        errors.host = t("onboarding.mqtt.hostRequired");
       }
 
       return errors;
@@ -265,23 +282,6 @@ export function OnboardingPage() {
     },
   });
 
-  const saveTempUnitMutation = useMutation({
-    mutationFn: async (unit: TemperatureUnit) => {
-      const res = await fetch(resolveApiUrl("/api/settings/temperature-unit"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ temperatureUnit: unit }),
-      });
-      if (!res.ok) {
-        logger.error("Failed to save temperature unit", {
-          status: res.status,
-          statusText: res.statusText,
-        });
-        throw new Error("Failed to save temperature unit");
-      }
-    },
-  });
-
   const finishOnboardingMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(resolveApiUrl("/api/settings/onboarding-finish"), { method: "POST" });
@@ -331,12 +331,10 @@ export function OnboardingPage() {
       await Promise.all([
         saveLanguageMutation.mutateAsync(selectedLanguage),
         saveThemeMutation.mutateAsync(selectedTheme),
-        saveTempUnitMutation.mutateAsync(selectedTempUnit),
       ]);
       logger.info("Preferences saved successfully", {
         language: selectedLanguage,
         theme: selectedTheme,
-        tempUnit: selectedTempUnit,
       });
       nextStep();
     } catch (err) {
@@ -365,7 +363,11 @@ export function OnboardingPage() {
 
   async function handleHruAndModbusSave() {
     if (!selectedUnit) {
-      notifications.show({ title: t("valves.alertTitle"), message: t("onboarding.unit.error"), color: "red" });
+      notifications.show({
+        title: t("valves.alertTitle"),
+        message: t("onboarding.unit.error"),
+        color: "red",
+      });
       setActive(2);
       return;
     }
@@ -410,7 +412,11 @@ export function OnboardingPage() {
 
   async function handleUnitSubmit() {
     if (!selectedUnit) {
-      notifications.show({ title: t("valves.alertTitle"), message: t("onboarding.unit.error"), color: "red" });
+      notifications.show({
+        title: t("valves.alertTitle"),
+        message: t("onboarding.unit.error"),
+        color: "red",
+      });
       return;
     }
     nextStep();
@@ -624,21 +630,6 @@ export function OnboardingPage() {
             }}
           />
 
-          <Select
-            label={t("onboarding.preferences.tempUnitLabel")}
-            placeholder={t("onboarding.preferences.tempUnitPlaceholder")}
-            leftSection={<IconTemperature size={16} />}
-            data={[
-              { value: "c", label: t("onboarding.preferences.tempUnits.c") },
-              { value: "f", label: t("onboarding.preferences.tempUnits.f") },
-            ]}
-            value={selectedTempUnit}
-            onChange={(val) => {
-              if (val) {
-                setSelectedTempUnit(val as TemperatureUnit);
-              }
-            }}
-          />
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={prevStep}>
               {t("onboarding.back")}

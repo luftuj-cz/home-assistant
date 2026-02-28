@@ -1,3 +1,5 @@
+// noinspection HttpUrlsUsage
+
 import "dotenv/config";
 
 import cors from "cors";
@@ -97,7 +99,7 @@ const settingsRepo = new SettingsRepository(logger);
 const hruRepo = new HruRepository(logger);
 const hruService = new HruService(hruRepo, settingsRepo, logger);
 
-const timelineScheduler = new TimelineScheduler(valveManager, hruService, logger);
+const timelineScheduler = new TimelineScheduler(valveManager, hruService, settingsRepo, logger);
 
 const mqttService = new MqttService(config.mqtt, settingsRepo, timelineScheduler, logger);
 const hruMonitor = new HruMonitor(hruService, mqttService, timelineScheduler, logger);

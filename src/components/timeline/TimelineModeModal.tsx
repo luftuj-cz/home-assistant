@@ -13,10 +13,10 @@ import {
   Switch,
   Select,
   Alert,
+  SimpleGrid,
 } from "@mantine/core";
 import {
   IconFileText,
-  IconBolt,
   IconThermometer,
   IconDroplet,
   IconPlus,
@@ -25,25 +25,15 @@ import {
   IconSettings,
   IconAlertCircle,
   IconTestPipe,
+  IconWind,
 } from "@tabler/icons-react";
 import { useEffect, useState, useRef } from "react";
 import type { TFunction } from "i18next";
 import type { Mode } from "../../types/timeline";
 import type { Valve } from "../../types/valve";
-import { formatTemperature, parseTemperature, getTemperatureLabel } from "../../utils/temperature";
-import { resolveApiUrl } from "../../utils/api";
 import { cancelBoost, testTimelineMode } from "../../api/timeline";
 import { notifications } from "@mantine/notifications";
-import type { TemperatureUnit } from "../../hooks/useDashboardStatus";
-
-// Quick fetch fallback if service not imported
-async function fetchNativeModes(unitId?: string) {
-  const query = unitId ? `?unitId=${unitId}` : "";
-  const res = await fetch(resolveApiUrl(`/api/hru/modes${query}`));
-  if (!res.ok) return [];
-  const data = await res.json();
-  return data.modes as { id: number; name: string }[];
-}
+import type { HruVariable, LocalizedText } from "../../api/hru";
 
 interface TimelineModeModalProps {
   opened: boolean;
@@ -53,14 +43,9 @@ interface TimelineModeModalProps {
   onClose: () => void;
   onSave: (mode: Partial<Mode>) => void;
   t: TFunction;
-  hruCapabilities?: {
-    hasPowerControl?: boolean;
-    hasTemperatureControl?: boolean;
-    hasModeControl?: boolean;
-  };
+  hruVariables?: HruVariable[];
   powerUnit?: string;
   maxPower?: number;
-  temperatureUnit?: TemperatureUnit;
   existingModes?: Mode[];
   unitId?: string;
   nameError?: string | null;
@@ -75,36 +60,27 @@ export function TimelineModeModal({
   onClose,
   onSave,
   t,
-  hruCapabilities,
-  powerUnit = "%",
-  maxPower = 100,
-  temperatureUnit = "c",
+  hruVariables = [],
   existingModes = [],
-  unitId,
   nameError,
   onNameChange,
 }: TimelineModeModalProps) {
   const [name, setName] = useState("");
-  const [power, setPower] = useState<number | undefined>(undefined);
-  const [temperature, setTemperature] = useState<number | undefined>(undefined);
+  const [variableValues, setVariableValues] = useState<Record<string, number | string | boolean>>(
+    {},
+  );
   const [color, setColor] = useState("");
   const [isBoost, setIsBoost] = useState(false);
   const [valveOpenings, setValveOpenings] = useState<Record<string, number | undefined>>({});
-  const [nativeMode, setNativeMode] = useState<string | null>(null);
-  const [availableNativeModes, setAvailableNativeModes] = useState<
-    { value: string; label: string }[]
-  >([]);
   const [submitted, setSubmitted] = useState(false);
   const [testRemainingSeconds, setTestRemainingSeconds] = useState<number | null>(null);
   const testTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  useEffect(() => {
-    if (opened && hruCapabilities?.hasModeControl) {
-      fetchNativeModes(unitId).then((modes) => {
-        setAvailableNativeModes(modes.map((m) => ({ value: m.id.toString(), label: m.name })));
-      });
-    }
-  }, [opened, hruCapabilities, unitId]);
+  function getLocalizedText(text: LocalizedText): string {
+    if (typeof text === "string") return t(text, { defaultValue: text });
+    if (text.translate) return t(text.text, { defaultValue: text.text });
+    return text.text;
+  }
 
   const allValvesClosed =
     valves.length > 0 &&
@@ -119,24 +95,16 @@ export function TimelineModeModal({
       setSubmitted(false);
       if (mode) {
         setName(mode.name);
-        setPower(mode.power);
-        setTemperature(
-          mode.temperature !== undefined
-            ? formatTemperature(mode.temperature, temperatureUnit)
-            : undefined,
-        );
+        setVariableValues(mode.variables || {});
         setColor(mode.color ?? "");
         setIsBoost(mode.isBoost ?? false);
         setValveOpenings(mode.luftatorConfig ?? {});
-        setNativeMode(mode.nativeMode !== undefined ? mode.nativeMode.toString() : null);
       } else {
         setName("");
-        setPower(undefined);
-        setTemperature(undefined);
+        setVariableValues({});
         setColor("");
         setIsBoost(false);
         setValveOpenings({});
-        setNativeMode(null);
       }
     } else {
       // Clear test state on close
@@ -146,7 +114,7 @@ export function TimelineModeModal({
         testTimerRef.current = null;
       }
     }
-  }, [opened, mode, temperatureUnit]);
+  }, [opened, mode]);
 
   // Countdown timer effect
   useEffect(() => {
@@ -184,15 +152,11 @@ export function TimelineModeModal({
     );
 
     return {
-      // id is ignored by create but used by update, handled by wrapper
       name: trimmedName,
-      power,
-      temperature:
-        temperature !== undefined ? parseTemperature(temperature, temperatureUnit) : undefined,
+      variables: variableValues,
       color: color || undefined,
       isBoost,
       luftatorConfig: Object.keys(cleanedValveOpenings).length ? cleanedValveOpenings : undefined,
-      nativeMode: nativeMode ? parseInt(nativeMode, 10) : undefined,
     };
   }
 
@@ -202,34 +166,6 @@ export function TimelineModeModal({
       notifications.show({
         title: t("settings.timeline.notifications.validationFailedTitle"),
         message: t("validation.requiredField"),
-        color: "red",
-      });
-      return false;
-    }
-
-    // Capability Validation
-    if (hruCapabilities?.hasModeControl && !nativeMode) {
-      notifications.show({
-        title: t("settings.timeline.notifications.validationFailedTitle"),
-        message: t("validation.nativeModeRequired"),
-        color: "red",
-      });
-      return false;
-    }
-
-    if (hruCapabilities?.hasPowerControl !== false && power === undefined) {
-      notifications.show({
-        title: t("settings.timeline.notifications.validationFailedTitle"),
-        message: t("validation.powerRequired"),
-        color: "red",
-      });
-      return false;
-    }
-
-    if (hruCapabilities?.hasTemperatureControl !== false && temperature === undefined) {
-      notifications.show({
-        title: t("settings.timeline.notifications.validationFailedTitle"),
-        message: t("validation.temperatureRequired"),
         color: "red",
       });
       return false;
@@ -272,8 +208,8 @@ export function TimelineModeModal({
       })
       .catch((err) => {
         notifications.show({
-          title: "Error",
-          message: err.message || "Failed to start test mode",
+          title: t("valves.alertTitle"),
+          message: err.message || t("settings.timeline.notifications.unknown"),
           color: "red",
         });
       });
@@ -302,6 +238,8 @@ export function TimelineModeModal({
     onSave({ ...payload, id: mode?.id });
   }
 
+  const editableVariables = hruVariables.filter((v) => v.editable);
+
   return (
     <Modal
       opened={opened}
@@ -318,7 +256,7 @@ export function TimelineModeModal({
           </Text>
         </Group>
       }
-      size="md"
+      size="lg"
       radius="md"
     >
       <Stack gap="md">
@@ -331,75 +269,103 @@ export function TimelineModeModal({
             onNameChange?.();
           }}
           leftSection={<IconFileText size={16} stroke={1.5} />}
-          error={
-            nameError ||
-            (!name.trim() && submitted
-              ? t("validation.required")
-              : null)
-          }
+          error={nameError || (!name.trim() && submitted ? t("validation.required") : null)}
           required
           styles={{ error: { position: "absolute", bottom: -20 } }}
         />
 
-        {hruCapabilities?.hasModeControl && (
-          <Select
-            label={t("settings.timeline.nativeMode")}
-            placeholder={t("settings.timeline.nativeModePlaceholder")}
-            data={availableNativeModes}
-            value={nativeMode}
-            onChange={setNativeMode}
-            leftSection={<IconSettings size={16} stroke={1.5} />}
-            clearable
-            required
-            error={
-              nativeMode === null && submitted
-                ? t("validation.required")
-                : null
+        {editableVariables.length > 0 && (
+          <Fieldset
+            legend={
+              <Group gap="xs">
+                <IconSettings size={16} />
+                <Text size="sm" fw={700}>
+                  {t("settings.timeline.hruSettings")}
+                </Text>
+              </Group>
             }
-            styles={{ error: { position: "absolute", bottom: -20 } }}
-          />
-        )}
+            radius="md"
+          >
+            <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+              {editableVariables.map((variable) => {
+                const label = getLocalizedText(variable.label);
+                const unit = variable.unit ? getLocalizedText(variable.unit) : "";
+                const val = variableValues[variable.name];
 
-        <Group grow>
-          {hruCapabilities?.hasPowerControl !== false && (
-            <NumberInput
-              label={`${t("settings.timeline.modePower")} (${t(`app.units.${powerUnit}`)})`}
-              placeholder="50"
-              value={power}
-              onChange={(value) => setPower(typeof value === "number" ? value : undefined)}
-              min={0}
-              max={maxPower}
-              step={1}
-              leftSection={<IconBolt size={16} stroke={1.5} />}
-              required
-              error={
-                power === undefined && submitted
-                  ? t("validation.required")
-                  : null
-              }
-              styles={{ error: { position: "absolute", bottom: -20 } }}
-            />
-          )}
-          {hruCapabilities?.hasTemperatureControl !== false && (
-            <NumberInput
-              label={`${t("settings.timeline.modeTemperature")} (${getTemperatureLabel(temperatureUnit)})`}
-              placeholder="21"
-              value={temperature}
-              onChange={(value) => setTemperature(typeof value === "number" ? value : undefined)}
-              min={-50}
-              max={100}
-              step={0.5}
-              leftSection={<IconThermometer size={16} stroke={1.5} />}
-              required
-              error={
-                temperature === undefined && submitted
-                  ? t("validation.required")
-                  : null
-              }
-              styles={{ error: { position: "absolute", bottom: -20 } }}
-            />
-          )}
-        </Group>
+                if (variable.type === "boolean") {
+                  return (
+                    <Switch
+                      key={variable.name}
+                      label={label}
+                      checked={val === 1}
+                      onChange={(e) => {
+                        const checked = e?.currentTarget?.checked ?? false;
+                        setVariableValues((prev) => ({
+                          ...prev,
+                          [variable.name]: checked ? 1 : 0,
+                        }));
+                      }}
+                      mt="xs"
+                    />
+                  );
+                }
+
+                if (variable.type === "select" && variable.options) {
+                  return (
+                    <Select
+                      key={variable.name}
+                      label={label}
+                      data={variable.options.map((opt) => ({
+                        value: opt.value.toString(),
+                        label: getLocalizedText(opt.label),
+                      }))}
+                      value={val !== undefined ? val.toString() : null}
+                      onChange={(v) =>
+                        setVariableValues((prev) => ({
+                          ...prev,
+                          [variable.name]: v ? parseInt(v, 10) : 0,
+                        }))
+                      }
+                      leftSection={
+                        variable.class === "mode" ? (
+                          <IconSettings size={16} stroke={1.5} />
+                        ) : undefined
+                      }
+                      required
+                      error={val === undefined && submitted ? t("validation.required") : null}
+                    />
+                  );
+                }
+
+                return (
+                  <NumberInput
+                    key={variable.name}
+                    label={`${label}${unit ? ` (${unit})` : ""}`}
+                    value={typeof val === "number" ? val : undefined}
+                    onChange={(v) =>
+                      setVariableValues((prev) => ({
+                        ...prev,
+                        [variable.name]: typeof v === "number" ? v : 0,
+                      }))
+                    }
+                    min={variable.min}
+                    max={variable.max}
+                    step={variable.step}
+                    leftSection={
+                      variable.class === "power" ? (
+                        <IconWind size={16} stroke={1.5} />
+                      ) : variable.class === "temperature" ? (
+                        <IconThermometer size={16} stroke={1.5} />
+                      ) : undefined
+                    }
+                    required
+                    error={val === undefined && submitted ? t("validation.required") : null}
+                  />
+                );
+              })}
+            </SimpleGrid>
+          </Fieldset>
+        )}
 
         {valves.length > 0 && (
           <Fieldset

@@ -128,6 +128,10 @@ const migrations: Migration[] = [
     id: "007_add_native_mode",
     statements: [`ALTER TABLE timeline_modes ADD COLUMN native_mode INTEGER;`],
   },
+  {
+    id: "008_add_mode_variables",
+    statements: [`ALTER TABLE timeline_modes ADD COLUMN variables TEXT;`],
+  },
 ];
 
 let db: Database | null = null;
@@ -276,7 +280,7 @@ function prepareStatements(database: Database): StatementMap {
     getTimelineEvents: database.prepare(
       `SELECT id, start_time, day_of_week, hru_config, luftator_config, enabled, priority, hru_id, created_at, updated_at
        FROM timeline_events
-       WHERE hru_id = ?
+       WHERE hru_id = ? OR hru_id IS NULL
        ORDER BY day_of_week ASC NULLS LAST, start_time ASC, priority DESC`,
     ),
     upsertTimelineEvent: database.prepare(
@@ -303,8 +307,8 @@ function prepareStatements(database: Database): StatementMap {
       `SELECT * FROM timeline_modes WHERE hru_id = ? OR hru_id IS NULL ORDER BY name ASC`,
     ),
     upsertTimelineMode: database.prepare(
-      `INSERT INTO timeline_modes (id, name, color, power, temperature, luftator_config, is_boost, hru_id, native_mode)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO timeline_modes (id, name, color, power, temperature, luftator_config, is_boost, hru_id, native_mode, variables)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET
          name = excluded.name,
          color = excluded.color,
@@ -314,6 +318,7 @@ function prepareStatements(database: Database): StatementMap {
          is_boost = excluded.is_boost,
          hru_id = excluded.hru_id,
          native_mode = excluded.native_mode,
+         variables = excluded.variables,
          updated_at = datetime("now")`,
     ),
     deleteTimelineMode: database.prepare(`DELETE FROM timeline_modes WHERE id = ?`),
@@ -487,6 +492,7 @@ export interface TimelineEvent {
     mode?: string | number;
     power?: number;
     temperature?: number;
+    variables?: Record<string, number | string | boolean>;
   } | null;
   luftatorConfig?: Record<string, number> | null;
   enabled: boolean;
@@ -559,6 +565,7 @@ export interface TimelineModeRecord {
   is_boost: number;
   hru_id: string | null;
   native_mode: number | null;
+  variables: string | null;
 }
 
 export function getTimelineModes(hruId?: string): TimelineMode[] {
@@ -582,6 +589,7 @@ export function getTimelineModes(hruId?: string): TimelineMode[] {
       isBoost: Boolean(r.is_boost),
       hruId: r.hru_id ?? undefined,
       nativeMode: r.native_mode ?? undefined,
+      variables: r.variables ? JSON.parse(r.variables) : undefined,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }
@@ -607,6 +615,7 @@ export function getTimelineMode(id: number): TimelineMode | null {
     isBoost: Boolean(record.is_boost),
     hruId: record.hru_id ?? undefined,
     nativeMode: record.native_mode ?? undefined,
+    variables: record.variables ? JSON.parse(record.variables) : undefined,
   };
 }
 
@@ -628,6 +637,7 @@ export function upsertTimelineMode(mode: TimelineMode): TimelineMode {
     mode.isBoost ? 1 : 0,
     mode.hruId ?? null,
     mode.nativeMode ?? null,
+    mode.variables ? JSON.stringify(mode.variables) : null,
   ) as { lastInsertRowid: number | bigint };
 
   const id = mode.id ?? Number(result.lastInsertRowid);

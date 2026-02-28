@@ -3,36 +3,25 @@ import type { HruRepository } from "./hru.repository";
 import type { SettingsRepository } from "../settings/settings.repository";
 import type { Logger } from "pino";
 import { HruLoader } from "./hru.loader";
-import {
-  type RegulationStrategy,
-  type HeatRecoveryUnit,
-  type RegulationCapabilities,
-} from "./hru.definitions";
+import { type HeatRecoveryUnit, type HruVariable } from "./hru.definitions";
 import { HruNotConfiguredError, HruConnectionError } from "../../shared/errors/apiErrors";
+import { resolveModeValue } from "../../utils/hruWrite";
 
 export interface HruUnitDefinition {
   id: string;
-  code?: string;
+  code: string;
   name: string;
-  isConfigurable: boolean;
-  maxValue: number;
-  controlUnit: string;
-  capabilities: RegulationCapabilities | null;
-  registers: null;
+  variables: HruVariable[];
 }
 
 export interface HruReadResult {
-  raw: { power: number; temperature: number; mode: number };
-  value: { power: number; temperature: number; mode: string };
-  registers: {
-    power: { unit?: string; scale?: number; precision?: number; maxValue?: number };
-    temperature: { unit?: string; scale?: number; precision?: number };
-  };
+  values: Record<string, number>;
+  displayValues: Record<string, string | number | boolean>;
+  variables: HruVariable[];
 }
 
 export class HruService {
-  private units: HeatRecoveryUnit[] = [];
-  private strategies: RegulationStrategy[] = [];
+  private units: HeatRecoveryUnit[];
 
   constructor(
     private readonly repository: HruRepository,
@@ -41,43 +30,37 @@ export class HruService {
   ) {
     const loader = new HruLoader(this.logger);
     this.units = loader.loadUnits();
-    this.strategies = loader.loadStrategies();
   }
 
   getAllUnits(): HruUnitDefinition[] {
     return this.units
       .map((u) => ({
-        id: u.code || u.name,
+        id: u.code,
         code: u.code,
         name: u.name,
-        isConfigurable: u.isConfigurable,
-        maxValue: u.maxValue,
-        controlUnit: u.controlUnit,
-        capabilities: this.getStrategyForUnit(u)?.capabilities ?? null,
-        registers: null,
+        variables: u.variables,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   getModes(unitIdOverride?: string): { id: number; name: string }[] {
-    let strategy: RegulationStrategy | null = null;
+    let unit: HeatRecoveryUnit | null;
 
     if (unitIdOverride) {
-      const unit = this.getUnitById(unitIdOverride);
-      if (unit) {
-        strategy = this.getStrategyForUnit(unit) ?? null;
-      }
+      unit = this.getUnitById(unitIdOverride) ?? null;
     } else {
-      const config = this.getResolvedConfiguration();
-      strategy = config?.strategy ?? null;
+      unit = this.getResolvedConfiguration()?.unit ?? null;
     }
 
-    if (!strategy) return [];
-    const modes = strategy.modeCommands?.availableModes ?? {};
-    return Object.entries(modes)
-      .map(([id, name]) => ({
-        id: Number(id),
-        name: name as string,
+    if (!unit) return [];
+
+    const modeVar = unit.variables.find((v) => v.class === "mode" || v.name === "mode");
+    if (!modeVar || !modeVar.options) return [];
+
+    return modeVar.options
+      .map((opt) => ({
+        id: opt.value,
+        name: typeof opt.label === "string" ? opt.label : opt.label.text,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -90,7 +73,7 @@ export class HruService {
       throw err;
     }
 
-    const { settings, strategy, unit } = configData;
+    const { settings, unit } = configData;
 
     if (!settings.host) {
       const err = new HruNotConfiguredError("HRU host not configured");
@@ -105,46 +88,41 @@ export class HruService {
     };
 
     try {
-      let variables: Record<string, number> = {};
+      const rawValues = await this.repository.executeScript(config, unit.integration.read);
 
-      if (strategy.powerCommands?.read) {
-        const vars = await this.repository.executeScript(config, strategy.powerCommands.read);
-        variables = { ...variables, ...vars };
-      }
-      if (strategy.temperatureCommands?.read) {
-        const vars = await this.repository.executeScript(config, strategy.temperatureCommands.read);
-        variables = { ...variables, ...vars };
-      }
-      if (strategy.modeCommands?.read) {
-        const vars = await this.repository.executeScript(config, strategy.modeCommands.read);
-        variables = { ...variables, ...vars };
+      this.logger.info(
+        { rawValues, unitVariables: unit.variables.map((v) => v.name) },
+        "HRU readValues: raw values from script",
+      );
+
+      const values: Record<string, number> = {};
+      const displayValues: Record<string, string | number | boolean> = {};
+
+      for (const variable of unit.variables) {
+        const key = `$${variable.name}`;
+        const val = rawValues[key] ?? 0;
+        values[variable.name] = val;
+
+        if (variable.type === "boolean") {
+          displayValues[variable.name] = val !== 0;
+        } else if (variable.type === "select" && variable.options) {
+          const opt = variable.options.find((o) => o.value === val);
+          displayValues[variable.name] = opt
+            ? typeof opt.label === "string"
+              ? opt.label
+              : opt.label.text
+            : String(val);
+        } else {
+          displayValues[variable.name] = val;
+        }
       }
 
-      const maxAllowed = (unit.isConfigurable && settings.maxPower) || unit.maxValue;
-      const power = Math.min(variables["$power"] ?? 0, maxAllowed);
-      const temperature = variables["$temperature"] ?? 0;
-      const mode = variables["$mode"] ?? 0;
+      this.logger.info({ values, displayValues }, "HRU readValues: processed values");
 
       const result = {
-        raw: { power, temperature, mode },
-        value: {
-          power,
-          temperature,
-          mode: strategy.modeCommands?.availableModes[mode] ?? String(mode),
-        },
-        registers: {
-          power: {
-            unit: strategy.capabilities.powerUnit || unit.controlUnit || "%",
-            scale: strategy.capabilities.powerStep ?? 1,
-            precision: 0,
-            maxValue: maxAllowed,
-          },
-          temperature: {
-            unit: strategy.capabilities.temperatureUnit || "°C",
-            scale: strategy.capabilities.temperatureStep ?? 1,
-            precision: 1,
-          },
-        },
+        values,
+        displayValues,
+        variables: unit.variables,
       };
 
       this.logger.debug({ result }, "HRU values read successfully");
@@ -155,18 +133,14 @@ export class HruService {
     }
   }
 
-  async writeValues(data: {
-    power?: number;
-    temperature?: number;
-    mode?: number | string;
-  }): Promise<void> {
+  async writeValues(data: Record<string, number | string | boolean>): Promise<void> {
     const configData = this.getResolvedConfiguration();
     if (!configData) {
       const err = new HruNotConfiguredError();
       this.logger.warn({ err }, "HRU write attempt while not configured");
       throw err;
     }
-    const { settings, strategy } = configData;
+    const { settings, unit } = configData;
 
     if (!settings.host) {
       const err = new HruNotConfiguredError("HRU host not configured");
@@ -175,43 +149,52 @@ export class HruService {
     }
 
     try {
-
       const config = {
         host: settings.host,
         port: Number(settings.port) || 502,
         unitId: Number(settings.unitId) || 1,
       };
 
-      if (data.power !== undefined && strategy.powerCommands?.write) {
-        const { unit } = configData;
-        const maxAllowed = (unit.isConfigurable && settings.maxPower) || unit.maxValue;
-        const safePower = Math.min(data.power, maxAllowed);
+      const scriptVars: Record<string, number> = {};
 
-        await this.repository.executeScript(config, strategy.powerCommands.write, {
-          $power: safePower,
-        });
-      }
+      this.logger.info(
+        { data, unitVariables: unit.variables.map((v) => v.name) },
+        "HRU writeValues: input data and unit variables",
+      );
 
-      if (data.temperature !== undefined && strategy.temperatureCommands?.write) {
-        await this.repository.executeScript(config, strategy.temperatureCommands.write, {
-          $temperature: data.temperature,
-        });
-      }
-
-      if (data.mode !== undefined && strategy.modeCommands?.write) {
-        let modeVal: number;
-        if (typeof data.mode === "string") {
-          const entry = Object.entries(strategy.modeCommands.availableModes ?? {}).find(
-            ([, name]) => name === data.mode,
+      for (const [key, value] of Object.entries(data)) {
+        const variable = unit.variables.find((v) => v.name === key);
+        if (!variable) {
+          this.logger.warn(
+            { key, availableVariables: unit.variables.map((v) => v.name) },
+            "HRU writeValues: key not found in unit variables",
           );
-          modeVal = entry ? Number(entry[0]) : 0;
-        } else {
-          modeVal = data.mode;
+          continue;
         }
 
-        await this.repository.executeScript(config, strategy.modeCommands.write, {
-          $mode: modeVal,
-        });
+        if (typeof value === "boolean") {
+          scriptVars[`$${key}`] = value ? 1 : 0;
+        } else if (typeof value === "string") {
+          if (variable.type === "select" && variable.options) {
+            const optionMap = Object.fromEntries(
+              variable.options.map((o) => [o.value, typeof o.label === "string" ? o.label : o.label.text]),
+            );
+            scriptVars[`$${key}`] = resolveModeValue(optionMap, value);
+          } else {
+            const num = parseFloat(value);
+            if (!isNaN(num)) scriptVars[`$${key}`] = num;
+          }
+        } else {
+          scriptVars[`$${key}`] = value;
+        }
+      }
+
+      this.logger.info({ scriptVars }, "HRU writeValues: computed script variables");
+
+      if (Object.keys(scriptVars).length > 0) {
+        await this.repository.executeScript(config, unit.integration.write, scriptVars);
+      } else {
+        this.logger.warn("HRU writeValues: no script variables computed, skipping write script");
       }
 
       this.logger.info({ data }, "HRU values written successfully");
@@ -223,10 +206,10 @@ export class HruService {
 
   async executeKeepAlive(): Promise<number | null> {
     const configData = this.getResolvedConfiguration();
-    if (!configData?.strategy.keepAlive) return null;
+    if (!configData?.unit.integration.keepAlive) return null;
 
-    const { settings, strategy } = configData;
-    const keepAlive = strategy.keepAlive;
+    const { settings, unit } = configData;
+    const keepAlive = unit.integration.keepAlive!;
 
     try {
       if (!settings.host) return null;
@@ -237,21 +220,17 @@ export class HruService {
         unitId: Number(settings.unitId) || 1,
       };
 
-      await this.repository.executeScript(config, keepAlive!.commands);
+      await this.repository.executeScript(config, keepAlive.commands);
       this.logger.debug("HRU KeepAlive executed successfully");
-      return keepAlive!.period;
+      return keepAlive.period;
     } catch (err) {
       this.logger.warn({ err }, "Failed to execute HRU KeepAlive");
-      return keepAlive!.period; // Return period to retry later despite error
+      return keepAlive.period;
     }
   }
 
-  private getStrategyForUnit(unit: HeatRecoveryUnit): RegulationStrategy | undefined {
-    return this.strategies.find((s) => s.id === unit.regulationTypeId);
-  }
-
   private getUnitById(id: string): HeatRecoveryUnit | undefined {
-    return this.units.find((u) => u.name === id || u.code === id);
+    return this.units.find((u) => u.code === id || u.name === id);
   }
 
   public getResolvedConfiguration(settingsOverride?: HruSettings) {
@@ -259,9 +238,7 @@ export class HruService {
     if (!raw?.unit) return null;
     const unit = this.getUnitById(raw.unit);
     if (!unit) return null;
-    const strategy = this.getStrategyForUnit(unit);
-    if (!strategy) return null;
 
-    return { settings: raw, unit, strategy };
+    return { settings: raw, unit };
   }
 }

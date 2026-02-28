@@ -9,6 +9,17 @@ export function useTimelineModes(t: TFunction) {
   const [savingMode, setSavingMode] = useState(false);
   const tRef = useRef(t);
 
+  function mapModeForUi(mode: Mode): Mode {
+    if (mode.variables && Object.keys(mode.variables).length > 0) return mode;
+
+    const variables: Record<string, number> = {};
+    if (typeof mode.power === "number") variables.power = mode.power;
+    if (typeof mode.temperature === "number") variables.temperature = mode.temperature;
+    if (typeof mode.nativeMode === "number") variables.mode = mode.nativeMode;
+
+    return Object.keys(variables).length > 0 ? { ...mode, variables } : mode;
+  }
+
   useEffect(() => {
     tRef.current = t;
   }, [t]);
@@ -16,7 +27,7 @@ export function useTimelineModes(t: TFunction) {
   const loadModes = useCallback(async (unitId?: string) => {
     try {
       const data = await api.fetchTimelineModes(unitId);
-      setModes(data);
+      setModes(data.map(mapModeForUi));
     } catch {
       notifications.show({
         title: tRef.current("settings.timeline.notifications.loadFailedTitle"),
@@ -38,11 +49,13 @@ export function useTimelineModes(t: TFunction) {
         saved = await api.createTimelineMode(mode as Omit<Mode, "id">);
       }
 
+      const mappedSaved = mapModeForUi(saved);
+
       setModes((prev) => {
         if (isEdit) {
-          return prev.map((m) => (m.id === saved.id ? saved : m));
+          return prev.map((m) => (m.id === mappedSaved.id ? mappedSaved : m));
         }
-        return [...prev, saved];
+        return [...prev, mappedSaved];
       });
 
       notifications.show({

@@ -1,43 +1,52 @@
+import type { HruUnit } from "../api/hru";
 import { useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { resolveApiUrl, resolveWebSocketUrl } from "../utils/api";
 import { logger } from "../utils/logger";
 
 export type ConnectionState = "connected" | "connecting" | "disconnected" | "offline";
 export type ModbusState = "loading" | "reachable" | "unreachable";
-export type TemperatureUnit = "c" | "f";
 
 export interface ActiveMode {
   source: "manual" | "schedule" | "boost";
   modeName?: string;
 }
 
-export interface RegisterInfo {
-  unit?: string;
-  scale?: number;
-  precision?: number;
+export type LocalizedText = string | { text: string; translate: boolean };
+
+export type VariableClass = "power" | "temperature" | "mode" | "other";
+
+export interface HruVariable {
+  name: string;
+  type: "number" | "select" | "boolean";
+  editable: boolean;
+  label: LocalizedText;
+  unit?: LocalizedText;
+  class?: VariableClass;
+  min?: number;
+  max?: number;
+  step?: number;
+  options?: Array<{
+    value: number;
+    label: LocalizedText;
+  }>;
 }
 
 export type HruState =
   | {
-      power: number;
-      temperature: number;
-      mode: string;
-      maxPower?: number;
-      powerUnit?: string;
-      capabilities?: {
-        hasPowerControl?: boolean;
-        hasTemperatureControl?: boolean;
-        hasModeControl?: boolean;
-      };
+      values: Record<string, number | string | boolean>;
+      displayValues: Record<string, string | number | boolean>;
+      variables: HruVariable[];
       registers?: {
-        power?: RegisterInfo;
-        temperature?: RegisterInfo;
+        power?: { unit?: string; scale?: number; precision?: number };
+        temperature?: { unit?: string; scale?: number; precision?: number };
       };
     }
   | { error: string }
   | null;
 
 export function useDashboardStatus() {
+  const { t } = useTranslation();
   const [haStatus, setHaStatus] = useState<ConnectionState>("offline");
   const [haLoading, setHaLoading] = useState(true);
 
@@ -51,19 +60,12 @@ export function useDashboardStatus() {
   const [mqttStatus, setMqttStatus] = useState<"connected" | "disconnected" | "loading">("loading");
   const [mqttLastDiscovery, setMqttLastDiscovery] = useState<string | null>(null);
 
-  const [tempUnit, setTempUnit] = useState<TemperatureUnit>("c");
   const [activeMode, setActiveMode] = useState<ActiveMode | null>(null);
 
   const valvesWsRef = useRef<WebSocket | null>(null);
   const valvesReconnectRef = useRef<number | null>(null);
   const configRef = useRef({
-    maxPower: 100,
-    powerUnit: "%",
-    capabilities: {} as {
-      hasPowerControl?: boolean;
-      hasTemperatureControl?: boolean;
-      hasModeControl?: boolean;
-    },
+    variables: [] as HruVariable[],
   });
 
   // Load Modbus Settings and HRU Units
@@ -81,26 +83,15 @@ export function useDashboardStatus() {
     let canceled = false;
     async function loadData() {
       try {
-        const [settingsRes, unitsRes, tempUnitRes] = await Promise.all([
+        const [settingsRes, unitsRes] = await Promise.all([
           fetch(resolveApiUrl("/api/settings/hru")),
           fetch(resolveApiUrl("/api/hru/units")),
-          fetch(resolveApiUrl("/api/settings/temperature-unit")),
         ]);
 
         if (canceled) return;
 
         let unitId: string | null = null;
-        let allUnits: Array<{
-          id: string;
-          name: string;
-          maxValue?: number;
-          controlUnit?: string;
-          capabilities?: {
-            hasPowerControl?: boolean;
-            hasTemperatureControl?: boolean;
-            hasModeControl?: boolean;
-          };
-        }> = [];
+        let allUnits: HruUnit[] = [];
 
         if (settingsRes.ok) {
           const data = (await settingsRes.json()) as {
@@ -117,24 +108,13 @@ export function useDashboardStatus() {
 
         if (unitsRes.ok) {
           allUnits = await unitsRes.json();
-        }
-
-        if (tempUnitRes.ok) {
-          const { temperatureUnit } = (await tempUnitRes.json()) as {
-            temperatureUnit: TemperatureUnit;
-          };
-          if (temperatureUnit === "c" || temperatureUnit === "f") {
-            setTempUnit(temperatureUnit);
+          const activeUnit = allUnits.find((u) => u.id === unitId) || allUnits[0];
+          if (activeUnit) {
+            setHruName(activeUnit.name);
+            configRef.current = {
+              variables: activeUnit.variables || [],
+            };
           }
-        }
-
-        const activeUnit = allUnits.find((u) => u.id === unitId) || allUnits[0];
-        if (activeUnit) {
-          configRef.current = {
-            maxPower: activeUnit.maxValue ?? 100,
-            powerUnit: activeUnit.controlUnit ?? "%",
-            capabilities: activeUnit.capabilities ?? {},
-          };
         }
 
         setHruStatus((prev) => {
@@ -159,22 +139,32 @@ export function useDashboardStatus() {
     return () => {
       canceled = true;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
+
+    async function safeJson<T>(res: Response): Promise<T | null> {
+      try {
+        return (await res.json()) as T;
+      } catch {
+        return null;
+      }
+    }
+
     async function load() {
       try {
-        const res = await fetch(resolveApiUrl("/api/status"));
+        const res = await fetch(resolveApiUrl("/api/status"), { signal: controller.signal });
         if (!res.ok) {
           setHaLoading(false);
           return;
         }
-        const data = (await res.json()) as {
+        const data = (await safeJson<{
           ha?: { connection?: string };
           mqtt?: { connection?: "connected" | "disconnected"; lastDiscovery?: string | null };
           timeline?: ActiveMode | null;
-        };
+        }>(res)) || {};
         if (!active) return;
         const s = data.ha?.connection;
         if (s === "connected" || s === "connecting" || s === "disconnected" || s === "offline") {
@@ -185,7 +175,10 @@ export function useDashboardStatus() {
           setMqttLastDiscovery(data.mqtt.lastDiscovery ?? null);
         }
         if (data.timeline !== undefined) {
-          setActiveMode(data.timeline);
+          const translated = data.timeline?.modeName
+            ? { ...data.timeline, modeName: t(data.timeline.modeName, { defaultValue: data.timeline.modeName }) }
+            : data.timeline;
+          setActiveMode(translated);
         }
         setHaLoading(false);
       } catch {
@@ -196,24 +189,35 @@ export function useDashboardStatus() {
     const id = setInterval(load, 5000);
     return () => {
       active = false;
+      controller.abort();
       clearInterval(id);
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
+
+    async function safeJson<T>(res: Response): Promise<T | null> {
+      try {
+        return (await res.json()) as T;
+      } catch {
+        return null;
+      }
+    }
+
     async function probe() {
       try {
         const url = resolveApiUrl(
           `/api/modbus/status?host=${encodeURIComponent(modbusHost)}&port=${modbusPort}`,
         );
-        const res = await fetch(url);
+        const res = await fetch(url, { signal: controller.signal });
         if (!active) return;
         if (!res.ok) {
           setModbusStatus("unreachable");
           return;
         }
-        const data = (await res.json()) as { reachable?: boolean };
+        const data = (await safeJson<{ reachable?: boolean }>(res)) || {};
         setModbusStatus(data.reachable ? "reachable" : "unreachable");
       } catch {
         if (!active) return;
@@ -224,33 +228,47 @@ export function useDashboardStatus() {
     const id = setInterval(probe, 30_000);
     return () => {
       active = false;
+      controller.abort();
       clearInterval(id);
     };
   }, [modbusHost, modbusPort]);
 
   useEffect(() => {
     let active = true;
+    const controller = new AbortController();
+
+    async function safeJson<T>(res: Response): Promise<T | null> {
+      try {
+        return (await res.json()) as T;
+      } catch {
+        return null;
+      }
+    }
+
     async function poll() {
       try {
-        const res = await fetch(resolveApiUrl("/api/hru/read"));
+        const res = await fetch(resolveApiUrl("/api/hru/read"), { signal: controller.signal });
         if (!active) return;
         if (!res.ok) {
-          const detail = await res.text();
+          const detail = (await res.text())?.trim();
           setHruStatus({ error: detail || "Failed to read HRU" });
           return;
         }
-        const data = (await res.json()) as {
-          value?: { power: number; temperature: number; mode: string };
+        const data = await safeJson<{
+          values?: Record<string, number | string | boolean>;
+          displayValues?: Record<string, string | number | boolean>;
+          variables?: HruVariable[];
           registers?: {
             power?: { unit?: string; scale?: number; precision?: number };
             temperature?: { unit?: string; scale?: number; precision?: number };
           };
-        };
-        const val = data?.value;
-        if (val) {
+        }>(res);
+
+        if (data?.values && data.displayValues && data.variables) {
           setHruStatus({
-            ...val,
-            ...configRef.current,
+            values: data.values,
+            displayValues: data.displayValues,
+            variables: data.variables,
             registers: data.registers,
           });
           setModbusStatus("reachable");
@@ -268,6 +286,7 @@ export function useDashboardStatus() {
     const id = setInterval(poll, 10_000);
     return () => {
       active = false;
+      controller.abort();
       clearInterval(id);
     };
   }, []);
@@ -366,7 +385,6 @@ export function useDashboardStatus() {
     hruName,
     mqttStatus,
     mqttLastDiscovery,
-    tempUnit,
     activeMode,
   };
 }

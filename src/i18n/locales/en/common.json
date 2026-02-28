@@ -42,7 +42,7 @@
     "modes": {
       "off": "Off",
       "circulationWithVentilation": "Circulation with ventilation",
-      "circulation": "Circhulation",
+      "circulation": "Circulation",
       "ventilation": "Ventilation",
       "bypass": "Bypass",
       "disbalance": "Disbalance",
@@ -144,6 +144,7 @@
       "description": "Schedule when HRU and LUFTaTOR actions should occur throughout the week",
       "addEvent": "Add Event",
       "addMode": "Add mode",
+      "hruSettings": "HRU Settings",
       "modesTitle": "Modes",
       "modeName": "Mode name",
       "modePlaceholder": "e.g., Comfort",
@@ -191,7 +192,8 @@
       "modal": {
         "title": "Timeline Event",
         "save": "Save",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "test": "Test"
       },
       "notifications": {
         "loadFailedTitle": "Failed to load events",
@@ -212,6 +214,10 @@
         "modeUpdated": "Mode updated",
         "modeDeleteSuccessTitle": "Mode deleted",
         "modeDeleteSuccessMessage": "Mode deleted successfully",
+        "testStartedTitle": "Test started",
+        "testStartedMessage": "Manual/test mode was started.",
+        "testStoppedTitle": "Test stopped",
+        "testStoppedMessage": "Manual/test mode was stopped.",
         "invalidPower": "Power must be between 0 and 90",
         "invalidTemperature": "Temperature must be between -50 and 100",
         "toggleFailedTitle": "Failed to toggle event",
@@ -231,9 +237,12 @@
       "saveBeforeProbeHint": "Save your settings before probing to use the latest configuration.",
       "unitLabel": "HRU Unit",
       "unitPlaceholder": "Select a unit",
+      "unitRequired": "Unit is required",
       "hostLabel": "Modbus Host",
       "portLabel": "Port",
       "unitIdLabel": "Unit ID",
+      "portRequired": "Port is required",
+      "unitIdRequired": "Unit ID is required",
       "hostRequired": "Host is required",
       "save": "Save Settings",
       "probe": "Probe Connection",
@@ -258,7 +267,8 @@
         "title": "Unit Overrides",
         "maxPowerLabel": "Maximum Airflow/Power",
         "maxPowerDescription": "This value overrides the default limit for this unit. Useful for volumetric units (m3/h) to match your specific installation.",
-        "maxPowerHint": "Default: {{default}} {{unit}}"
+        "maxPowerHint": "Default: {{default}} {{unit}}",
+        "maxPowerRequired": "Max power is required for this unit"
       }
     },
     "mqtt": {
@@ -402,6 +412,13 @@
     "i18n": {
       "title": "Translation initialisation failed",
       "message": "UI texts may appear in English only. Please reload the page."
+    },
+    "hru": {
+      "failedToRead": "Failed to read HRU",
+      "invalidResponse": "Invalid HRU response",
+      "failedToLoadData": "Failed to load data",
+      "failedToParseWebSocket": "Failed to parse WebSocket message",
+      "webSocketError": "WebSocket error"
     }
   },
   "validation": {
@@ -445,6 +462,9 @@
       "label": "Modbus",
       "description": "Connect unit",
       "title": "Connect to your HRU via Modbus TCP",
+      "hostRequired": "Host is required",
+      "portRequired": "Port is required",
+      "unitIdRequired": "Unit ID is required",
       "hostLabel": "Host IP",
       "hostPlaceholder": "192.168.1.10",
       "portLabel": "Port",
@@ -458,6 +478,7 @@
       "description": "HA Integration",
       "title": "MQTT Configuration",
       "enable": "Enable MQTT",
+      "hostRequired": "Host is required when MQTT is enabled",
       "hostLabel": "Broker Host",
       "hostPlaceholder": "homeassistant",
       "portLabel": "Port",

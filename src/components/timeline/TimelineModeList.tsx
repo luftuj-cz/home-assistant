@@ -14,7 +14,6 @@ import { IconPlus, IconEdit, IconTrash } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { Mode } from "../../types/timeline";
 import { formatTemperature, getTemperatureLabel } from "../../utils/temperature";
-import type { TemperatureUnit } from "../../hooks/useDashboardStatus";
 
 interface TimelineModeListProps {
   modes: Mode[];
@@ -23,7 +22,6 @@ interface TimelineModeListProps {
   onDelete: (id: number) => void;
   t: TFunction;
   powerUnit?: string;
-  temperatureUnit?: TemperatureUnit;
 }
 
 export function TimelineModeList({
@@ -33,7 +31,6 @@ export function TimelineModeList({
   onDelete,
   t,
   powerUnit = "%",
-  temperatureUnit = "c",
 }: TimelineModeListProps) {
   return (
     <Card withBorder radius="md" padding="md">
@@ -133,8 +130,8 @@ export function TimelineModeList({
                         )}
                         {m.temperature !== undefined && (
                           <Badge size="md" variant="outline" color="red" radius="sm" fw={700}>
-                            {formatTemperature(m.temperature, temperatureUnit).toFixed(1)}
-                            {getTemperatureLabel(temperatureUnit)}
+                            {formatTemperature(m.temperature).toFixed(1)}
+                            {getTemperatureLabel()}
                           </Badge>
                         )}
                       </Group>

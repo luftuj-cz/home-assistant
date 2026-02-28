@@ -7,6 +7,11 @@
       "%": "%"
     },
     "nav": {
+      "units": {
+        "level": "stupeň",
+        "m3/h": "m³/h",
+        "%": "%"
+      },
       "dashboard": "Přehled",
       "valves": "Ventily",
       "timeline": "Časová osa",
@@ -64,7 +69,10 @@
       },
       "notifications": {
         "updatedTitle": "Jazyk změněn",
-        "updatedMessage": "Jazyk rozhraní byl nastaven na {{language}}."
+        "updatedMessage": "Jazyk rozhraní byl nastaven na {{language}}.",
+        "failedTitle": "Chyba změny jazyka",
+        "failedMessage": "{{message}}",
+        "unknown": "Neznámá chyba"
       }
     },
     "theme": {
@@ -112,6 +120,7 @@
       "title": "Časová osa",
       "description": "Naplánujte chování rekuperační jednotky a akce LUFTaTORu v průběhu týdne",
       "addEvent": "Přidat událost",
+      "hruSettings": "Nastavení rekuperace",
       "addMode": "Přidat režim",
       "modesTitle": "Režimy",
       "modeName": "Název režimu",
@@ -160,7 +169,8 @@
       "modal": {
         "title": "Událost časové osy",
         "save": "Uložit",
-        "cancel": "Zrušit"
+        "cancel": "Zrušit",
+        "test": "Test"
       },
       "notifications": {
         "loadFailedTitle": "Chyba načítání událostí",
@@ -179,6 +189,12 @@
         "modeNameRequired": "Název režimu je povinný",
         "modeCreated": "Režim vytvořen",
         "modeUpdated": "Režim aktualizován",
+        "modeDeleteSuccessTitle": "Režim smazán",
+        "modeDeleteSuccessMessage": "Režim úspěšně smazán",
+        "testStartedTitle": "Test spuštěn",
+        "testStartedMessage": "Manuální/testovací režim byl spuštěn.",
+        "testStoppedTitle": "Test zastaven",
+        "testStoppedMessage": "Manuální/testovací režim byl zastaven.",
         "invalidPower": "Výkon musí být mezi 0 a 90",
         "invalidTemperature": "Teplota musí být mezi -50 a 100",
         "toggleFailedTitle": "Chyba přepnutí události",
@@ -198,9 +214,12 @@
       "saveBeforeProbeHint": "Před testováním nastavení uložte, aby se použila aktuální konfigurace.",
       "unitLabel": "Rekuperační jednotka",
       "unitPlaceholder": "Vyberte jednotku",
+      "unitRequired": "Jednotka je povinná",
       "hostLabel": "Modbus host",
       "portLabel": "Port",
       "unitIdLabel": "ID jednotky",
+      "portRequired": "Port je povinný",
+      "unitIdRequired": "ID jednotky je povinné",
       "hostRequired": "Host je povinný",
       "save": "Uložit nastavení",
       "probe": "Testovat připojení",
@@ -208,6 +227,7 @@
       "powerLabel": "Výkon",
       "temperatureLabel": "Teplota",
       "modeLabel": "Režim",
+      "maxPowerLabel": "Maximální průtok/výkon",
       "notifications": {
         "loadFailedTitle": "Chyba načítání dat rekuperační jednotky",
         "loadFailedMessage": "Nepodařilo se načíst dostupné jednotky nebo aktuální nastavení",
@@ -224,7 +244,8 @@
         "title": "Vlastní limity jednotky",
         "maxPowerLabel": "Maximální průtok/výkon",
         "maxPowerDescription": "Tato hodnota přepíše výchozí limit pro tuto jednotku. Užitečné pro objemové jednotky (m3/h) pro přizpůsobení vaší konkrétní instalaci.",
-        "maxPowerHint": "Výchozí: {{default}} {{unit}}"
+        "maxPowerHint": "Výchozí: {{default}} {{unit}}",
+        "maxPowerRequired": "Maximální průtok/výkon je povinný pro tuto jednotku"
       }
     },
     "mqtt": {
@@ -325,6 +346,7 @@
   },
   "dashboard": {
     "title": "Přehled",
+    "description": "Stav vašeho ventilačního systému a připojených služeb v reálném čase.",
     "systemStatus": "Přehled stavu systému",
     "boostTitle": "Manuální režim",
     "boostDescription": "Dočasné přepsání časového plánu větrání.",
@@ -399,6 +421,13 @@
     "i18n": {
       "title": "Inicializace překladů selhala",
       "message": "Texty uživatelského rozhraní se zobrazí pouze anglicky. Obnovte prosím stránku."
+    },
+    "hru": {
+      "failedToRead": "Nepodařilo se přečíst rekuperační jednotku",
+      "invalidResponse": "Neplatná odpověď rekuperační jednotky",
+      "failedToLoadData": "Nepodařilo se načíst data",
+      "failedToParseWebSocket": "Nepodařilo se zpracovat zprávu WebSocketu",
+      "webSocketError": "Chyba WebSocketu"
     }
   },
   "onboarding": {
@@ -433,6 +462,9 @@
       "label": "Modbus",
       "description": "Připojení jednotky",
       "title": "Připojte se k rekuperaci přes Modbus TCP",
+      "hostRequired": "Host je povinný",
+      "portRequired": "Port je povinný",
+      "unitIdRequired": "ID jednotky je povinné",
       "hostLabel": "IP adresa hostitele",
       "hostPlaceholder": "192.168.1.10",
       "portLabel": "Port",
@@ -445,6 +477,7 @@
       "label": "MQTT",
       "description": "Integrace do HA",
       "title": "Konfigurace MQTT",
+      "hostRequired": "Host je povinný, pokud je MQTT povoleno",
       "enable": "Povolit MQTT",
       "hostLabel": "Broker hostitel",
       "hostPlaceholder": "homeassistant",

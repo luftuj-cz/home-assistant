@@ -1,11 +1,12 @@
 import { z } from "zod";
+import { SUPPORTED_LANGUAGES } from "../types";
 
 // HRU Settings Schema
 export const hruSettingsInputSchema = z.object({
   host: z.string().trim().min(1, "Host is required"),
   port: z.number().int().min(1).max(65535, "Port must be between 1 and 65535"),
-  unitId: z.number().int().min(0).max(255, "Unit ID must be between 0 and 255").optional(),
-  unit: z.string().optional(),
+  unitId: z.number().int().min(0).max(255, "Unit ID must be between 0 and 255"),
+  unit: z.string().trim().min(1, "Unit is required"),
   maxPower: z.number().int().min(1, "Max power must be at least 1").optional(),
 });
 
@@ -43,18 +44,15 @@ export const themeSettingInputSchema = z.object({
 
 // Language Setting Schema
 export const languageSettingInputSchema = z.object({
-  language: z.enum(["en", "cs"]),
+  language: z.enum(SUPPORTED_LANGUAGES),
 });
 
-// Temperature Unit Setting Schema
-export const temperatureUnitInputSchema = z.object({
-  temperatureUnit: z.enum(["c", "f"]),
-});
 
 // Debug Mode Schema
 export const debugModeInputSchema = z.object({
   enabled: z.boolean(),
 });
+
 
 // Type exports
 export type HruSettingsInput = z.infer<typeof hruSettingsInputSchema>;
@@ -63,5 +61,5 @@ export type MqttTestInput = z.infer<typeof mqttTestInputSchema>;
 export type AddonModeInput = z.infer<typeof addonModeInputSchema>;
 export type ThemeSettingInput = z.infer<typeof themeSettingInputSchema>;
 export type LanguageSettingInput = z.infer<typeof languageSettingInputSchema>;
-export type TemperatureUnitInput = z.infer<typeof temperatureUnitInputSchema>;
 export type DebugModeInput = z.infer<typeof debugModeInputSchema>;
+

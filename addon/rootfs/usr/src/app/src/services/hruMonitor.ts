@@ -33,8 +33,8 @@ export class HruMonitor {
 
     this.mqttService.on("connect", () => {
       if (this.isRunning) {
-        this.logger.info("HRU Monitor: MQTT connected, triggering immediate state refresh");
-        void this.runCycle(false); // State only, let MqttService handle discovery
+        this.logger.info("HRU Monitor: MQTT connected, triggering state refresh");
+        void this.runCycle(false);
       }
     });
 
@@ -56,6 +56,11 @@ export class HruMonitor {
   private isRefreshing = false;
 
   private async runCycle(sendDiscovery: boolean): Promise<void> {
+    this.logger.info(
+      { sendDiscovery, isRefreshing: this.isRefreshing },
+      "HRU Monitor: runCycle called",
+    );
+
     if (this.isRefreshing) {
       if (sendDiscovery) {
         this.logger.debug(
@@ -75,10 +80,7 @@ export class HruMonitor {
 
       if (sendDiscovery) {
         this.logger.info("HRU Monitor: Attempting MQTT discovery refresh...");
-        const success = await this.mqttService.publishDiscovery(
-          config.unit,
-          config.strategy.capabilities,
-        );
+        const success = await this.mqttService.publishDiscovery(config.unit);
         if (success) {
           this.mqttService.setLastDiscoveryTime(new Date().toISOString());
           this.logger.info("HRU Monitor: MQTT discovery refresh successful");
@@ -94,14 +96,13 @@ export class HruMonitor {
         const boostActiveName = this.timelineScheduler.getActiveBoostName();
 
         this.logger.info(
-          { ...result.value, addonMode, boostRemaining, boostActiveName },
+          { ...result.displayValues, addonMode, boostRemaining, boostActiveName },
           "HRU Monitor: Read successful, publishing to MQTT",
         );
 
         await this.mqttService.publishState({
-          ...result.value,
+          ...result.displayValues,
           mode_formatted: addonMode,
-          native_mode_formatted: result.value.mode,
           boost_remaining: boostRemaining,
           boost_name: boostActiveName || "-",
         });
