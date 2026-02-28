@@ -396,7 +396,7 @@
   },
   "valves": {
     "title": "Zóny LUFTaTORu",
-    "description": "Ovládejte servopohony ventilů Luftuj v jednotlivých místnostech.",
+    "description": "Ovládejte servopohony ventilů LUFTaTORu v jednotlivých místnostech.",
     "refreshAria": "Obnovit ventily",
     "status": {
       "open": "OTEVŘENO",

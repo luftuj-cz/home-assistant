@@ -712,7 +712,7 @@ export class MqttService extends EventEmitter {
 
     const device = {
       identifiers: [`luftuj_hru_device_${stableId}`],
-      name: `Luftuj (${unit.name})`,
+      name: `LUFTaTOR (${unit.name})`,
       manufacturer: "Luftuj s.r.o.",
       model: unit.code || "HRU",
     };

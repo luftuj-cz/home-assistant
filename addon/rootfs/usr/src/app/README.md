@@ -1,4 +1,4 @@
-# Luftujha Backend (Bun + Express)
+# LUFTaTOR Backend (Bun + Express)
 
 This directory contains the Home Assistant add-on backend implemented with Bun and Express. It replaces the previous Python/FastAPI service.
 

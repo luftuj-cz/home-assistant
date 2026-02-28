@@ -1,6 +1,6 @@
-# Luftator Home Assistant Add-on
+# LUFTaTOR Home Assistant Add-on
 
-The Luftator add-on, built by **Luftuj**, provides a real-time dashboard for valves exposed as `number.luftator_*` entities in Home Assistant. A single Home Assistant environment can control multiple Luftator hardware controllers at once. The add-on discovers all matching entities, mirrors their state using the Supervisor WebSocket API, and offers control sliders with advanced automation through a built-in Timeline Scheduler.
+The LUFTaTOR add-on, built by **Luftuj**, provides a real-time dashboard for valves exposed as `number.luftator_*` entities in Home Assistant. A single Home Assistant environment can control multiple Luftator hardware controllers at once. The add-on discovers all matching entities, mirrors their state using the Supervisor WebSocket API, and offers control sliders with advanced automation through a built-in Timeline Scheduler.
 
 ## Features
 
@@ -36,7 +36,7 @@ When configured, the add-on will publish:
 
 1. Copy the `addon/` directory into your Home Assistant add-ons folder (e.g., `/addons/luftujha`).
 2. From the Home Assistant UI, navigate to **Settings → Add-ons → Add-on Store** and use the three-dot menu to **Repositories**, then add the repository containing this add-on.
-3. Locate "Luftujha" in the store, install it, and enable Ingress.
+3. Locate "LUFTaTORha" in the store, install it, and enable Ingress.
 4. Start the add-on.
 
 ## Usage

@@ -41,7 +41,7 @@ import { closeAllSharedClients } from "./shared/modbus/client";
 loadConfig();
 const config = getConfig();
 const logger = createLogger(config.logLevel);
-logger.info("Luftuj configuration loaded");
+logger.info("LUFTaTOR configuration loaded");
 
 const app = express();
 app.disable("x-powered-by");
@@ -262,7 +262,7 @@ async function start() {
   });
 
   httpServer.listen(port, host, () => {
-    logger.info({ port }, "Luftuj backend listening");
+    logger.info({ port }, "LUFTaTOR backend listening");
   });
 }
 
@@ -271,7 +271,7 @@ let isShuttingDown = false;
 async function shutdown(signal: string) {
   if (isShuttingDown) return;
   isShuttingDown = true;
-  logger.info({ signal }, "Shutting down Luftuj backend");
+  logger.info({ signal }, "Shutting down LUFTaTOR backend");
 
   // Force exit if graceful shutdown takes too long
   setTimeout(() => {

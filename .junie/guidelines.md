@@ -1,6 +1,6 @@
 # Development Guidelines
 
-This document provides essential information for advanced developers working on the Luftuj Home Assistant project.
+This document provides essential information for advanced developers working on the LUFTaTOR Home Assistant project.
 
 ## 0. Project Structure
 

@@ -1,6 +1,6 @@
-# Luftator Home Assistant Frontend
+# LUFTaTOR Home Assistant Frontend
 
-React + TypeScript UI delivered by **Luftuj** for managing **Luftator** ventilation valves. One Home Assistant instance can supervise multiple Luftator controllers through this add-on. The application is built with Vite and Mantine, and is now completely driven by **Bun** for dependency management and scripts.
+React + TypeScript UI delivered by **LUFTaTOR** for managing **Luftator** ventilation valves. One Home Assistant instance can supervise multiple Luftator controllers through this add-on. The application is built with Vite and Mantine, and is now completely driven by **Bun** for dependency management and scripts.
 
 ## Prerequisites
 

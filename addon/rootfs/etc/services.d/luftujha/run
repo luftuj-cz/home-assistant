@@ -3,10 +3,10 @@
 
 set -euo pipefail
 
-bashio::log.info "Starting the Luftuj backend service..."
+bashio::log.info "Starting the LUFTaTOR backend service..."
 
 function handle_error() {
-    bashio::log.error "An error occurred while starting the Luftuj backend service."
+    bashio::log.error "An error occurred while starting the LUFTaTOR backend service."
     bashio::log.error "Error on line $1: Command '$2' exited with status $3"
     exit 1
 }
