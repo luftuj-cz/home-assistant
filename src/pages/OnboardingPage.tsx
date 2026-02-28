@@ -241,8 +241,21 @@ export function OnboardingPage() {
           password: data.password,
         }),
       });
+      if (!res.ok) {
+        const detail = await res.text();
+        let errorMessage = detail;
+        try {
+          const json = JSON.parse(detail);
+          errorMessage = json.detail || detail;
+        } catch {
+          logger.warn("Failed to parse MQTT test error response", { detail });
+        }
+        throw new Error(errorMessage || "Connection failed");
+      }
+
       const json = await res.json();
-      if (!json.success) throw new Error(json.detail || "Connection failed");
+      const success = json?.success ?? json?.data?.success;
+      if (!success) throw new Error(json?.detail || "Connection failed");
       return json;
     },
     onSuccess: () => {

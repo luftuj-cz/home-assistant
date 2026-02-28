@@ -366,12 +366,12 @@ export class MqttService extends EventEmitter {
         protocolVersion: 5,
         connectTimeout: 5000,
         reconnectPeriod: 0,
-        manualConnect: true,
         family: 4,
       } as mqtt.IClientOptions & { family?: 4 | 6 });
 
       let finished = false;
       let timer: ReturnType<typeof setTimeout> | null = null;
+      let errorMessage: string | undefined;
 
       function finish(ok: boolean, msg?: string) {
         if (finished) return;
@@ -382,16 +382,22 @@ export class MqttService extends EventEmitter {
       }
 
       client.on("connect", () => finish(true));
-      client.on("error", (e) => finish(false, e.message));
-      client.on("close", () => finish(false, "Connection closed"));
 
-      try {
-        client.connect();
-      } catch (e: unknown) {
-        finish(false, e instanceof Error ? e.message : "Unknown error");
-      }
+      client.on("error", (e) => {
+        errorMessage = e.message;
+      });
 
-      timer = setTimeout(() => finish(false, "Timeout"), 6000);
+      client.on("close", () => {
+        if (!finished) {
+          finish(false, errorMessage || "Connection closed");
+        }
+      });
+
+      timer = setTimeout(() => {
+        if (!finished) {
+          finish(false, errorMessage || "Connection timeout");
+        }
+      }, 6000);
     });
   }
 
