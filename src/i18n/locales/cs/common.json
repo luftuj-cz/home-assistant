@@ -39,6 +39,7 @@
     "power": "Výkon",
     "temperature": "Teplota",
     "mode": "Režim",
+    "level": "Stupeň",
     "modes": {
       "off": "Vypnuto",
       "circulationWithVentilation": "Cirkulace s větráním",

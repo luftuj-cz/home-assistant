@@ -39,6 +39,7 @@
     "power": "Power",
     "temperature": "Temperature",
     "mode": "Mode",
+    "level": "Level",
     "modes": {
       "off": "Off",
       "circulationWithVentilation": "Circulation with ventilation",
