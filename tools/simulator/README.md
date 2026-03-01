@@ -15,3 +15,4 @@ hru_simulator <port> <hru_type>
 Supported HRU types:
 - xvent
 - meltem
+- atrea-rd5
