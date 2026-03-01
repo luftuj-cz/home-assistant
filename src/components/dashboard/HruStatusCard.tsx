@@ -120,10 +120,12 @@ export function HruStatusCard({ status, hruName, t, activeMode }: HruStatusCardP
   }
 
   const { values, displayValues, variables } = status;
-  const powerVar = variables.find((v) => v.class === "power" || v.name === "power");
-  const tempVars = variables.filter((v) => v.class === "temperature");
-  const modeVar = variables.find((v) => v.class === "mode" || v.name === "mode");
-  const otherVars = variables.filter(
+  // Filter to only show variables explicitly marked for dashboard (default false)
+  const dashboardVars = variables.filter((v) => v.onDashboard === true);
+  const powerVar = dashboardVars.find((v) => v.class === "power" || v.name === "power");
+  const tempVars = dashboardVars.filter((v) => v.class === "temperature");
+  const modeVar = dashboardVars.find((v) => v.class === "mode" || v.name === "mode");
+  const otherVars = dashboardVars.filter(
     (v) =>
       v.class !== "power" &&
       v.class !== "temperature" &&

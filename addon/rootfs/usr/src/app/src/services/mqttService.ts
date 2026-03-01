@@ -738,8 +738,8 @@ export class MqttService extends EventEmitter {
     let entityCount = 0;
     this.logger.info({ unitId }, "MQTT: Starting discovery publishing...");
 
-    // Dynamic variables
-    for (const variable of unit.variables) {
+    // Dynamic variables - only those explicitly marked for dashboard (default false)
+    for (const variable of unit.variables.filter((v) => v.onDashboard === true)) {
       const label = this.getLocalizedText(variable.label);
       const unitOfMeasure = variable.unit ? this.getLocalizedText(variable.unit) : undefined;
 
