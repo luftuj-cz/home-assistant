@@ -23,8 +23,10 @@ func NewMeltem() *Meltem {
 }
 
 func (m *Meltem) Configure(serv *Server) {
+	OnReadHoldingRegisters(serv, func(register uint16, numRegs int) ([]uint16, *Exception) {
+		return []uint16{}, &IllegalDataAddress
+	})
 	OnReadInputRegisters(serv, func(register uint16, numRegs int) ([]uint16, *Exception) {
-		log.Printf("modbus_read_input_registers: register=%d, numRegs=%d\n", register, numRegs)
 		if register == 41020 && numRegs == 1 {
 			return []uint16{uint16(m.outFlow)}, &Success
 		}
@@ -34,7 +36,6 @@ func (m *Meltem) Configure(serv *Server) {
 		return []uint16{}, &IllegalDataAddress
 	})
 	OnWriteHoldingRegister(serv, func(register uint16, value uint16) *Exception {
-		log.Printf("modbus_write_holding_register: register=%d, value=%d\n", register, value)
 		if register == 41120 {
 			m.editMode = int(value)
 			return &Success
@@ -57,5 +58,8 @@ func (m *Meltem) Configure(serv *Server) {
 		}
 
 		return &IllegalDataAddress
+	})
+	OnWriteHoldingRegisters(serv, func(register uint16, values []uint16) *Exception {
+		return &IllegalFunction
 	})
 }

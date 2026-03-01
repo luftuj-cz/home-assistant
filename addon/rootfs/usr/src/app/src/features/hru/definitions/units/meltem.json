@@ -48,12 +48,12 @@
       {
         "type": "assignment",
         "variable": "$flowOut",
-        "value": { "function": "modbus_read_holding", "args": [41020] }
+        "value": { "function": "modbus_read_input", "args": [41020] }
       },
       {
         "type": "assignment",
         "variable": "$flowIn",
-        "value": { "function": "modbus_read_holding", "args": [41021] }
+        "value": { "function": "modbus_read_input", "args": [41021] }
       }
     ],
     "write": [
