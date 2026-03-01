@@ -132,6 +132,13 @@ const migrations: Migration[] = [
     id: "008_add_mode_variables",
     statements: [`ALTER TABLE timeline_modes ADD COLUMN variables TEXT;`],
   },
+  {
+    id: "009_drop_valve_history",
+    statements: [
+      `DROP INDEX IF EXISTS idx_valve_history_entity_id_recorded_at;`,
+      `DROP TABLE IF EXISTS valve_history;`,
+    ],
+  },
 ];
 
 let db: Database | null = null;
@@ -430,15 +437,6 @@ export function storeValveSnapshots(records: ValveSnapshotRecord[]): void {
         prepared.upsertController.run(record.controller_id, item.controllerName ?? null);
       }
       prepared.upsertValveState.run(
-        record.entity_id,
-        record.controller_id,
-        record.name,
-        record.value,
-        record.state,
-        record.timestamp,
-        record.attributes,
-      );
-      prepared.insertValveHistory.run(
         record.entity_id,
         record.controller_id,
         record.name,
