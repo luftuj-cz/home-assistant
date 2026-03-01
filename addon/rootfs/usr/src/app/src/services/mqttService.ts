@@ -8,6 +8,8 @@ import { LANGUAGE_SETTING_KEY } from "../types";
 import { getAppSetting } from "./database";
 import type { SettingsRepository } from "../features/settings/settings.repository";
 import type { TimelineScheduler } from "./timelineScheduler";
+import enCommon from "../locales/en/common.json";
+import csCommon from "../locales/cs/common.json";
 
 const DISCOVERY_PREFIX = "homeassistant";
 const BASE_TOPIC = "luftuj/hru";
@@ -27,53 +29,67 @@ type LocalizedStrings = {
   level_unit: string;
 };
 
-const LOCALIZED_STRINGS: Record<string, LocalizedStrings> = {
-  en: {
-    power: "Requested Power",
-    temperature: "Requested Temperature",
-    mode: "Mode",
-    native_mode: "Native Mode",
-    boost_duration: "Boost Duration",
-    cancel_boost: "Cancel Boost",
-    boost_label: "Boost: {{name}}",
-    boost_remaining: "Boost Time Remaining",
-    boost_mode: "Active Boost",
-    level_unit: "level",
-  },
-  cs: {
-    power: "Požadovaný výkon",
-    temperature: "Požadovaná teplota",
-    mode: "Režim",
-    native_mode: "Režim rekuperační jednotky",
-    boost_duration: "Doba manuálního režimu",
-    cancel_boost: "Zrušit manuální režim",
-    boost_label: "Manuální režim: {{name}}",
-    boost_remaining: "Zbývající čas manuálního režimu",
-    boost_mode: "Aktivní manuální režim",
-    level_unit: "stupeň",
-  },
+type LocaleResource = typeof enCommon;
+
+const RESOURCES: Record<string, LocaleResource> = {
+  en: enCommon,
+  cs: csCommon,
 };
 
-const MODE_LABELS: Record<string, Record<string, string>> = {
-  en: {
-    "hru.modes.off": "Off",
-    "hru.modes.ventilation": "Ventilation",
-    "hru.modes.circulationWithVentilation": "Circulation with ventilation",
-    "hru.modes.circulation": "Circulation",
-    "hru.modes.bypass": "Bypass",
-    "hru.modes.disbalance": "Disbalance",
-    "hru.modes.overpressure": "Overpressure",
-  },
-  cs: {
-    "hru.modes.off": "Vypnuto",
-    "hru.modes.ventilation": "Větrání",
-    "hru.modes.circulationWithVentilation": "Cirkulace s větráním",
-    "hru.modes.circulation": "Cirkulace",
-    "hru.modes.bypass": "Bypass",
-    "hru.modes.disbalance": "Disbalance",
-    "hru.modes.overpressure": "Přetlak",
-  },
+const FALLBACK_STRINGS: LocalizedStrings = {
+  power: "Requested Power",
+  temperature: "Requested Temperature",
+  mode: "Mode",
+  native_mode: "Native Mode",
+  boost_duration: "Boost Duration",
+  cancel_boost: "Cancel Boost",
+  boost_label: "Boost: {{name}}",
+  boost_remaining: "Boost Time Remaining",
+  boost_mode: "Active Boost",
+  level_unit: "level",
 };
+
+const FALLBACK_MODE_LABELS: Record<string, string> = {
+  "hru.modes.off": "Off",
+  "hru.modes.ventilation": "Ventilation",
+  "hru.modes.circulationWithVentilation": "Circulation with ventilation",
+  "hru.modes.circulation": "Circulation",
+  "hru.modes.bypass": "Bypass",
+  "hru.modes.disbalance": "Disbalance",
+  "hru.modes.overpressure": "Overpressure",
+};
+
+function getResource(lang: string): LocaleResource | null {
+  return RESOURCES[lang] ?? null;
+}
+
+function getDiscoveryStrings(lang: string): LocalizedStrings {
+  const res = getResource(lang) ?? getResource("en");
+
+  return {
+    power: res?.hru?.power ?? FALLBACK_STRINGS.power,
+    temperature: res?.hru?.temperature ?? FALLBACK_STRINGS.temperature,
+    mode: res?.hru?.mode ?? FALLBACK_STRINGS.mode,
+    native_mode: res?.hru?.nativeMode ?? FALLBACK_STRINGS.native_mode,
+    boost_duration: res?.dashboard?.boostDuration ?? FALLBACK_STRINGS.boost_duration,
+    cancel_boost: res?.dashboard?.boostCancel ?? FALLBACK_STRINGS.cancel_boost,
+    boost_label: res?.dashboard?.activeMode?.boost ?? FALLBACK_STRINGS.boost_label,
+    boost_remaining: res?.dashboard?.boostTimeRemaining ?? FALLBACK_STRINGS.boost_remaining,
+    boost_mode: res?.dashboard?.boostActiveMode ?? FALLBACK_STRINGS.boost_mode,
+    level_unit: res?.app?.units?.level ?? FALLBACK_STRINGS.level_unit,
+  };
+}
+
+function getModeLabels(lang: string): Record<string, string> {
+  const res = getResource(lang) ?? getResource("en");
+  const modes = res?.hru?.modes ?? {};
+  return {
+    ...FALLBACK_MODE_LABELS,
+    ...Object.fromEntries(
+      Object.entries(modes).map(([key, value]) => [`hru.modes.${key}`, String(value)]),
+    ),
+  };
+}
 
 export class MqttService extends EventEmitter {
   private client: mqtt.MqttClient | null = null;
@@ -269,7 +285,7 @@ export class MqttService extends EventEmitter {
 
     const langRaw = getAppSetting(LANGUAGE_SETTING_KEY);
     const lang = typeof langRaw === "string" && langRaw ? (langRaw.split("-")[0] ?? "en") : "en";
-    const modeStrings = MODE_LABELS[lang] ?? MODE_LABELS.en!;
+    const modeStrings = getModeLabels(lang);
 
     function resolveModeLabel(val?: string | number) {
       if (val === undefined || val === null) return undefined;
@@ -732,16 +748,16 @@ export class MqttService extends EventEmitter {
       },
     ];
 
-    const strings: LocalizedStrings =
-      LOCALIZED_STRINGS[this.settingsRepo.getLanguage()] ?? LOCALIZED_STRINGS.en!;
+    const lang = this.settingsRepo.getLanguage();
+    const strings: LocalizedStrings = getDiscoveryStrings(lang);
 
     let entityCount = 0;
     this.logger.info({ unitId }, "MQTT: Starting discovery publishing...");
 
     // Dynamic variables - only those explicitly marked for dashboard (default false)
     for (const variable of unit.variables.filter((v) => v.onDashboard === true)) {
-      const label = this.getLocalizedText(variable.label);
-      const unitOfMeasure = variable.unit ? this.getLocalizedText(variable.unit) : undefined;
+      const label = this.getLocalizedText(variable.label, lang);
+      const unitOfMeasure = variable.unit ? this.getLocalizedText(variable.unit, lang) : undefined;
 
       let deviceClass = undefined;
       let icon = "mdi:eye";
@@ -852,9 +868,15 @@ export class MqttService extends EventEmitter {
     this.logger.info({ unitId, stableId, entityCount }, "MQTT: Discovery cycle complete");
   }
 
-  private getLocalizedText(text: LocalizedText): string {
+  private getLocalizedText(text: LocalizedText, lang: string): string {
     if (typeof text === "string") return text;
-    // In the future we can use translate property and i18next if needed
+    if (text.translate) {
+      const res = getResource(lang) ?? getResource("en");
+      const value = text.text
+        .split(".")
+        .reduce<unknown>((acc, key) => (acc && typeof acc === "object" ? acc[key as keyof typeof acc] : undefined), res);
+      if (typeof value === "string") return value;
+    }
     return text.text;
   }
 
