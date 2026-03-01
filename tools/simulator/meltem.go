@@ -54,10 +54,10 @@ func (m *Meltem) Configure(serv *Server) {
 				m.outFlow = m.reqOutFlow
 				m.editMode = 0
 				log.Printf(">>> Meltem setting: inFlow=%d, outFlow=%d\n", m.inFlow, m.outFlow)
-			} else {
-				log.Printf("Meltem: invalid edit mode: %d, confirm value: %d\n", m.editMode, value)
-				return &IllegalDataValue
+				return &Success
 			}
+			log.Printf("Meltem: invalid edit mode: %d, confirm value: %d\n", m.editMode, value)
+			return &IllegalDataValue
 		}
 
 		return &IllegalDataAddress
