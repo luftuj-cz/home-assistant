@@ -43,37 +43,7 @@ export default defineConfig({
   base: "./",
   plugins: [react()],
   customLogger: filteredLogger,
-  build: {
-    rollupOptions: {
-      output: {
-        manualChunks(id) {
-          if (id.includes("node_modules")) {
-            if (id.includes("@mantine")) {
-              return "mantine";
-            }
-            if (id.includes("@tabler/icons-react")) {
-              return "icons";
-            }
-            if (id.includes("framer-motion")) {
-              return "framer-motion";
-            }
-            if (id.includes("react-big-calendar")) {
-              return "calendar";
-            }
-            if (
-              id.includes("react") ||
-              id.includes("react-dom") ||
-              id.includes("@tanstack") ||
-              id.includes("i18next")
-            ) {
-              return "react-tanstack";
-            }
-            return "vendor";
-          }
-        },
-      },
-    },
-  },
+  build: {},
   server: {
     proxy: {
       "/api": {
