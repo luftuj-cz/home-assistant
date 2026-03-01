@@ -1,8 +1,121 @@
 {
   "code": "xvent",
   "name": "XVent",
-  "regulationTypeId": "modbus-xvent",
-  "controlUnit": "level",
-  "maxValue": 7,
-  "isConfigurable": false
+  "variables": [
+    {
+      "name": "power",
+      "type": "number",
+      "editable": true,
+      "label": { "text": "hru.power", "translate": true },
+      "unit": { "text": "hru.level", "translate": true },
+      "min": 0,
+      "max": 7,
+      "maxConfigurable": false,
+      "step": 1,
+      "class": "power"
+    },
+    {
+      "name": "bypass",
+      "type": "boolean",
+      "editable": true,
+      "label": {"text": "hru.bypass", "translate": true}
+    },
+    {
+      "name": "boost",
+      "type": "boolean",
+      "editable": true,
+      "label": { "text": "hru.boost", "translate": true }
+    }
+  ],
+  "interface-type": "modbus-tcp",
+  "integration": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$frontPanel",
+        "value": { "function": "modbus_read_holding", "args": ["0x9C40"] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$power",
+        "value": {
+          "function": "bit_and",
+          "args": [
+            {
+              "function": "bit_rshift",
+              "args": ["$frontPanel", 6]
+            },
+            "0xF"
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$boost",
+        "value": {
+          "function": "non_zero",
+          "args": [
+            {
+              "function": "bit_and",
+              "args": ["$frontPanel", "0x10"]
+            }
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$bypass",
+        "value": {
+          "function": "non_zero",
+          "args": [
+            {
+              "function": "bit_and",
+              "args": ["$frontPanel", "0x4"]
+            }
+          ]
+        }
+      }
+    ],
+    "write": [
+      {
+        "type": "assignment",
+        "variable": "$tmpFrontPanel",
+        "value": {
+          "function": "bit_and",
+          "args": [{ "function": "modbus_read_holding", "args": ["0x9C40"] }, "0xFC0B"]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$tmpFrontPanel",
+        "value": {
+          "function": "bit_or",
+          "args": ["$tmpFrontPanel", { "function": "bit_lshift", "args": ["$power", 6] }]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$tmpFrontPanel",
+        "value": {
+          "function": "bit_or",
+          "args": ["$tmpFrontPanel", { "function": "bit_lshift", "args": ["$bypass", 2] }]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$tmpFrontPanel",
+        "value": {
+          "function": "bit_or",
+          "args": ["$tmpFrontPanel", { "function": "bit_lshift", "args": ["$boost", 4] }]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding_multi",
+          "args": ["0x9C40", "$tmpFrontPanel"]
+        }
+      }
+    ]
+  }
 }

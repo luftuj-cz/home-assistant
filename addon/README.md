@@ -1,6 +1,6 @@
-# Luftuj Home Assistant Add-on
+# LUFTaTOR Home Assistant Add-on
 
-This add-on provides the backend service for Luftuj smart home integration.
+This add-on provides the backend service for LUFTaTOR smart home integration.
 
 ## Features
 
@@ -12,8 +12,8 @@ This add-on provides the backend service for Luftuj smart home integration.
 ## Installation
 
 1. Navigate to the Add-on Store in Home Assistant.
-2. Add the Luftuj repository.
-3. Install the "Luftuj" add-on.
+2. Add the LUFTaTOR repository.
+3. Install the "LUFTaTOR" add-on.
 4. Start the add-on.
 
 ## Configuration

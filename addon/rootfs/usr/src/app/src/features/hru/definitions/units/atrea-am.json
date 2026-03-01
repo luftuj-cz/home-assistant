@@ -1,8 +1,90 @@
 {
   "code": "atrea-am",
   "name": "Atrea Duplex AM",
-  "regulationTypeId": "modbus-atrea-am",
-  "controlUnit": "%",
-  "maxValue": 100,
-  "isConfigurable": false
+  "variables": [
+    {
+      "name": "power",
+      "type": "number",
+      "editable": true,
+      "label": { "text": "hru.power", "translate": true },
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "maxConfigurable": false,
+      "step": 5,
+      "class": "power"
+    },
+    {
+      "name": "temperature",
+      "type": "number",
+      "editable": true,
+      "label": { "text": "hru.temperature", "translate": true },
+      "unit": "˚C",
+      "min": 10,
+      "max": 40,
+      "maxConfigurable": false,
+      "step": 1,
+      "class": "temperature"
+    },
+    {
+      "name": "mode",
+      "type": "select",
+      "editable": true,
+      "label": { "text": "hru.mode", "translate": true },
+      "class": "mode",
+      "options": [
+        { "value": 0, "label": { "text": "hru.modes.off", "translate": true } },
+        { "value": 2, "label": { "text": "hru.modes.ventilation", "translate": true } },
+        { "value": 5, "label": { "text": "hru.modes.bypass", "translate": true } },
+        { "value": 6, "label": { "text": "hru.modes.disbalance", "translate": true } },
+        { "value": 7, "label": { "text": "hru.modes.overpressure", "translate": true } }
+      ]
+    }
+  ],
+  "interface-type": "modbus-tcp",
+  "integration": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$power",
+        "value": { "function": "modbus_read_input", "args": [1004, 1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$temperature",
+        "value": {
+          "function": "multiply",
+          "args": [{ "function": "modbus_read_input", "args": [1002, 1] }, 0.1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$mode",
+        "value": { "function": "modbus_read_input", "args": [1001, 1] }
+      }
+    ],
+    "write": [
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [1004, "$power"] }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [
+            1002,
+            {
+              "function": "round",
+              "args": [{ "function": "multiply", "args": ["$temperature", 10] }]
+            }
+          ]
+        }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [1001, "$mode"] }
+      }
+    ]
+  }
 }

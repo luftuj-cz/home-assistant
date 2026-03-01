@@ -3,6 +3,7 @@ export type AllowedFunction =
   | "bit_or"
   | "bit_lshift"
   | "bit_rshift"
+  | "non_zero"
   | "delay"
   | "modbus_write_holding"
   | "modbus_write_holding_multi"
@@ -11,7 +12,8 @@ export type AllowedFunction =
   | "modbus_write_coil"
   | "round"
   | "multiply"
-  | "divide";
+  | "sum"
+  | "clamp";
 
 export type CommandValue = number | string | CommandExpression;
 
@@ -26,69 +28,39 @@ export type CommandStatement =
 
 export type CommandScript = CommandStatement[];
 
-export interface RegulationCapabilities {
-  hasPowerControl: boolean;
-  hasTemperatureControl: boolean;
-  hasModeControl: boolean;
+export type LocalizedText = string | { text: string; translate: boolean };
 
-  powerStep?: number;
-  powerUnit?: string;
-  temperatureStep?: number;
-  temperatureUnit?: string;
-}
+export type VariableClass = "power" | "temperature" | "mode" | "other";
 
-export interface RegulationStrategy {
-  id: string;
-
-  capabilities: RegulationCapabilities;
-
-  powerCommands?: {
-    read: CommandScript;
-    write: CommandScript;
-  };
-
-  temperatureCommands?: {
-    read: CommandScript;
-    write: CommandScript;
-  };
-  modeCommands?: {
-    read: CommandScript;
-    write: CommandScript;
-
-    availableModes: Record<number, string>;
-  };
-
-  keepAlive?: {
-    period: number;
-    commands: CommandScript;
-  };
-}
-
-export type ControlUnit = "%" | "m3/h" | "level";
-
-interface BaseHRU {
-  id: string;
-  code?: string;
+export interface HruVariable {
   name: string;
-  regulationTypeId: string;
+  type: "number" | "select" | "boolean";
+  editable: boolean;
+  label: LocalizedText;
+  unit?: LocalizedText;
+  class?: VariableClass;
+  min?: number;
+  max?: number;
+  maxDefault?: number;
+  step?: number;
+  options?: Array<{
+    value: number;
+    label: LocalizedText;
+  }>;
+  maxConfigurable?: boolean;
 }
 
-export interface PercentageHRU extends BaseHRU {
-  controlUnit: "%";
-  maxValue: 100;
-  isConfigurable: false;
+export interface HeatRecoveryUnit {
+  code: string;
+  name: string;
+  variables: HruVariable[];
+  "interface-type": "modbus-tcp";
+  integration: {
+    read: CommandScript;
+    write: CommandScript;
+    keepAlive?: {
+      period: number;
+      commands: CommandScript;
+    };
+  };
 }
-
-export interface VolumetricHRU extends BaseHRU {
-  controlUnit: "m3/h";
-  maxValue: number;
-  isConfigurable: true;
-}
-
-export interface LevelHRU extends BaseHRU {
-  controlUnit: "level";
-  maxValue: number;
-  isConfigurable: false;
-}
-
-export type HeatRecoveryUnit = PercentageHRU | VolumetricHRU | LevelHRU;

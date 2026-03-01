@@ -1,5 +1,5 @@
 {
-  "name": "Luftuj Addon DevContainer",
+  "name": "LUFTaTOR Addon DevContainer",
   "image": "ghcr.io/home-assistant/devcontainer:2-addons",
   "forwardPorts": [8123, 4357],
   "remoteUser": "root",

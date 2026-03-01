@@ -3,20 +3,14 @@ import type { ValveController } from "../core/valveManager";
 import {
   getTimelineEvents,
   getAppSetting,
-  setAppSetting,
   getTimelineModes,
   assignLegacyEventsToUnit,
   migrateLegacyEventsForUnit,
 } from "./database";
 
 import type { HruService } from "../features/hru/hru.service";
-import {
-  TIMELINE_OVERRIDE_KEY,
-  HRU_SETTINGS_KEY,
-  LANGUAGE_SETTING_KEY,
-  type TimelineOverride,
-  type HruSettings,
-} from "../types";
+import { HRU_SETTINGS_KEY, LANGUAGE_SETTING_KEY, type HruSettings } from "../types";
+import type { SettingsRepository } from "../features/settings/settings.repository";
 
 export interface ActiveState {
   source: "manual" | "schedule" | "boost";
@@ -31,6 +25,7 @@ export class TimelineScheduler {
   constructor(
     private readonly valveManager: ValveController,
     private readonly hruService: HruService,
+    private readonly settingsRepo: SettingsRepository,
     private readonly logger: Logger,
   ) {}
 
@@ -144,7 +139,10 @@ export class TimelineScheduler {
 
       let filtered = dayCandidates.filter((e) => {
         const modeId = e.hruConfig?.mode;
-        if (modeId && /^\d+$/.test(String(modeId))) {
+        if (!modeId) return true;
+        // Only enforce filtering when we actually have modes loaded for the unit
+        if (modeIdSet.size === 0) return true;
+        if (/^\d+$/.test(String(modeId))) {
           return modeIdSet.has(parseInt(String(modeId), 10));
         }
         return true;
@@ -168,6 +166,7 @@ export class TimelineScheduler {
     return null;
   }
 
+  // noinspection JSUnusedGlobalSymbols
   public getActiveState(): ActiveState | null {
     return this.lastActiveState;
   }
@@ -190,17 +189,11 @@ export class TimelineScheduler {
   }
 
   public getBoostRemainingMinutes(): number {
-    const overrideRaw = getAppSetting(TIMELINE_OVERRIDE_KEY);
-    if (!overrideRaw) return 0;
-    try {
-      const override = JSON.parse(overrideRaw) as TimelineOverride;
-      if (!override || !override.endTime) return 0;
-      if (override.durationMinutes === 999999) return 999999;
-      const diff = new Date(override.endTime).getTime() - Date.now();
-      return Math.max(0, Math.ceil(diff / 60000));
-    } catch {
-      return 0;
-    }
+    const override = this.settingsRepo.getTimelineOverride();
+    if (!override || !override.endTime) return 0;
+    if (override.durationMinutes === 999999) return 999999;
+    const diff = new Date(override.endTime).getTime() - Date.now();
+    return Math.max(0, Math.ceil(diff / 60000));
   }
 
   public getActiveBoostName(): string | null {
@@ -226,59 +219,60 @@ export class TimelineScheduler {
         this.logger.error({ err }, "TimelineScheduler: Failed to report valve states");
       }
 
-      const overrideRaw = getAppSetting(TIMELINE_OVERRIDE_KEY);
+      const override = this.settingsRepo.getTimelineOverride();
       let activePayload: {
-        hruConfig?: { mode?: string | number; power?: number; temperature?: number } | null;
+        hruConfig?: {
+          mode?: string | number;
+          power?: number;
+          temperature?: number;
+          variables?: Record<string, number | string | boolean>;
+        } | null;
         luftatorConfig?: Record<string, number> | null;
         source: "manual" | "schedule" | "boost";
         id?: number;
         friendlyModeName?: string;
       } | null = null;
 
-      if (overrideRaw) {
-        try {
-          const override = JSON.parse(overrideRaw) as TimelineOverride;
-          if (override && new Date(override.endTime) > new Date()) {
-            if (override.modeId) {
-              const currentUnitId = this.getCurrentUnitId();
-              const modes = getTimelineModes(currentUnitId);
-              const mode = modes.find((m) => m.id === override.modeId);
-              if (mode) {
-                activePayload = {
-                  hruConfig: {
-                    mode: mode.nativeMode ?? mode.name,
-                    power: mode.power,
-                    temperature: mode.temperature,
-                  },
-                  luftatorConfig: mode.luftatorConfig,
-                  source: "boost",
-                  friendlyModeName: mode.name,
-                };
-              } else {
-                this.logger.warn(
-                  { modeId: override.modeId },
-                  "TimelineScheduler: boost mode not found, skipping",
-                );
-                setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
-              }
-            } else if (override.customConfig) {
+      if (override) {
+        if (new Date(override.endTime) > new Date()) {
+          if (override.modeId) {
+            const currentUnitId = this.getCurrentUnitId();
+            const modes = getTimelineModes(currentUnitId);
+            const mode = modes.find((m) => m.id === override.modeId);
+            if (mode) {
               activePayload = {
                 hruConfig: {
-                  mode: override.customConfig.nativeMode,
-                  power: override.customConfig.power,
-                  temperature: override.customConfig.temperature,
+                  mode: mode.nativeMode ?? mode.name,
+                  power: mode.power,
+                  temperature: mode.temperature,
+                  variables: mode.variables,
                 },
-                luftatorConfig: override.customConfig.luftatorConfig,
-                source: "boost", // Treat as boost/manual override
-                friendlyModeName: "Test Mode",
+                luftatorConfig: mode.luftatorConfig,
+                source: "boost",
+                friendlyModeName: mode.name,
               };
+            } else {
+              this.logger.warn(
+                { modeId: override.modeId },
+                "TimelineScheduler: boost mode not found, skipping",
+              );
+              this.settingsRepo.setTimelineOverride(null);
             }
-          } else if (override) {
-            setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
-            this.logger.info("TimelineScheduler: Boost override expired, cleared");
+          } else if (override.customConfig) {
+            activePayload = {
+              hruConfig: {
+                mode: override.customConfig.nativeMode,
+                power: override.customConfig.power,
+                temperature: override.customConfig.temperature,
+              },
+              luftatorConfig: override.customConfig.luftatorConfig,
+              source: "boost", // Treat as boost/manual override
+              friendlyModeName: "Test Mode",
+            };
           }
-        } catch (err) {
-          this.logger.error({ err }, "TimelineScheduler: failed to parse boost override");
+        } else {
+          this.settingsRepo.setTimelineOverride(null);
+          this.logger.info("TimelineScheduler: Boost override expired, cleared");
         }
       }
 
@@ -289,10 +283,15 @@ export class TimelineScheduler {
           let effectivePower = event.hruConfig?.power;
           let effectiveTemperature = event.hruConfig?.temperature;
           let effectiveLuftatorConfig = event.luftatorConfig;
+          const effectiveVariables = { ...(event.hruConfig?.variables ?? {}) } as Record<
+            string,
+            number | string | boolean
+          >;
 
-          let modeToSend: string | number | undefined = event.hruConfig?.mode;
-          let isValidEvent = true;
-
+          let modeToSend: string | number | undefined =
+            typeof event.hruConfig?.mode === "number" || typeof event.hruConfig?.mode === "string"
+              ? event.hruConfig.mode
+              : undefined;
           let foundMode;
           if (displayModeName) {
             const currentUnitId = this.getCurrentUnitId();
@@ -307,36 +306,61 @@ export class TimelineScheduler {
 
             if (foundMode) {
               displayModeName = foundMode.name;
-              modeToSend = foundMode.nativeMode ?? foundMode.name;
 
-              if (foundMode.power !== undefined) effectivePower = foundMode.power;
-              if (foundMode.temperature !== undefined) effectiveTemperature = foundMode.temperature;
+              // New schema: prefer variables map first
+              const v = foundMode.variables ?? {};
+              if (typeof v.power === "number") effectivePower = v.power;
+              if (typeof v.temperature === "number") effectiveTemperature = v.temperature;
+              if (typeof v.mode === "number" || typeof v.mode === "string") modeToSend = v.mode;
+
+              // Fallbacks: use explicit nativeMode/power/temperature fields if variables map doesn't carry them
+              if (modeToSend === undefined && foundMode.nativeMode !== undefined) {
+                modeToSend = foundMode.nativeMode;
+              }
+              if (effectivePower === undefined && foundMode.power !== undefined) {
+                effectivePower = foundMode.power;
+              }
+              if (effectiveTemperature === undefined && foundMode.temperature !== undefined) {
+                effectiveTemperature = foundMode.temperature;
+              }
+
+              // Merge any additional variables from mode
+              for (const [key, value] of Object.entries(v)) {
+                if (value !== undefined) effectiveVariables[key] = value;
+              }
+
+              // If variables map did not provide mode, fall back to event payload (no legacy mapping)
+              if (modeToSend === undefined) {
+                const m = event.hruConfig?.mode;
+                if (typeof m === "number" || typeof m === "string") modeToSend = m;
+              }
+
               if (foundMode.luftatorConfig) effectiveLuftatorConfig = foundMode.luftatorConfig;
             } else {
-              isValidEvent = false;
               this.logger.warn(
                 { mode: displayModeName, eventId: event.id },
-                "TimelineScheduler: event mode not found, skipping",
+                "TimelineScheduler: event mode not found, applying raw config",
               );
             }
           }
 
-          if (isValidEvent) {
-            activePayload = {
-              hruConfig: event.hruConfig
-                ? {
-                    ...event.hruConfig,
-                    mode: modeToSend,
-                    power: effectivePower,
-                    temperature: effectiveTemperature,
-                  }
-                : event.hruConfig,
-              luftatorConfig: effectiveLuftatorConfig,
-              source: "schedule",
-              id: event.id,
-              friendlyModeName: foundMode?.name,
-            };
-          }
+          activePayload = {
+            hruConfig: event.hruConfig
+              ? {
+                  ...event.hruConfig,
+                  mode: modeToSend,
+                  power: effectivePower,
+                  temperature: effectiveTemperature,
+                  variables: Object.keys(effectiveVariables).length
+                    ? effectiveVariables
+                    : event.hruConfig.variables,
+                }
+              : event.hruConfig,
+            luftatorConfig: effectiveLuftatorConfig,
+            source: "schedule",
+            id: event.id,
+            friendlyModeName: foundMode?.name,
+          };
         }
       }
 
@@ -406,15 +430,23 @@ export class TimelineScheduler {
 
       if (hasHru && hruConfig) {
         try {
-          await this.hruService.writeValues({
-            power: hruConfig.power,
-            temperature: hruConfig.temperature,
-            mode: hruConfig.mode,
-          });
-          this.logger.info(
-            { source, id, hruConfig },
-            "TimelineScheduler: applied HRU settings successfully",
-          );
+          const values: Record<string, number | string | boolean> = {};
+          if (hruConfig.power !== undefined) values.power = hruConfig.power;
+          if (hruConfig.temperature !== undefined) values.temperature = hruConfig.temperature;
+          if (hruConfig.mode !== undefined) values.mode = hruConfig.mode;
+          if (hruConfig.variables) {
+            for (const [k, v] of Object.entries(hruConfig.variables)) {
+              if (v !== undefined) values[k] = v;
+            }
+          }
+
+          if (Object.keys(values).length > 0) {
+            await this.hruService.writeValues(values);
+            this.logger.info(
+              { source, id, hruConfig },
+              "TimelineScheduler:applied HRU settings successfully",
+            );
+          }
         } catch (err) {
           this.logger.error({ err, source }, "TimelineScheduler: Failed to apply HRU settings");
         }

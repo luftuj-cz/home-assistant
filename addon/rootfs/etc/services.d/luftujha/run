@@ -3,10 +3,10 @@
 
 set -euo pipefail
 
-bashio::log.info "Starting the Luftuj backend service..."
+bashio::log.info "Starting the LUFTaTOR backend service..."
 
 function handle_error() {
-    bashio::log.error "An error occurred while starting the Luftuj backend service."
+    bashio::log.error "An error occurred while starting the LUFTaTOR backend service."
     bashio::log.error "Error on line $1: Command '$2' exited with status $3"
     exit 1
 }
@@ -17,9 +17,6 @@ cd /usr/src/app || bashio::exit.nok "Could not change directory to /usr/src/app"
 # Export Home Assistant API details
 export HA_BASE_URL="http://supervisor/core"
 export SUPERVISOR_TOKEN="${SUPERVISOR_TOKEN}"
-
-# Export logging configuration
-export LOG_LEVEL=$(bashio::config 'log_level')
 
 bashio::log.info "Starting server (ingress port: ${INGRESS_PORT:-default})..."
 exec bun run src/server.ts || bashio::exit.nok "Failed to start the server"

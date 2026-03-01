@@ -1,14 +1,14 @@
-# Luftator Project Overview
+# LUFTaTOR Project Overview
 
 ## Company & Product
 
 - **Luftuj** is the company delivering the solution.
-- **Luftator** is the smart ventilation control system. It manages up to 12 motorized valves that regulate room recuperation based on demand.
+- **LUFTaTORr** is the smart ventilation control system. It manages up to 12 motorized valves that regulate room recuperation based on demand.
 - One Home Assistant instance running this add-on can orchestrate multiple Luftator controllers in parallel.
 
 ## High-level Flow
 
-1. Luftator valves surface in Home Assistant as `number.luftator_*` entities.
+1. LUFTaTOR valves surface in Home Assistant as `number.luftator_*` entities.
 2. The Home Assistant add-on (this repo) connects to HA via REST and WebSocket APIs to mirror and control those entities.
 3. The React frontend serves an ingress UI for manual control and future dashboards.
 
@@ -43,7 +43,7 @@
 ## Naming Guidance
 
 - Use **Luftator** when referring to the control platform, valves, UI, or add-on.
-- Use **Luftuj** when referring to the company or the provider of the solution.
+- Use **LUFTaTOR** when referring to the company or the provider of the solution.
 - Prefer “valves” or “zones” for individual control points.
 
 ## Common Tasks

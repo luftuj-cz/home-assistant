@@ -67,6 +67,7 @@ const hashHistory = createHashHistory();
 const router = createRouter({ routeTree, history: hashHistory });
 
 declare module "@tanstack/react-router" {
+  // noinspection JSUnusedGlobalSymbols
   interface Register {
     router: typeof router;
   }

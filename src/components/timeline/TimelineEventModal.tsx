@@ -2,6 +2,7 @@ import { Modal, Stack, TextInput, Select, Divider, Group, Button, Text } from "@
 import { IconClock, IconAdjustments, IconCalendar } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { TimelineEvent } from "../../types/timeline";
+import type { HruVariable } from "../../api/hru";
 
 interface TimelineEventModalProps {
   opened: boolean;
@@ -12,11 +13,7 @@ interface TimelineEventModalProps {
   onSave: () => void;
   onChange: (event: TimelineEvent) => void;
   t: TFunction;
-  hruCapabilities?: {
-    hasModeControl?: boolean;
-    hasPowerControl?: boolean;
-    hasTemperatureControl?: boolean;
-  };
+  hruVariables?: HruVariable[];
 }
 
 const TIME_REGEX = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
@@ -30,7 +27,6 @@ export function TimelineEventModal({
   onSave,
   onChange,
   t,
-  hruCapabilities,
 }: TimelineEventModalProps) {
   return (
     <Modal
@@ -60,37 +56,33 @@ export function TimelineEventModal({
             />
           </Group>
 
-          {(hruCapabilities?.hasModeControl !== false ||
-            hruCapabilities?.hasPowerControl !== false ||
-            hruCapabilities?.hasTemperatureControl !== false) && (
-            <Select
-              label={t("schedule.modeSelect")}
-              data={modeOptions}
-              value={event.hruConfig?.mode?.toString() || null}
-              onChange={(value) => {
-                if (!value) return;
-                onChange({
-                  ...event,
-                  hruConfig: { ...(event.hruConfig ?? {}), mode: value },
-                });
-              }}
-              searchable
-              allowDeselect={false}
-              disabled={modeOptions.length === 0}
-              placeholder={
-                modeOptions.length === 0 ? t("settings.timeline.noModesCreated") : undefined
-              }
-              leftSection={<IconAdjustments size={16} stroke={1.5} />}
-              required
-              error={
-                modeOptions.length === 0
-                  ? t("settings.timeline.noModesCreatedDescription")
-                  : !event.hruConfig?.mode
-                    ? t("validation.modeRequired")
-                    : null
-              }
-            />
-          )}
+          <Select
+            label={t("schedule.modeSelect")}
+            data={modeOptions}
+            value={event.hruConfig?.mode?.toString() || null}
+            onChange={(value) => {
+              if (!value) return;
+              onChange({
+                ...event,
+                hruConfig: { ...(event.hruConfig ?? {}), mode: value },
+              });
+            }}
+            searchable
+            allowDeselect={false}
+            disabled={modeOptions.length === 0}
+            placeholder={
+              modeOptions.length === 0 ? t("settings.timeline.noModesCreated") : undefined
+            }
+            leftSection={<IconAdjustments size={16} stroke={1.5} />}
+            required
+            error={
+              modeOptions.length === 0
+                ? t("settings.timeline.noModesCreatedDescription")
+                : !event.hruConfig?.mode
+                  ? t("validation.modeRequired")
+                  : null
+            }
+          />
 
           <Divider mt="xs" />
 

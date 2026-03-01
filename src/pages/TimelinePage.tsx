@@ -6,7 +6,6 @@ import { IconCalendar, IconCopy } from "@tabler/icons-react";
 
 import { useTimelineModes } from "../hooks/useTimelineModes";
 import { useTimelineEvents } from "../hooks/useTimelineEvents";
-import { useDashboardStatus } from "../hooks/useDashboardStatus";
 import { TimelineModeList } from "../components/timeline/TimelineModeList";
 import { TimelineDayCard } from "../components/timeline/TimelineDayCard";
 import { TimelineEventModal } from "../components/timeline/TimelineEventModal";
@@ -32,8 +31,6 @@ export function TimelinePage() {
     saving: savingEvent,
   } = useTimelineEvents(modes, t, activeUnitId);
 
-  const { tempUnit } = useDashboardStatus();
-
   const [loading, setLoading] = useState(false);
 
   const [eventModalOpen, setEventModalOpen] = useState(false);
@@ -46,9 +43,7 @@ export function TimelinePage() {
   const [modeNameError, setModeNameError] = useState<string | null>(null);
 
   const [valves, setValves] = useState<Valve[]>([]);
-  const [hruCapabilities, setHruCapabilities] = useState<
-    Pick<hruApi.HruUnit, "capabilities">["capabilities"]
-  >({});
+  const [hruVariables, setHruVariables] = useState<hruApi.HruVariable[]>([]);
   const [powerUnit, setPowerUnit] = useState<string>("%");
   const [maxPower, setMaxPower] = useState<number>(100);
 
@@ -61,7 +56,7 @@ export function TimelinePage() {
 
         const [settingsRes, units] = await Promise.all([
           fetch(resolveApiUrl("/api/settings/hru")).then(
-            (r) => r.json() as Promise<{ unit?: string }>,
+            (r) => r.json() as Promise<{ unit?: string; maxPower?: number }>,
           ),
           hruApi.fetchHruUnits().catch(() => []),
         ]);
@@ -71,9 +66,19 @@ export function TimelinePage() {
         setActiveUnitId(unitId);
 
         if (activeUnit) {
-          setHruCapabilities(activeUnit.capabilities || {});
-          setPowerUnit(activeUnit.controlUnit || "%");
-          setMaxPower(activeUnit.maxValue || 100);
+          setHruVariables(activeUnit.variables || []);
+          const powerVar = activeUnit.variables.find((v) => v.class === "power");
+          if (powerVar) {
+            setPowerUnit(
+              typeof powerVar.unit === "string" ? powerVar.unit : powerVar.unit?.text || "%",
+            );
+            // Use configured maxPower for CF units, otherwise use variable default
+            const effectiveMaxPower =
+              powerVar.maxConfigurable && settingsRes.maxPower != null
+                ? settingsRes.maxPower
+                : (powerVar.max ?? 100);
+            setMaxPower(effectiveMaxPower);
+          }
         }
 
         // Now load modes and events with the explicit unitId
@@ -113,9 +118,7 @@ export function TimelinePage() {
         }),
         message: (
           <Stack gap="xs">
-            <Text size="xs">
-              {t("settings.timeline.copyHint")}
-            </Text>
+            <Text size="xs">{t("settings.timeline.copyHint")}</Text>
             <Button
               size="compact-xs"
               variant="light"
@@ -237,9 +240,7 @@ export function TimelinePage() {
         }
       } catch (err) {
         if (err instanceof Error && err.message === "DUPLICATE_NAME") {
-          setModeNameError(
-            t("validation.duplicateModeName"),
-          );
+          setModeNameError(t("validation.duplicateModeName"));
         }
       }
     },
@@ -287,7 +288,6 @@ export function TimelinePage() {
           onDelete={handleDeleteMode}
           t={t}
           powerUnit={powerUnit}
-          temperatureUnit={tempUnit}
         />
 
         <Stack gap="md">
@@ -337,7 +337,7 @@ export function TimelinePage() {
           onSave={handleSaveEvent}
           onChange={setEditingEvent}
           t={t}
-          hruCapabilities={hruCapabilities}
+          hruVariables={hruVariables}
         />
 
         <TimelineModeModal
@@ -348,9 +348,7 @@ export function TimelinePage() {
           onClose={() => setModeModalOpen(false)}
           onSave={handleSaveMode}
           t={t}
-          hruCapabilities={hruCapabilities}
-          powerUnit={powerUnit}
-          temperatureUnit={tempUnit}
+          hruVariables={hruVariables}
           maxPower={maxPower}
           existingModes={modes}
           nameError={modeNameError}

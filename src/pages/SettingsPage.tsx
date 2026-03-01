@@ -31,7 +31,6 @@ import {
   IconServer,
   IconDatabase,
   IconCheck,
-  IconTemperature,
   IconCode,
   IconBug,
 } from "@tabler/icons-react";
@@ -42,16 +41,12 @@ import { resolveApiUrl } from "../utils/api";
 import { logger } from "../utils/logger";
 import { setLanguage } from "../i18n";
 import { MotionSwitch } from "../components/common/MotionSwitch";
-import { formatTemperature, getTemperatureLabel } from "../utils/temperature";
-import { type TemperatureUnit } from "../utils/temperature";
 
 export function SettingsPage() {
   const [uploading, setUploading] = useState(false);
   const [savingTheme, setSavingTheme] = useState(false);
   const [savingLanguage, setSavingLanguage] = useState(false);
   const [loadingUnits, setLoadingUnits] = useState(false);
-  const [tempUnit, setTempUnit] = useState<TemperatureUnit>("c");
-  const [savingTempUnit, setSavingTempUnit] = useState(false);
   const [savingHru, setSavingHru] = useState(false);
   const [probingHru, setProbingHru] = useState(false);
   const [fullHruUnits, setFullHruUnits] = useState<HruUnit[]>([]);
@@ -67,6 +62,9 @@ export function SettingsPage() {
     power: number;
     temperature: number;
     mode: string;
+    offset?: number;
+    flowIn?: number;
+    flowOut?: number;
   } | null>(null);
   const [savingMqtt, setSavingMqtt] = useState(false);
   const [testingMqtt, setTestingMqtt] = useState(false);
@@ -94,14 +92,6 @@ export function SettingsPage() {
     () => [
       { label: t("settings.language.options.en"), value: "en" },
       { label: t("settings.language.options.cs"), value: "cs" },
-    ],
-    [t],
-  );
-
-  const tempUnitOptions = useMemo(
-    () => [
-      { label: t("settings.temperatureUnit.options.c"), value: "c" },
-      { label: t("settings.temperatureUnit.options.f"), value: "f" },
     ],
     [t],
   );
@@ -226,70 +216,14 @@ export function SettingsPage() {
     [persistLanguagePreference],
   );
 
-  const persistTempUnitPreference = useCallback(
-    async (value: string) => {
-      setSavingTempUnit(true);
-      try {
-        const response = await fetch(resolveApiUrl("/api/settings/temperature-unit"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ temperatureUnit: value }),
-        });
-
-        if (!response.ok) {
-          const detail = await response.text();
-          notifications.show({
-            title: t("settings.temperatureUnit.notifications.failedTitle"),
-            message: t("settings.temperatureUnit.notifications.failedMessage", {
-              message: detail || t("settings.temperatureUnit.notifications.unknown"),
-            }),
-            color: "red",
-          });
-          return;
-        }
-
-        notifications.show({
-          title: t("settings.temperatureUnit.notifications.updatedTitle"),
-          message: t("settings.temperatureUnit.notifications.updatedMessage", {
-            unit: value === "c" ? "Celsius (°C)" : "Fahrenheit (°F)",
-          }),
-          color: "orange",
-        });
-      } catch (error) {
-        notifications.show({
-          title: t("settings.temperatureUnit.notifications.failedTitle"),
-          message: t("settings.temperatureUnit.notifications.failedMessage", {
-            message:
-              error instanceof Error
-                ? error.message
-                : t("settings.temperatureUnit.notifications.unknown"),
-          }),
-          color: "red",
-        });
-      } finally {
-        setSavingTempUnit(false);
-      }
-    },
-    [t],
-  );
-
-  const handleTempUnitChange = useCallback(
-    (value: string) => {
-      setTempUnit(value as TemperatureUnit);
-      void persistTempUnitPreference(value);
-    },
-    [persistTempUnitPreference],
-  );
-
   useEffect(() => {
     async function loadData() {
       setLoadingUnits(true);
       try {
-        const [unitsRes, settingsRes, mqttRes, tempUnitRes] = await Promise.all([
-          fetch(resolveApiUrl("/api/hru/units")),
-          fetch(resolveApiUrl("/api/settings/hru")),
-          fetch(resolveApiUrl("/api/settings/mqtt")),
-          fetch(resolveApiUrl("/api/settings/temperature-unit")),
+        const [unitsRes, settingsRes, mqttRes] = await Promise.all([
+          fetch(resolveApiUrl("/api/hru/units"), { cache: "no-cache" }),
+          fetch(resolveApiUrl("/api/settings/hru"), { cache: "no-cache" }),
+          fetch(resolveApiUrl("/api/settings/mqtt"), { cache: "no-cache" }),
         ]);
 
         if (unitsRes.ok) {
@@ -313,12 +247,10 @@ export function SettingsPage() {
             password: mqtt.password || "",
           });
         }
-        if (tempUnitRes.ok) {
-          const { temperatureUnit } = await tempUnitRes.json();
-          setTempUnit(temperatureUnit);
-        }
 
-        const debugRes = await fetch(resolveApiUrl("/api/settings/debug-mode"));
+        const debugRes = await fetch(resolveApiUrl("/api/settings/debug-mode"), {
+          cache: "no-cache",
+        });
         if (debugRes.ok) {
           const { enabled } = await debugRes.json();
           setDebugMode(enabled);
@@ -456,6 +388,147 @@ export function SettingsPage() {
     }
   }, [hruSettings, t]);
 
+  function renderProbeResults() {
+    if (!probeResult) return null;
+
+    function getVar(name: string) {
+      return selectedUnit?.variables?.find((v) => v.name === name);
+    }
+    function getLabelText(label?: string | { text?: string }) {
+      return typeof label === "string" ? label : label?.text;
+    }
+    function getModeText(val: unknown) {
+      if (typeof val === "string") return t(val, { defaultValue: val });
+      return String(val ?? "?");
+    }
+    const powerVar = selectedUnit?.variables?.find((v) => v.class === "power");
+    const temperatureVar = selectedUnit?.variables?.find((v) => v.class === "temperature");
+    const modeVar = selectedUnit?.variables?.find((v) => v.class === "mode");
+    const offsetVar = getVar("offset");
+    const flowInVar = getVar("flowIn");
+    const flowOutVar = getVar("flowOut");
+
+    const cols =
+      (powerVar ? 1 : 0) +
+      (temperatureVar ? 1 : 0) +
+      (modeVar ? 1 : 0) +
+      (offsetVar ? 1 : 0) +
+      (flowInVar ? 1 : 0) +
+      (flowOutVar ? 1 : 0);
+
+    return (
+      <SimpleGrid
+        cols={{
+          base: 1,
+          sm: Math.max(cols, 1),
+        }}
+        spacing="sm"
+      >
+        {powerVar && (
+          <Text fw={600} size="lg">
+            {probeResult.power}
+            {(() => {
+              const u = powerVar.unit;
+              return typeof u === "string" ? u : u?.text ?? "%";
+            })()}
+          </Text>
+        )}
+
+        {temperatureVar && (
+          <Group gap="xs">
+            <Badge color="orange" variant="light" circle>
+              T
+            </Badge>
+            <div>
+              <Text size="xs" c="dimmed">
+                {t("settings.hru.temperatureLabel")}
+              </Text>
+              <Text fw={600} size="lg">
+                {probeResult.temperature}°C
+              </Text>
+            </div>
+          </Group>
+        )}
+
+        {modeVar && (
+          <Group gap="xs">
+            <Badge color="blue" variant="light" circle>
+              M
+            </Badge>
+            <div>
+              <Text size="xs" c="dimmed">
+                {t("settings.hru.modeLabel")}
+              </Text>
+              <Text fw={600} size="lg">
+                {getModeText(probeResult.mode)}
+              </Text>
+            </div>
+          </Group>
+        )}
+
+        {offsetVar && (
+          <Group gap="xs">
+            <Badge color="grape" variant="light" circle>
+              O
+            </Badge>
+            <div>
+              <Text size="xs" c="dimmed">
+                {getLabelText(offsetVar.label) ?? "Offset"}
+              </Text>
+              <Text fw={600} size="lg">
+                {probeResult.offset ?? 0}
+                {(() => {
+                  const u = offsetVar.unit;
+                  return typeof u === "string" ? u : u?.text ?? "%";
+                })()}
+              </Text>
+            </div>
+          </Group>
+        )}
+
+        {flowInVar && (
+          <Group gap="xs">
+            <Badge color="teal" variant="light" circle>
+              IN
+            </Badge>
+            <div>
+              <Text size="xs" c="dimmed">
+                {getLabelText(flowInVar.label) ?? "Flow In"}
+              </Text>
+              <Text fw={600} size="lg">
+                {probeResult.flowIn ?? 0}
+                {(() => {
+                  const u = flowInVar.unit;
+                  return typeof u === "string" ? u : u?.text ?? "";
+                })()}
+              </Text>
+            </div>
+          </Group>
+        )}
+
+        {flowOutVar && (
+          <Group gap="xs">
+            <Badge color="cyan" variant="light" circle>
+              OUT
+            </Badge>
+            <div>
+              <Text size="xs" c="dimmed">
+                {getLabelText(flowOutVar.label) ?? "Flow Out"}
+              </Text>
+              <Text fw={600} size="lg">
+                {probeResult.flowOut ?? 0}
+                {(() => {
+                  const u = flowOutVar.unit;
+                  return typeof u === "string" ? u : u?.text ?? "";
+                })()}
+              </Text>
+            </div>
+          </Group>
+        )}
+      </SimpleGrid>
+    );
+  }
+
   const probeHru = useCallback(async () => {
     if (!hruSettings.unit) {
       notifications.show({
@@ -483,7 +556,19 @@ export function SettingsPage() {
         return;
       }
       const result = await response.json();
-      setProbeResult(result.value);
+
+      function valueFrom(key: string) {
+        return result.displayValues?.[key] ?? result.values?.[key];
+      }
+
+      setProbeResult({
+        power: Number(valueFrom("power") ?? 0),
+        temperature: Number(valueFrom("temperature") ?? 0),
+        mode: String(valueFrom("mode") ?? "?"),
+        offset: valueFrom("offset") === undefined ? undefined : Number(valueFrom("offset")),
+        flowIn: valueFrom("flowIn") === undefined ? undefined : Number(valueFrom("flowIn")),
+        flowOut: valueFrom("flowOut") === undefined ? undefined : Number(valueFrom("flowOut")),
+      });
     } catch (error) {
       setProbeResult(null);
       notifications.show({
@@ -673,26 +758,6 @@ export function SettingsPage() {
                     />
                   </Stack>
                 </Paper>
-
-                <Paper p="md" withBorder radius="md">
-                  <Stack gap="md">
-                    <Group gap="sm">
-                      <IconTemperature size={20} color="var(--mantine-primary-color-5)" />
-                      <Text fw={500}>{t("settings.temperatureUnit.title")}</Text>
-                    </Group>
-                    <Text size="sm" c="dimmed">
-                      {t("settings.temperatureUnit.description")}
-                    </Text>
-                    <SegmentedControl
-                      fullWidth
-                      value={tempUnit}
-                      data={tempUnitOptions}
-                      onChange={handleTempUnitChange}
-                      disabled={savingTempUnit}
-                      size="md"
-                    />
-                  </Stack>
-                </Paper>
               </Stack>
             </Accordion.Panel>
           </Accordion.Item>
@@ -712,79 +777,95 @@ export function SettingsPage() {
                       {t("settings.hru.saveBeforeProbeHint")}
                     </Text>
 
-                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                      <Select
-                        data={hruUnits}
-                        value={hruSettings.unit ?? ""}
-                        onChange={(value) => {
-                          setHruSettings((prev) => ({
-                            ...prev,
-                            unit: value === "" ? null : value,
-                          }));
-                          setProbeResult(null);
-                        }}
-                        label={t("settings.hru.unitLabel")}
-                        placeholder={t("settings.hru.unitPlaceholder")}
-                        disabled={loadingUnits}
-                        searchable
-                        clearable
-                        size="md"
-                      />
-                      <NumberInput
-                        value={hruSettings.port}
-                        onChange={(value) => {
-                          const numericValue =
-                            typeof value === "number" ? value : Number(value ?? 502);
-                          setHruSettings((prev) => ({
-                            ...prev,
-                            port: Number.isFinite(numericValue) ? numericValue : 502,
-                          }));
-                          setProbeResult(null);
-                        }}
-                        label={t("settings.hru.portLabel")}
-                        min={1}
-                        max={65535}
-                        step={1}
-                        size="md"
-                      />
-                    </SimpleGrid>
+                    {(() => {
+                      const unitMissing = hruSettings.unit === null || hruSettings.unit === "";
+                      const hostMissing = hruSettings.host.trim() === "";
+                      const portMissing = !Number.isFinite(hruSettings.port) || hruSettings.port <= 0;
+                      const unitIdMissing = !Number.isFinite(hruSettings.unitId) || hruSettings.unitId <= 0;
 
-                    <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                      <TextInput
-                        value={hruSettings.host}
-                        onChange={(e) => {
-                          setHruSettings((prev) => ({ ...prev, host: e.target.value }));
-                          setProbeResult(null);
-                        }}
-                        label={t("settings.hru.hostLabel")}
-                        placeholder="localhost"
-                        error={
-                          hruSettings.host.trim() === ""
-                            ? t("settings.hru.hostRequired")
-                            : undefined
-                        }
-                        size="md"
-                      />
-                      <NumberInput
-                        value={hruSettings.unitId}
-                        onChange={(value) => {
-                          const numericValue =
-                            typeof value === "number" ? value : Number(value ?? 1);
-                          setHruSettings((prev) => ({
-                            ...prev,
-                            unitId: Number.isFinite(numericValue) ? numericValue : 1,
-                          }));
-                          setProbeResult(null);
-                        }}
-                        label={t("settings.hru.unitIdLabel")}
-                        min={1}
-                        max={247}
-                        step={1}
-                        size="md"
-                      />
-                    </SimpleGrid>
+                      return (
+                        <>
+                          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                            <Select
+                              required
+                              data={hruUnits}
+                              value={hruSettings.unit ?? ""}
+                              onChange={(value) => {
+                                setHruSettings((prev) => ({
+                                  ...prev,
+                                  unit: value === "" ? null : value,
+                                }));
+                                setProbeResult(null);
+                              }}
+                              label={t("settings.hru.unitLabel")}
+                              placeholder={t("settings.hru.unitPlaceholder")}
+                              error={unitMissing ? t("settings.hru.unitRequired") : undefined}
+                              disabled={loadingUnits}
+                              searchable
+                              clearable
+                              size="md"
+                            />
+                            <NumberInput
+                              required
+                              value={hruSettings.port}
+                              onChange={(value) => {
+                                const numericValue =
+                                  typeof value === "number" ? value : Number(value ?? 502);
+                                setHruSettings((prev) => ({
+                                  ...prev,
+                                  port: Number.isFinite(numericValue) ? numericValue : 502,
+                                }));
+                                setProbeResult(null);
+                              }}
+                              label={t("settings.hru.portLabel")}
+                              min={1}
+                              max={65535}
+                              step={1}
+                              error={portMissing ? t("settings.hru.portRequired") : undefined}
+                              size="md"
+                            />
+                          </SimpleGrid>
 
-                    {selectedUnit?.isConfigurable && (
+                          <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                            <TextInput
+                              required
+                              value={hruSettings.host}
+                              onChange={(e) => {
+                                setHruSettings((prev) => ({ ...prev, host: e.target.value }));
+                                setProbeResult(null);
+                              }}
+                              label={t("settings.hru.hostLabel")}
+                              placeholder="localhost"
+                              error={hostMissing ? t("settings.hru.hostRequired") : undefined}
+                              size="md"
+                            />
+                            <NumberInput
+                              required
+                              value={hruSettings.unitId}
+                              onChange={(value) => {
+                                const numericValue =
+                                  typeof value === "number" ? value : Number(value ?? 1);
+                                setHruSettings((prev) => ({
+                                  ...prev,
+                                  unitId: Number.isFinite(numericValue) ? numericValue : 1,
+                                }));
+                                setProbeResult(null);
+                              }}
+                              label={t("settings.hru.unitIdLabel")}
+                              min={1}
+                              max={247}
+                              step={1}
+                              error={unitIdMissing ? t("settings.hru.unitIdRequired") : undefined}
+                              size="md"
+                            />
+                          </SimpleGrid>
+                        </>
+                      );
+                    })()}
+
+                    {selectedUnit?.variables?.find(
+                      (v) => v.class === "power" && v.maxConfigurable,
+                    ) && (
                       <Paper p="sm" withBorder radius="md" bg="var(--mantine-color-blue-light)">
                         <Stack gap="xs">
                           <Text fw={500} size="sm">
@@ -793,23 +874,36 @@ export function SettingsPage() {
                           <Text size="xs" c="dimmed">
                             {t("settings.hru.configuration.maxPowerDescription")}
                           </Text>
+                          {(() => {
+                            const powerVar = selectedUnit.variables.find((v) => v.class === "power");
+                            const defaultPower = powerVar?.maxDefault ?? powerVar?.max;
+                            const isConfigurable = powerVar?.maxConfigurable ?? false;
+                            const isMissing = isConfigurable && (hruSettings.maxPower === undefined || hruSettings.maxPower === null);
+                            return (
                           <NumberInput
-                            value={hruSettings.maxPower ?? selectedUnit.maxValue}
+                            required
+                            value={hruSettings.maxPower ?? defaultPower}
                             onChange={(value) => {
                               const numericValue = typeof value === "number" ? value : undefined;
                               setHruSettings((prev) => ({ ...prev, maxPower: numericValue }));
                             }}
                             label={t("settings.hru.configuration.maxPowerLabel")}
                             description={t("settings.hru.configuration.maxPowerHint", {
-                              default: selectedUnit.maxValue,
-                              unit: t(`app.units.${selectedUnit.controlUnit || "%"}`, {
-                                defaultValue: selectedUnit.controlUnit || "%",
-                              }),
+                              default: defaultPower,
+                              unit: (() => {
+                                const u = selectedUnit.variables.find(
+                                  (v) => v.class === "power",
+                                )?.unit;
+                                return typeof u === "string" ? u : (u?.text ?? "%");
+                              })(),
                             })}
+                            error={isMissing ? t("settings.hru.configuration.maxPowerRequired") : undefined}
                             min={1}
                             max={10000}
                             size="md"
                           />
+                            );
+                          })()}
                         </Stack>
                       </Paper>
                     )}
@@ -848,68 +942,7 @@ export function SettingsPage() {
                     onClose={() => setProbeResult(null)}
                     radius="md"
                   >
-                    <SimpleGrid
-                      cols={{
-                        base: 1,
-                        sm:
-                          (selectedUnit?.capabilities?.hasPowerControl !== false ? 1 : 0) +
-                          (selectedUnit?.capabilities?.hasTemperatureControl !== false ? 1 : 0) +
-                          (selectedUnit?.capabilities?.hasModeControl !== false ? 1 : 0),
-                      }}
-                      spacing="sm"
-                    >
-                      {selectedUnit?.capabilities?.hasPowerControl !== false && (
-                        <Group gap="xs">
-                          <Badge color="green" variant="light" circle>
-                            P
-                          </Badge>
-                          <div>
-                            <Text size="xs" c="dimmed">
-                              {t("settings.hru.powerLabel")}
-                            </Text>
-                            <Text fw={600} size="lg">
-                              {probeResult.power}
-                              {t(`app.units.${selectedUnit?.controlUnit || "%"}`, {
-                                defaultValue: selectedUnit?.controlUnit || "%",
-                              })}
-                            </Text>
-                          </div>
-                        </Group>
-                      )}
-
-                      {selectedUnit?.capabilities?.hasTemperatureControl !== false && (
-                        <Group gap="xs">
-                          <Badge color="orange" variant="light" circle>
-                            T
-                          </Badge>
-                          <div>
-                            <Text size="xs" c="dimmed">
-                              {t("settings.hru.temperatureLabel")}
-                            </Text>
-                            <Text fw={600} size="lg">
-                              {formatTemperature(probeResult.temperature, tempUnit)}
-                              {getTemperatureLabel(tempUnit)}
-                            </Text>
-                          </div>
-                        </Group>
-                      )}
-
-                      {selectedUnit?.capabilities?.hasModeControl !== false && (
-                        <Group gap="xs">
-                          <Badge color="blue" variant="light" circle>
-                            M
-                          </Badge>
-                          <div>
-                            <Text size="xs" c="dimmed">
-                              {t("settings.hru.modeLabel")}
-                            </Text>
-                            <Text fw={600} size="lg">
-                              {probeResult.mode}
-                            </Text>
-                          </div>
-                        </Group>
-                      )}
-                    </SimpleGrid>
+                    {renderProbeResults()}
                   </Alert>
                 )}
               </Stack>
@@ -1098,7 +1131,9 @@ export function SettingsPage() {
 
                           notifications.show({
                             title: t("settings.developer.debugMode"),
-                            message: checked ? t("settings.developer.debugEnabled") : t("settings.developer.debugDisabled"),
+                            message: checked
+                              ? t("settings.developer.debugEnabled")
+                              : t("settings.developer.debugDisabled"),
                             color: checked ? "blue" : "gray",
                             icon: <IconBug size={20} />,
                           });

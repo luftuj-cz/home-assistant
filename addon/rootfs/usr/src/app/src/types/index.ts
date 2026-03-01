@@ -1,7 +1,6 @@
 export const THEME_SETTING_KEY = "ui.theme";
 export const LANGUAGE_SETTING_KEY = "ui.language";
-export const TEMP_UNIT_SETTING_KEY = "ui.temperature_unit";
-export const SUPPORTED_LANGUAGES = new Set(["en", "cs"]);
+export const SUPPORTED_LANGUAGES = ["en", "cs"] as const;
 
 export const HRU_SETTINGS_KEY = "hru.settings";
 export const ONBOARDING_DONE_KEY = "onboarding.done";
@@ -40,6 +39,7 @@ export type TimelineMode = {
   id: number;
   name: string;
   color?: string;
+  variables?: Record<string, number | string | boolean>;
   power?: number;
   temperature?: number;
   luftatorConfig?: Record<string, number>;

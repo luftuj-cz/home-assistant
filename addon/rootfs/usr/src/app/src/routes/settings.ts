@@ -11,7 +11,6 @@ import {
   type AddonMode,
   THEME_SETTING_KEY,
   LANGUAGE_SETTING_KEY,
-  TEMP_UNIT_SETTING_KEY,
   DEBUG_MODE_KEY,
   ONBOARDING_DONE_KEY,
   type HruSettings,
@@ -24,13 +23,24 @@ import {
   languageSettingInputSchema,
   mqttSettingsInputSchema,
   mqttTestInputSchema,
-  temperatureUnitInputSchema,
   themeSettingInputSchema,
   debugModeInputSchema,
+  type HruSettingsInput,
+  type MqttSettingsInput,
+  type MqttTestInput,
+  type AddonModeInput,
+  type ThemeSettingInput,
+  type LanguageSettingInput,
+  type DebugModeInput,
 } from "../schemas/settings";
 import type { HruService } from "../features/hru/hru.service";
 import { validateRequest } from "../middleware/validateRequest";
-import { ApiError, BadRequestError } from "../shared/errors/apiErrors";
+import {
+  ApiError,
+  ApiSuccess,
+  BadRequestError,
+  ServiceUnavailableError,
+} from "../shared/errors/apiErrors";
 
 export function createSettingsRouter(
   hruService: HruService,
@@ -73,16 +83,22 @@ export function createSettingsRouter(
     });
   });
 
-  router.post("/onboarding-finish", (_request: Request, response: Response, next: NextFunction) => {
-    try {
-      setAppSetting(ONBOARDING_DONE_KEY, "true");
-      logger.info("Onboarding finished");
-      response.status(204).end();
-    } catch (error) {
-      logger.error({ error }, "Failed to finish onboarding");
-      next(error);
-    }
-  });
+  router.post(
+    "/onboarding-finish",
+    async (_request: Request, response: Response, next: NextFunction) => {
+      try {
+        setAppSetting(ONBOARDING_DONE_KEY, "true");
+        logger.info("Onboarding finished; restarting MQTT service");
+
+        await mqttService.reloadConfig();
+
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to finish onboarding");
+        next(error);
+      }
+    },
+  );
 
   router.post("/onboarding-reset", (_request: Request, response: Response, next: NextFunction) => {
     try {
@@ -123,7 +139,11 @@ export function createSettingsRouter(
   router.post(
     "/mqtt",
     validateRequest(mqttSettingsInputSchema),
-    async (request: Request, response: Response, next: NextFunction) => {
+    async (
+      request: Request<Record<string, unknown>, Record<string, unknown>, MqttSettingsInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
       try {
         const { enabled, host, port, user, password } = request.body as MqttSettings;
 
@@ -150,7 +170,11 @@ export function createSettingsRouter(
   router.post(
     "/mqtt/test",
     validateRequest(mqttTestInputSchema),
-    async (request: Request, response: Response, next: NextFunction) => {
+    async (
+      request: Request<Record<string, unknown>, Record<string, unknown>, MqttTestInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
       const { host, port, user, password } = request.body;
 
       try {
@@ -160,11 +184,14 @@ export function createSettingsRouter(
         );
 
         if (result.success) {
-          logger.info("MQTT connection test successful");
-          response.json({ success: true });
+          const success = new ApiSuccess("MQTT connection test successful", { success: true });
+          success.log(logger);
+          response.json({ detail: success.message, data: success.data });
         } else {
           logger.warn({ result }, "MQTT connection test failed");
-          return next(new ApiError(502, result.message || "Connection failed", "MQTT_TEST_FAILED"));
+          return next(
+            new ServiceUnavailableError(result.message || "Connection failed", "MQTT_TEST_FAILED"),
+          );
         }
       } catch (err) {
         if (err instanceof ApiError) return next(err);
@@ -189,10 +216,17 @@ export function createSettingsRouter(
     if (value.unit) {
       const unitDef = hruService.getAllUnits().find((u) => u.id === value.unit);
       if (unitDef) {
-        if (!unitDef.isConfigurable) {
+        const powerVar = unitDef.variables.find((v) => v.class === "power");
+        const isConfigurable = powerVar?.maxConfigurable ?? false;
+        const maxValue = powerVar?.max;
+        const defaultValue = powerVar?.maxDefault ?? maxValue;
+
+        if (!isConfigurable) {
           value.maxPower = undefined;
-        } else if (value.maxPower !== undefined && unitDef.maxValue !== undefined) {
-          value.maxPower = Math.min(value.maxPower, unitDef.maxValue);
+        } else if (value.maxPower === undefined && defaultValue !== undefined) {
+          value.maxPower = defaultValue;
+        } else if (value.maxPower !== undefined && maxValue !== undefined) {
+          value.maxPower = Math.min(value.maxPower, maxValue);
         }
       }
     }
@@ -203,9 +237,19 @@ export function createSettingsRouter(
   router.post(
     "/hru",
     validateRequest(hruSettingsInputSchema),
-    async (request: Request, response: Response, next: NextFunction) => {
+    async (
+      request: Request<Record<string, unknown>, Record<string, unknown>, HruSettingsInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
       try {
         const { unit, host, port, unitId, maxPower } = request.body;
+
+        const trimmedHost = host.trim();
+        if (!trimmedHost) {
+          logger.warn("Attempted to set empty HRU host");
+          return next(new BadRequestError("Host is required", "HRU_HOST_REQUIRED"));
+        }
 
         if (unit !== undefined && !hruService.getAllUnits().some((u) => u.id === unit)) {
           logger.warn({ unit }, "Attempted to set unknown HRU unit");
@@ -216,28 +260,49 @@ export function createSettingsRouter(
         const resolvedUnitId = unitId ?? 1;
 
         // Validate maxPower against unit's actual maximum
-        if (maxPower !== undefined && resolvedUnit !== null) {
-          const selectedUnit = hruService.getAllUnits().find((u) => u.id === resolvedUnit);
-          if (selectedUnit && selectedUnit.isConfigurable) {
-            const unitMaxValue = selectedUnit.maxValue;
-            if (maxPower > unitMaxValue) {
-              logger.warn(
-                { maxPower, unitMaxValue },
-                "Attempted to set maxPower higher than unit allows",
-              );
-              return next(
-                new BadRequestError(
-                  `Maximum power cannot exceed ${unitMaxValue} ${selectedUnit.controlUnit || ""}. The selected unit supports a maximum of ${unitMaxValue}.`,
-                  "MAX_POWER_EXCEEDED",
-                ),
-              );
-            }
+        const selectedUnit = resolvedUnit !== null
+          ? hruService.getAllUnits().find((u) => u.id === resolvedUnit)
+          : undefined;
+
+        if (selectedUnit) {
+          const powerVar = selectedUnit.variables.find((v) => v.class === "power");
+          const isConfigurable = powerVar?.maxConfigurable ?? false;
+          const unitMaxValue = powerVar?.max;
+          const defaultValue = powerVar?.maxDefault ?? unitMaxValue;
+          const controlUnit = typeof powerVar?.unit === "string" ? powerVar.unit : (powerVar?.unit?.text ?? "");
+
+          if (isConfigurable && maxPower === undefined) {
+            logger.warn({ unit: resolvedUnit }, "Attempted to set configurable HRU without maxPower");
+            return next(
+              new BadRequestError(
+                "Max power is required for the selected unit",
+                "MAX_POWER_REQUIRED",
+              ),
+            );
+          }
+
+          if (maxPower !== undefined && unitMaxValue !== undefined && maxPower > unitMaxValue) {
+            logger.warn(
+              { maxPower, unitMaxValue },
+              "Attempted to set maxPower higher than unit allows",
+            );
+            return next(
+              new BadRequestError(
+                `Maximum power cannot exceed ${unitMaxValue} ${controlUnit}. The selected unit supports a maximum of ${unitMaxValue}.`,
+                "MAX_POWER_EXCEEDED",
+              ),
+            );
+          }
+
+          // Normalize undefined to default when unit provides one
+          if (isConfigurable && maxPower === undefined && defaultValue !== undefined) {
+            request.body.maxPower = defaultValue;
           }
         }
 
         const settings: HruSettings = {
           unit: resolvedUnit,
-          host,
+          host: trimmedHost,
           port,
           unitId: resolvedUnitId,
           maxPower,
@@ -248,7 +313,7 @@ export function createSettingsRouter(
         try {
           const config = hruService.getResolvedConfiguration(settings);
           if (config) {
-            await mqttService.publishDiscovery(config.unit, config.strategy.capabilities);
+            await mqttService.publishDiscovery(config.unit);
           }
         } catch (err) {
           logger.warn({ err }, "Failed to update MQTT discovery after HRU settings change");
@@ -272,7 +337,11 @@ export function createSettingsRouter(
   router.post(
     "/mode",
     validateRequest(addonModeInputSchema),
-    (request: Request, response: Response, next: NextFunction) => {
+    (
+      request: Request<Record<string, unknown>, Record<string, unknown>, AddonModeInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
       try {
         const { mode } = request.body;
         setAppSetting(ADDON_MODE_KEY, mode);
@@ -293,7 +362,11 @@ export function createSettingsRouter(
   router.post(
     "/theme",
     validateRequest(themeSettingInputSchema),
-    (request: Request, response: Response, next: NextFunction) => {
+    (
+      request: Request<Record<string, unknown>, Record<string, unknown>, ThemeSettingInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
       try {
         const { theme } = request.body;
         setAppSetting(THEME_SETTING_KEY, theme);
@@ -314,7 +387,11 @@ export function createSettingsRouter(
   router.post(
     "/language",
     validateRequest(languageSettingInputSchema),
-    async (request: Request, response: Response, next: NextFunction) => {
+    async (
+      request: Request<Record<string, unknown>, Record<string, unknown>, LanguageSettingInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
       try {
         const { language } = request.body;
         setAppSetting(LANGUAGE_SETTING_KEY, language);
@@ -335,27 +412,6 @@ export function createSettingsRouter(
     },
   );
 
-  router.get("/temperature-unit", (_request: Request, response: Response) => {
-    const temperatureUnit = getAppSetting(TEMP_UNIT_SETTING_KEY) ?? "c";
-    response.json({ temperatureUnit });
-  });
-
-  router.post(
-    "/temperature-unit",
-    validateRequest(temperatureUnitInputSchema),
-    (request: Request, response: Response, next: NextFunction) => {
-      try {
-        const { temperatureUnit } = request.body;
-        setAppSetting(TEMP_UNIT_SETTING_KEY, temperatureUnit);
-        logger.info({ temperatureUnit }, "Temperature unit updated");
-        response.status(204).end();
-      } catch (error) {
-        logger.error({ error }, "Failed to update temperature unit");
-        next(error);
-      }
-    },
-  );
-
   router.get("/debug-mode", (_request: Request, response: Response) => {
     const raw = getAppSetting(DEBUG_MODE_KEY);
     const enabled = raw === "true";
@@ -365,7 +421,11 @@ export function createSettingsRouter(
   router.post(
     "/debug-mode",
     validateRequest(debugModeInputSchema),
-    (request: Request, response: Response, next: NextFunction) => {
+    (
+      request: Request<Record<string, unknown>, Record<string, unknown>, DebugModeInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
       try {
         const { enabled } = request.body;
         setAppSetting(DEBUG_MODE_KEY, String(enabled));

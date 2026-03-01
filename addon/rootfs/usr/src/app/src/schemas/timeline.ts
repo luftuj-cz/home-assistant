@@ -6,14 +6,15 @@ export const timelineModeInputSchema = z.object({
   color: z.string().optional(),
   power: z.number().min(0, "Power must be at least 0").optional(),
   temperature: z.number().min(-50).max(100).optional(),
+  variables: z
+    .record(z.string(), z.union([z.number(), z.string(), z.boolean()]))
+    .optional(),
   luftatorConfig: z
     .record(z.string(), z.number().min(0, "Valve opening must be at least 0"))
     .optional(),
   isBoost: z.boolean().optional(),
   nativeMode: z.number().int().optional(),
 });
-
-export const timelineModeUpdateSchema = timelineModeInputSchema;
 
 // Timeline Event Schemas
 const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
@@ -27,6 +28,9 @@ export const timelineEventInputSchema = z.object({
       mode: z.string().optional(),
       power: z.number().min(0, "Power must be at least 0").optional(),
       temperature: z.number().min(-50).max(100).optional(),
+      variables: z
+        .record(z.string(), z.union([z.number(), z.string(), z.boolean()]))
+        .optional(),
     })
     .nullable()
     .optional(),

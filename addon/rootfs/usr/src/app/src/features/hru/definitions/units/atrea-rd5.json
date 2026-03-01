@@ -1,8 +1,179 @@
 {
   "code": "atrea-rd5",
   "name": "Atrea Duplex RD5",
-  "regulationTypeId": "modbus-atrea-rd5",
-  "controlUnit": "%",
-  "maxValue": 100,
-  "isConfigurable": false
+  "variables": [
+    {
+      "name": "power",
+      "type": "number",
+      "editable": true,
+      "label": {"text":"hru.power", "translate": true},
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "maxConfigurable": false,
+      "step": 5,
+      "class": "power"
+    },
+    {
+      "name": "power_target",
+      "type": "number",
+      "editable": false,
+      "label": { "text": "Power target", "translate": false },
+      "unit": "%",
+      "class": "other"
+    },
+    {
+      "name": "temperature",
+      "type": "number",
+      "editable": true,
+      "label": { "text": "hru.temperature", "translate": true },
+      "unit": "˚C",
+      "min": 10,
+      "max": 40,
+      "maxConfigurable": false,
+      "step": 0.1,
+      "class": "temperature"
+    },
+    {
+      "name": "temperature_target",
+      "type": "number",
+      "editable": false,
+      "label": { "text": "Temperature target", "translate": false },
+      "unit": "˚C",
+      "class": "other",
+      "step": 0.1
+    },
+    {
+      "name": "mode",
+      "type": "select",
+      "editable": true,
+      "label": { "text": "hru.mode", "translate": true },
+      "class": "mode",
+      "options": [
+        {"value": 0, "label": {"text":"hru.modes.off", "translate": true}},
+        {"value": 2, "label": {"text":"hru.modes.ventilation", "translate": true}},
+        {"value": 3, "label": {"text":"hru.modes.circulationWithVentilation", "translate": true}},
+        {"value": 4, "label": {"text":"hru.modes.circulation", "translate": true}},
+        {"value": 5, "label": {"text":"hru.modes.bypass", "translate": true}},
+        {"value": 6, "label": {"text":"hru.modes.disbalance", "translate": true}},
+        {"value": 7, "label": {"text":"hru.modes.overpressure", "translate": true}}
+      ]
+    },
+    {
+      "name": "mode_target",
+      "type": "select",
+      "editable": false,
+      "label": { "text": "Mode target", "translate": false },
+      "class": "other",
+      "options": [
+        {"value": 0, "label": {"text":"hru.modes.off", "translate": true}},
+        {"value": 2, "label": {"text":"hru.modes.ventilation", "translate": true}},
+        {"value": 3, "label": {"text":"hru.modes.circulationWithVentilation", "translate": true}},
+        {"value": 4, "label": {"text":"hru.modes.circulation", "translate": true}},
+        {"value": 5, "label": {"text":"hru.modes.bypass", "translate": true}},
+        {"value": 6, "label": {"text":"hru.modes.disbalance", "translate": true}},
+        {"value": 7, "label": {"text":"hru.modes.overpressure", "translate": true}}
+      ]
+    }
+  ],
+  "interface-type": "modbus-tcp",
+  "integration": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$power",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [10704, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$power_target",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [10708, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$temperature",
+        "value": { "function": "multiply", "args": [{ "function": "modbus_read_holding", "args": [10706, 1] }, 0.1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$temperature_target",
+        "value": { "function": "multiply", "args": [{ "function": "modbus_read_holding", "args": [10710, 1] }, 0.1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$mode",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [10705, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$mode_target",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [10709, 1]
+        }
+      }
+    ],
+    "write": [
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [10700, 0] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "delay", "args": [100] }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [10708, "$power"]
+        }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [10702, 0] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "delay", "args": [100] }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [
+            10710,
+            {
+              "function": "round",
+              "args": [{ "function": "multiply", "args": ["$temperature", 10] }]
+            }
+          ]
+        }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [10701, 0] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "delay", "args": [100] }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [10709, "$mode"]
+        }
+      }
+    ]
+  }
 }

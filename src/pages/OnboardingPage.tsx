@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Button,
   Group,
@@ -21,6 +21,7 @@ import {
   SimpleGrid,
   Progress,
 } from "@mantine/core";
+import { fetchHruUnits, type HruUnit } from "../api/hru";
 import { useForm } from "@mantine/form";
 import { useMediaQuery } from "@mantine/hooks";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -36,7 +37,6 @@ import {
   IconAdjustments,
   IconLanguage,
   IconPalette,
-  IconTemperature,
 } from "@tabler/icons-react";
 import { z } from "zod";
 import { notifications } from "@mantine/notifications";
@@ -44,30 +44,45 @@ import { useTranslation } from "react-i18next";
 import { useMantineColorScheme } from "@mantine/core";
 import { logger } from "../utils/logger";
 import { isSupportedLanguage, setLanguage } from "../i18n";
-import { type TemperatureUnit } from "../utils/temperature";
 import { resolveApiUrl } from "../utils/api";
 
-const modbusSchema = z.object({
-  host: z.string().min(1, "Host is required"),
-  port: z.number().min(1).max(65535),
-  unitId: z.number().min(0).max(255),
-});
-
-const mqttSchema = z
-  .object({
-    enabled: z.boolean(),
-    host: z.string().optional(),
-    port: z.number().min(1).max(65535).optional(),
-    user: z.string().optional(),
-    password: z.string().optional(),
-  })
-  .refine((data) => !data.enabled || (data.host && data.host.length > 0), {
-    message: "Host is required when MQTT is enabled",
-    path: ["host"],
+function createModbusSchema(t: (key: string) => string) {
+  return z.object({
+    host: z.string().trim().min(1, t("onboarding.modbus.hostRequired")),
+    port: z.number().min(1, t("onboarding.modbus.portRequired")).max(65535),
+    unitId: z.number().min(0, t("onboarding.modbus.unitIdRequired")).max(255),
   });
+}
 
-type ModbusForm = z.infer<typeof modbusSchema>;
-type MqttForm = z.infer<typeof mqttSchema>;
+function createMqttSchema(t: (key: string) => string) {
+  return z
+    .object({
+      enabled: z.boolean(),
+      host: z.string().trim().optional(),
+      port: z.number().min(1).max(65535).optional(),
+      user: z.string().trim().optional(),
+      password: z.string().optional(),
+    })
+    .superRefine((data, ctx) => {
+      if (data.enabled && !data.host?.trim()) {
+        ctx.addIssue({
+          code: "custom",
+          message: t("onboarding.mqtt.hostRequired"),
+          path: ["host"],
+        });
+      }
+      if (data.enabled && (data.port === undefined || Number.isNaN(data.port))) {
+        ctx.addIssue({
+          code: "custom",
+          message: t("settings.mqtt.portInvalid"),
+          path: ["port"],
+        });
+      }
+    });
+}
+
+type ModbusForm = z.infer<ReturnType<typeof createModbusSchema>>;
+type MqttForm = z.infer<ReturnType<typeof createMqttSchema>>;
 
 export function OnboardingPage() {
   const { t, i18n } = useTranslation();
@@ -81,7 +96,10 @@ export function OnboardingPage() {
   const [selectedTheme, setSelectedTheme] = useState<"light" | "dark">(
     colorScheme === "auto" ? "dark" : (colorScheme as "light" | "dark"),
   );
-  const [selectedTempUnit, setSelectedTempUnit] = useState<TemperatureUnit>("c");
+
+  const modbusSchema = useMemo(() => createModbusSchema(t), [t]);
+
+  const mqttSchema = useMemo(() => createMqttSchema(t), [t]);
 
   const modbusForm = useForm<ModbusForm>({
     initialValues: {
@@ -118,8 +136,8 @@ export function OnboardingPage() {
         });
       }
 
-      if (values.enabled && !values.host) {
-        errors.host = "Host is required when MQTT is enabled";
+      if (values.enabled && !values.host?.trim()) {
+        errors.host = t("onboarding.mqtt.hostRequired");
       }
 
       return errors;
@@ -127,21 +145,39 @@ export function OnboardingPage() {
   });
 
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  const [maxPower, setMaxPower] = useState<number | undefined>(undefined);
+  const [fullUnits, setFullUnits] = useState<HruUnit[]>([]);
 
   const unitsQuery = useQuery({
     queryKey: ["hru-units"],
     queryFn: async () => {
-      const res = await fetch(resolveApiUrl("/api/settings/units"));
-      if (!res.ok) {
-        logger.error("Failed to fetch units", { status: res.status, statusText: res.statusText });
-        throw new Error("Failed to fetch units");
-      }
-      const data = (await res.json()) as Array<{ id: string; name: string }>;
-      logger.info("Fetched units successfully", { count: data.length });
-      return data;
+      const units = await fetchHruUnits();
+      logger.info("Fetched units successfully", { count: units.length });
+      setFullUnits(units);
+      return units.map((u) => ({ id: u.id, name: u.name }));
     },
     enabled: active === 2,
   });
+
+  // Get selected unit's full definition
+  const selectedUnitDef = useMemo(() => {
+    return fullUnits.find((u) => u.id === selectedUnit);
+  }, [fullUnits, selectedUnit]);
+
+  // Check if selected unit requires maxPower configuration
+  const powerVariable = useMemo(() => {
+    return selectedUnitDef?.variables.find((v) => v.class === "power");
+  }, [selectedUnitDef]);
+
+  const requiresMaxPower = powerVariable?.maxConfigurable ?? false;
+  const defaultMaxPower = powerVariable?.maxDefault ?? powerVariable?.max;
+
+  // Set default maxPower when unit is selected
+  useEffect(() => {
+    if (selectedUnit && requiresMaxPower && maxPower === undefined && defaultMaxPower !== undefined) {
+      setMaxPower(defaultMaxPower);
+    }
+  }, [selectedUnit, requiresMaxPower, defaultMaxPower, maxPower]);
 
   const systemInfoQuery = useQuery({
     queryKey: ["system-info"],
@@ -160,7 +196,7 @@ export function OnboardingPage() {
   }, [systemInfoQuery.data, mqttForm]);
 
   const saveHruMutation = useMutation({
-    mutationFn: async (data: { host: string; port: number; unitId: number; unit: string }) => {
+    mutationFn: async (data: { host: string; port: number; unitId: number; unit: string; maxPower?: number }) => {
       const res = await fetch(resolveApiUrl("/api/settings/hru"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -205,8 +241,21 @@ export function OnboardingPage() {
           password: data.password,
         }),
       });
+      if (!res.ok) {
+        const detail = await res.text();
+        let errorMessage = detail;
+        try {
+          const json = JSON.parse(detail);
+          errorMessage = json.detail || detail;
+        } catch {
+          logger.warn("Failed to parse MQTT test error response", { detail });
+        }
+        throw new Error(errorMessage || "Connection failed");
+      }
+
       const json = await res.json();
-      if (!json.success) throw new Error(json.detail || "Connection failed");
+      const success = json?.success ?? json?.data?.success;
+      if (!success) throw new Error(json?.detail || "Connection failed");
       return json;
     },
     onSuccess: () => {
@@ -265,23 +314,6 @@ export function OnboardingPage() {
     },
   });
 
-  const saveTempUnitMutation = useMutation({
-    mutationFn: async (unit: TemperatureUnit) => {
-      const res = await fetch(resolveApiUrl("/api/settings/temperature-unit"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ temperatureUnit: unit }),
-      });
-      if (!res.ok) {
-        logger.error("Failed to save temperature unit", {
-          status: res.status,
-          statusText: res.statusText,
-        });
-        throw new Error("Failed to save temperature unit");
-      }
-    },
-  });
-
   const finishOnboardingMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(resolveApiUrl("/api/settings/onboarding-finish"), { method: "POST" });
@@ -331,12 +363,10 @@ export function OnboardingPage() {
       await Promise.all([
         saveLanguageMutation.mutateAsync(selectedLanguage),
         saveThemeMutation.mutateAsync(selectedTheme),
-        saveTempUnitMutation.mutateAsync(selectedTempUnit),
       ]);
       logger.info("Preferences saved successfully", {
         language: selectedLanguage,
         theme: selectedTheme,
-        tempUnit: selectedTempUnit,
       });
       nextStep();
     } catch (err) {
@@ -365,7 +395,11 @@ export function OnboardingPage() {
 
   async function handleHruAndModbusSave() {
     if (!selectedUnit) {
-      notifications.show({ title: t("valves.alertTitle"), message: t("onboarding.unit.error"), color: "red" });
+      notifications.show({
+        title: t("valves.alertTitle"),
+        message: t("onboarding.unit.error"),
+        color: "red",
+      });
       setActive(2);
       return;
     }
@@ -374,8 +408,9 @@ export function OnboardingPage() {
       await saveHruMutation.mutateAsync({
         ...modbusForm.values,
         unit: selectedUnit,
+        maxPower: requiresMaxPower ? maxPower : undefined,
       });
-      logger.info("HRU & Modbus settings saved successfully", { unit: selectedUnit });
+      logger.info("HRU & Modbus settings saved successfully", { unit: selectedUnit, maxPower });
       nextStep();
     } catch (err) {
       notifications.show({
@@ -410,7 +445,19 @@ export function OnboardingPage() {
 
   async function handleUnitSubmit() {
     if (!selectedUnit) {
-      notifications.show({ title: t("valves.alertTitle"), message: t("onboarding.unit.error"), color: "red" });
+      notifications.show({
+        title: t("valves.alertTitle"),
+        message: t("onboarding.unit.error"),
+        color: "red",
+      });
+      return;
+    }
+    if (requiresMaxPower && (maxPower === undefined || maxPower === null)) {
+      notifications.show({
+        title: t("valves.alertTitle"),
+        message: t("onboarding.unit.maxPowerRequired"),
+        color: "red",
+      });
       return;
     }
     nextStep();
@@ -624,21 +671,6 @@ export function OnboardingPage() {
             }}
           />
 
-          <Select
-            label={t("onboarding.preferences.tempUnitLabel")}
-            placeholder={t("onboarding.preferences.tempUnitPlaceholder")}
-            leftSection={<IconTemperature size={16} />}
-            data={[
-              { value: "c", label: t("onboarding.preferences.tempUnits.c") },
-              { value: "f", label: t("onboarding.preferences.tempUnits.f") },
-            ]}
-            value={selectedTempUnit}
-            onChange={(val) => {
-              if (val) {
-                setSelectedTempUnit(val as TemperatureUnit);
-              }
-            }}
-          />
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={prevStep}>
               {t("onboarding.back")}
@@ -673,6 +705,34 @@ export function OnboardingPage() {
           <Text size="sm" c="dimmed">
             {t("onboarding.unit.hint")}
           </Text>
+          {requiresMaxPower && (
+            <Paper p="sm" withBorder radius="md" bg="var(--mantine-color-blue-light)">
+              <Stack gap="xs">
+                <Text fw={500} size="sm">
+                  {t("settings.hru.configuration.title")}
+                </Text>
+                <Text size="xs" c="dimmed">
+                  {t("settings.hru.configuration.maxPowerDescription")}
+                </Text>
+                <NumberInput
+                  required
+                  value={maxPower ?? defaultMaxPower}
+                  onChange={(value) => {
+                    const numericValue = typeof value === "number" ? value : undefined;
+                    setMaxPower(numericValue);
+                  }}
+                  label={t("settings.hru.configuration.maxPowerLabel")}
+                  description={t("settings.hru.configuration.maxPowerHint", {
+                    default: defaultMaxPower,
+                    unit: typeof powerVariable?.unit === "string" ? powerVariable.unit : (powerVariable?.unit?.text ?? "%"),
+                  })}
+                  min={1}
+                  max={powerVariable?.max ?? 10000}
+                  size="md"
+                />
+              </Stack>
+            </Paper>
+          )}
           <Group justify="flex-end" mt="md">
             <Button variant="default" onClick={prevStep}>
               {t("onboarding.back")}
@@ -680,7 +740,7 @@ export function OnboardingPage() {
             <Button
               onClick={handleUnitSubmit}
               loading={saveHruMutation.isPending}
-              disabled={!selectedUnit}
+              disabled={!selectedUnit || (requiresMaxPower && (maxPower === undefined || maxPower === null))}
             >
               {t("onboarding.next")}
             </Button>
