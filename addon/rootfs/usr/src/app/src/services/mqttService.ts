@@ -692,6 +692,7 @@ export class MqttService extends EventEmitter {
       .replace(/[\u0300-\u036f]/g, "") // Remove accents
       .toLowerCase()
       .trim()
+      .replace(/luftator/g, "") // Avoid valve-like prefixes in MQTT entities
       .replace(/[^a-z0-9]+/g, "_")
       .replace(/(^_|_$)/g, ""); // Remove leading/trailing underscores
   }
