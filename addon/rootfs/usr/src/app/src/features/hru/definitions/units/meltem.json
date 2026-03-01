@@ -52,6 +52,11 @@
       },
       {
         "type": "assignment",
+        "variable": "$power",
+        "value": "$flowOut"
+      },
+      {
+        "type": "assignment",
         "variable": "$flowIn",
         "value": { "function": "modbus_read_input", "args": [41021] }
       }
