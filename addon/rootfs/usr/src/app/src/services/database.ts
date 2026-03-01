@@ -146,7 +146,6 @@ let db: Database | null = null;
 type StatementMap = {
   upsertController: Statement;
   upsertValveState: Statement;
-  insertValveHistory: Statement;
   getSetting: Statement;
   upsertSetting: Statement;
   getTimelineEvents: Statement;
@@ -248,7 +247,6 @@ function finalizeStatements(): void {
   }
   statements.upsertController.finalize();
   statements.upsertValveState.finalize();
-  statements.insertValveHistory.finalize();
   statements.getSetting.finalize();
   statements.upsertSetting.finalize();
   statements.getTimelineEvents.finalize();
@@ -274,10 +272,6 @@ function prepareStatements(database: Database): StatementMap {
          state = excluded.state,
          last_updated = excluded.last_updated,
          attributes = excluded.attributes`,
-    ),
-    insertValveHistory: database.prepare(
-      `INSERT INTO valve_history (entity_id, controller_id, name, value, state, recorded_at, attributes)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
     ),
     getSetting: database.prepare("SELECT value FROM app_settings WHERE key = ?"),
     upsertSetting: database.prepare(
