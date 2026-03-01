@@ -1,0 +1,46 @@
+{
+  "code": "demo",
+  "name": "Demonstration",
+  "variables": [
+    {
+      "name": "power",
+      "type": "number",
+      "editable": true,
+      "onDashboard": false,
+      "label": { "text": "hru.power", "translate": true },
+      "unit": "%",
+      "min": 0,
+      "max": 100,
+      "maxConfigurable": false,
+      "step": 5,
+      "class": "power"
+    },
+    {
+      "name": "temperature",
+      "type": "number",
+      "editable": true,
+      "onDashboard": false,
+      "label": { "text": "hru.temperature", "translate": true },
+      "unit": "˚C",
+      "min": 10,
+      "max": 40,
+      "maxConfigurable": false,
+      "step": 0.1,
+      "class": "temperature"
+    },
+    {
+      "name": "mode",
+      "type": "select",
+      "editable": true,
+      "onDashboard": false,
+      "label": { "text": "hru.mode", "translate": true },
+      "class": "mode",
+      "options": [
+        { "value": 0, "label": { "text": "hru.modes.off", "translate": true } },
+        { "value": 2, "label": { "text": "hru.modes.ventilation", "translate": true } },
+        { "value": 5, "label": { "text": "hru.modes.bypass", "translate": true } }
+      ]
+    }
+  ],
+  "interface-type": "demo"
+}
