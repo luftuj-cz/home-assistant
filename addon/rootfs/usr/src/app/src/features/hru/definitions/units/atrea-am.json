@@ -6,6 +6,7 @@
       "name": "power",
       "type": "number",
       "editable": true,
+      "onDashboard": true,
       "label": { "text": "hru.power", "translate": true },
       "unit": "%",
       "min": 0,
@@ -18,6 +19,7 @@
       "name": "temperature",
       "type": "number",
       "editable": true,
+      "onDashboard": true,
       "label": { "text": "hru.temperature", "translate": true },
       "unit": "˚C",
       "min": 10,
@@ -30,6 +32,7 @@
       "name": "mode",
       "type": "select",
       "editable": true,
+      "onDashboard": true,
       "label": { "text": "hru.mode", "translate": true },
       "class": "mode",
       "options": [

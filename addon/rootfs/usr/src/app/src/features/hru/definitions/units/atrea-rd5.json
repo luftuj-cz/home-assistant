@@ -6,6 +6,7 @@
       "name": "power",
       "type": "number",
       "editable": true,
+      "onDashboard": true,
       "label": {"text":"hru.power", "translate": true},
       "unit": "%",
       "min": 0,
@@ -18,6 +19,7 @@
       "name": "power_target",
       "type": "number",
       "editable": false,
+      "onDashboard": false,
       "label": { "text": "Power target", "translate": false },
       "unit": "%",
       "class": "other"
@@ -26,6 +28,7 @@
       "name": "temperature",
       "type": "number",
       "editable": true,
+      "onDashboard": true,
       "label": { "text": "hru.temperature", "translate": true },
       "unit": "˚C",
       "min": 10,
@@ -38,6 +41,7 @@
       "name": "temperature_target",
       "type": "number",
       "editable": false,
+      "onDashboard": false,
       "label": { "text": "Temperature target", "translate": false },
       "unit": "˚C",
       "class": "other",
@@ -47,32 +51,40 @@
       "name": "mode",
       "type": "select",
       "editable": true,
+      "onDashboard": true,
       "label": { "text": "hru.mode", "translate": true },
       "class": "mode",
       "options": [
-        {"value": 0, "label": {"text":"hru.modes.off", "translate": true}},
-        {"value": 2, "label": {"text":"hru.modes.ventilation", "translate": true}},
-        {"value": 3, "label": {"text":"hru.modes.circulationWithVentilation", "translate": true}},
-        {"value": 4, "label": {"text":"hru.modes.circulation", "translate": true}},
-        {"value": 5, "label": {"text":"hru.modes.bypass", "translate": true}},
-        {"value": 6, "label": {"text":"hru.modes.disbalance", "translate": true}},
-        {"value": 7, "label": {"text":"hru.modes.overpressure", "translate": true}}
+        { "value": 0, "label": { "text": "hru.modes.off", "translate": true } },
+        { "value": 2, "label": { "text": "hru.modes.ventilation", "translate": true } },
+        {
+          "value": 3,
+          "label": { "text": "hru.modes.circulationWithVentilation", "translate": true }
+        },
+        { "value": 4, "label": { "text": "hru.modes.circulation", "translate": true } },
+        { "value": 5, "label": { "text": "hru.modes.bypass", "translate": true } },
+        { "value": 6, "label": { "text": "hru.modes.disbalance", "translate": true } },
+        { "value": 7, "label": { "text": "hru.modes.overpressure", "translate": true } }
       ]
     },
     {
       "name": "mode_target",
       "type": "select",
       "editable": false,
+      "onDashboard": false,
       "label": { "text": "Mode target", "translate": false },
       "class": "other",
       "options": [
-        {"value": 0, "label": {"text":"hru.modes.off", "translate": true}},
-        {"value": 2, "label": {"text":"hru.modes.ventilation", "translate": true}},
-        {"value": 3, "label": {"text":"hru.modes.circulationWithVentilation", "translate": true}},
-        {"value": 4, "label": {"text":"hru.modes.circulation", "translate": true}},
-        {"value": 5, "label": {"text":"hru.modes.bypass", "translate": true}},
-        {"value": 6, "label": {"text":"hru.modes.disbalance", "translate": true}},
-        {"value": 7, "label": {"text":"hru.modes.overpressure", "translate": true}}
+        { "value": 0, "label": { "text": "hru.modes.off", "translate": true } },
+        { "value": 2, "label": { "text": "hru.modes.ventilation", "translate": true } },
+        {
+          "value": 3,
+          "label": { "text": "hru.modes.circulationWithVentilation", "translate": true }
+        },
+        { "value": 4, "label": { "text": "hru.modes.circulation", "translate": true } },
+        { "value": 5, "label": { "text": "hru.modes.bypass", "translate": true } },
+        { "value": 6, "label": { "text": "hru.modes.disbalance", "translate": true } },
+        { "value": 7, "label": { "text": "hru.modes.overpressure", "translate": true } }
       ]
     }
   ],

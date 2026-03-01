@@ -6,6 +6,7 @@
       "name": "power",
       "type": "number",
       "editable": true,
+      "onDashboard": true,
       "label": { "text": "hru.power", "translate": true },
       "unit": "m³/h",
       "min": 0,
@@ -18,6 +19,7 @@
       "name": "offset",
       "type": "number",
       "editable": true,
+      "onDashboard": false,
       "label": { "text": "hru.offset", "translate": true },
       "min": 0,
       "max": 30,
@@ -29,6 +31,7 @@
       "name": "flowIn",
       "type": "number",
       "editable": false,
+      "onDashboard": true,
       "label": { "text": "hru.flowIn", "translate": true },
       "unit": "m³/h",
       "class": "power"
@@ -37,6 +40,7 @@
       "name": "flowOut",
       "type": "number",
       "editable": false,
+      "onDashboard": true,
       "label": { "text": "hru.flowOut", "translate": true },
       "unit": "m³/h",
       "class": "power"

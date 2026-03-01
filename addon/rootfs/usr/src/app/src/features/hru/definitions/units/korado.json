@@ -6,6 +6,7 @@
       "name": "power",
       "type": "number",
       "editable": true,
+      "onDashboard": true,
       "label": { "text": "hru.power", "translate": true },
       "unit": "%",
       "min": 0,
