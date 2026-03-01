@@ -60,3 +60,13 @@ func OnReadInputRegisters(s *Server, function func(register uint16, numRegs int)
 		return append([]byte{byte(numRegs * 2)}, Uint16ToBytes(values)...), err
 	})
 }
+
+func OnWriteCoil(s *Server, function func(address uint16, value bool) *Exception) {
+	s.RegisterFunctionHandler(FnWriteSingleCoil, func(s *Server, frame Framer) ([]byte, *Exception) {
+		data := frame.GetData()
+		address := binary.BigEndian.Uint16(data[0:2])
+		value := binary.BigEndian.Uint16(data[2:4]) != 0
+		log.Printf("modbus_write_coil: address=%d, value=%v\n", address, value)
+		return frame.GetData()[0:4], function(address, value)
+	})
+}
