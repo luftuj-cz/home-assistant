@@ -62,7 +62,7 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
     refreshActiveBoost().catch((err) =>
       logger.error("Failed to refresh active boost on mount", { err }),
     );
-    const interval = setInterval(refreshActiveBoost, 10000);
+    const interval = setInterval(refreshActiveBoost, 5000);
     return () => clearInterval(interval);
   }, [refreshActiveBoost]);
 
