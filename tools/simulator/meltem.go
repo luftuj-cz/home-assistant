@@ -24,6 +24,7 @@ func NewMeltem() *Meltem {
 
 func (m *Meltem) Configure(serv *Server) {
 	OnReadInputRegisters(serv, func(register uint16, numRegs int) ([]uint16, *Exception) {
+		log.Printf("modbus_read_input_registers: register=%d, numRegs=%d\n", register, numRegs)
 		if register == 41020 && numRegs == 1 {
 			return []uint16{uint16(m.outFlow)}, &Success
 		}
@@ -32,25 +33,26 @@ func (m *Meltem) Configure(serv *Server) {
 		}
 		return []uint16{}, &IllegalDataAddress
 	})
-	OnWriteHoldingRegisters(serv, func(register uint16, values []uint16) *Exception {
-		if register == 41120 && len(values) == 1 {
-			m.editMode = int(values[0])
+	OnWriteHoldingRegister(serv, func(register uint16, value uint16) *Exception {
+		log.Printf("modbus_write_holding_register: register=%d, value=%d\n", register, value)
+		if register == 41120 {
+			m.editMode = int(value)
 			return &Success
 		}
-		if register == 41121 && len(values) == 1 {
-			m.reqInFlow = int(values[0] / 2)
+		if register == 41121 {
+			m.reqInFlow = int(value)
 			return &Success
 		}
-		if register == 41121 && len(values) == 1 {
-			m.reqInFlow = int(values[0] / 2)
+		if register == 41121 {
+			m.reqInFlow = int(value)
 			return &Success
 		}
-		if register == 41132 && len(values) == 1 {
-			if values[0] == 0 && m.editMode == 4 {
+		if register == 41132 {
+			if value == 0 && m.editMode == 4 {
 				m.inFlow = m.reqInFlow
 				m.outFlow = m.reqOutFlow
 				m.editMode = 0
-				log.Printf("Meltem: inFlow=%d, outFlow=%d\n", m.inFlow, m.outFlow)
+				log.Printf(">>> Meltem setting: inFlow=%d, outFlow=%d\n", m.inFlow, m.outFlow)
 			}
 		}
 
