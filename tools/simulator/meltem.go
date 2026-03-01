@@ -44,8 +44,8 @@ func (m *Meltem) Configure(serv *Server) {
 			m.reqInFlow = int(value)
 			return &Success
 		}
-		if register == 41121 {
-			m.reqInFlow = int(value)
+		if register == 41122 {
+			m.reqOutFlow = int(value)
 			return &Success
 		}
 		if register == 41132 {
