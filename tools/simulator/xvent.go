@@ -46,7 +46,7 @@ func (x *Xvent) Configure(serv *Server) {
 			x.boost = (values[0] & 0x10) != 0
 			x.bypass = (values[0] & 0x4) != 0
 			x.powerOn = (values[0] & 0x1) != 0
-			log.Printf("Xvent: speed=%d, boost=%v, bypass=%v, powerOn=%v\n", x.speed, x.boost, x.bypass, x.powerOn)
+			log.Printf(">>> CHANGE: speed=%d, boost=%v, bypass=%v, powerOn=%v\n", x.speed, x.boost, x.bypass, x.powerOn)
 			return &Success
 		}
 		return &IllegalDataAddress
