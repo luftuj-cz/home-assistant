@@ -36,6 +36,11 @@ const RESOURCES: Record<string, LocaleResource> = {
   cs: csCommon,
 };
 
+function normalizeLang(lang: string | null | undefined): keyof typeof RESOURCES {
+  const base = typeof lang === "string" && lang ? lang.split("-")[0] : "en";
+  return (base === "cs" ? "cs" : "en") as keyof typeof RESOURCES;
+}
+
 const FALLBACK_STRINGS: LocalizedStrings = {
   power: "Requested Power",
   temperature: "Requested Temperature",
@@ -60,7 +65,7 @@ const FALLBACK_MODE_LABELS: Record<string, string> = {
 };
 
 function getResource(lang: string): LocaleResource | null {
-  return RESOURCES[lang] ?? null;
+  return RESOURCES[normalizeLang(lang)] ?? null;
 }
 
 function getDiscoveryStrings(lang: string): LocalizedStrings {
@@ -258,6 +263,7 @@ export class MqttService extends EventEmitter {
   public async publishState(state: {
     power?: number;
     temperature?: number;
+    mode?: string | number;
     mode_formatted?: string;
     native_mode_formatted?: string;
     boost_remaining?: number;
@@ -287,6 +293,13 @@ export class MqttService extends EventEmitter {
     const lang = typeof langRaw === "string" && langRaw ? (langRaw.split("-")[0] ?? "en") : "en";
     const modeStrings = getModeLabels(lang);
 
+    function translateModeKey(raw?: string | number) {
+      if (raw === undefined || raw === null) return undefined;
+      const key = String(raw).trim();
+      if (key && modeStrings[key]) return modeStrings[key];
+      return undefined;
+    }
+
     function resolveModeLabel(val?: string | number) {
       if (val === undefined || val === null) return undefined;
       const numeric = typeof val === "number" ? val : Number(val);
@@ -294,18 +307,25 @@ export class MqttService extends EventEmitter {
       if (match) {
         const label = match.label;
         const key = typeof label === "string" ? label : label?.text;
-        if (key && modeStrings[key]) return modeStrings[key];
+        const translated = translateModeKey(key);
+        if (translated) return translated;
         if (key) return key;
       }
-      if (typeof val === "string") return modeStrings[val] ?? val;
+      if (typeof val === "string") return translateModeKey(val) ?? val;
       return String(val);
     }
 
+    const resolvedModeFormatted = resolveModeLabel(state.mode_formatted) ?? state.mode_formatted;
+    const resolvedNativeMode =
+      resolveModeLabel(state.native_mode_formatted) ?? state.native_mode_formatted;
+    const resolvedRawMode = resolveModeLabel(state.mode) ?? state.mode;
+
     const payload = JSON.stringify({
       ...state,
-      mode_formatted: resolveModeLabel(state.mode_formatted) ?? state.mode_formatted,
-      native_mode_formatted:
-        resolveModeLabel(state.native_mode_formatted) ?? state.native_mode_formatted,
+      mode: resolvedRawMode,
+      mode_formatted: resolvedModeFormatted,
+      native_mode_formatted: resolvedNativeMode,
+      mode_display: resolvedModeFormatted ?? resolvedNativeMode ?? resolvedRawMode,
     });
 
     try {
@@ -795,7 +815,7 @@ export class MqttService extends EventEmitter {
       unitId,
       "mode_standard",
       strings.mode,
-      "{{ value_json.mode_formatted }}",
+      "{{ value_json.mode_display }}",
       device,
       availability,
       "mdi:fan",
