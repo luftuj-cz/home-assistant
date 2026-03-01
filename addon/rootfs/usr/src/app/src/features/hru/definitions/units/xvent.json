@@ -6,6 +6,7 @@
       "name": "power",
       "type": "number",
       "editable": true,
+      "onDashboard": true,
       "label": { "text": "hru.power", "translate": true },
       "unit": { "text": "hru.level", "translate": true },
       "min": 0,
@@ -18,12 +19,14 @@
       "name": "bypass",
       "type": "boolean",
       "editable": true,
-      "label": {"text": "hru.bypass", "translate": true}
+      "onDashboard": true,
+      "label": { "text": "hru.bypass", "translate": true }
     },
     {
       "name": "boost",
       "type": "boolean",
       "editable": true,
+      "onDashboard": true,
       "label": { "text": "hru.boost", "translate": true }
     }
   ],
