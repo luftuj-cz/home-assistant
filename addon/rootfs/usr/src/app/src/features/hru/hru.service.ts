@@ -192,6 +192,33 @@ export class HruService {
       this.logger.info({ scriptVars }, "HRU writeValues: computed script variables");
 
       if (Object.keys(scriptVars).length > 0) {
+        // Log resolved Modbus targets for easier debugging
+        function resolveVal(v: unknown) {
+          if (typeof v === "string" && v.startsWith("$")) {
+            return scriptVars[v];
+          }
+          return v;
+        }
+
+        const writeTargets = unit.integration.write
+          .filter((step) => step.type === "action")
+          .map((step) => step as { type: "action"; expression: { function: string; args: unknown[] } })
+          .filter((step) =>
+            step.expression.function === "modbus_write_holding" ||
+            step.expression.function === "modbus_write_holding_multi" ||
+            step.expression.function === "modbus_write_coil",
+          )
+          .map((step) => {
+            const [addrRaw, ...rest] = step.expression.args;
+            return {
+              fn: step.expression.function,
+              address: resolveVal(addrRaw),
+              args: rest.map(resolveVal),
+            };
+          });
+
+        this.logger.info({ writeTargets }, "HRU writeValues: planned Modbus writes");
+
         await this.repository.executeScript(config, unit.integration.write, scriptVars);
       } else {
         this.logger.warn("HRU writeValues: no script variables computed, skipping write script");

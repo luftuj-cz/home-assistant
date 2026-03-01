@@ -20,6 +20,7 @@ export interface HruVariable {
   name: string;
   type: "number" | "select" | "boolean";
   editable: boolean;
+  onDashboard?: boolean;
   label: LocalizedText;
   unit?: LocalizedText;
   class?: VariableClass;
