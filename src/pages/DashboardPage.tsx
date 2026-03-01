@@ -21,6 +21,7 @@ export function DashboardPage() {
     mqttStatus,
     mqttLastDiscovery,
     activeMode,
+    configuredMaxPower,
   } = useDashboardStatus();
   const { modes, loadModes } = useTimelineModes(t);
   const [activeUnitId, setActiveUnitId] = useState<string | undefined>(undefined);
@@ -85,7 +86,13 @@ export function DashboardPage() {
 
         <BoostButtons modes={modes} t={t} activeUnitId={activeUnitId} />
 
-        <HruStatusCard status={hruStatus} hruName={hruName} t={t} activeMode={activeMode} />
+        <HruStatusCard
+          status={hruStatus}
+          hruName={hruName}
+          t={t}
+          activeMode={activeMode}
+          configuredMaxPower={configuredMaxPower}
+        />
 
         <StatusCard
           title={t("dashboard.haStatusTitle", { defaultValue: "Home Assistant" })}

@@ -27,6 +27,7 @@ export interface HruVariable {
   min?: number;
   max?: number;
   step?: number;
+  maxConfigurable?: boolean;
   options?: Array<{
     value: number;
     label: LocalizedText;
@@ -57,6 +58,7 @@ export function useDashboardStatus() {
 
   const [hruName, setHruName] = useState<string | null>(null);
   const [hruStatus, setHruStatus] = useState<HruState>(null);
+  const [configuredMaxPower, setConfiguredMaxPower] = useState<number | undefined>(undefined);
 
   const [mqttStatus, setMqttStatus] = useState<"connected" | "disconnected" | "loading">("loading");
   const [mqttLastDiscovery, setMqttLastDiscovery] = useState<string | null>(null);
@@ -99,11 +101,15 @@ export function useDashboardStatus() {
             host?: string;
             port?: number;
             unit?: string;
+            maxPower?: number;
           };
           if (data.host) setModbusHost(data.host);
           if (Number.isFinite(data.port)) setModbusPort(data.port as number);
           if (data.unit) {
             unitId = data.unit;
+          }
+          if (Number.isFinite(data.maxPower)) {
+            setConfiguredMaxPower(data.maxPower as number);
           }
         }
 
@@ -387,5 +393,6 @@ export function useDashboardStatus() {
     mqttStatus,
     mqttLastDiscovery,
     activeMode,
+    configuredMaxPower,
   };
 }
