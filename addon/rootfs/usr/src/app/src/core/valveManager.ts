@@ -46,6 +46,11 @@ export class ValveManager implements ValveController {
     return entityId.includes("_demonstration_");
   }
 
+  private isValveEntity(entityId: string): boolean {
+    // Allow only valve pattern: number.luftator_<controller>_<zone>
+    return /^number\.luftator_[a-z0-9]+_[a-z0-9]+$/i.test(entityId);
+  }
+
   constructor(
     private readonly client: HomeAssistantClient,
     private readonly logger: Logger,
@@ -81,12 +86,14 @@ export class ValveManager implements ValveController {
     await this.mutex.runExclusive(async () => {
       this.valves.clear();
       for (const valve of snapshot) {
-        if (this.isDemoValve(valve.entity_id)) continue;
+        if (!this.isValveEntity(valve.entity_id) || this.isDemoValve(valve.entity_id)) continue;
         this.valves.set(valve.entity_id, valve);
       }
     });
 
-    const filteredSnapshot = snapshot.filter((valve) => !this.isDemoValve(valve.entity_id));
+    const filteredSnapshot = snapshot.filter(
+      (valve) => this.isValveEntity(valve.entity_id) && !this.isDemoValve(valve.entity_id),
+    );
 
     await this.broadcast({ type: "snapshot", payload: filteredSnapshot });
     storeValveSnapshots(
@@ -157,7 +164,7 @@ export class ValveManager implements ValveController {
         return;
       }
 
-      if (this.isDemoValve(entityId)) {
+      if (!this.isValveEntity(entityId) || this.isDemoValve(entityId)) {
         return;
       }
 
