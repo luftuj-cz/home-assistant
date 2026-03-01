@@ -137,6 +137,24 @@ export function createTimelineRouter(
     return true;
   }
 
+  function buildHruPayload(config: {
+    nativeMode?: string | number;
+    power?: number;
+    temperature?: number;
+    variables?: Record<string, number | string | boolean>;
+  }): Record<string, number | string | boolean> {
+    const payload: Record<string, number | string | boolean> = {};
+    if (config.nativeMode !== undefined) payload.mode = config.nativeMode;
+    if (config.power !== undefined) payload.power = config.power;
+    if (config.temperature !== undefined) payload.temperature = config.temperature;
+    if (config.variables) {
+      for (const [key, value] of Object.entries(config.variables)) {
+        if (value !== undefined && value !== null) payload[key] = value;
+      }
+    }
+    return payload;
+  }
+
   router.get("/modes", (request: Request, response: Response) => {
     const currentUnitId = getCurrentUnitId(request.query.unitId as string) || "";
     // Pass unit ID to DB fetching so we get global AND unit specific modes
@@ -486,6 +504,16 @@ export function createTimelineRouter(
         // Validate max power just like regular creation
         if (!validatePowerAndValves(config, response)) {
           return;
+        }
+
+        // Apply HRU config immediately for test mode (mirrors boost behavior)
+        try {
+          const payload = buildHruPayload(config);
+          if (Object.keys(payload).length > 0) {
+            await hruService.writeValues(payload);
+          }
+        } catch (error) {
+          logger.error({ error, config }, "Failed to apply HRU config for test mode");
         }
 
         // Add 5s buffer to account for network latency and timer drift

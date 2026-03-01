@@ -164,6 +164,11 @@ export function OnboardingPage() {
     return fullUnits.find((u) => u.id === selectedUnit);
   }, [fullUnits, selectedUnit]);
 
+  const isDemoUnit = useMemo(() => {
+    if (!selectedUnitDef) return false;
+    return selectedUnitDef.interfaceType === "demo" || selectedUnitDef.code === "demo";
+  }, [selectedUnitDef]);
+
   // Check if selected unit requires maxPower configuration
   const powerVariable = useMemo(() => {
     return selectedUnitDef?.variables.find((v) => v.class === "power");
@@ -460,6 +465,30 @@ export function OnboardingPage() {
       });
       return;
     }
+
+    // For demo interface, finish onboarding immediately (no MQTT/Modbus steps needed)
+    if (isDemoUnit) {
+      try {
+        await saveHruMutation.mutateAsync({
+          ...modbusForm.values,
+          unit: selectedUnit,
+          maxPower: requiresMaxPower ? maxPower : undefined,
+        });
+        await finishOnboardingMutation.mutateAsync();
+        await queryClient.invalidateQueries({ queryKey: ["onboarding-layout-check"] });
+        logger.info("Demo unit selected; onboarding skipped to completion", { unit: selectedUnit });
+        await navigate({ to: "/" });
+      } catch (err) {
+        notifications.show({
+          title: t("onboarding.mqtt.failed"),
+          message: t("onboarding.unit.saveFailed"),
+          color: "red",
+        });
+        logger.error("Failed to finish onboarding for demo unit", { error: err });
+      }
+      return;
+    }
+
     nextStep();
   }
 

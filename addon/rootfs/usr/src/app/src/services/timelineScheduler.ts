@@ -73,6 +73,36 @@ export class TimelineScheduler {
     });
   }
 
+  private async applyHruConfig(config?: {
+    mode?: string | number;
+    power?: number;
+    temperature?: number;
+    variables?: Record<string, number | string | boolean>;
+  }): Promise<void> {
+    if (!config) return;
+
+    const payload: Record<string, number | string | boolean> = {};
+
+    if (config.mode !== undefined) payload.mode = config.mode;
+    if (config.power !== undefined) payload.power = config.power;
+    if (config.temperature !== undefined) payload.temperature = config.temperature;
+    if (config.variables) {
+      for (const [key, value] of Object.entries(config.variables)) {
+        if (value !== undefined && value !== null) {
+          payload[key] = value;
+        }
+      }
+    }
+
+    if (Object.keys(payload).length === 0) return;
+
+    try {
+      await this.hruService.writeValues(payload);
+    } catch (err) {
+      this.logger.error({ err, payload }, "TimelineScheduler: Failed to apply HRU config");
+    }
+  }
+
   private mapTodayToTimelineDay(): number {
     const jsDay = new Date().getDay();
     return jsDay === 0 ? 6 : jsDay - 1;
@@ -371,6 +401,9 @@ export class TimelineScheduler {
       }
 
       const { hruConfig, luftatorConfig, source, id } = activePayload;
+
+      // Apply HRU settings immediately (for test/boost/schedule)
+      await this.applyHruConfig(hruConfig ?? undefined);
 
       let modeName: string | number | undefined;
       if (source === "boost" || source === "schedule") {

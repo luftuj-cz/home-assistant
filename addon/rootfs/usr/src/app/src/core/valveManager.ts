@@ -42,6 +42,10 @@ export class ValveManager implements ValveController {
   private readonly valves = new Map<string, ValveSnapshot>();
   private disconnect: (() => void) | null = null;
 
+  private isDemoValve(entityId: string): boolean {
+    return entityId.includes("_demonstration_");
+  }
+
   constructor(
     private readonly client: HomeAssistantClient,
     private readonly logger: Logger,
@@ -77,13 +81,16 @@ export class ValveManager implements ValveController {
     await this.mutex.runExclusive(async () => {
       this.valves.clear();
       for (const valve of snapshot) {
+        if (this.isDemoValve(valve.entity_id)) continue;
         this.valves.set(valve.entity_id, valve);
       }
     });
 
-    await this.broadcast({ type: "snapshot", payload: snapshot });
+    const filteredSnapshot = snapshot.filter((valve) => !this.isDemoValve(valve.entity_id));
+
+    await this.broadcast({ type: "snapshot", payload: filteredSnapshot });
     storeValveSnapshots(
-      snapshot.map((valve) => ({
+      filteredSnapshot.map((valve) => ({
         entityId: valve.entity_id,
         controllerId: this.resolveControllerId(valve.entity_id),
         controllerName: this.resolveControllerName(valve.entity_id),
@@ -94,7 +101,7 @@ export class ValveManager implements ValveController {
         timestamp: valve.last_updated ?? valve.last_changed ?? new Date().toISOString(),
       })),
     );
-    this.logger.debug({ count: snapshot.length }, "Valve snapshot synchronised");
+    this.logger.debug({ count: filteredSnapshot.length }, "Valve snapshot synchronised");
   }
 
   async setValue(entityId: string, value: number): Promise<ValveSnapshot> {
@@ -147,6 +154,10 @@ export class ValveManager implements ValveController {
       const validatedEvent = HassStateChangedEventSchema.parse(event);
       const { entity_id: entityId, new_state: newState } = validatedEvent;
       if (!newState) {
+        return;
+      }
+
+      if (this.isDemoValve(entityId)) {
         return;
       }
 

@@ -55,7 +55,7 @@ export interface HeatRecoveryUnit {
   code: string;
   name: string;
   variables: HruVariable[];
-  "interface-type": "modbus-tcp";
+  "interface-type": "modbus-tcp" | "demo";
   integration: {
     read: CommandScript;
     write: CommandScript;
