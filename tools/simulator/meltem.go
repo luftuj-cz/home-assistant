@@ -41,11 +41,11 @@ func (m *Meltem) Configure(serv *Server) {
 			return &Success
 		}
 		if register == 41121 {
-			m.reqInFlow = int(value)
+			m.reqInFlow = int(value / 2)
 			return &Success
 		}
 		if register == 41122 {
-			m.reqOutFlow = int(value)
+			m.reqOutFlow = int(value / 2)
 			return &Success
 		}
 		if register == 41132 {
@@ -54,6 +54,9 @@ func (m *Meltem) Configure(serv *Server) {
 				m.outFlow = m.reqOutFlow
 				m.editMode = 0
 				log.Printf(">>> Meltem setting: inFlow=%d, outFlow=%d\n", m.inFlow, m.outFlow)
+			} else {
+				log.Printf("Meltem: invalid edit mode: %d, confirm value: %d\n", m.editMode, value)
+				return &IllegalDataValue
 			}
 		}
 
