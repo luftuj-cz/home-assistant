@@ -32,7 +32,7 @@ func (a *AtreaRD5) Configure(serv *Server) {
 		if (register == 10704 || register == 10708) && numRegs == 1 {
 			return []uint16{uint16(a.power)}, &Success
 		}
-		if (register == 10704 || register == 10710) && numRegs == 1 {
+		if (register == 10706 || register == 10710) && numRegs == 1 {
 			return []uint16{uint16(math.Round(a.temperature * 10))}, &Success
 		}
 		if (register == 10705 || register == 10709) && numRegs == 1 {
