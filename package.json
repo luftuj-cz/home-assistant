@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
-    "build:addon": "bun run build && bun scripts/sync-dist.mjs",
+    "build": "tsc -b && node scripts/copy-translations.mjs && vite build",
+    "build:addon": "bun run build && bun scripts/copy-translations.mjs && bun scripts/sync-dist.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
