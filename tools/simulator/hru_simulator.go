@@ -14,7 +14,7 @@ type HRULogic interface {
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Fprintln(os.Stderr, "Error: missing argument. Usage: hru_simulator <port> <xvent|meltem>")
+		fmt.Fprintln(os.Stderr, "Error: missing argument. Usage: hru_simulator <port> <xvent|meltem|atrea-rd5|atrea-am|korado>")
 		os.Exit(1)
 	}
 
@@ -26,6 +26,8 @@ func main() {
 		logic = NewMeltem()
 	case "atrea-rd5":
 		logic = NewAtreaRD5()
+	case "atrea-am":
+		logic = NewAtreaAM(380)
 	case "korado":
 		logic = NewKorado()
 	default:
