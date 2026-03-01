@@ -28,6 +28,7 @@ export interface HruUnit {
   code: string;
   name: string;
   variables: HruVariable[];
+  interfaceType?: string;
 }
 
 export async function fetchHruUnits(): Promise<HruUnit[]> {

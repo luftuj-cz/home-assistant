@@ -6,6 +6,7 @@ import { HruLoader } from "./hru.loader";
 import { type HeatRecoveryUnit, type HruVariable } from "./hru.definitions";
 import { HruNotConfiguredError, HruConnectionError } from "../../shared/errors/apiErrors";
 import { resolveModeValue } from "../../utils/hruWrite";
+import { getDemoState, setDemoState } from "../../services/demoState";
 
 export interface HruUnitDefinition {
   id: string;
@@ -43,6 +44,10 @@ export class HruService {
       .sort((a, b) => a.name.localeCompare(b.name));
   }
 
+  getUnitById(id: string): HeatRecoveryUnit | null {
+    return this.units.find((u) => u.code === id || u.name === id) ?? null;
+  }
+
   getModes(unitIdOverride?: string): { id: number; name: string }[] {
     let unit: HeatRecoveryUnit | null;
 
@@ -74,6 +79,29 @@ export class HruService {
     }
 
     const { settings, unit } = configData;
+
+    // Demo units: return cached state (or zeroed defaults) without Modbus
+    if (unit["interface-type"] === "demo") {
+      const cached = getDemoState(unit.code);
+      if (cached) {
+        return {
+          values: cached.values as Record<string, number>,
+          displayValues: cached.displayValues as Record<string, string | number | boolean>,
+          variables: cached.variables,
+        };
+      }
+
+      const values: Record<string, number> = {};
+      const displayValues: Record<string, string | number | boolean> = {};
+      for (const v of unit.variables) {
+        const base = v.type === "boolean" ? false : 0;
+        values[v.name] = typeof base === "number" ? base : 0;
+        displayValues[v.name] = base;
+      }
+      const demo = { values, displayValues, variables: unit.variables };
+      setDemoState(unit.code, demo);
+      return demo;
+    }
 
     if (!settings.host) {
       const err = new HruNotConfiguredError("HRU host not configured");
@@ -141,6 +169,30 @@ export class HruService {
       throw err;
     }
     const { settings, unit } = configData;
+
+    // Demo: store in memory and return, ignore Modbus
+    if (unit["interface-type"] === "demo") {
+      const prev = getDemoState(unit.code) ?? {
+        values: {},
+        displayValues: {},
+        variables: unit.variables,
+      };
+
+      const nextValues = { ...prev.values } as Record<string, number | string | boolean | null>;
+      const nextDisplay = { ...prev.displayValues } as Record<string, string | number | boolean | null>;
+
+      for (const [key, value] of Object.entries(data)) {
+        nextValues[key] = value;
+        nextDisplay[key] = value as string | number | boolean | null;
+      }
+
+      setDemoState(unit.code, {
+        values: nextValues,
+        displayValues: nextDisplay,
+        variables: unit.variables,
+      });
+      return;
+    }
 
     if (!settings.host) {
       const err = new HruNotConfiguredError("HRU host not configured");
@@ -254,10 +306,6 @@ export class HruService {
       this.logger.warn({ err }, "Failed to execute HRU KeepAlive");
       return keepAlive.period;
     }
-  }
-
-  private getUnitById(id: string): HeatRecoveryUnit | undefined {
-    return this.units.find((u) => u.code === id || u.name === id);
   }
 
   public getResolvedConfiguration(settingsOverride?: HruSettings) {
