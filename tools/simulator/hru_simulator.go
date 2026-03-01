@@ -24,6 +24,8 @@ func main() {
 		logic = NewXvent()
 	case "meltem":
 		logic = NewMeltem()
+	case "atrea-rd5":
+		logic = NewAtreaRD5()
 	default:
 		fmt.Fprintf(os.Stderr, "Error: unknown HRU type '%s'. Valid options: xvent, meltem\n", os.Args[1])
 		os.Exit(1)
