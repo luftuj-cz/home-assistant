@@ -83,16 +83,22 @@ export function createSettingsRouter(
     });
   });
 
-  router.post("/onboarding-finish", (_request: Request, response: Response, next: NextFunction) => {
-    try {
-      setAppSetting(ONBOARDING_DONE_KEY, "true");
-      logger.info("Onboarding finished");
-      response.status(204).end();
-    } catch (error) {
-      logger.error({ error }, "Failed to finish onboarding");
-      next(error);
-    }
-  });
+  router.post(
+    "/onboarding-finish",
+    async (_request: Request, response: Response, next: NextFunction) => {
+      try {
+        setAppSetting(ONBOARDING_DONE_KEY, "true");
+        logger.info("Onboarding finished; restarting MQTT service");
+
+        await mqttService.reloadConfig();
+
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to finish onboarding");
+        next(error);
+      }
+    },
+  );
 
   router.post("/onboarding-reset", (_request: Request, response: Response, next: NextFunction) => {
     try {
