@@ -139,6 +139,10 @@ const migrations: Migration[] = [
       `DROP TABLE IF EXISTS valve_history;`,
     ],
   },
+  {
+    id: "010_vacuum_after_history_drop",
+    statements: [`VACUUM;`],
+  },
 ];
 
 let db: Database | null = null;
@@ -210,6 +214,21 @@ function applyMigrations(database: Database, logger?: Logger): void {
     if (existing.has(migration.id)) {
       continue;
     }
+    const isVacuum = migration.statements.length === 1 && migration.statements[0]?.trim().toUpperCase() === "VACUUM;";
+
+    if (isVacuum) {
+      // VACUUM cannot run inside a transaction; run separately
+      try {
+        database.run("VACUUM;");
+        insertMigration.run(migration.id);
+        activeLogger?.info({ migrationId: migration.id }, "Applied database migration");
+      } catch (error) {
+        activeLogger?.error({ error, migrationId: migration.id }, "Migration failed");
+        throw error;
+      }
+      continue;
+    }
+
     database.run("BEGIN");
     let statementError: unknown = null;
 
