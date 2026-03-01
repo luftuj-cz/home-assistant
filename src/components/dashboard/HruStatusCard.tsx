@@ -34,9 +34,10 @@ interface HruStatusCardProps {
   hruName?: string | null;
   t: TFunction;
   activeMode?: ActiveMode | null;
+  configuredMaxPower?: number;
 }
 
-export function HruStatusCard({ status, hruName, t, activeMode }: HruStatusCardProps) {
+export function HruStatusCard({ status, hruName, t, activeMode, configuredMaxPower }: HruStatusCardProps) {
   const title = t("dashboard.hruStatusTitle", { defaultValue: "HRU live values" });
   const displayTitle = hruName ? `${hruName}` : title;
 
@@ -137,7 +138,16 @@ export function HruStatusCard({ status, hruName, t, activeMode }: HruStatusCardP
   function renderPower(variable: HruVariable) {
     const rawVal = values[variable.name];
     const val = typeof rawVal === "number" ? rawVal : Number(rawVal ?? 0);
-    const max = typeof variable.max === "number" ? variable.max : 100;
+    const maxFromConfig =
+      variable.class === "power" && variable.maxConfigurable && configuredMaxPower != null
+        ? configuredMaxPower
+        : undefined;
+    const max =
+      typeof maxFromConfig === "number"
+        ? maxFromConfig
+        : typeof variable.max === "number"
+          ? variable.max
+          : 100;
     const percentage = Math.min(100, Math.max(0, (val / max) * 100));
     const unit = variable.unit ? getLocalizedText(variable.unit) : "%";
 
