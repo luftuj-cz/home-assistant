@@ -16,3 +16,5 @@ Supported HRU types:
 - xvent
 - meltem
 - atrea-rd5
+- korado
+- atrea-am
