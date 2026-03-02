@@ -16,3 +16,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 - Valve filtering was too strict for certain luftator valve IDs.
+
+## [1.0.3-stable] - 2026-03-02
+
+### Fixed
+- Prevented demo HRU keep-alive loop from crashing when no integration keepAlive is defined.
