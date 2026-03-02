@@ -285,9 +285,14 @@ export class HruService {
 
   async executeKeepAlive(): Promise<number | null> {
     const configData = this.getResolvedConfiguration();
-    if (!configData?.unit.integration.keepAlive) return null;
+    if (!configData) return null;
 
     const { settings, unit } = configData;
+
+    if (unit["interface-type"] === "demo") return null;
+
+    if (!unit.integration.keepAlive) return null;
+
     const keepAlive = unit.integration.keepAlive!;
 
     try {
