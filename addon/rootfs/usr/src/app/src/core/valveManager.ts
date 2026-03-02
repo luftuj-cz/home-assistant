@@ -47,8 +47,8 @@ export class ValveManager implements ValveController {
   }
 
   private isValveEntity(entityId: string): boolean {
-    // Allow only valve pattern: number.luftator_<controller>_<zone>
-    return /^number\.luftator_[a-z0-9]+_[a-z0-9]+$/i.test(entityId);
+    // Allow valve ids like number.luftator_<controller>_<zone>[...]
+    return /^(?:number\.)?luftator_[a-z0-9]+(?:_[a-z0-9]+)+$/i.test(entityId);
   }
 
   constructor(
