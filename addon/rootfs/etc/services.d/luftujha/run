@@ -19,5 +19,4 @@ export HA_BASE_URL="http://supervisor/core"
 export SUPERVISOR_TOKEN="${SUPERVISOR_TOKEN}"
 
 bashio::log.info "Starting server (ingress port: ${INGRESS_PORT:-default})..."
-exec bun run src/server.ts || bashio::exit.nok "Failed to start the server"
-
+exec node --import=tsx src/server.ts || bashio::exit.nok "Failed to start the server"

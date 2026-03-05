@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { z } from "zod";
-import { createLogger } from "../logger";
-import { getConfig } from "../config/options";
+import { createLogger } from "../logger.js";
+import { getConfig } from "../config/options.js";
 
 const config = getConfig();
 const logger = createLogger(config.logLevel);

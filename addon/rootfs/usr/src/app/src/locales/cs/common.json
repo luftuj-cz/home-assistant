@@ -13,7 +13,7 @@
         "%": "%"
       },
       "dashboard": "Přehled",
-      "valves": "Ventily",
+      "valves": "Klapky",
       "timeline": "Časová osa",
       "settings": "Nastavení",
       "debug": "Ladění",
@@ -152,7 +152,7 @@
       "noEvents": "Žádné nakonfigurované události",
       "confirmDelete": "Opravdu chcete smazat tuto událost?",
       "hru": "Rekuperační jednotka",
-      "valves": "Ventily",
+      "valves": "Klapky",
       "allDays": "Všechny dny",
       "monday": "Pondělí",
       "tuesday": "Úterý",
@@ -399,24 +399,24 @@
   "valves": {
     "title": "Zóny LUFTaTORu",
     "description": "Ovládejte servopohony ventilů LUFTaTORu v jednotlivých místnostech.",
-    "refreshAria": "Obnovit ventily",
+    "refreshAria": "Obnovit klapky",
     "status": {
       "open": "OTEVŘENO",
       "closed": "ZAVŘENO"
     },
     "alertTitle": "Chyba",
     "warningTitle": "Upozornění",
-    "waiting": "Čekám na ventily...",
-    "empty": "Nebyly nalezeny žádné ventily s prefixem `number.luftator`.",
+    "waiting": "Čekám na klapky...",
+    "empty": "Nebyly nalezeny žádné klapky s prefixem `number.luftator`.",
     "errors": {
-      "load": "Nepodařilo se načíst ventily: {{message}}",
-      "loadUnknown": "Nepodařilo se načíst ventily.",
+      "load": "Nepodařilo se načíst klapky: {{message}}",
+      "loadUnknown": "Nepodařilo se načíst klapky.",
       "websocket": "Nepodařilo se zpracovat živou aktualizaci ventilu.",
       "setValue": "Nepodařilo se nastavit hodnotu ventilu: {{message}}",
       "setValueUnknown": "Nepodařilo se nastavit hodnotu ventilu."
     },
     "warnings": {
-      "allClosed": "Pozor: Pokud jsou všechny ventily zavřené a rekuperace je zapnutá, hrozí poškození servopohonů LUFTaTORu či samotné rekuperační jednotky!"
+      "allClosed": "Pozor: Pokud jsou všechny klapky zavřené a rekuperace je zapnutá, hrozí poškození servopohonů LUFTaTORu či samotné rekuperační jednotky!"
     }
   },
   "errors": {

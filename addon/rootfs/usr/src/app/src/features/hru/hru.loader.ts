@@ -2,7 +2,7 @@ import { existsSync, readdirSync, readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 import type { Logger } from "pino";
-import type { HeatRecoveryUnit } from "./hru.definitions";
+import type { HeatRecoveryUnit } from "./hru.definitions.js";
 
 export class HruLoader {
   private readonly unitsPath: string;

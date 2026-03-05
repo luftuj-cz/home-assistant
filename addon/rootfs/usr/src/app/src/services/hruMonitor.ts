@@ -1,7 +1,7 @@
 import type { Logger } from "pino";
-import type { MqttService } from "./mqttService";
-import type { HruService } from "../features/hru/hru.service";
-import type { TimelineScheduler } from "./timelineScheduler";
+import type { MqttService } from "./mqttService.js";
+import type { HruService } from "../features/hru/hru.service.js";
+import type { TimelineScheduler } from "./timelineScheduler.js";
 
 const POLLING_INTERVAL_MS = 10_000; // 10 seconds
 

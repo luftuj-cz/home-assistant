@@ -9,8 +9,11 @@ export interface ModbusTcpConfig {
   reconnectMs?: number;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type ModbusClient = any;
+
 export class ModbusTcpClient {
-  private client = new ModbusRTU();
+  private client: ModbusClient;
   private connected = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
@@ -19,11 +22,14 @@ export class ModbusTcpClient {
     private readonly cfg: ModbusTcpConfig,
     private readonly logger: Logger,
   ) {
+    // modbus-serial exports a constructor function at runtime
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-call
+    this.client = new (ModbusRTU as unknown as new () => ModbusClient)();
     const timeout = cfg.timeoutMs ?? 2000;
     this.client.setTimeout(timeout);
 
     // Track connection health via events
-    this.client.on("error", (err) => {
+    this.client.on("error", (err: unknown) => {
       this.logger.warn({ err }, "Modbus TCP connection error");
       this.handleDisconnect();
     });

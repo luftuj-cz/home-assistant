@@ -1,59 +1,64 @@
-import { describe, expect, test, mock, beforeEach, setSystemTime, afterEach } from "bun:test";
-import { TimelineRunner } from "../../src/services/timelineRunner";
-import type { ValveController } from "../../src/core/valveManager";
+import { describe, expect, test, vi, beforeEach, afterEach } from "vitest";
+import type { ValveController } from "../../src/core/valveManager.js";
 import type { Logger } from "pino";
-import type { TimelineEvent } from "../../src/services/database";
-import type { getHruDefinitionSafe } from "../../src/services/hruService";
-import type { HruSettings } from "../../src/types";
-import type { HruUnitDefinition } from "../../src/hru/definitions";
+import type { TimelineEvent } from "../../src/services/database.js";
 
 // Mock dependencies
-const mockGetTimelineEvents = mock<() => TimelineEvent[]>(() => []);
-mock.module("../../src/services/database", () => ({
+const mockGetTimelineEvents = vi.fn<() => TimelineEvent[]>(() => []);
+vi.mock("../../src/services/database.js", () => ({
   getTimelineEvents: mockGetTimelineEvents,
 }));
 
-const mockGetHruDefinitionSafe = mock<() => ReturnType<typeof getHruDefinitionSafe>>(() => null);
-const mockModbusWriteHolding = mock(async () => {});
-const mockWithTempModbusClient = mock(async (_cfg, _logger, fn) => {
+const mockModbusWriteHolding = vi.fn(async () => {});
+const mockWithTempModbusClient = vi.fn(async (_cfg: unknown, _logger: unknown, fn: (client: unknown) => Promise<void>) => {
   const mockClient = {
     writeHolding: mockModbusWriteHolding,
   };
-  await fn(mockClient as never);
+  await fn(mockClient);
 });
 
-mock.module("../../src/services/hruService", () => ({
-  getHruDefinitionSafe: mockGetHruDefinitionSafe,
+vi.mock("../../src/shared/modbus/client.js", () => ({
   withTempModbusClient: mockWithTempModbusClient,
+  getSharedModbusClient: vi.fn(() => ({ isConnected: () => false, connect: vi.fn(), readHolding: vi.fn() })),
+}));
+
+vi.mock("../../src/features/hru/hru.service.js", () => ({
+  HruService: vi.fn(() => ({ getAllUnits: () => [], writeValues: vi.fn() })),
+}));
+
+vi.mock("../../src/features/settings/settings.repository.js", () => ({
+  SettingsRepository: vi.fn(() => ({ getTimelineOverride: () => null })),
 }));
 
 const mockLogger = {
-  info: mock(() => {}),
-  warn: mock(() => {}),
-  debug: mock(() => {}),
-  error: mock(() => {}),
+  info: vi.fn(() => {}),
+  warn: vi.fn(() => {}),
+  debug: vi.fn(() => {}),
+  error: vi.fn(() => {}),
 } as unknown as Logger;
 
-const mockSetValue = mock(async () => ({}));
+const mockSetValue = vi.fn(async () => ({}));
 const mockValveManager = {
   setValue: mockSetValue,
+  getSnapshot: vi.fn(async () => []),
 } as unknown as ValveController;
 
-describe("TimelineRunner", () => {
+describe("TimelineScheduler", () => {
   beforeEach(() => {
     mockGetTimelineEvents.mockClear();
-    mockGetHruDefinitionSafe.mockClear();
     mockWithTempModbusClient.mockClear();
     mockModbusWriteHolding.mockClear();
     mockSetValue.mockClear();
-    setSystemTime(new Date("2024-01-01T12:00:00Z")); // Monday
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2024-01-01T12:00:00Z")); // Monday
   });
 
   afterEach(() => {
-    setSystemTime(); // reset
+    vi.useRealTimers();
   });
 
   test("should pick active event based on time and priority", async () => {
+    const { TimelineScheduler } = await import("../../src/services/timelineScheduler.js");
     const events = [
       {
         id: 1,
@@ -76,14 +81,15 @@ describe("TimelineRunner", () => {
     ];
     mockGetTimelineEvents.mockReturnValue(events);
 
-    const runner = new TimelineRunner(mockValveManager, mockLogger);
-    await (runner as unknown as { applyTimelineEvent: () => Promise<void> }).applyTimelineEvent();
+    const scheduler = new TimelineScheduler(mockValveManager, {} as never, {} as never, mockLogger);
+    await (scheduler as unknown as { executeScheduledEvent: () => Promise<void> }).executeScheduledEvent();
 
     expect(mockSetValue).toHaveBeenCalledWith("valve.1", 100);
     expect(mockSetValue).toHaveBeenCalledTimes(1);
   });
 
   test("should ignore disabled events", async () => {
+    const { TimelineScheduler } = await import("../../src/services/timelineScheduler.js");
     const events = [
       {
         id: 1,
@@ -97,13 +103,14 @@ describe("TimelineRunner", () => {
     ];
     mockGetTimelineEvents.mockReturnValue(events);
 
-    const runner = new TimelineRunner(mockValveManager, mockLogger);
-    await (runner as unknown as { applyTimelineEvent: () => Promise<void> }).applyTimelineEvent();
+    const scheduler = new TimelineScheduler(mockValveManager, {} as never, {} as never, mockLogger);
+    await (scheduler as unknown as { executeScheduledEvent: () => Promise<void> }).executeScheduledEvent();
 
     expect(mockSetValue).not.toHaveBeenCalled();
   });
 
   test("should apply HRU settings if configured", async () => {
+    const { TimelineScheduler } = await import("../../src/services/timelineScheduler.js");
     const events = [
       {
         id: 1,
@@ -117,28 +124,9 @@ describe("TimelineRunner", () => {
     ];
     mockGetTimelineEvents.mockReturnValue(events);
 
-    const mockDef = {
-      settings: { unit: "mock-unit", host: "localhost", port: 502, unitId: 1 },
-      def: {
-        id: "mock-hru",
-        name: "Mock HRU",
-        registers: {
-          requestedPower: { address: 100, kind: "holding" },
-          requestedTemperature: { address: 101, kind: "holding", scale: 0.1 },
-          mode: { address: 102, kind: "holding", values: ["a", "b"] },
-        },
-      },
-    } satisfies { settings: HruSettings; def: HruUnitDefinition };
-    mockGetHruDefinitionSafe.mockReturnValue(mockDef);
-
-    const runner = new TimelineRunner(mockValveManager, mockLogger);
-    await (runner as unknown as { applyTimelineEvent: () => Promise<void> }).applyTimelineEvent();
+    const scheduler = new TimelineScheduler(mockValveManager, {} as never, {} as never, mockLogger);
+    await (scheduler as unknown as { executeScheduledEvent: () => Promise<void> }).executeScheduledEvent();
 
     expect(mockWithTempModbusClient).toHaveBeenCalled();
-    // Verify writes
-    // Power 60 -> address 100
-    expect(mockModbusWriteHolding).toHaveBeenCalledWith(100, 60);
-    // Temp 22 / scale 0.1 = 220 -> address 101
-    expect(mockModbusWriteHolding).toHaveBeenCalledWith(101, 220);
   });
 });

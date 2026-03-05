@@ -1,4 +1,4 @@
-import type { HruVariable } from "../features/hru/hru.definitions";
+import type { HruVariable } from "../features/hru/hru.definitions.js";
 
 export interface DemoState {
   values: Record<string, number | string | boolean | null>;

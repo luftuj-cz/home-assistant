@@ -1,11 +1,10 @@
 /* eslint-disable quotes */
-import { Database } from "bun:sqlite";
-import type { Statement } from "bun:sqlite";
+import DatabaseConstructor, { type Database as DatabaseType, type Statement } from "better-sqlite3";
 import { copyFileSync, existsSync, mkdirSync } from "fs";
 import { promises as fsp } from "fs";
 import path from "path";
 import type { Logger } from "pino";
-import { TIMELINE_MODES_KEY, type TimelineMode } from "../types";
+import { TIMELINE_MODES_KEY, type TimelineMode } from "../types/index.js";
 
 const DEFAULT_DATA_DIR = "/data";
 const IS_HA_ADDON = Boolean(process.env.SUPERVISOR_TOKEN);
@@ -145,7 +144,7 @@ const migrations: Migration[] = [
   },
 ];
 
-let db: Database | null = null;
+let db: DatabaseType | null = null;
 
 type StatementMap = {
   upsertController: Statement;
@@ -176,36 +175,36 @@ type ValveStateRecord = {
   attributes: string;
 };
 
-function openDatabase(logger?: Logger): Database {
+function openDatabase(logger?: Logger): DatabaseType {
   const activeLogger = logger || moduleLogger;
   const logMsg = `Opening database at ${DATABASE_PATH}`;
 
   activeLogger?.info(logMsg);
 
   try {
-    return new Database(DATABASE_PATH, { create: true });
+    return new DatabaseConstructor(DATABASE_PATH);
   } catch (error) {
     activeLogger?.error({ error }, "Failed to open database");
     throw error;
   }
 }
 
-function applyMigrations(database: Database, logger?: Logger): void {
+function applyMigrations(database: DatabaseType, logger?: Logger): void {
   const activeLogger = logger || moduleLogger;
   try {
-    database.run("PRAGMA journal_mode = WAL;");
+    database.exec("PRAGMA journal_mode = WAL;");
   } catch (err) {
     activeLogger?.warn({ err }, "Failed to set WAL mode, falling back to DELETE mode");
-    database.run("PRAGMA journal_mode = DELETE;");
+    database.exec("PRAGMA journal_mode = DELETE;");
   }
-  database.run(
+  database.exec(
     `CREATE TABLE IF NOT EXISTS migrations (
       id TEXT PRIMARY KEY,
       applied_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
     );`,
   );
 
-  const migrationRows = database.query("SELECT id FROM migrations").all() as { id: string }[];
+  const migrationRows = database.prepare("SELECT id FROM migrations").all() as { id: string }[];
   const existing = new Set(migrationRows.map((row) => row.id));
 
   const insertMigration = database.prepare("INSERT INTO migrations (id) VALUES (?)");
@@ -219,7 +218,7 @@ function applyMigrations(database: Database, logger?: Logger): void {
     if (isVacuum) {
       // VACUUM cannot run inside a transaction; run separately
       try {
-        database.run("VACUUM;");
+        database.exec("VACUUM;");
         insertMigration.run(migration.id);
         activeLogger?.info({ migrationId: migration.id }, "Applied database migration");
       } catch (error) {
@@ -229,52 +228,36 @@ function applyMigrations(database: Database, logger?: Logger): void {
       continue;
     }
 
-    database.run("BEGIN");
-    let statementError: unknown = null;
+    const runMigration = database.transaction(() => {
+      for (const sql of migration.statements) {
+        database.exec(sql);
+      }
+      insertMigration.run(migration.id);
+    });
 
-    for (const sql of migration.statements) {
-      try {
-        database.run(sql);
-      } catch (error) {
-        if (
-          migration.id === "004_remove_legacy_end_time" &&
-          String(error).includes("no such column")
-        ) {
-          activeLogger?.info("Migration 004: end_time column already removed, skipping.");
-          continue;
-        }
-        statementError = error;
-        break;
+    try {
+      runMigration();
+      activeLogger?.info({ migrationId: migration.id }, "Applied database migration");
+    } catch (error) {
+      if (
+        migration.id === "004_remove_legacy_end_time" &&
+        String(error).includes("no such column")
+      ) {
+        activeLogger?.info("Migration 004: end_time column already removed, skipping.");
+      } else {
+        activeLogger?.error({ error, migrationId: migration.id }, "Migration failed");
+        throw error;
       }
     }
-
-    if (statementError) {
-      database.run("ROLLBACK");
-      activeLogger?.error({ error: statementError, migrationId: migration.id }, "Migration failed, rolled back");
-      throw statementError;
-    }
-
-    insertMigration.run(migration.id);
-    database.run("COMMIT");
-    activeLogger?.info({ migrationId: migration.id }, "Applied database migration");
   }
 }
 
 function finalizeStatements(): void {
-  if (!statements) {
-    return;
-  }
-  statements.upsertController.finalize();
-  statements.upsertValveState.finalize();
-  statements.getSetting.finalize();
-  statements.upsertSetting.finalize();
-  statements.getTimelineEvents.finalize();
-  statements.upsertTimelineEvent.finalize();
-  statements.deleteTimelineEvent.finalize();
+  // better-sqlite3 handles statement cleanup automatically
   statements = null;
 }
 
-function prepareStatements(database: Database): StatementMap {
+function prepareStatements(database: DatabaseType): StatementMap {
   return {
     upsertController: database.prepare(
       `INSERT INTO controllers (id, name, created_at, updated_at)
@@ -314,7 +297,7 @@ function prepareStatements(database: Database): StatementMap {
          enabled = excluded.enabled,
          priority = excluded.priority,
          hru_id = excluded.hru_id,
-         updated_at = datetime("now")`,
+         updated_at = datetime('now')`,
     ),
     deleteTimelineEvent: database.prepare(`DELETE FROM timeline_events WHERE id = ?`),
     assignLegacyEvents: database.prepare(
@@ -339,7 +322,7 @@ function prepareStatements(database: Database): StatementMap {
          hru_id = excluded.hru_id,
          native_mode = excluded.native_mode,
          variables = excluded.variables,
-         updated_at = datetime("now")`,
+         updated_at = datetime('now')`,
     ),
     deleteTimelineMode: database.prepare(`DELETE FROM timeline_modes WHERE id = ?`),
     getTimelineMode: database.prepare(`SELECT * FROM timeline_modes WHERE id = ?`),
@@ -517,7 +500,7 @@ export interface TimelineEventRecord {
   day_of_week: number | null;
   hru_config: string | null;
   luftator_config: string | null;
-  enabled: boolean;
+  enabled: number;
   priority: number;
   hru_id: string | null;
   created_at: string;
@@ -527,13 +510,31 @@ export interface TimelineEventRecord {
 function normaliseTimelineEvent(
   event: TimelineEvent,
 ): Omit<TimelineEventRecord, "id" | "created_at" | "updated_at"> {
+  const enabled = event.enabled ?? true;
+  const priority = Number.isFinite(event.priority) ? (event.priority as number) : 0;
+
+  let hruConfig: string | null = null;
+  let luftatorConfig: string | null = null;
+
+  try {
+    hruConfig = event.hruConfig ? JSON.stringify(event.hruConfig) : null;
+  } catch (err) {
+    moduleLogger?.error(err as Error, "Failed to serialise hruConfig for timeline event");
+  }
+
+  try {
+    luftatorConfig = event.luftatorConfig ? JSON.stringify(event.luftatorConfig) : null;
+  } catch (err) {
+    moduleLogger?.error(err as Error, "Failed to serialise luftatorConfig for timeline event");
+  }
+
   return {
     start_time: event.startTime,
     day_of_week: event.dayOfWeek ?? null,
-    hru_config: event.hruConfig ? JSON.stringify(event.hruConfig) : null,
-    luftator_config: event.luftatorConfig ? JSON.stringify(event.luftatorConfig) : null,
-    enabled: event.enabled,
-    priority: event.priority,
+    hru_config: hruConfig,
+    luftator_config: luftatorConfig,
+    enabled: enabled ? 1 : 0,
+    priority,
     hru_id: event.hruId ?? null,
   };
 }
@@ -729,16 +730,22 @@ export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
 
   const normalised = normaliseTimelineEvent(event);
 
-  const result = statements.upsertTimelineEvent.run(
-    event.id ?? null,
-    normalised.start_time,
-    normalised.day_of_week,
-    normalised.hru_config,
-    normalised.luftator_config,
-    normalised.enabled,
-    normalised.priority,
-    normalised.hru_id,
-  ) as { lastInsertRowid: number | bigint; changes: number };
+  let result: { lastInsertRowid: number | bigint; changes: number };
+  try {
+    result = statements.upsertTimelineEvent.run(
+      event.id ?? null,
+      normalised.start_time,
+      normalised.day_of_week,
+      normalised.hru_config,
+      normalised.luftator_config,
+      normalised.enabled,
+      normalised.priority,
+      normalised.hru_id,
+    ) as { lastInsertRowid: number | bigint; changes: number };
+  } catch (err) {
+    moduleLogger?.error(err as Error, "Failed to upsert timeline event");
+    throw err;
+  }
 
   const persistedId = event.id ?? Number(result.lastInsertRowid);
   moduleLogger?.debug({ id: persistedId }, "Upserted timeline event");
@@ -823,6 +830,6 @@ export function checkpointDatabase(logger?: Logger): void {
     throw new Error("Database not initialised");
   }
 
-  db.run("PRAGMA wal_checkpoint(TRUNCATE);");
+  db.exec("PRAGMA wal_checkpoint(TRUNCATE);");
   logger?.debug("Database WAL checkpoint completed");
 }
