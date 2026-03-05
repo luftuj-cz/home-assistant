@@ -21,3 +21,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Fixed
 - Prevented demo HRU keep-alive loop from crashing when no integration keepAlive is defined.
+
+## [1.0.4-stable] - 2026-03-05
+
+### Changed
+- Migrated frontend/backend runtime from Bun to NodeJS for better compatibility with the other HW. (Now works on Raspberry Pi)
+
+### Fixed
+- Fixed addon startup failure in Home Assistant by updating tsx loader flag from deprecated `--loader` to `--import`.
+
+### Thanks
+- Thanks to [@JanNohejl](https://github.com/JanNohejl) for reporting [issue #4](https://github.com/luftuj-cz/home-assistant/issues/4).
