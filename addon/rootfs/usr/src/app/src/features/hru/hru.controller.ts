@@ -1,8 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
-import type { HruService } from "./hru.service";
-import { ApiError } from "../../shared/errors/apiErrors";
-import type { HruWriteInput } from "../../schemas/hru";
+import type { HruService } from "./hru.service.js";
+import { ApiError } from "../../shared/errors/apiErrors.js";
+import type { HruWriteInput } from "../../schemas/hru.js";
 
 export class HruController {
   constructor(

@@ -1,5 +1,5 @@
 import type { Logger } from "pino";
-import type { BroadcastFn, ValveController, ValveSnapshot } from "./valveManager";
+import type { BroadcastFn, ValveController, ValveSnapshot } from "./valveManager.js";
 
 export class OfflineValveManager implements ValveController {
   constructor(

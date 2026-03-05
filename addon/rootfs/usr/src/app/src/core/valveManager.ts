@@ -1,7 +1,7 @@
-import type { HassStateChangedEvent, HomeAssistantClient } from "../services/homeAssistantClient";
+import type { HassStateChangedEvent, HomeAssistantClient } from "../services/homeAssistantClient.js";
 import type { Logger } from "pino";
-import { Mutex } from "../utils/mutex";
-import { storeValveSnapshots } from "../services/database";
+import { Mutex } from "../utils/mutex.js";
+import { storeValveSnapshots } from "../services/database.js";
 import { z } from "zod";
 
 export const HassStateSchema = z.object({

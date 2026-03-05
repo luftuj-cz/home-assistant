@@ -1,19 +1,20 @@
 {
   "compilerOptions": {
-    "target": "ESNext",
-    "module": "ESNext",
-    "moduleResolution": "Bundler",
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
     "moduleDetection": "force",
     "lib": ["ESNext"],
     "allowJs": false,
     "resolveJsonModule": true,
     "verbatimModuleSyntax": true,
-    "noEmit": true,
+    "noEmit": false,
     "strict": true,
     "skipLibCheck": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedIndexedAccess": true,
-    "types": ["bun-types", "@types/node"]
+    "types": ["@types/node", "vitest/globals"],
+    "allowSyntheticDefaultImports": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
 }

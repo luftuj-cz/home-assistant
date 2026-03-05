@@ -13,19 +13,19 @@ import {
   upsertTimelineMode,
   deleteTimelineMode,
   assignLegacyEventsToUnit,
-} from "../services/database";
+} from "../services/database.js";
 import {
   TIMELINE_OVERRIDE_KEY,
   HRU_SETTINGS_KEY,
   type TimelineMode,
   type TimelineOverride,
   type HruSettings,
-} from "../types";
+} from "../types/index.js";
 
-import type { TimelineScheduler } from "../services/timelineScheduler";
-import type { HruService } from "../features/hru/hru.service";
-import type { MqttService } from "../services/mqttService";
-import { validateRequest } from "../middleware/validateRequest";
+import type { TimelineScheduler } from "../services/timelineScheduler.js";
+import type { HruService } from "../features/hru/hru.service.js";
+import type { MqttService } from "../services/mqttService.js";
+import { validateRequest } from "../middleware/validateRequest.js";
 import {
   timelineModeInputSchema,
   timelineEventInputSchema,
@@ -35,13 +35,13 @@ import {
   type TimelineEventInput,
   type BoostOverrideInput,
   type TestOverrideInput,
-} from "../schemas/timeline";
+} from "../schemas/timeline.js";
 import {
   ApiError,
   BadRequestError,
   ConflictError,
   NotFoundError,
-} from "../shared/errors/apiErrors";
+} from "../shared/errors/apiErrors.js";
 
 export function createTimelineRouter(
   logger: Logger,

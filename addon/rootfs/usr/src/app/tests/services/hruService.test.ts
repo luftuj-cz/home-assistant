@@ -1,11 +1,10 @@
-import { describe, expect, test, mock, beforeEach } from "bun:test";
+import { describe, expect, test, vi, beforeEach } from "vitest";
 import type { Logger } from "pino";
-import { withTempModbusClient } from "../../src/services/hruService";
 
 // Mock implementation
-const mockConnect = mock(() => Promise.resolve());
-const mockSafeDisconnect = mock(() => Promise.resolve());
-const mockReadHolding = mock(() => Promise.resolve([123]));
+const mockConnect = vi.fn(() => Promise.resolve());
+const mockSafeDisconnect = vi.fn(() => Promise.resolve());
+const mockReadHolding = vi.fn(() => Promise.resolve([123]));
 
 class MockModbusTcpClient {
   constructor(
@@ -15,13 +14,13 @@ class MockModbusTcpClient {
 }
 
 // Mock the module
-mock.module("../../src/services/modbus/ModbusTcpClient", () => ({
+vi.mock("../../src/shared/modbus/client.js", () => ({
   ModbusTcpClient: MockModbusTcpClient,
 }));
 
-mock.module("../../src/services/database", () => ({
-  getAppSetting: mock(() => null),
-  setupDatabase: mock(() => {}),
+vi.mock("../../src/services/database.js", () => ({
+  getAppSetting: vi.fn(() => null),
+  setupDatabase: vi.fn(() => {}),
 }));
 
 const mockLogger = {
@@ -39,10 +38,11 @@ describe("HruService", () => {
   });
 
   test("withTempModbusClient should connect, run fn, and disconnect", async () => {
+    const { withTempModbusClient } = await import("../../src/shared/modbus/client.js");
     const result = await withTempModbusClient(
       { host: "localhost", port: 502, unitId: 1 },
       mockLogger,
-      async (client) => {
+      async (client: { readHolding: (start: number, len: number) => Promise<number[]> }) => {
         return await client.readHolding(0, 1);
       },
     );
@@ -53,6 +53,7 @@ describe("HruService", () => {
   });
 
   test("withTempModbusClient should disconnect even if function throws", async () => {
+    const { withTempModbusClient } = await import("../../src/shared/modbus/client.js");
     try {
       await withTempModbusClient(
         { host: "localhost", port: 502, unitId: 1 },

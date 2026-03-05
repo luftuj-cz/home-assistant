@@ -1,5 +1,5 @@
-import { describe, expect, test } from "bun:test";
-import { Mutex } from "../../src/utils/mutex";
+import { describe, expect, test } from "vitest";
+import { Mutex } from "../../src/utils/mutex.js";
 
 describe("Mutex", () => {
   test("should serialize tasks", async () => {

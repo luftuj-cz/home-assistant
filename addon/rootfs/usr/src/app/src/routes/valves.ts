@@ -1,15 +1,15 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
-import type { ValveController } from "../core/valveManager";
-import { validateParams, validateRequest } from "../middleware/validateRequest";
+import type { ValveController } from "../core/valveManager.js";
+import { validateParams, validateRequest } from "../middleware/validateRequest.js";
 import {
   type ValveUpdateBody,
   valveUpdateBodySchema,
   type ValveUpdateParams,
   valveUpdateParamsSchema,
-} from "../schemas/valves";
-import { ApiError, NotFoundError } from "../shared/errors/apiErrors";
+} from "../schemas/valves.js";
+import { ApiError, NotFoundError } from "../shared/errors/apiErrors.js";
 
 export function createValvesRouter(valveManager: ValveController, logger: Logger) {
   const router = Router();
