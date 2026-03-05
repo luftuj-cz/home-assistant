@@ -1,0 +1,65 @@
+name: Publish Dev Addon
+
+on:
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish Dev Addon
+    runs-on: [self-hosted, linux]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build frontend
+        run: npm run build
+
+      - name: Sync dist to addon
+        run: node scripts/sync-dist.mjs
+
+      - name: Prepare dev config
+        run: |
+          cd addon
+          # Backup original config
+          cp config.yaml config.yaml.backup
+          # Modify for dev version
+          sed -i 's/name: LUFTaTOR$/name: LUFTaTOR (Development)/' config.yaml
+          sed -i 's/slug: luftator$/slug: luftator-dev/' config.yaml
+          sed -i 's/description: LUFTaTOR Home Assistant Add-on$/description: LUFTaTOR Home Assistant Add-on (Development Version)/' config.yaml
+          sed -i 's/image: "ghcr.io\/luftuj-cz\/{arch}-addon-luftuj"$/image: "ghcr.io\/luftuj-cz\/{arch}-addon-luftuj-dev"/' config.yaml
+          # Update version to dev
+          sed -i 's/-stable$/-dev/' config.yaml
+
+      - name: Build and Publish Dev Version
+        uses: home-assistant/builder@master
+        with:
+          args: |
+            --amd64 \
+            --aarch64 \
+            --target addon \
+            --image "{arch}-addon-luftuj-dev" \
+            --docker-hub "ghcr.io/luftuj-cz"
+
+      - name: Restore original config
+        run: |
+          cd addon
+          mv config.yaml.backup config.yaml

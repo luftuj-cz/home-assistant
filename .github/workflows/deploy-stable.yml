@@ -1,13 +1,11 @@
-name: Publish Addon
+name: Publish Stable Addon
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
 
 jobs:
   publish:
-    name: Publish Addon
+    name: Publish Stable Addon
     runs-on: [self-hosted, linux]
     permissions:
       contents: read
