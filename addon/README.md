@@ -12,9 +12,13 @@ This add-on provides the backend service for LUFTaTOR smart home integration.
 ## Installation
 
 1. Navigate to the Add-on Store in Home Assistant.
-2. Add the LUFTaTOR repository.
+2. Add the LUFTaTOR repository. You can pick a branch to control which channel you install:
+   - **Stable**: default branch (no suffix). Recommended for production.
+   - **Development**: append `#development` when adding the repo URL (e.g., `https://github.com/luftuj-cz/home-assistant#development`) to try upcoming changes.
 3. Install the "LUFTaTOR" add-on.
 4. Start the add-on.
+
+Repository naming tip: we use distinct display names per channel (e.g., "LUFTaTOR (Stable)" vs "LUFTaTOR (Development)") so you can differentiate installs inside Home Assistant.
 
 ## Configuration
 
