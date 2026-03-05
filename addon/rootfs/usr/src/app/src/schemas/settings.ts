@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SUPPORTED_LANGUAGES } from "../types";
+import { SUPPORTED_LANGUAGES } from "../types/index.js";
 
 // HRU Settings Schema
 export const hruSettingsInputSchema = z.object({

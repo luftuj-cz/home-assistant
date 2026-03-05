@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
-import { ApiError } from "../shared/errors/apiErrors";
+import { ApiError } from "../shared/errors/apiErrors.js";
 
 export function createErrorHandler(logger: Logger) {
   return function errorHandler(

@@ -1,24 +1,24 @@
-# LUFTaTOR Backend (Bun + Express)
+# LUFTaTOR Backend (Node + Express)
 
-This directory contains the Home Assistant add-on backend implemented with Bun and Express. It replaces the previous Python/FastAPI service.
+This directory contains the Home Assistant add-on backend implemented with Node (via tsx) and Express. It replaces the previous Python/FastAPI service.
 
 ## Scripts
 
 - **Install dependencies**
   ```bash
-  bun install
+  npm ci
   ```
 - **Run in watch mode**
   ```bash
-  bun run dev
+  npm run dev
   ```
 - **Start once**
   ```bash
-  bun run start
+  npm run start
   ```
 - **Run tests**
   ```bash
-  bun test
+  npm test
   ```
 
 ## Environment

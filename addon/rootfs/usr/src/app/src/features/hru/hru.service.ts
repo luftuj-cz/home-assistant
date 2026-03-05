@@ -1,12 +1,12 @@
-import type { HruSettings } from "../../types";
-import type { HruRepository } from "./hru.repository";
-import type { SettingsRepository } from "../settings/settings.repository";
+import type { HruSettings } from "../../types/index.js";
+import type { HruRepository } from "./hru.repository.js";
+import type { SettingsRepository } from "../settings/settings.repository.js";
 import type { Logger } from "pino";
-import { HruLoader } from "./hru.loader";
-import { type HeatRecoveryUnit, type HruVariable } from "./hru.definitions";
-import { HruNotConfiguredError, HruConnectionError } from "../../shared/errors/apiErrors";
-import { resolveModeValue } from "../../utils/hruWrite";
-import { getDemoState, setDemoState } from "../../services/demoState";
+import { HruLoader } from "./hru.loader.js";
+import { type HeatRecoveryUnit, type HruVariable } from "./hru.definitions.js";
+import { HruNotConfiguredError, HruConnectionError } from "../../shared/errors/apiErrors.js";
+import { resolveModeValue } from "../../utils/hruWrite.js";
+import { getDemoState, setDemoState } from "../../services/demoState.js";
 
 export interface HruUnitDefinition {
   id: string;

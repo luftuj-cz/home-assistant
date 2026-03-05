@@ -1,4 +1,4 @@
-import { getAppSetting, setAppSetting, getTimelineModes } from "../../services/database";
+import { getAppSetting, setAppSetting, getTimelineModes } from "../../services/database.js";
 import {
   HRU_SETTINGS_KEY,
   LANGUAGE_SETTING_KEY,
@@ -12,7 +12,7 @@ import {
   type MqttSettings,
   type TimelineMode,
   type TimelineOverride,
-} from "../../types";
+} from "../../types/index.js";
 import type { Logger } from "pino";
 
 export class SettingsRepository {

@@ -1,9 +1,9 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
-import { getAppSetting, setAppSetting } from "../services/database";
-import type { HomeAssistantClient } from "../services/homeAssistantClient";
-import type { MqttService } from "../services/mqttService";
+import { getAppSetting, setAppSetting } from "../services/database.js";
+import type { HomeAssistantClient } from "../services/homeAssistantClient.js";
+import type { MqttService } from "../services/mqttService.js";
 import {
   HRU_SETTINGS_KEY,
   ADDON_MODE_KEY,
@@ -16,7 +16,7 @@ import {
   type HruSettings,
   MQTT_SETTINGS_KEY,
   type MqttSettings,
-} from "../types";
+} from "../types/index.js";
 import {
   addonModeInputSchema,
   hruSettingsInputSchema,
@@ -32,15 +32,15 @@ import {
   type ThemeSettingInput,
   type LanguageSettingInput,
   type DebugModeInput,
-} from "../schemas/settings";
-import type { HruService } from "../features/hru/hru.service";
-import { validateRequest } from "../middleware/validateRequest";
+} from "../schemas/settings.js";
+import type { HruService } from "../features/hru/hru.service.js";
+import { validateRequest } from "../middleware/validateRequest.js";
 import {
   ApiError,
   ApiSuccess,
   BadRequestError,
   ServiceUnavailableError,
-} from "../shared/errors/apiErrors";
+} from "../shared/errors/apiErrors.js";
 
 export function createSettingsRouter(
   hruService: HruService,

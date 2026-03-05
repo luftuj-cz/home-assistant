@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { HruController } from "./hru.controller";
+import { HruController } from "./hru.controller.js";
 
 export function createHruRouter(controller: HruController): Router {
   const router = Router();

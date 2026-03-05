@@ -1,6 +1,6 @@
 import type { Logger } from "pino";
-import { withTempModbusClient } from "../../shared/modbus/client";
-import type { CommandExpression, CommandScript, CommandValue } from "./hru.definitions";
+import { withTempModbusClient } from "../../shared/modbus/client.js";
+import type { CommandExpression, CommandScript, CommandValue } from "./hru.definitions.js";
 
 export class HruRepository {
   constructor(private readonly logger: Logger) {}

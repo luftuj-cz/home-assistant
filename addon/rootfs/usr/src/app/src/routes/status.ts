@@ -2,14 +2,14 @@ import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
 import net from "net";
-import type { HomeAssistantClient } from "../services/homeAssistantClient";
-import type { MqttService } from "../services/mqttService";
-import { getAppSetting } from "../services/database";
-import { HRU_SETTINGS_KEY, type HruSettings } from "../types";
-import { APP_VERSION } from "../constants";
-import { validateQuery } from "../middleware/validateRequest";
-import { type ModbusStatusQuery, modbusStatusQuerySchema } from "../schemas/status";
-import { getSharedModbusClient, isModbusReachable } from "../shared/modbus/client";
+import type { HomeAssistantClient } from "../services/homeAssistantClient.js";
+import type { MqttService } from "../services/mqttService.js";
+import { getAppSetting } from "../services/database.js";
+import { HRU_SETTINGS_KEY, type HruSettings } from "../types/index.js";
+import { APP_VERSION } from "../constants.js";
+import { validateQuery } from "../middleware/validateRequest.js";
+import { type ModbusStatusQuery, modbusStatusQuerySchema } from "../schemas/status.js";
+import { getSharedModbusClient, isModbusReachable } from "../shared/modbus/client.js";
 
 export function createStatusRouter(
   haClient: HomeAssistantClient | null,

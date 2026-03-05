@@ -7,10 +7,10 @@ import {
   replaceDatabaseWithFile,
   createDatabaseBackup,
   checkpointDatabase,
-} from "../services/database";
-import type { ValveController } from "../core/valveManager";
-import type { MqttService } from "../services/mqttService";
-import type { TimelineScheduler } from "../services/timelineScheduler";
+} from "../services/database.js";
+import type { ValveController } from "../core/valveManager.js";
+import type { MqttService } from "../services/mqttService.js";
+import type { TimelineScheduler } from "../services/timelineScheduler.js";
 
 export function createDatabaseRouter(
   valveManager: ValveController,

@@ -1,16 +1,16 @@
 import type { Logger } from "pino";
-import type { ValveController } from "../core/valveManager";
+import type { ValveController } from "../core/valveManager.js";
 import {
   getTimelineEvents,
   getAppSetting,
   getTimelineModes,
   assignLegacyEventsToUnit,
   migrateLegacyEventsForUnit,
-} from "./database";
+} from "./database.js";
 
-import type { HruService } from "../features/hru/hru.service";
-import { HRU_SETTINGS_KEY, LANGUAGE_SETTING_KEY, type HruSettings } from "../types";
-import type { SettingsRepository } from "../features/settings/settings.repository";
+import type { HruService } from "../features/hru/hru.service.js";
+import { HRU_SETTINGS_KEY, LANGUAGE_SETTING_KEY, type HruSettings } from "../types/index.js";
+import type { SettingsRepository } from "../features/settings/settings.repository.js";
 
 export interface ActiveState {
   source: "manual" | "schedule" | "boost";

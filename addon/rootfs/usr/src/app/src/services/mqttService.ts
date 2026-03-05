@@ -1,15 +1,15 @@
 import mqtt from "mqtt";
 import { EventEmitter } from "events";
 import type { Logger } from "pino";
-import type { AppConfig } from "../config/options";
-import type { HeatRecoveryUnit, LocalizedText } from "../features/hru/hru.definitions";
-import type { MqttSettings, TimelineOverride } from "../types";
-import { LANGUAGE_SETTING_KEY } from "../types";
-import { getAppSetting } from "./database";
-import type { SettingsRepository } from "../features/settings/settings.repository";
-import type { TimelineScheduler } from "./timelineScheduler";
-import enCommon from "../locales/en/common.json";
-import csCommon from "../locales/cs/common.json";
+import type { AppConfig } from "../config/options.js";
+import type { HeatRecoveryUnit, LocalizedText } from "../features/hru/hru.definitions.js";
+import type { MqttSettings, TimelineOverride } from "../types/index.js";
+import { LANGUAGE_SETTING_KEY } from "../types/index.js";
+import { getAppSetting } from "./database.js";
+import type { SettingsRepository } from "../features/settings/settings.repository.js";
+import type { TimelineScheduler } from "./timelineScheduler.js";
+import enCommon from "../locales/en/common.json" with { type: "json" };
+import csCommon from "../locales/cs/common.json" with { type: "json" };
 
 const DISCOVERY_PREFIX = "homeassistant";
 const BASE_TOPIC = "luftuj/hru";
