@@ -54,7 +54,8 @@
     "boost": "Boost",
     "offset": "Disbalance offset",
     "flowOut": "Flow out",
-    "flowIn": "Flow in"
+    "flowIn": "Flow in",
+    "serialNo": "Serial number"
   },
   "valves": {
     "title": "LUFTaTOR Zones",

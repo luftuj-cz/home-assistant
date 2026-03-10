@@ -54,7 +54,8 @@
     "boost": "Boost",
     "offset": "Procentuální rozvážení",
     "flowOut": "Průtok výfuk",
-    "flowIn": "Průtok sání"
+    "flowIn": "Průtok sání",
+    "serialNo": "Výrobní číslo"
   },
   "settings": {
     "title": "Nastavení",
