@@ -14,6 +14,58 @@
       "maxConfigurable": false,
       "step": 5,
       "class": "power"
+    },
+    {
+      "name": "unit_sn",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.serialNo", "translate": true }
+    },
+    {
+      "name": "te1",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": "Te1",
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "te1p",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": "Te1p",
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "te2",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": "Te2",
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "ti1",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": "Ti1",
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "ti2",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": "Ti2",
+      "unit": "˚C",
+      "class": "temperature"
     }
   ],
   "interface-type": "modbus-tcp",
@@ -23,8 +75,56 @@
         "type": "assignment",
         "variable": "$power",
         "value": {
-          "function": "modbus_read_holding",
-          "args": [106, 1]
+          "function": "modbus_read_input",
+          "args": [107, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$unit_sn",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [100, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$te1",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [110, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$te1p",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [111, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$te2",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [112, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$ti1",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [113, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$ti2",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [114, 1]
         }
       }
     ],
