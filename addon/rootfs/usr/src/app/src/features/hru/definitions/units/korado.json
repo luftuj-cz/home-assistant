@@ -91,40 +91,70 @@
         "type": "assignment",
         "variable": "$te1",
         "value": {
-          "function": "modbus_read_input",
-          "args": [110, 1]
+          "function": "multiply",
+          "args": [
+            {
+              "function": "modbus_read_input",
+              "args": [110, 1]
+            },
+            0.1
+          ]
         }
       },
       {
         "type": "assignment",
         "variable": "$te1p",
         "value": {
-          "function": "modbus_read_input",
-          "args": [111, 1]
+          "function": "multiply",
+          "args": [
+            {
+              "function": "modbus_read_input",
+              "args": [111, 1]
+            },
+            0.1
+          ]
         }
       },
       {
         "type": "assignment",
         "variable": "$te2",
         "value": {
-          "function": "modbus_read_input",
-          "args": [112, 1]
+          "function": "multiply",
+          "args": [
+            {
+              "function": "modbus_read_input",
+              "args": [112, 1]
+            },
+            0.1
+          ]
         }
       },
       {
         "type": "assignment",
         "variable": "$ti1",
         "value": {
-          "function": "modbus_read_input",
-          "args": [113, 1]
+          "function": "multiply",
+          "args": [
+            {
+              "function": "modbus_read_input",
+              "args": [113, 1]
+            },
+            0.1
+          ]
         }
       },
       {
         "type": "assignment",
         "variable": "$ti2",
         "value": {
-          "function": "modbus_read_input",
-          "args": [114, 1]
+          "function": "multiply",
+          "args": [
+            {
+              "function": "modbus_read_input",
+              "args": [114, 1]
+            },
+            0.1
+          ]
         }
       }
     ],
