@@ -17,6 +17,7 @@ export class ModbusTcpClient {
   private connected = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
+  private connectInFlight: Promise<void> | null = null;
 
   constructor(
     private readonly cfg: ModbusTcpConfig,
@@ -44,6 +45,24 @@ export class ModbusTcpClient {
     if (this.destroyed) return;
     this.connected = false;
     this.scheduleReconnect();
+  }
+
+  private isPortClosedError(err: unknown) {
+    const e = err as { message?: string; errno?: string };
+    const msg = e?.message?.toLowerCase() ?? "";
+    return msg.includes("port not open") || e?.errno === "ECONNRESET" || e?.errno === "ECONNREFUSED";
+  }
+
+  private async ensureConnected() {
+    if (this.connected) return;
+    if (this.destroyed) throw new Error("Modbus client destroyed");
+    if (this.connectInFlight) return this.connectInFlight;
+
+    this.connectInFlight = this.connect().finally(() => {
+      this.connectInFlight = null;
+    });
+
+    return this.connectInFlight;
   }
 
   async connect(): Promise<void> {
@@ -118,30 +137,47 @@ export class ModbusTcpClient {
   }
 
   async readHolding(start: number, length: number): Promise<number[]> {
+    await this.ensureConnected();
     try {
       const res = await this.client.readHoldingRegisters(start, length);
       this.logger.debug({ start, length }, "Modbus TCP: readHolding success");
       return Array.from(res.data);
     } catch (err) {
       this.logger.error({ err, start, length }, "Modbus TCP: readHolding failed");
+      if (this.isPortClosedError(err)) {
+        this.handleDisconnect();
+        await this.ensureConnected();
+        const res = await this.client.readHoldingRegisters(start, length);
+        this.logger.debug({ start, length }, "Modbus TCP: readHolding retry success");
+        return Array.from(res.data);
+      }
       this.handleDisconnect();
       throw err;
     }
   }
 
   async readInput(start: number, length: number): Promise<number[]> {
+    await this.ensureConnected();
     try {
       const res = await this.client.readInputRegisters(start, length);
       this.logger.debug({ start, length }, "Modbus TCP: readInput success");
       return Array.from(res.data);
     } catch (err) {
       this.logger.error({ err, start, length }, "Modbus TCP: readInput failed");
+      if (this.isPortClosedError(err)) {
+        this.handleDisconnect();
+        await this.ensureConnected();
+        const res = await this.client.readInputRegisters(start, length);
+        this.logger.debug({ start, length }, "Modbus TCP: readInput retry success");
+        return Array.from(res.data);
+      }
       this.handleDisconnect();
       throw err;
     }
   }
 
   async writeHolding(start: number, values: number | number[]): Promise<void> {
+    await this.ensureConnected();
     try {
       if (Array.isArray(values)) {
         await this.client.writeRegisters(start, values);
@@ -151,12 +187,24 @@ export class ModbusTcpClient {
       this.logger.info({ start, values }, "Modbus TCP: writeHolding success");
     } catch (err) {
       this.logger.error({ err, start }, "Modbus TCP: writeHolding failed");
+      if (this.isPortClosedError(err)) {
+        this.handleDisconnect();
+        await this.ensureConnected();
+        if (Array.isArray(values)) {
+          await this.client.writeRegisters(start, values);
+        } else {
+          await this.client.writeRegister(start, values);
+        }
+        this.logger.info({ start, values }, "Modbus TCP: writeHolding retry success");
+        return;
+      }
       this.handleDisconnect();
       throw err;
     }
   }
 
   async writeCoil(start: number, values: boolean | number | (boolean | number)[]): Promise<void> {
+    await this.ensureConnected();
     try {
       if (Array.isArray(values)) {
         const bools = values.map((v) => !!v);
@@ -167,6 +215,18 @@ export class ModbusTcpClient {
       this.logger.info({ start, values }, "Modbus TCP: writeCoil success");
     } catch (err) {
       this.logger.error({ err, start }, "Modbus TCP: writeCoil failed");
+      if (this.isPortClosedError(err)) {
+        this.handleDisconnect();
+        await this.ensureConnected();
+        if (Array.isArray(values)) {
+          const bools = values.map((v) => !!v);
+          await this.client.writeCoils(start, bools);
+        } else {
+          await this.client.writeCoil(start, !!values);
+        }
+        this.logger.info({ start, values }, "Modbus TCP: writeCoil retry success");
+        return;
+      }
       this.handleDisconnect();
       throw err;
     }
