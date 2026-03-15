@@ -6,7 +6,7 @@ on:
 jobs:
   publish:
     name: Publish Dev Addon
-    runs-on: [self-hosted, linux]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
