@@ -52,9 +52,10 @@ export function useDashboardStatus() {
   const [haStatus, setHaStatus] = useState<ConnectionState>("offline");
   const [haLoading, setHaLoading] = useState(true);
 
-  const [modbusHost, setModbusHost] = useState("localhost");
-  const [modbusPort, setModbusPort] = useState(502);
+  const [modbusHost, setModbusHost] = useState<string | null>(null);
+  const [modbusPort, setModbusPort] = useState<number | null>(null);
   const [modbusStatus, setModbusStatus] = useState<ModbusState>("loading");
+  const [modbusConfigLoaded, setModbusConfigLoaded] = useState(false);
 
   const [hruName, setHruName] = useState<string | null>(null);
   const [hruStatus, setHruStatus] = useState<HruState>(null);
@@ -80,9 +81,6 @@ export function useDashboardStatus() {
         ? Number.parseInt(envPortRaw, 10)
         : (envPortRaw as number | undefined);
 
-    setModbusHost(envHost ?? "localhost");
-    setModbusPort(Number.isFinite(envPort) ? (envPort as number) : 502);
-
     let canceled = false;
     async function loadData() {
       try {
@@ -95,6 +93,8 @@ export function useDashboardStatus() {
 
         let unitId: string | null = null;
         let allUnits: HruUnit[] = [];
+        let resolvedHost = envHost ?? null;
+        let resolvedPort = Number.isFinite(envPort) ? (envPort as number) : null;
 
         if (settingsRes.ok) {
           const data = (await settingsRes.json()) as {
@@ -103,8 +103,8 @@ export function useDashboardStatus() {
             unit?: string;
             maxPower?: number;
           };
-          if (data.host) setModbusHost(data.host);
-          if (Number.isFinite(data.port)) setModbusPort(data.port as number);
+          if (data.host) resolvedHost = data.host;
+          if (Number.isFinite(data.port)) resolvedPort = data.port as number;
           if (data.unit) {
             unitId = data.unit;
           }
@@ -112,6 +112,10 @@ export function useDashboardStatus() {
             setConfiguredMaxPower(data.maxPower as number);
           }
         }
+
+        setModbusHost(resolvedHost);
+        setModbusPort(resolvedPort);
+        setModbusConfigLoaded(true);
 
         if (unitsRes.ok) {
           allUnits = await unitsRes.json();
@@ -139,6 +143,9 @@ export function useDashboardStatus() {
           }
         }
       } catch {
+        if (!canceled) {
+          setModbusConfigLoaded(true);
+        }
         logger.error("Failed to load data");
       }
     }
@@ -202,6 +209,13 @@ export function useDashboardStatus() {
   }, [t]);
 
   useEffect(() => {
+    if (!modbusConfigLoaded || !modbusHost || !modbusPort) {
+      return;
+    }
+
+    const currentModbusHost = modbusHost;
+    const currentModbusPort = modbusPort;
+
     let active = true;
     const controller = new AbortController();
 
@@ -216,7 +230,7 @@ export function useDashboardStatus() {
     async function probe() {
       try {
         const url = resolveApiUrl(
-          `/api/modbus/status?host=${encodeURIComponent(modbusHost)}&port=${modbusPort}`,
+          `/api/modbus/status?host=${encodeURIComponent(currentModbusHost)}&port=${currentModbusPort}`,
         );
         const res = await fetch(url, { signal: controller.signal });
         if (!active) return;
@@ -238,7 +252,7 @@ export function useDashboardStatus() {
       controller.abort();
       clearInterval(id);
     };
-  }, [modbusHost, modbusPort]);
+  }, [modbusConfigLoaded, modbusHost, modbusPort]);
 
   useEffect(() => {
     let active = true;
