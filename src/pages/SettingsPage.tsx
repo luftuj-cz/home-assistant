@@ -11,14 +11,12 @@ import {
   TextInput,
   NumberInput,
   Select,
-  Alert,
   PasswordInput,
   useMantineColorScheme,
   useComputedColorScheme,
   Accordion,
   SimpleGrid,
   Paper,
-  Badge,
   Container,
 } from "@mantine/core";
 import {
@@ -30,7 +28,6 @@ import {
   IconSettings,
   IconServer,
   IconDatabase,
-  IconCheck,
   IconCode,
   IconBug,
 } from "@tabler/icons-react";
@@ -58,14 +55,8 @@ export function SettingsPage() {
     unitId: 1,
     maxPower: undefined as number | undefined,
   });
-  const [probeResult, setProbeResult] = useState<{
-    power: number;
-    temperature: number;
-    mode: string;
-    offset?: number;
-    flowIn?: number;
-    flowOut?: number;
-  } | null>(null);
+  const [probeStatus, setProbeStatus] = useState<"success" | "error" | null>(null);
+  const [probeError, setProbeError] = useState<string | null>(null);
   const [savingMqtt, setSavingMqtt] = useState(false);
   const [testingMqtt, setTestingMqtt] = useState(false);
   const [mqttSettings, setMqttSettings] = useState({
@@ -388,146 +379,7 @@ export function SettingsPage() {
     }
   }, [hruSettings, t]);
 
-  function renderProbeResults() {
-    if (!probeResult) return null;
-
-    function getVar(name: string) {
-      return selectedUnit?.variables?.find((v) => v.name === name);
-    }
-    function getLabelText(label?: string | { text?: string }) {
-      return typeof label === "string" ? label : label?.text;
-    }
-    function getModeText(val: unknown) {
-      if (typeof val === "string") return t(val, { defaultValue: val });
-      return String(val ?? "?");
-    }
-    const powerVar = selectedUnit?.variables?.find((v) => v.class === "power");
-    const temperatureVar = selectedUnit?.variables?.find((v) => v.class === "temperature");
-    const modeVar = selectedUnit?.variables?.find((v) => v.class === "mode");
-    const offsetVar = getVar("offset");
-    const flowInVar = getVar("flowIn");
-    const flowOutVar = getVar("flowOut");
-
-    const cols =
-      (powerVar ? 1 : 0) +
-      (temperatureVar ? 1 : 0) +
-      (modeVar ? 1 : 0) +
-      (offsetVar ? 1 : 0) +
-      (flowInVar ? 1 : 0) +
-      (flowOutVar ? 1 : 0);
-
-    return (
-      <SimpleGrid
-        cols={{
-          base: 1,
-          sm: Math.max(cols, 1),
-        }}
-        spacing="sm"
-      >
-        {powerVar && (
-          <Text fw={600} size="lg">
-            {probeResult.power}
-            {(() => {
-              const u = powerVar.unit;
-              return typeof u === "string" ? u : u?.text ?? "%";
-            })()}
-          </Text>
-        )}
-
-        {temperatureVar && (
-          <Group gap="xs">
-            <Badge color="orange" variant="light" circle>
-              T
-            </Badge>
-            <div>
-              <Text size="xs" c="dimmed">
-                {t("settings.hru.temperatureLabel")}
-              </Text>
-              <Text fw={600} size="lg">
-                {probeResult.temperature}°C
-              </Text>
-            </div>
-          </Group>
-        )}
-
-        {modeVar && (
-          <Group gap="xs">
-            <Badge color="blue" variant="light" circle>
-              M
-            </Badge>
-            <div>
-              <Text size="xs" c="dimmed">
-                {t("settings.hru.modeLabel")}
-              </Text>
-              <Text fw={600} size="lg">
-                {getModeText(probeResult.mode)}
-              </Text>
-            </div>
-          </Group>
-        )}
-
-        {offsetVar && (
-          <Group gap="xs">
-            <Badge color="grape" variant="light" circle>
-              O
-            </Badge>
-            <div>
-              <Text size="xs" c="dimmed">
-                {getLabelText(offsetVar.label) ?? "Offset"}
-              </Text>
-              <Text fw={600} size="lg">
-                {probeResult.offset ?? 0}
-                {(() => {
-                  const u = offsetVar.unit;
-                  return typeof u === "string" ? u : u?.text ?? "%";
-                })()}
-              </Text>
-            </div>
-          </Group>
-        )}
-
-        {flowInVar && (
-          <Group gap="xs">
-            <Badge color="teal" variant="light" circle>
-              IN
-            </Badge>
-            <div>
-              <Text size="xs" c="dimmed">
-                {getLabelText(flowInVar.label) ?? "Flow In"}
-              </Text>
-              <Text fw={600} size="lg">
-                {probeResult.flowIn ?? 0}
-                {(() => {
-                  const u = flowInVar.unit;
-                  return typeof u === "string" ? u : u?.text ?? "";
-                })()}
-              </Text>
-            </div>
-          </Group>
-        )}
-
-        {flowOutVar && (
-          <Group gap="xs">
-            <Badge color="cyan" variant="light" circle>
-              OUT
-            </Badge>
-            <div>
-              <Text size="xs" c="dimmed">
-                {getLabelText(flowOutVar.label) ?? "Flow Out"}
-              </Text>
-              <Text fw={600} size="lg">
-                {probeResult.flowOut ?? 0}
-                {(() => {
-                  const u = flowOutVar.unit;
-                  return typeof u === "string" ? u : u?.text ?? "";
-                })()}
-              </Text>
-            </div>
-          </Group>
-        )}
-      </SimpleGrid>
-    );
-  }
+  // Probe result card intentionally removed per request
 
   const probeHru = useCallback(async () => {
     if (!hruSettings.unit) {
@@ -538,6 +390,8 @@ export function SettingsPage() {
       });
       return;
     }
+    setProbeStatus(null);
+    setProbeError(null);
     setProbingHru(true);
     try {
       const response = await fetch(resolveApiUrl("/api/hru/test"), {
@@ -546,36 +400,24 @@ export function SettingsPage() {
         body: JSON.stringify(hruSettings),
       });
       if (!response.ok) {
-        const detail = await response.text();
-        setProbeResult(null);
+        setProbeStatus("error");
+        const message = t("settings.hru.notifications.connectionFailed");
+        setProbeError(message);
         notifications.show({
           title: t("settings.hru.notifications.probeFailedTitle"),
-          message: t("settings.hru.notifications.probeFailedMessage", { message: detail }),
+          message,
           color: "red",
         });
         return;
       }
-      const result = await response.json();
-
-      function valueFrom(key: string) {
-        return result.displayValues?.[key] ?? result.values?.[key];
-      }
-
-      setProbeResult({
-        power: Number(valueFrom("power") ?? 0),
-        temperature: Number(valueFrom("temperature") ?? 0),
-        mode: String(valueFrom("mode") ?? "?"),
-        offset: valueFrom("offset") === undefined ? undefined : Number(valueFrom("offset")),
-        flowIn: valueFrom("flowIn") === undefined ? undefined : Number(valueFrom("flowIn")),
-        flowOut: valueFrom("flowOut") === undefined ? undefined : Number(valueFrom("flowOut")),
-      });
+      setProbeStatus("success");
     } catch (error) {
-      setProbeResult(null);
+      setProbeStatus("error");
+      const message = t("settings.hru.notifications.connectionFailed");
+      setProbeError(message);
       notifications.show({
         title: t("settings.hru.notifications.probeFailedTitle"),
-        message: t("settings.hru.notifications.probeFailedMessage", {
-          message: error instanceof Error ? error.message : t("settings.hru.notifications.unknown"),
-        }),
+        message,
         color: "red",
       });
     } finally {
@@ -795,7 +637,8 @@ export function SettingsPage() {
                                   ...prev,
                                   unit: value === "" ? null : value,
                                 }));
-                                setProbeResult(null);
+                                setProbeStatus(null);
+                                setProbeError(null);
                               }}
                               label={t("settings.hru.unitLabel")}
                               placeholder={t("settings.hru.unitPlaceholder")}
@@ -815,7 +658,8 @@ export function SettingsPage() {
                                   ...prev,
                                   port: Number.isFinite(numericValue) ? numericValue : 502,
                                 }));
-                                setProbeResult(null);
+                                setProbeStatus(null);
+                                setProbeError(null);
                               }}
                               label={t("settings.hru.portLabel")}
                               min={1}
@@ -832,7 +676,8 @@ export function SettingsPage() {
                               value={hruSettings.host}
                               onChange={(e) => {
                                 setHruSettings((prev) => ({ ...prev, host: e.target.value }));
-                                setProbeResult(null);
+                                setProbeStatus(null);
+                                setProbeError(null);
                               }}
                               label={t("settings.hru.hostLabel")}
                               placeholder="localhost"
@@ -849,7 +694,8 @@ export function SettingsPage() {
                                   ...prev,
                                   unitId: Number.isFinite(numericValue) ? numericValue : 1,
                                 }));
-                                setProbeResult(null);
+                                setProbeStatus(null);
+                                setProbeError(null);
                               }}
                               label={t("settings.hru.unitIdLabel")}
                               min={1}
@@ -929,22 +775,20 @@ export function SettingsPage() {
                       >
                         {t("settings.hru.probe")}
                       </Button>
+                      {probeStatus === "success" && (
+                        <Text c="green" size="sm" fw={500}>
+                          {t("settings.hru.probeSuccess")}
+                        </Text>
+                      )}
+                      {probeStatus === "error" && (
+                        <Text c="red" size="sm" fw={500}>
+                          {probeError || t("settings.hru.notifications.unknown")}
+                        </Text>
+                      )}
                     </Group>
                   </Stack>
                 </Paper>
 
-                {probeResult && (
-                  <Alert
-                    icon={<IconCheck size={20} />}
-                    title={t("settings.hru.probeResultTitle")}
-                    color="green"
-                    withCloseButton
-                    onClose={() => setProbeResult(null)}
-                    radius="md"
-                  >
-                    {renderProbeResults()}
-                  </Alert>
-                )}
               </Stack>
             </Accordion.Panel>
           </Accordion.Item>
