@@ -3,11 +3,11 @@ import {
   Card,
   Group,
   RingProgress,
+  SimpleGrid,
   Stack,
   Text,
   Title,
   ThemeIcon,
-  SimpleGrid,
   Center,
   Box,
 } from "@mantine/core";
@@ -156,8 +156,16 @@ export function HruStatusCard({ status, hruName, t, activeMode, configuredMaxPow
     else if (percentage > 40) color = "orange";
 
     return (
-      <Card key={variable.name} shadow="none" withBorder radius="md" p="md" variant="light">
-        <Center>
+      <Card
+        key={variable.name}
+        shadow="none"
+        withBorder
+        radius="md"
+        p="md"
+        variant="light"
+        style={{ height: "100%" }}
+      >
+        <Center h="100%">
           <RingProgress
             size={140}
             thickness={12}
@@ -188,8 +196,16 @@ export function HruStatusCard({ status, hruName, t, activeMode, configuredMaxPow
     const unit = variable.unit ? getLocalizedText(variable.unit) : "°C";
 
     return (
-      <Card key={variable.name} shadow="none" withBorder radius="md" p="md" variant="light">
-        <Center h="100%" mih={100}>
+      <Card
+        key={variable.name}
+        shadow="none"
+        withBorder
+        radius="md"
+        p="md"
+        variant="light"
+        style={{ height: "100%" }}
+      >
+        <Center h="100%" mih={120}>
           <Stack align="center" gap="xs">
             <IconThermometer size={32} color="var(--mantine-color-blue-filled)" />
             <Text
@@ -219,41 +235,45 @@ export function HruStatusCard({ status, hruName, t, activeMode, configuredMaxPow
     const modeValue = resolveDisplayValue(modeVar, modeDisplay, modeRaw);
 
     return (
-      <Card shadow="none" withBorder radius="md" p="md" variant="light">
-        <Group>
-          <ThemeIcon color="grape" variant="light" size="xl" radius="md">
-            <IconSettings size={28} />
-          </ThemeIcon>
-          <div style={{ flex: 1 }}>
-            <Text size="xs" fw={700} c="dimmed" tt="uppercase">
+      <Card shadow="none" withBorder radius="md" p="md" variant="light" style={{ height: "100%" }}>
+        <Center h="100%" mih={160}>
+          <Stack align="center" gap="xs" w="100%">
+            <ThemeIcon color="grape" variant="light" size="lg" radius="md">
+              <IconSettings size={20} />
+            </ThemeIcon>
+            <Text size="xs" fw={700} c="dimmed" tt="uppercase" ta="center">
               {t("dashboard.hruMode", { defaultValue: "Mode" })}
             </Text>
             {activeMode ? (
               <>
-                <Title order={3} c="grape">
-                  {activeMode.source === "manual"
-                    ? t("dashboard.activeMode.manual")
-                    : activeMode.source === "boost"
-                      ? t("dashboard.activeMode.boost", {
-                          name: getModeText(activeMode.modeName || modeValue),
-                        })
-                      : t("dashboard.activeMode.schedule", {
-                          name: getModeText(activeMode.modeName || modeValue),
-                        })}
+                <Title order={3} c="grape" ta="center">
+                  <Box component="span" style={{ display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {activeMode.source === "manual"
+                      ? t("dashboard.activeMode.manual")
+                      : activeMode.source === "boost"
+                        ? t("dashboard.activeMode.boost", {
+                            name: getModeText(activeMode.modeName || modeValue),
+                          })
+                        : t("dashboard.activeMode.schedule", {
+                            name: getModeText(activeMode.modeName || modeValue),
+                          })}
+                  </Box>
                 </Title>
                 {modeVar && (
-                  <Text size="sm" c="dimmed" mt={4}>
+                  <Text size="sm" c="dimmed" mt={4} ta="center" truncate>
                     {t("dashboard.nativeMode")}: {getModeText(modeValue)}
                   </Text>
                 )}
               </>
             ) : (
-              <Title order={3} c="grape">
-                {getModeText(modeValue)}
+              <Title order={3} c="grape" ta="center">
+                <Box component="span" style={{ display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  {getModeText(modeValue)}
+                </Box>
               </Title>
             )}
-          </div>
-        </Group>
+          </Stack>
+        </Center>
       </Card>
     );
   }
@@ -270,20 +290,28 @@ export function HruStatusCard({ status, hruName, t, activeMode, configuredMaxPow
     else if (variable.class === "mode") Icon = IconSettings;
 
     return (
-      <Card key={variable.name} shadow="none" withBorder radius="md" p="sm" variant="light">
-        <Group wrap="nowrap" gap="sm">
-          <ThemeIcon color="gray" variant="light" size="md" radius="sm">
-            <Icon size={16} />
-          </ThemeIcon>
-          <div style={{ flex: 1, overflow: "hidden" }}>
-            <Text size="xs" c="dimmed" truncate fw={500}>
+      <Card
+        key={variable.name}
+        shadow="none"
+        withBorder
+        radius="md"
+        p="md"
+        variant="light"
+        style={{ height: "100%" }}
+      >
+        <Center h="100%" mih={160}>
+          <Stack align="center" gap="xs" w="100%">
+            <ThemeIcon color="gray" variant="light" size="lg" radius="md">
+              <Icon size={18} />
+            </ThemeIcon>
+            <Text size="xs" c="dimmed" tt="uppercase" fw={700} ta="center" truncate>
               {getLocalizedText(variable.label)}
             </Text>
-            <Text fw={700} size="sm" truncate>
+            <Text fw={800} size="lg" ta="center" truncate>
               {value} {unit}
             </Text>
-          </div>
-        </Group>
+          </Stack>
+        </Center>
       </Card>
     );
   }
@@ -316,23 +344,12 @@ export function HruStatusCard({ status, hruName, t, activeMode, configuredMaxPow
       </Group>
 
       <Box p="lg" pt="md">
-        <SimpleGrid cols={{ base: 1, sm: tempVars.length > 0 ? 2 : 1 }} spacing="md">
-          {/* Main Column: Power and Mode */}
-          <Stack gap="md">
-            {powerVar && renderPower(powerVar)}
-            {renderMode()}
-          </Stack>
-
-          {/* Side Column: Temperatures */}
-          {tempVars.length > 0 && <Stack gap="md">{tempVars.map((v) => renderTemp(v))}</Stack>}
+        <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md" style={{ alignItems: "stretch" }}>
+          {powerVar && renderPower(powerVar)}
+          {renderMode()}
+          {tempVars.map((v) => renderTemp(v))}
+          {otherVars.map((v) => renderOther(v))}
         </SimpleGrid>
-
-        {/* Footer Grid: Other variables */}
-        {otherVars.length > 0 && (
-          <SimpleGrid cols={{ base: 2, sm: 3, md: 4 }} spacing="xs" mt="md">
-            {otherVars.map((v) => renderOther(v))}
-          </SimpleGrid>
-        )}
       </Box>
     </Card>
   );
