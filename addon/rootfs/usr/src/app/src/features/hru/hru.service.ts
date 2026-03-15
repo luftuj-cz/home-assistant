@@ -23,6 +23,7 @@ export interface HruReadResult {
 
 export class HruService {
   private units: HeatRecoveryUnit[];
+  private readValuesInFlight: Promise<HruReadResult> | null = null;
 
   constructor(
     private readonly repository: HruRepository,
@@ -71,6 +72,23 @@ export class HruService {
   }
 
   async readValues(settingsOverride?: HruSettings): Promise<HruReadResult> {
+    if (!settingsOverride) {
+      if (this.readValuesInFlight) {
+        this.logger.debug("HRU readValues: joining in-flight read");
+        return this.readValuesInFlight;
+      }
+
+      this.readValuesInFlight = this.readValuesInternal().finally(() => {
+        this.readValuesInFlight = null;
+      });
+
+      return this.readValuesInFlight;
+    }
+
+    return this.readValuesInternal(settingsOverride);
+  }
+
+  private async readValuesInternal(settingsOverride?: HruSettings): Promise<HruReadResult> {
     const configData = this.getResolvedConfiguration(settingsOverride);
     if (!configData) {
       const err = new HruNotConfiguredError();
