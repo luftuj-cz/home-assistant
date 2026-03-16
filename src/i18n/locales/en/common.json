@@ -54,7 +54,8 @@
     "boost": "Boost",
     "offset": "Disbalance offset",
     "flowOut": "Flow out",
-    "flowIn": "Flow in"
+    "flowIn": "Flow in",
+    "serialNo": "Serial number"
   },
   "valves": {
     "title": "LUFTaTOR Zones",
@@ -248,6 +249,7 @@
       "hostRequired": "Host is required",
       "save": "Save Settings",
       "probe": "Probe Connection",
+      "probeSuccess": "Connection successful",
       "probeResultTitle": "Current HRU Values",
       "powerLabel": "Power",
       "temperatureLabel": "Temperature",
@@ -261,6 +263,7 @@
         "saveFailedMessage": "{{message}}",
         "probeFailedTitle": "Probe failed",
         "probeFailedMessage": "{{message}}",
+        "connectionFailed": "Connection failed",
         "noUnitSelected": "Please select an HRU unit first",
         "unknown": "Unknown error"
       },

@@ -1,26 +1,16 @@
 # Changelog
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
-## [1.0.0-stable] - 2026-03-01
+## [1.0.5-stable] - 2026-03-16
 
-### Added
-- First stable version of this addon
-- If you find a bug or want to add a new HRU, open an issue: https://github.com/luftuj-cz/home-assistant/issues/new
-
-## [1.0.1-stable] - 2026-03-01
+### Changed
+- Refined the dashboard HRU status card and the settings page layout, including the HRU test button UI.
+- Updated the Korado Ventbox simulator and Korado unit definitions.
 
 ### Fixed
-- Quickfix: manual mode entity was showing up as a valve; filtered out.
-
-## [1.0.2-stable] - 2026-03-02
-
-### Fixed
-- Valve filtering was too strict for certain luftator valve IDs.
-
-## [1.0.3-stable] - 2026-03-02
-
-### Fixed
-- Prevented demo HRU keep-alive loop from crashing when no integration keepAlive is defined.
+- Improved reliability when loading values from the HRU to avoid intermittent read errors.
+- Fixed manual mode run-on time being displayed among valves.
+- Corrected temperature scaling for Korado units.
 
 ## [1.0.4-stable] - 2026-03-05
 
@@ -32,3 +22,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
 ### Thanks
 - Thanks to [@JanNohejl](https://github.com/JanNohejl) for reporting [issue #4](https://github.com/luftuj-cz/home-assistant/issues/4).
+
+## [1.0.3-stable] - 2026-03-02
+
+### Fixed
+- Prevented demo HRU keep-alive loop from crashing when no integration keepAlive is defined.
+
+## [1.0.2-stable] - 2026-03-02
+
+### Fixed
+- Valve filtering was too strict for certain luftator valve IDs.
+
+## [1.0.1-stable] - 2026-03-01
+
+### Fixed
+- Quickfix: manual mode entity was showing up as a valve; filtered out.
+
+## [1.0.0-stable] - 2026-03-01
+
+### Added
+- First stable version of this addon
+- If you find a bug or want to add a new HRU, open an issue: https://github.com/luftuj-cz/home-assistant/issues/new

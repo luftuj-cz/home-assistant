@@ -54,7 +54,8 @@
     "boost": "Boost",
     "offset": "Procentuální rozvážení",
     "flowOut": "Průtok výfuk",
-    "flowIn": "Průtok sání"
+    "flowIn": "Průtok sání",
+    "serialNo": "Výrobní číslo"
   },
   "settings": {
     "title": "Nastavení",
@@ -225,6 +226,7 @@
       "hostRequired": "Host je povinný",
       "save": "Uložit nastavení",
       "probe": "Testovat připojení",
+      "probeSuccess": "Připojení úspěšné",
       "probeResultTitle": "Aktuální hodnoty rekuperační jednotky",
       "powerLabel": "Výkon",
       "temperatureLabel": "Teplota",
@@ -239,6 +241,7 @@
         "saveFailedMessage": "{{message}}",
         "probeFailedTitle": "Test selhal",
         "probeFailedMessage": "{{message}}",
+        "connectionFailed": "Připojení selhalo",
         "noUnitSelected": "Nejprve vyberte rekuperační jednotku",
         "unknown": "Neznámá chyba"
       },

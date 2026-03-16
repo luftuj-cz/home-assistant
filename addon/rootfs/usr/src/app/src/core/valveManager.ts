@@ -48,7 +48,12 @@ export class ValveManager implements ValveController {
 
   private isValveEntity(entityId: string): boolean {
     // Allow valve ids like number.luftator_<controller>_<zone>[...]
-    return /^(?:number\.)?luftator_[a-z0-9]+(?:_[a-z0-9]+)+$/i.test(entityId);
+    const matchesPattern = /^(?:number\.)?luftator_[a-z0-9]+(?:_[a-z0-9]+)+$/i.test(entityId);
+    const isAppInternal = /^(?:number\.)?luftator_app_/i.test(entityId);
+    const isManualDuration = ["_doba_manualniho_rezimu", "_manual_mode_duration"].some((suffix) =>
+      entityId.endsWith(suffix),
+    );
+    return matchesPattern && !isManualDuration && !isAppInternal;
   }
 
   constructor(

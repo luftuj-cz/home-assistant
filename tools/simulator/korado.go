@@ -20,9 +20,15 @@ func NewKorado() *Korado {
 }
 
 func (k *Korado) Configure(serv *Server) {
-	OnReadHoldingRegisters(serv, func(register uint16, numRegs int) ([]uint16, *Exception) {
-		if register == 106 && numRegs == 1 {
+	OnReadInputRegisters(serv, func(register uint16, numRegs int) ([]uint16, *Exception) {
+		if register == 100 && numRegs == 1 {
+			return []uint16{uint16(12345)}, &Success
+		}
+		if register == 107 && numRegs == 1 {
 			return []uint16{uint16(k.power)}, &Success
+		}
+		if (register >= 110 && register <= 114) && numRegs == 1 {
+			return []uint16{uint16(200)}, &Success
 		}
 		return []uint16{}, &IllegalDataAddress
 	})
