@@ -59,6 +59,10 @@ Skript upraví `package.json`, `src/config.ts`, `addon/config.yaml` a `addon/roo
 - Pro lokální testování spusťte backend `npm run dev` v tomto adresáři a frontend naměřte na API přes `VITE_API_BASE_URL`.
 - Pro balení do Home Assistant: `npm run build:addon`, zkopírujte složku `addon/` do sdílené složky `/addons` a rebuildujte add-on v Supervisor UI.
 
+## Nástroje
+
+- HRU simulátor: viz [`tools/simulator/README.md`](tools/simulator/README.md).
+
 ## Lint a formátování
 
 ESLint konfigurace je v `eslint.config.js`. Před synchronizací do add-onu spusťte `npm run lint`.
