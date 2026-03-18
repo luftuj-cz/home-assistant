@@ -59,6 +59,10 @@ This script updates `package.json`, `src/config.ts`, `addon/config.yaml`, and `a
 - When testing locally, run the backend with `npm run dev` inside that directory and point the frontend to the exposed API using `VITE_API_BASE_URL`.
 - For Home Assistant packaging, run `npm run build:addon`, copy the `addon/` folder into your `/addons` share, and rebuild the add-on via the Supervisor UI.
 
+## Tools
+
+- HRU simulator: see [`tools/simulator/README.md`](tools/simulator/README.md).
+
 ## Linting & formatting
 
 ESLint configuration lives in `eslint.config.js`. Run `npm run lint` to ensure the codebase passes all checks before syncing to the add-on.
