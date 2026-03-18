@@ -69,7 +69,9 @@
       "setValueUnknown": "Failed to set valve value."
     },
     "warnings": {
-      "allClosed": "Warning: If all valves are closed and the HRU is powered on, there is a risk of damage to LUFTaTORs servos or HRU!"
+      "allClosed": "Warning: If all valves are closed and the HRU is powered on, there is a risk of damage to LUFTaTORs servos or HRU!",
+      "offlineMode": "Home Assistant connection is offline. Showing last known valve snapshot only.",
+      "unavailable": "Some valves are unavailable in Home Assistant. Snapshot values may be outdated."
     },
     "alertTitle": "Error",
     "warningTitle": "Warning",
@@ -77,7 +79,8 @@
     "empty": "No valves found for prefix `number.luftator`.",
     "status": {
       "open": "OPEN",
-      "closed": "CLOSED"
+      "closed": "CLOSED",
+      "offlineLabel": "OFFLINE"
     }
   },
   "settings": {

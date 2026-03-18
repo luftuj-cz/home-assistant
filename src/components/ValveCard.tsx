@@ -1,5 +1,6 @@
 import { Badge, Card, Group, Slider, Stack, Text, ThemeIcon, rem, Tooltip } from "@mantine/core";
 import { IconAdjustments } from "@tabler/icons-react";
+import { useTranslation } from "react-i18next";
 
 import type { Valve } from "../types/valve";
 
@@ -11,9 +12,12 @@ export interface ValveCardProps {
 }
 
 export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCardProps) {
+  const { t } = useTranslation();
   // Transformation: Backend 0 -> UI Max; Backend Max -> UI 0
   // uiValue = valve.max - valve.value + valve.min;
   const uiValue = valve.max - valve.value + valve.min;
+
+  const isUnavailable = !valve.isAvailable;
 
   function handleUiChange(val: number) {
     const backendVal = valve.max - val + valve.min;
@@ -30,6 +34,7 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
     return formatValue(backendVal);
   }
   function getValveColor(val: number) {
+    if (isUnavailable) return "gray";
     if (val >= valve.max) return "red";
     if (val <= valve.min) return "green";
     return "orange";
@@ -47,7 +52,7 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
               radius="md"
               variant="light"
               color={statusColor}
-              style={{ transition: "all 0.3s ease" }}
+              style={{ transition: "all 0.3s ease", opacity: isUnavailable ? 0.4 : 1 }}
             >
               <IconAdjustments size={24} />
             </ThemeIcon>
@@ -66,15 +71,16 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
           </Group>
           <Badge
             size="xl"
-            variant="light"
+            variant={isUnavailable ? "outline" : "light"}
             color={statusColor}
             style={{
               transition: "all 0.3s ease",
               minWidth: rem(80),
               justifyContent: "center",
+              opacity: isUnavailable ? 0.7 : 1,
             }}
           >
-            {formatValue(valve.value)}
+            {isUnavailable ? t("valves.status.offlineLabel", { defaultValue: "Offline" }) : formatValue(valve.value)}
           </Badge>
         </Group>
 
@@ -86,12 +92,14 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
           label={formatUiValue}
           onChange={handleUiChange}
           onChangeEnd={handleUiChangeEnd}
+          disabled={isUnavailable}
           size="xl"
           color={statusColor}
           thumbSize={28}
           styles={(theme) => ({
             track: {
-              backgroundColor: "var(--mantine-color-blue-1)",
+              backgroundColor: isUnavailable ? "var(--mantine-color-gray-3)" : "var(--mantine-color-blue-1)",
+              opacity: isUnavailable ? 0.6 : 1,
             },
             mark: {
               display: "none",
@@ -100,9 +108,9 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
               display: "none",
             },
             thumb: {
-              backgroundColor: "var(--mantine-color-white)",
+              backgroundColor: isUnavailable ? "var(--mantine-color-gray-2)" : "var(--mantine-color-white)",
               borderWidth: 2,
-              borderColor: "var(--mantine-color-blue-6)",
+              borderColor: isUnavailable ? "var(--mantine-color-gray-5)" : "var(--mantine-color-blue-6)",
               boxShadow: theme.shadows.sm,
               transition: "border-color 0.2s ease, transform 0.1s ease",
             },

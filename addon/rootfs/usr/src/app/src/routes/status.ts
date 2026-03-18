@@ -2,6 +2,8 @@ import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
 import net from "net";
+import type { ValveController } from "../core/valveManager.js";
+import { isValveAvailable } from "../core/valveAvailability.js";
 import type { HomeAssistantClient } from "../services/homeAssistantClient.js";
 import type { MqttService } from "../services/mqttService.js";
 import { getAppSetting } from "../services/database.js";
@@ -12,6 +14,7 @@ import { type ModbusStatusQuery, modbusStatusQuerySchema } from "../schemas/stat
 import { getSharedModbusClient, isModbusReachable } from "../shared/modbus/client.js";
 
 export function createStatusRouter(
+  valveManager: ValveController,
   haClient: HomeAssistantClient | null,
   mqttService: MqttService,
   logger: Logger,
@@ -22,15 +25,28 @@ export function createStatusRouter(
 ) {
   const router = Router();
 
-  router.get("/status", (_request: Request, response: Response) => {
+  router.get("/status", async (_request: Request, response: Response, next: NextFunction) => {
+    try {
+      const snapshot = await valveManager.getSnapshot();
+      const valves = {
+        total: snapshot.length,
+        hasUnavailable: snapshot.some((item) => !isValveAvailable(item)),
+        unavailableEntities: snapshot
+          .filter((item) => !isValveAvailable(item))
+          .map((item) => item.entity_id),
+      };
     const ha = haClient ? { connection: haClient.getConnectionState() } : { connection: "offline" };
     const mqtt = {
       connection: mqttService.isConnected() ? "connected" : "disconnected",
       lastDiscovery: mqttService.getLastDiscoveryTime(),
     };
     const timeline = timelineScheduler.getActiveState();
-    logger.debug({ ha, mqtt, timeline }, "Status check");
-    response.json({ ha, mqtt, timeline, version: APP_VERSION });
+      logger.debug({ ha, mqtt, timeline, valves }, "Status check");
+      response.json({ ha, mqtt, timeline, valves, version: APP_VERSION });
+    } catch (error) {
+      logger.error({ error }, "Failed to get status");
+      next(error);
+    }
   });
 
   router.get("/system-info", (_request: Request, response: Response, next: NextFunction) => {
