@@ -8,6 +8,26 @@ function normalizeValue(value: unknown, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
+function isValveAvailable(state: HaState): boolean {
+  const rawState = String(state.state ?? "").trim().toLowerCase();
+  const attrs = state.attributes ?? {};
+  const attributeAvailable = attrs.available;
+
+  if (attrs.restored === true) {
+    return false;
+  }
+
+  if (attributeAvailable === false) {
+    return false;
+  }
+
+  if (rawState === "unavailable" || rawState === "unknown" || rawState === "offline") {
+    return false;
+  }
+
+  return Number.isFinite(Number(state.state));
+}
+
 function mapValve(state: HaState): Valve {
   const attrs = state.attributes ?? {};
   return {
@@ -18,6 +38,7 @@ function mapValve(state: HaState): Valve {
     max: normalizeValue(attrs.max, 90),
     step: normalizeValue(attrs.step, 5),
     state: state.state,
+    isAvailable: isValveAvailable(state),
     attributes: attrs,
   };
 }
