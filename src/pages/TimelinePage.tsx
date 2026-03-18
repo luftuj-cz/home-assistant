@@ -196,6 +196,14 @@ export function TimelinePage() {
     async (targetDay: number) => {
       if (copyDay === null) return;
       const source = eventsByDay.get(copyDay) ?? [];
+      const targetEvents = eventsByDay.get(targetDay) ?? [];
+
+      for (const ev of targetEvents) {
+        if (ev.id !== undefined) {
+          await deleteEvent(ev.id);
+        }
+      }
+
       for (const ev of source) {
         await saveEvent({
           startTime: ev.startTime,
@@ -213,7 +221,7 @@ export function TimelinePage() {
       });
       logger.info("Day pasted successfully", { targetDay: dayLabels[targetDay] });
     },
-    [copyDay, eventsByDay, saveEvent, t, dayLabels],
+    [copyDay, eventsByDay, deleteEvent, saveEvent, t, dayLabels],
   );
 
   const handleAddMode = useCallback(() => {
