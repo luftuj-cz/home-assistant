@@ -4,22 +4,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  publish:
-    name: Publish Dev Addon
+  prepare:
+    name: Prepare build
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
+    outputs:
+      matrix: ${{ steps.matrix.outputs.matrix }}
+      version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v4
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node
         uses: actions/setup-node@v6
@@ -39,8 +32,6 @@ jobs:
       - name: Prepare dev config
         run: |
           cd addon
-          # Backup original config
-          cp config.yaml config.yaml.backup
           # Modify for dev version
           sed -i 's/name: LUFTaTOR$/name: LUFTaTOR (Development)/' config.yaml
           sed -i 's/slug: luftator$/slug: luftator-dev/' config.yaml
@@ -49,17 +40,77 @@ jobs:
           # Update version to dev
           sed -i 's/-stable$/-dev/' config.yaml
 
-      - name: Build and Publish Dev Version
-        uses: home-assistant/builder@master
-        with:
-          args: |
-            --amd64 \
-            --aarch64 \
-            --target addon \
-            --image "{arch}-addon-luftuj-dev" \
-            --docker-hub "ghcr.io/luftuj-cz"
-
-      - name: Restore original config
+      - name: Extract version
+        id: version
         run: |
-          cd addon
-          mv config.yaml.backup config.yaml
+          version=$(grep '^version:' addon/config.yaml | awk '{print $2}')
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Prepare build matrix
+        id: matrix
+        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@master
+        with:
+          architectures: '["amd64", "aarch64"]'
+          image-name: addon-luftuj-dev
+          registry-prefix: ghcr.io/luftuj-cz
+
+      - name: Upload addon context
+        uses: actions/upload-artifact@v4
+        with:
+          name: addon-context
+          path: addon/
+
+  build:
+    name: Build ${{ matrix.arch }}
+    needs: prepare
+    runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Download addon context
+        uses: actions/download-artifact@v4
+        with:
+          name: addon-context
+          path: addon/
+
+      - name: Build and push
+        uses: home-assistant/builder/actions/build-image@master
+        with:
+          arch: ${{ matrix.arch }}
+          image: ${{ matrix.image }}
+          image-tags: |
+            ${{ needs.prepare.outputs.version }}
+            latest
+          version: ${{ needs.prepare.outputs.version }}
+          context: addon
+          push: "true"
+          cosign: "false"
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          build-args: |
+            BUILD_FROM=ghcr.io/home-assistant/${{ matrix.arch }}-base:3.19
+
+  publish:
+    name: Publish manifest
+    needs: [prepare, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Publish multi-arch manifest
+        uses: home-assistant/builder/actions/publish-multi-arch-manifest@master
+        with:
+          architectures: '["amd64", "aarch64"]'
+          image-name: addon-luftuj-dev
+          image-tags: |
+            ${{ needs.prepare.outputs.version }}
+            latest
+          registry-prefix: ghcr.io/luftuj-cz
+          container-registry-password: ${{ secrets.GITHUB_TOKEN }}
+          cosign: "false"
