@@ -122,6 +122,8 @@ export function TimelineDayCard({
           transform: "translateY(-2px)",
         },
         borderColor: isDragOver ? "var(--mantine-color-blue-filled)" : undefined,
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       <Group justify="space-between" mb="lg">
@@ -171,7 +173,14 @@ export function TimelineDayCard({
       {events.length === 0 ? (
         <Box
           py="xl"
-          style={{ border: "1px dashed var(--mantine-color-dimmed)", borderRadius: "8px" }}
+          style={{
+            border: "1px dashed var(--mantine-color-dimmed)",
+            borderRadius: "8px",
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
         >
           <Text size="sm" c="dimmed" ta="center">
             {t("settings.timeline.noEvents")}

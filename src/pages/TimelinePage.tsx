@@ -6,6 +6,7 @@ import { IconCalendar, IconCopy } from "@tabler/icons-react";
 
 import { useTimelineModes } from "../hooks/useTimelineModes";
 import { useTimelineEvents } from "../hooks/useTimelineEvents";
+import { useDragAutoScroll } from "../hooks/useDragScroll";
 import { TimelineModeList } from "../components/timeline/TimelineModeList";
 import { TimelineDayCard } from "../components/timeline/TimelineDayCard";
 import { TimelineEventModal } from "../components/timeline/TimelineEventModal";
@@ -21,6 +22,7 @@ import { logger } from "../utils/logger";
 export function TimelinePage() {
   const { t } = useTranslation();
   const [activeUnitId, setActiveUnitId] = useState<string | undefined>(undefined);
+  const dragScroll = useDragAutoScroll();
 
   const { modes, loadModes, saveMode, deleteMode, savingMode } = useTimelineModes(t);
   const {
@@ -309,28 +311,36 @@ export function TimelinePage() {
             }
             labelPosition="left"
           />
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
-            {dayOrder.map((dayIdx) => (
-              <TimelineDayCard
-                key={dayIdx}
-                dayIdx={dayIdx}
-                label={dayLabels[dayIdx]}
-                events={eventsByDay.get(dayIdx) ?? []}
-                modes={modes}
-                copyDay={copyDay}
-                loading={loading}
-                onCopy={setCopyDay}
-                onPaste={handlePasteDay}
-                onCancelCopy={() => setCopyDay(null)}
-                onAdd={handleAddEvent}
-                onEdit={handleEditEvent}
-                onDelete={deleteEvent}
-                onToggle={handleToggleEvent}
-                onDropMode={handleDropMode}
-                t={t}
-              />
-            ))}
-          </SimpleGrid>
+          <div
+            ref={dragScroll.ref}
+            style={{
+              overflow: "auto",
+              maxHeight: "calc(100vh - 400px)",
+            }}
+          >
+            <SimpleGrid cols={{ base: 1, sm: 2, lg: 3, xl: 4 }} spacing="lg">
+              {dayOrder.map((dayIdx) => (
+                <TimelineDayCard
+                  key={dayIdx}
+                  dayIdx={dayIdx}
+                  label={dayLabels[dayIdx]}
+                  events={eventsByDay.get(dayIdx) ?? []}
+                  modes={modes}
+                  copyDay={copyDay}
+                  loading={loading}
+                  onCopy={setCopyDay}
+                  onPaste={handlePasteDay}
+                  onCancelCopy={() => setCopyDay(null)}
+                  onAdd={handleAddEvent}
+                  onEdit={handleEditEvent}
+                  onDelete={deleteEvent}
+                  onToggle={handleToggleEvent}
+                  onDropMode={handleDropMode}
+                  t={t}
+                />
+              ))}
+            </SimpleGrid>
+          </div>
         </Stack>
 
         <TimelineEventModal
