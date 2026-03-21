@@ -1,6 +1,20 @@
 # Changelog
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+## [1.0.6-stable] - 2026-03-21
+
+### Added
+- Offline mode notice — users are now informed when valve values may not be up to date due to offline mode.
+- New and improved addon logo for Home Assistant.
+- New README and Czech README (README.cs.md).
+
+### Fixed
+- Fixed drag and scroll in Timeline on mobile devices.
+- Fixed mode creation modal layout and controls for mobile.
+- Fixed form validation error placement in mode creation.
+- Fixed copy-paste in timeline — day is now correctly cleared before paste.
+- Prevented creating or copying two timeline events with the same time.
+
 ## [1.0.5-stable] - 2026-03-16
 
 ### Changed
