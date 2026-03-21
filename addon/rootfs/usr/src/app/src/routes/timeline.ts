@@ -155,6 +155,31 @@ export function createTimelineRouter(
     return payload;
   }
 
+  function eventsOverlapByDay(
+    firstDay: number | null | undefined,
+    secondDay: number | null | undefined,
+  ): boolean {
+    if (firstDay === null || firstDay === undefined) return true;
+    if (secondDay === null || secondDay === undefined) return true;
+    return firstDay === secondDay;
+  }
+
+  function hasTimeConflict(event: TimelineEventInput, hruId: string | null): boolean {
+    const existingEvents = getTimelineEvents(hruId);
+
+    return existingEvents.some((existingEvent) => {
+      if (existingEvent.id === event.id) {
+        return false;
+      }
+
+      if (existingEvent.startTime !== event.startTime) {
+        return false;
+      }
+
+      return eventsOverlapByDay(existingEvent.dayOfWeek, event.dayOfWeek);
+    });
+  }
+
   router.get("/modes", (request: Request, response: Response) => {
     const currentUnitId = getCurrentUnitId(request.query.unitId as string) || "";
     // Pass unit ID to DB fetching so we get global AND unit specific modes
@@ -376,6 +401,7 @@ export function createTimelineRouter(
     (request: Request, response: Response, next: NextFunction) => {
       try {
         const body = request.body as TimelineEventInput;
+        const hruId = getCurrentUnitId(request.query.unitId as string);
 
         // Validate HRU config against max power
         const maxPower = getHruMaxPower();
@@ -385,7 +411,15 @@ export function createTimelineRouter(
           );
         }
 
-        const hruId = getCurrentUnitId(request.query.unitId as string);
+        if (hasTimeConflict(body, hruId)) {
+          return next(
+            new ConflictError(
+              "An event already exists at this time for the selected day",
+              "DUPLICATE_EVENT_TIME",
+            ),
+          );
+        }
+
         const event = upsertTimelineEvent({
           id: body.id,
           startTime: body.startTime,

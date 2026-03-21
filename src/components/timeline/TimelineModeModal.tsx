@@ -28,6 +28,7 @@ import {
   IconWind,
 } from "@tabler/icons-react";
 import { useEffect, useState, useRef } from "react";
+import { useMediaQuery } from "@mantine/hooks";
 import type { TFunction } from "i18next";
 import type { Mode } from "../../types/timeline";
 import type { Valve } from "../../types/valve";
@@ -65,6 +66,7 @@ export function TimelineModeModal({
   nameError,
   onNameChange,
 }: TimelineModeModalProps) {
+  const isMobile = useMediaQuery("(max-width: 48em)");
   const [name, setName] = useState("");
   const [variableValues, setVariableValues] = useState<Record<string, number | string | boolean>>(
     {},
@@ -258,6 +260,7 @@ export function TimelineModeModal({
       }
       size="lg"
       radius="md"
+      fullScreen={isMobile}
     >
       <Stack gap="md">
         <TextInput
@@ -271,7 +274,6 @@ export function TimelineModeModal({
           leftSection={<IconFileText size={16} stroke={1.5} />}
           error={nameError || (!name.trim() && submitted ? t("validation.required") : null)}
           required
-          styles={{ error: { position: "absolute", bottom: -20 } }}
         />
 
         {editableVariables.length > 0 && (
@@ -445,11 +447,20 @@ export function TimelineModeModal({
                       min={0}
                       max={90}
                       step={5}
-                      marks={[]}
+                      marks={[
+                        { value: 0 },
+                        { value: 15 },
+                        { value: 30 },
+                        { value: 45 },
+                        { value: 60 },
+                        { value: 75 },
+                        { value: 90 },
+                      ]}
                       label={null}
                       size="lg"
                       color={statusColor}
-                      thumbSize={22}
+                      thumbSize={28}
+                      py="md"
                     />
                   </Stack>
                 );
@@ -471,10 +482,11 @@ export function TimelineModeModal({
           description={t("settings.timeline.modeIsBoostDescription")}
           checked={isBoost}
           onChange={(e) => setIsBoost(e.currentTarget.checked)}
+          size="md"
         />
 
-        <Group justify="flex-end" gap="sm" mt="xs">
-          <Button variant="light" onClick={onClose} radius="md">
+        <Group justify="flex-end" gap="sm" mt="xs" grow={isMobile}>
+          <Button variant="light" onClick={onClose} radius="md" fullWidth={isMobile}>
             {t("settings.timeline.modal.cancel")}
           </Button>
           <Button
@@ -482,12 +494,13 @@ export function TimelineModeModal({
             leftSection={<IconTestPipe size={16} />}
             onClick={handleTest}
             color={testRemainingSeconds !== null ? "red" : "blue"}
+            fullWidth={isMobile}
           >
             {testRemainingSeconds !== null
               ? `${t("settings.timeline.modal.cancel")} (${testRemainingSeconds}s)`
               : t("settings.timeline.modal.test")}
           </Button>
-          <Button onClick={handleSave} loading={saving} radius="md">
+          <Button onClick={handleSave} loading={saving} radius="md" fullWidth={isMobile}>
             {t(mode ? "settings.timeline.modeUpdateAction" : "settings.timeline.modeCreateAction")}
           </Button>
         </Group>

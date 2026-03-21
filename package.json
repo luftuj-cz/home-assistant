@@ -1,10 +1,10 @@
 {
   "name": "luftujha",
   "private": true,
-  "version": "1.0.5-stable",
+  "version": "1.0.6-stable",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "vite --host",
     "build": "tsc -b && node scripts/copy-translations.mjs && vite build",
     "build:addon": "npm run build && node scripts/copy-translations.mjs && node scripts/sync-dist.mjs",
     "lint": "eslint .",

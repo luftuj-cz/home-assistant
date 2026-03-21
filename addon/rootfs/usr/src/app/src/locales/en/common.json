@@ -54,7 +54,8 @@
     "boost": "Boost",
     "offset": "Disbalance offset",
     "flowOut": "Flow out",
-    "flowIn": "Flow in"
+    "flowIn": "Flow in",
+    "serialNo": "Serial number"
   },
   "valves": {
     "title": "LUFTaTOR Zones",
@@ -68,7 +69,9 @@
       "setValueUnknown": "Failed to set valve value."
     },
     "warnings": {
-      "allClosed": "Warning: If all valves are closed and the HRU is powered on, there is a risk of damage to LUFTaTORs servos or HRU!"
+      "allClosed": "Warning: If all valves are closed and the HRU is powered on, there is a risk of damage to LUFTaTORs servos or HRU!",
+      "offlineMode": "Home Assistant connection is offline. Showing last known valve snapshot only.",
+      "unavailable": "Some valves are unavailable in Home Assistant. Snapshot values may be outdated."
     },
     "alertTitle": "Error",
     "warningTitle": "Warning",
@@ -76,7 +79,8 @@
     "empty": "No valves found for prefix `number.luftator`.",
     "status": {
       "open": "OPEN",
-      "closed": "CLOSED"
+      "closed": "CLOSED",
+      "offlineLabel": "OFFLINE"
     }
   },
   "settings": {
@@ -248,6 +252,7 @@
       "hostRequired": "Host is required",
       "save": "Save Settings",
       "probe": "Probe Connection",
+      "probeSuccess": "Connection successful",
       "probeResultTitle": "Current HRU Values",
       "powerLabel": "Power",
       "temperatureLabel": "Temperature",
@@ -261,6 +266,7 @@
         "saveFailedMessage": "{{message}}",
         "probeFailedTitle": "Probe failed",
         "probeFailedMessage": "{{message}}",
+        "connectionFailed": "Connection failed",
         "noUnitSelected": "Please select an HRU unit first",
         "unknown": "Unknown error"
       },

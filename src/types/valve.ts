@@ -6,5 +6,6 @@ export interface Valve {
   max: number;
   step: number;
   state: string;
+  isAvailable: boolean;
   attributes: Record<string, unknown>;
 }
