@@ -274,7 +274,6 @@ export function TimelineModeModal({
           leftSection={<IconFileText size={16} stroke={1.5} />}
           error={nameError || (!name.trim() && submitted ? t("validation.required") : null)}
           required
-          styles={{ error: { position: "absolute", bottom: -20 } }}
         />
 
         {editableVariables.length > 0 && (
