@@ -437,7 +437,12 @@ export function OnboardingPage() {
     try {
       await saveMqttMutation.mutateAsync(mqttForm.values);
       logger.info("MQTT settings saved successfully");
-      nextStep();
+      // Demo units don't need Modbus — skip to status step
+      if (isDemoUnit) {
+        setActive(5);
+      } else {
+        nextStep();
+      }
     } catch (err) {
       notifications.show({
         title: t("onboarding.mqtt.failed"),
@@ -466,7 +471,7 @@ export function OnboardingPage() {
       return;
     }
 
-    // For demo interface, finish onboarding immediately (no MQTT/Modbus steps needed)
+    // For demo interface, save HRU config and proceed to MQTT step (skip Modbus later)
     if (isDemoUnit) {
       try {
         await saveHruMutation.mutateAsync({
@@ -474,17 +479,15 @@ export function OnboardingPage() {
           unit: selectedUnit,
           maxPower: requiresMaxPower ? maxPower : undefined,
         });
-        await finishOnboardingMutation.mutateAsync();
-        await queryClient.invalidateQueries({ queryKey: ["onboarding-layout-check"] });
-        logger.info("Demo unit selected; onboarding skipped to completion", { unit: selectedUnit });
-        await navigate({ to: "/" });
+        logger.info("Demo unit selected; proceeding to MQTT step", { unit: selectedUnit });
+        nextStep();
       } catch (err) {
         notifications.show({
           title: t("onboarding.mqtt.failed"),
           message: t("onboarding.unit.saveFailed"),
           color: "red",
         });
-        logger.error("Failed to finish onboarding for demo unit", { error: err });
+        logger.error("Failed to save HRU settings for demo unit", { error: err });
       }
       return;
     }
