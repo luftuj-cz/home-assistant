@@ -54,7 +54,8 @@
     "boost": "Boost",
     "offset": "Procentuální rozvážení",
     "flowOut": "Průtok výfuk",
-    "flowIn": "Průtok sání"
+    "flowIn": "Průtok sání",
+    "serialNo": "Výrobní číslo"
   },
   "settings": {
     "title": "Nastavení",
@@ -225,6 +226,7 @@
       "hostRequired": "Host je povinný",
       "save": "Uložit nastavení",
       "probe": "Testovat připojení",
+      "probeSuccess": "Připojení úspěšné",
       "probeResultTitle": "Aktuální hodnoty rekuperační jednotky",
       "powerLabel": "Výkon",
       "temperatureLabel": "Teplota",
@@ -239,6 +241,7 @@
         "saveFailedMessage": "{{message}}",
         "probeFailedTitle": "Test selhal",
         "probeFailedMessage": "{{message}}",
+        "connectionFailed": "Připojení selhalo",
         "noUnitSelected": "Nejprve vyberte rekuperační jednotku",
         "unknown": "Neznámá chyba"
       },
@@ -402,7 +405,8 @@
     "refreshAria": "Obnovit klapky",
     "status": {
       "open": "OTEVŘENO",
-      "closed": "ZAVŘENO"
+      "closed": "ZAVŘENO",
+      "offlineLabel": "OFFLINE"
     },
     "alertTitle": "Chyba",
     "warningTitle": "Upozornění",
@@ -416,7 +420,9 @@
       "setValueUnknown": "Nepodařilo se nastavit hodnotu ventilu."
     },
     "warnings": {
-      "allClosed": "Pozor: Pokud jsou všechny klapky zavřené a rekuperace je zapnutá, hrozí poškození servopohonů LUFTaTORu či samotné rekuperační jednotky!"
+      "allClosed": "Pozor: Pokud jsou všechny klapky zavřené a rekuperace je zapnutá, hrozí poškození servopohonů LUFTaTORu či samotné rekuperační jednotky!",
+      "offlineMode": "Home Assistant je offline. Zobrazuje se pouze poslední známý snímek stavu klapek.",
+      "unavailable": "Některé klapky jsou v Home Assistantu nedostupné. Zobrazované hodnoty mohou být zastaralé."
     }
   },
   "errors": {
