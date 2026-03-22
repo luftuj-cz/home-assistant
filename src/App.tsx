@@ -14,8 +14,10 @@ import { Suspense, useEffect, useMemo } from "react";
 
 import { router } from "./router";
 import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from "./i18n";
-import { logger } from "./utils/logger";
+import { createLogger, setLogLevel, type LogLevel } from "./utils/logger";
 import { resolveApiUrl } from "./utils/api";
+
+const logger = createLogger("App");
 
 const theme = createTheme({
   primaryColor: "blue",
@@ -133,6 +135,39 @@ function ThemeInitializer() {
   return null;
 }
 
+function LogLevelInitializer() {
+  useEffect(() => {
+    let active = true;
+
+    async function initialiseLogLevel() {
+      try {
+        const response = await fetch(resolveApiUrl("/api/settings/log-level"));
+        if (!response?.ok) {
+          return;
+        }
+        const data = (await response.json()) as { level?: string };
+        if (!active) {
+          return;
+        }
+        if (data.level) {
+          setLogLevel(data.level as LogLevel);
+          logger.info("Log level initialised from backend", { level: data.level });
+        }
+      } catch (error) {
+        logger.error("Failed to initialise log level from backend", { error });
+      }
+    }
+
+    void initialiseLogLevel();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return null;
+}
+
 function LanguageInitializer() {
   useEffect(() => {
     let active = true;
@@ -180,6 +215,7 @@ export default function App() {
           defaultColorScheme="dark"
         >
           <LanguageInitializer />
+          <LogLevelInitializer />
           <ThemeInitializer />
           <Notifications position="bottom-left" limit={3} zIndex={4000} containerWidth={440} />
           <Suspense fallback={null}>

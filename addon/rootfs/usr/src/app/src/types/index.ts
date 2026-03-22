@@ -34,6 +34,10 @@ export const TIMELINE_MODES_KEY = "timeline.modes";
 export const TIMELINE_OVERRIDE_KEY = "timeline.override";
 export const BOOST_DURATION_KEY = "boost.duration";
 export const DEBUG_MODE_KEY = "developer.debug_mode";
+export const LOG_LEVEL_KEY = "frontend.log_level";
+
+export const VALID_LOG_LEVELS = ["trace", "debug", "info", "warn", "error", "fatal"] as const;
+export type LogLevel = (typeof VALID_LOG_LEVELS)[number];
 
 export type TimelineMode = {
   id: number;

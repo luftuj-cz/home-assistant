@@ -17,7 +17,9 @@ import * as hruApi from "../api/hru";
 import * as valveApi from "../api/valves";
 import type { TimelineEvent, Mode } from "../types/timeline";
 import type { Valve } from "../types/valve";
-import { logger } from "../utils/logger";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("TimelinePage");
 
 export function TimelinePage() {
   const { t } = useTranslation();

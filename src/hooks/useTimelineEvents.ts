@@ -3,6 +3,9 @@ import { notifications } from "@mantine/notifications";
 import type { TFunction } from "i18next";
 import type { TimelineEvent, Mode } from "../types/timeline";
 import * as api from "../api/timeline";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("useTimelineEvents");
 
 export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: string) {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
@@ -30,7 +33,9 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
       try {
         const loaded = await api.fetchTimelineEvents(unitId);
         setEvents(loaded);
-      } catch {
+        logger.info("Timeline events loaded", { count: loaded.length, unitId });
+      } catch (err) {
+        logger.error("Failed to load timeline events", { error: err, unitId });
         notifications.show({
           title: t("settings.timeline.notifications.loadFailedTitle"),
           message: t("settings.timeline.notifications.loadFailedMessage"),
@@ -68,10 +73,12 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
         setEvents((prev) => {
           const idx = prev.findIndex((e) => e.id === saved.id);
           if (idx >= 0) {
+            logger.info("Timeline event updated", { id: saved.id, dayOfWeek: saved.dayOfWeek, startTime: saved.startTime });
             const next = [...prev];
             next[idx] = { ...prev[idx], ...saved };
             return next;
           }
+          logger.info("Timeline event created", { id: saved.id, dayOfWeek: saved.dayOfWeek, startTime: saved.startTime });
           return [...prev, saved];
         });
 
@@ -82,6 +89,7 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
         });
         return true;
       } catch (err) {
+        logger.error("Failed to save timeline event", { error: err, eventId: event.id, dayOfWeek: event.dayOfWeek });
         notifications.show({
           title: t("settings.timeline.notifications.saveFailedTitle"),
           message:
@@ -103,7 +111,9 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
       try {
         await api.deleteTimelineEvent(id);
         setEvents((prev) => prev.filter((e) => e.id !== id));
+        logger.info("Timeline event deleted", { id });
       } catch (err) {
+        logger.error("Failed to delete timeline event", { error: err, id });
         notifications.show({
           title: t("settings.timeline.notifications.deleteFailedTitle"),
           message:

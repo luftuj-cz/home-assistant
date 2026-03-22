@@ -328,7 +328,10 @@
       "debugMode": "Debug Mode",
       "debugModeDescription": "Enables the Debug page in the navigation bar.",
       "debugEnabled": "Debug Mode enabled",
-      "debugDisabled": "Debug Mode disabled"
+      "debugDisabled": "Debug Mode disabled",
+      "logLevel": "Log Level",
+      "logLevelDescription": "Controls the verbosity of console logging.",
+      "logLevelChanged": "Log level changed to {{level}}"
     }
   },
   "debug": {

@@ -42,9 +42,11 @@ import { z } from "zod";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 import { useMantineColorScheme } from "@mantine/core";
-import { logger } from "../utils/logger";
+import { createLogger } from "../utils/logger";
 import { isSupportedLanguage, setLanguage } from "../i18n";
 import { resolveApiUrl } from "../utils/api";
+
+const logger = createLogger("OnboardingPage");
 
 function createModbusSchema(t: (key: string) => string) {
   return z.object({

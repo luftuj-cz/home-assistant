@@ -15,9 +15,11 @@ import { useTranslation } from "react-i18next";
 
 import { ValveCard } from "../components";
 import { resolveApiUrl, resolveWebSocketUrl } from "../utils/api";
-import { logger } from "../utils/logger";
+import { createLogger } from "../utils/logger";
 import type { HaState } from "../types/homeAssistant";
 import type { Valve } from "../types/valve";
+
+const logger = createLogger("ValvesPage");
 
 type ManagedWebSocket = WebSocket & { manualClose?: boolean };
 
@@ -190,6 +192,7 @@ export function ValvesPage() {
   }, [replaceValves, t]);
 
   useEffect(() => {
+    logger.info("ValvesPage mounted, loading initial data");
     void fetchStatus();
     void fetchSnapshot();
   }, [fetchSnapshot, fetchStatus]);
@@ -246,6 +249,7 @@ export function ValvesPage() {
       if (reconnectTimeoutRef.current !== null) {
         window.clearTimeout(reconnectTimeoutRef.current);
       }
+      logger.debug("Scheduling WebSocket reconnection", { delayMs: 3000 });
       reconnectTimeoutRef.current = window.setTimeout(() => {
         logger.info("Reconnecting valves WebSocket");
         connectWebSocket();
@@ -288,9 +292,11 @@ export function ValvesPage() {
   }, [replaceValves, updateValve, t]);
 
   useEffect(() => {
+    logger.info("Initializing valves WebSocket connection");
     connectWebSocket();
 
     return () => {
+      logger.debug("Cleaning up valves WebSocket connection");
       if (reconnectTimeoutRef.current !== null) {
         window.clearTimeout(reconnectTimeoutRef.current);
       }

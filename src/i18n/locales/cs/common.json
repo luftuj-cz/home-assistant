@@ -302,7 +302,10 @@
       "debugMode": "Ladicí režim",
       "debugModeDescription": "Povolí stránku Ladění v navigačním panelu.",
       "debugEnabled": "Ladicí režim povolen",
-      "debugDisabled": "Ladicí režim zakázán"
+      "debugDisabled": "Ladicí režim zakázán",
+      "logLevel": "Úroveň logování",
+      "logLevelDescription": "Ovládá podrobnost logování do konzole.",
+      "logLevelChanged": "Úroveň logování změněna na {{level}}"
     }
   },
   "validation": {

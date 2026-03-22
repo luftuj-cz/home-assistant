@@ -18,6 +18,7 @@ import {
   SimpleGrid,
   Paper,
   Container,
+  Divider,
 } from "@mantine/core";
 import {
   IconDownload,
@@ -35,9 +36,11 @@ import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
 import { resolveApiUrl } from "../utils/api";
-import { logger } from "../utils/logger";
+import { createLogger, getLogLevel, setLogLevel, VALID_LOG_LEVELS, type LogLevel } from "../utils/logger";
 import { setLanguage } from "../i18n";
 import { MotionSwitch } from "../components/common/MotionSwitch";
+
+const logger = createLogger("SettingsPage");
 
 export function SettingsPage() {
   const [uploading, setUploading] = useState(false);
@@ -67,6 +70,7 @@ export function SettingsPage() {
     password: "",
   });
   const [debugMode, setDebugMode] = useState(false);
+  const [logLevel, setLogLevelState] = useState<LogLevel>(() => getLogLevel());
   const { setColorScheme } = useMantineColorScheme();
   const computedColorScheme = useComputedColorScheme("dark", { getInitialValueInEffect: false });
   const { t, i18n } = useTranslation();
@@ -96,47 +100,23 @@ export function SettingsPage() {
   const persistThemePreference = useCallback(
     async (value: "light" | "dark") => {
       setSavingTheme(true);
+      logger.info("Saving theme preference", { theme: value });
       try {
         const response = await fetch(resolveApiUrl("/api/settings/theme"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ theme: value }),
         });
-        if (!response.ok) {
-          const detail = await response.text();
-          const message = detail || "Failed to save theme preference";
-          notifications.show({
-            title: t("settings.theme.notifications.failedTitle"),
-            message: t("settings.theme.notifications.failedMessage", {
-              message: message || t("settings.theme.notifications.unknown"),
-            }),
-            color: "red",
-          });
-          return;
+        if (response.ok) {
+          logger.info("Theme preference saved successfully", { theme: value });
         }
-        notifications.show({
-          title: t("settings.theme.notifications.updatedTitle"),
-          message: t("settings.theme.notifications.updatedMessage", {
-            theme: value === "dark" ? t("settings.theme.dark") : t("settings.theme.light"),
-          }),
-          color: value === "dark" ? "violet" : "blue",
-        });
-      } catch (persistError) {
-        notifications.show({
-          title: t("settings.theme.notifications.failedTitle"),
-          message: t("settings.theme.notifications.failedMessage", {
-            message:
-              persistError instanceof Error
-                ? persistError.message
-                : t("settings.theme.notifications.unknown"),
-          }),
-          color: "red",
-        });
+      } catch (err) {
+        logger.error("Failed to save theme preference", { error: err });
       } finally {
         setSavingTheme(false);
       }
     },
-    [t],
+    [],
   );
 
   const handleThemeChange = useCallback(
@@ -150,39 +130,25 @@ export function SettingsPage() {
 
   const persistLanguagePreference = useCallback(
     async (value: string) => {
-      const previousLanguage = i18n.language;
       setSavingLanguage(true);
+      logger.info("Saving language preference", { language: value });
       try {
         await setLanguage(value);
-
         const response = await fetch(resolveApiUrl("/api/settings/language"), {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ language: value }),
         });
-
-        if (!response.ok) {
-          const detail = await response.text();
-          const message = detail?.trim().length
-            ? detail
-            : t("settings.language.notifications.unknown");
-          await setLanguage(previousLanguage.split("-")[0]);
+        if (response.ok) {
+          logger.info("Language preference saved successfully", { language: value });
+          const label = languageOptions.find((option) => option.value === value)?.label ?? value;
           notifications.show({
-            title: t("settings.language.notifications.failedTitle"),
-            message: t("settings.language.notifications.failedMessage", { message }),
-            color: "red",
+            title: t("settings.language.notifications.updatedTitle"),
+            message: t("settings.language.notifications.updatedMessage", { language: label }),
+            color: "green",
           });
-          return;
         }
-
-        const label = languageOptions.find((option) => option.value === value)?.label ?? value;
-        notifications.show({
-          title: t("settings.language.notifications.updatedTitle"),
-          message: t("settings.language.notifications.updatedMessage", { language: label }),
-          color: "green",
-        });
       } catch (persistError) {
-        await setLanguage(previousLanguage);
         notifications.show({
           title: t("settings.language.notifications.failedTitle"),
           message: t("settings.language.notifications.failedMessage", {
@@ -197,7 +163,7 @@ export function SettingsPage() {
         setSavingLanguage(false);
       }
     },
-    [i18n.language, languageOptions, t],
+    [languageOptions, t],
   );
 
   const handleLanguageChange = useCallback(
@@ -211,10 +177,11 @@ export function SettingsPage() {
     async function loadData() {
       setLoadingUnits(true);
       try {
-        const [unitsRes, settingsRes, mqttRes] = await Promise.all([
+        const [unitsRes, settingsRes, mqttRes, logLevelRes] = await Promise.all([
           fetch(resolveApiUrl("/api/hru/units"), { cache: "no-cache" }),
           fetch(resolveApiUrl("/api/settings/hru"), { cache: "no-cache" }),
           fetch(resolveApiUrl("/api/settings/mqtt"), { cache: "no-cache" }),
+          fetch(resolveApiUrl("/api/settings/log-level"), { cache: "no-cache" }),
         ]);
 
         if (unitsRes.ok) {
@@ -223,10 +190,12 @@ export function SettingsPage() {
           setHruUnits(
             units.map((u: { id: string; name: string }) => ({ value: u.id, label: u.name })),
           );
+          logger.info("HRU units loaded", { count: units.length });
         }
         if (settingsRes.ok) {
           const settings = await settingsRes.json();
           setHruSettings(settings);
+          logger.info("HRU settings loaded", { unit: settings.unit });
         }
         if (mqttRes.ok) {
           const mqtt = await mqttRes.json();
@@ -237,6 +206,7 @@ export function SettingsPage() {
             user: mqtt.user || "",
             password: mqtt.password || "",
           });
+          logger.info("MQTT settings loaded", { enabled: mqtt.enabled, host: mqtt.host });
         }
 
         const debugRes = await fetch(resolveApiUrl("/api/settings/debug-mode"), {
@@ -245,8 +215,17 @@ export function SettingsPage() {
         if (debugRes.ok) {
           const { enabled } = await debugRes.json();
           setDebugMode(enabled);
+          logger.info("Debug mode loaded", { enabled });
         }
-      } catch {
+
+        if (logLevelRes.ok) {
+          const { level } = await logLevelRes.json();
+          setLogLevel(level as LogLevel);
+          setLogLevelState(level as LogLevel);
+          logger.info("Log level loaded from backend", { level });
+        }
+      } catch (err) {
+        logger.error("Failed to load settings", { error: err });
         notifications.show({
           title: t("settings.hru.notifications.loadFailedTitle"),
           message: t("settings.hru.notifications.loadFailedMessage"),
@@ -261,6 +240,7 @@ export function SettingsPage() {
 
   const saveMqttSettings = useCallback(async () => {
     setSavingMqtt(true);
+    logger.info("Saving MQTT settings", { host: mqttSettings.host, port: mqttSettings.port });
     try {
       const response = await fetch(resolveApiUrl("/api/settings/mqtt"), {
         method: "POST",
@@ -270,6 +250,7 @@ export function SettingsPage() {
 
       if (!response.ok) {
         const detail = await response.text();
+        logger.error("Failed to save MQTT settings", { status: response.status, detail });
         notifications.show({
           title: t("settings.mqtt.notifications.saveFailedTitle"),
           message: t("settings.mqtt.notifications.saveFailedMessage", { message: detail }),
@@ -277,13 +258,14 @@ export function SettingsPage() {
         });
         return;
       }
-
+      logger.info("MQTT settings saved successfully", { host: mqttSettings.host, port: mqttSettings.port });
       notifications.show({
         title: t("settings.mqtt.notifications.saveSuccessTitle"),
         message: t("settings.mqtt.notifications.saveSuccessMessage"),
         color: "green",
       });
     } catch (error) {
+      logger.error("Failed to save MQTT settings", { error });
       notifications.show({
         title: t("settings.mqtt.notifications.saveFailedTitle"),
         message: t("settings.mqtt.notifications.saveFailedMessage", {
@@ -316,6 +298,7 @@ export function SettingsPage() {
           // ignore
         }
 
+        logger.error("MQTT connection test failed", { status: response.status, detail });
         notifications.show({
           title: t("settings.mqtt.notifications.testFailedTitle"),
           message: errorMessage,
@@ -323,13 +306,14 @@ export function SettingsPage() {
         });
         return;
       }
-
+      logger.info("MQTT connection test successful");
       notifications.show({
         title: t("settings.mqtt.notifications.testSuccessTitle"),
         message: t("settings.mqtt.notifications.testSuccessMessage"),
         color: "green",
       });
     } catch (error) {
+      logger.error("MQTT connection test failed", { error });
       notifications.show({
         title: t("settings.mqtt.notifications.testFailedTitle"),
         message: error instanceof Error ? error.message : t("settings.mqtt.notifications.unknown"),
@@ -346,6 +330,7 @@ export function SettingsPage() {
 
   const saveHruSettings = useCallback(async () => {
     setSavingHru(true);
+    logger.info("Saving HRU settings", { unit: hruSettings.unit, host: hruSettings.host });
     try {
       const response = await fetch(resolveApiUrl("/api/settings/hru"), {
         method: "POST",
@@ -354,6 +339,7 @@ export function SettingsPage() {
       });
       if (!response.ok) {
         const detail = await response.text();
+        logger.error("Failed to save HRU settings", { status: response.status, detail });
         notifications.show({
           title: t("settings.hru.notifications.saveFailedTitle"),
           message: t("settings.hru.notifications.saveFailedMessage", { message: detail }),
@@ -361,12 +347,14 @@ export function SettingsPage() {
         });
         return;
       }
+      logger.info("HRU settings saved successfully", { unit: hruSettings.unit, host: hruSettings.host });
       notifications.show({
         title: t("settings.hru.notifications.saveSuccessTitle"),
         message: t("settings.hru.notifications.saveSuccessMessage"),
         color: "green",
       });
     } catch (error) {
+      logger.error("Failed to save HRU settings", { error });
       notifications.show({
         title: t("settings.hru.notifications.saveFailedTitle"),
         message: t("settings.hru.notifications.saveFailedMessage", {
@@ -393,6 +381,7 @@ export function SettingsPage() {
     setProbeStatus(null);
     setProbeError(null);
     setProbingHru(true);
+    logger.info("Testing HRU connection", { unit: hruSettings.unit, host: hruSettings.host });
     try {
       const response = await fetch(resolveApiUrl("/api/hru/test"), {
         method: "POST",
@@ -403,6 +392,7 @@ export function SettingsPage() {
         setProbeStatus("error");
         const message = t("settings.hru.notifications.connectionFailed");
         setProbeError(message);
+        logger.error("HRU connection test failed", { status: response.status });
         notifications.show({
           title: t("settings.hru.notifications.probeFailedTitle"),
           message,
@@ -411,10 +401,12 @@ export function SettingsPage() {
         return;
       }
       setProbeStatus("success");
+      logger.info("HRU connection test successful", { unit: hruSettings.unit });
     } catch (error) {
       setProbeStatus("error");
       const message = t("settings.hru.notifications.connectionFailed");
       setProbeError(message);
+      logger.error("HRU connection test failed", { error });
       notifications.show({
         title: t("settings.hru.notifications.probeFailedTitle"),
         message,
@@ -983,6 +975,54 @@ export function SettingsPage() {
                           });
                         }}
                         size="md"
+                      />
+                    </Group>
+                  </Stack>
+
+                  <Divider />
+
+                  <Stack gap="xs">
+                    <Group justify="space-between" align="center">
+                      <Stack gap={0}>
+                        <Text fw={500}>{t("settings.developer.logLevel")}</Text>
+                        <Text size="xs" c="dimmed">
+                          {t("settings.developer.logLevelDescription")}
+                        </Text>
+                      </Stack>
+                      <Select
+                        value={logLevel}
+                        onChange={async (value) => {
+                          if (value && VALID_LOG_LEVELS.includes(value as LogLevel)) {
+                            setLogLevel(value as LogLevel);
+                            setLogLevelState(value as LogLevel);
+                            
+                            // Save to backend
+                            try {
+                              const response = await fetch(resolveApiUrl("/api/settings/log-level"), {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({ level: value }),
+                              });
+                              if (response.ok) {
+                                notifications.show({
+                                  title: t("settings.developer.logLevel"),
+                                  message: t("settings.developer.logLevelChanged", { level: value }),
+                                  color: "blue",
+                                });
+                              } else {
+                                logger.error("Failed to save log level to backend", { status: response.status });
+                              }
+                            } catch (err) {
+                              logger.error("Failed to save log level to backend", { error: err });
+                            }
+                          }
+                        }}
+                        data={VALID_LOG_LEVELS.map((level) => ({
+                          value: level,
+                          label: level.toUpperCase(),
+                        }))}
+                        size="sm"
+                        w={120}
                       />
                     </Group>
                   </Stack>

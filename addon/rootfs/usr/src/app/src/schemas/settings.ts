@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SUPPORTED_LANGUAGES } from "../types/index.js";
+import { SUPPORTED_LANGUAGES, VALID_LOG_LEVELS } from "../types/index.js";
 
 // HRU Settings Schema
 export const hruSettingsInputSchema = z.object({
@@ -53,6 +53,10 @@ export const debugModeInputSchema = z.object({
   enabled: z.boolean(),
 });
 
+// Log Level Schema
+export const logLevelInputSchema = z.object({
+  level: z.enum(VALID_LOG_LEVELS),
+});
 
 // Type exports
 export type HruSettingsInput = z.infer<typeof hruSettingsInputSchema>;
@@ -62,4 +66,5 @@ export type AddonModeInput = z.infer<typeof addonModeInputSchema>;
 export type ThemeSettingInput = z.infer<typeof themeSettingInputSchema>;
 export type LanguageSettingInput = z.infer<typeof languageSettingInputSchema>;
 export type DebugModeInput = z.infer<typeof debugModeInputSchema>;
+export type LogLevelInput = z.infer<typeof logLevelInputSchema>;
 
