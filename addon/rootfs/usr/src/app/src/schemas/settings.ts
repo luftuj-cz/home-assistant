@@ -47,7 +47,6 @@ export const languageSettingInputSchema = z.object({
   language: z.enum(SUPPORTED_LANGUAGES),
 });
 
-
 // Debug Mode Schema
 export const debugModeInputSchema = z.object({
   enabled: z.boolean(),
@@ -67,4 +66,3 @@ export type ThemeSettingInput = z.infer<typeof themeSettingInputSchema>;
 export type LanguageSettingInput = z.infer<typeof languageSettingInputSchema>;
 export type DebugModeInput = z.infer<typeof debugModeInputSchema>;
 export type LogLevelInput = z.infer<typeof logLevelInputSchema>;
-

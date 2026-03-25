@@ -37,7 +37,13 @@ interface HruStatusCardProps {
   configuredMaxPower?: number;
 }
 
-export function HruStatusCard({ status, hruName, t, activeMode, configuredMaxPower }: HruStatusCardProps) {
+export function HruStatusCard({
+  status,
+  hruName,
+  t,
+  activeMode,
+  configuredMaxPower,
+}: HruStatusCardProps) {
   const title = t("dashboard.hruStatusTitle", { defaultValue: "HRU live values" });
   const displayTitle = hruName ? `${hruName}` : title;
 
@@ -247,7 +253,16 @@ export function HruStatusCard({ status, hruName, t, activeMode, configuredMaxPow
             {activeMode ? (
               <>
                 <Title order={3} c="grape" ta="center">
-                  <Box component="span" style={{ display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  <Box
+                    component="span"
+                    style={{
+                      display: "inline-block",
+                      maxWidth: "100%",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
                     {activeMode.source === "manual"
                       ? t("dashboard.activeMode.manual")
                       : activeMode.source === "boost"
@@ -267,7 +282,16 @@ export function HruStatusCard({ status, hruName, t, activeMode, configuredMaxPow
               </>
             ) : (
               <Title order={3} c="grape" ta="center">
-                <Box component="span" style={{ display: "inline-block", maxWidth: "100%", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                <Box
+                  component="span"
+                  style={{
+                    display: "inline-block",
+                    maxWidth: "100%",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    whiteSpace: "nowrap",
+                  }}
+                >
                   {getModeText(modeValue)}
                 </Box>
               </Title>
@@ -344,7 +368,11 @@ export function HruStatusCard({ status, hruName, t, activeMode, configuredMaxPow
       </Group>
 
       <Box p="lg" pt="md">
-        <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md" style={{ alignItems: "stretch" }}>
+        <SimpleGrid
+          cols={{ base: 1, sm: 2, md: 3, lg: 4 }}
+          spacing="md"
+          style={{ alignItems: "stretch" }}
+        >
           {powerVar && renderPower(powerVar)}
           {renderMode()}
           {tempVars.map((v) => renderTemp(v))}

@@ -13,9 +13,7 @@ export function DebugPage() {
           <Text c="dimmed">{t("debug.description")}</Text>
         </Stack>
 
-        <Text>
-          {t("debug.placeholder")}
-        </Text>
+        <Text>{t("debug.placeholder")}</Text>
 
         <Stack gap="xs">
           <Title order={3}>{t("debug.onboardingTools")}</Title>

@@ -117,7 +117,14 @@ app.use(
 app.use("/api/valves", createValvesRouter(valveManager, logger));
 app.use(
   "/api",
-  createStatusRouter(valveManager, haClient, mqttService, logger, timelineScheduler, config.baseUrl),
+  createStatusRouter(
+    valveManager,
+    haClient,
+    mqttService,
+    logger,
+    timelineScheduler,
+    config.baseUrl,
+  ),
 );
 
 const staticRoot = config.staticRoot;

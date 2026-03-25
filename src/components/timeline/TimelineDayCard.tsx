@@ -135,7 +135,11 @@ export function TimelineDayCard({
         <Group gap="xs">
           {copyDay === null ? (
             <Tooltip label={t("settings.timeline.copyDay")} withArrow>
-              <ActionIcon variant="light" aria-label={t("settings.timeline.copyDay")} onClick={() => onCopy(dayIdx)}>
+              <ActionIcon
+                variant="light"
+                aria-label={t("settings.timeline.copyDay")}
+                onClick={() => onCopy(dayIdx)}
+              >
                 <IconCopy size={16} />
               </ActionIcon>
             </Tooltip>
@@ -151,11 +155,12 @@ export function TimelineDayCard({
               </ActionIcon>
             </Tooltip>
           ) : (
-            <Tooltip
-              label={t("settings.timeline.pasteDay")}
-              withArrow
-            >
-              <ActionIcon variant="light" aria-label={t("settings.timeline.pasteDay")} onClick={() => onPaste(dayIdx)}>
+            <Tooltip label={t("settings.timeline.pasteDay")} withArrow>
+              <ActionIcon
+                variant="light"
+                aria-label={t("settings.timeline.pasteDay")}
+                onClick={() => onPaste(dayIdx)}
+              >
                 <IconClipboardCheck size={16} />
               </ActionIcon>
             </Tooltip>
@@ -194,7 +199,8 @@ export function TimelineDayCard({
             const active = isEventActive(ev, sortedEvents, dayIdx);
             const mode = modes.find((m) => m.id.toString() === ev.hruConfig?.mode?.toString());
             const highlightColor = mode?.color || "blue";
-            const modeLabel = mode?.name ?? (typeof ev.hruConfig?.mode === "string" ? ev.hruConfig.mode : "-");
+            const modeLabel =
+              mode?.name ?? (typeof ev.hruConfig?.mode === "string" ? ev.hruConfig.mode : "-");
 
             return (
               <Timeline.Item

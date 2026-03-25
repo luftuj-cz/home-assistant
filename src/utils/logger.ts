@@ -46,12 +46,11 @@ const LEVEL_BADGE_STYLE: Record<LogLevel, { bg: string; fg: string }> = {
   fatal: { bg: "#7b2d8e", fg: "#fff" },
 };
 
-const envLevel = (import.meta.env.VITE_LOG_LEVEL as string | undefined)
-  ?.trim()
-  .toLowerCase() as LogLevel | undefined;
+const envLevel = (import.meta.env.VITE_LOG_LEVEL as string | undefined)?.trim().toLowerCase() as
+  | LogLevel
+  | undefined;
 const defaultLevel: LogLevel = import.meta.env.DEV ? "debug" : "info";
-let activeLevel: LogLevel =
-  envLevel && envLevel in LEVEL_PRIORITY ? envLevel : defaultLevel;
+let activeLevel: LogLevel = envLevel && envLevel in LEVEL_PRIORITY ? envLevel : defaultLevel;
 
 export function getLogLevel(): LogLevel {
   return activeLevel;
@@ -59,7 +58,9 @@ export function getLogLevel(): LogLevel {
 
 export function setLogLevel(level: LogLevel): void {
   if (!(level in LEVEL_PRIORITY)) {
-    throw new Error(`Invalid log level: ${level}. Valid levels: ${Object.keys(LEVEL_PRIORITY).join(", ")}`);
+    throw new Error(
+      `Invalid log level: ${level}. Valid levels: ${Object.keys(LEVEL_PRIORITY).join(", ")}`,
+    );
   }
   const previous = activeLevel;
   activeLevel = level;
@@ -94,12 +95,7 @@ function serialiseMeta(meta: LogMeta): LogMeta {
 // Core emit — styled console output with timestamp + module badge
 // ---------------------------------------------------------------------------
 
-function emit(
-  level: LogLevel,
-  module: string,
-  message: string,
-  meta?: LogMeta,
-): void {
+function emit(level: LogLevel, module: string, message: string, meta?: LogMeta): void {
   if (!shouldLog(level)) return;
 
   const methodName = LEVEL_CONSOLE_METHOD[level];
@@ -109,8 +105,7 @@ function emit(
   const badge = LEVEL_BADGE_STYLE[level];
   const tag = level.toUpperCase().padEnd(5);
 
-  const prefix =
-    `%c ${tag} %c ${module} %c`;
+  const prefix = `%c ${tag} %c ${module} %c`;
   const styles = [
     `background:${badge.bg};color:${badge.fg};font-weight:bold;border-radius:3px;padding:1px 4px`,
     "background:#343a40;color:#f8f9fa;font-weight:bold;border-radius:3px;padding:1px 4px",
@@ -177,8 +172,8 @@ export function createLogger(module: string): Logger {
 
     trace: (msg, meta?) => log("trace", msg, meta),
     debug: (msg, meta?) => log("debug", msg, meta),
-    info:  (msg, meta?) => log("info", msg, meta),
-    warn:  (msg, meta?) => log("warn", msg, meta),
+    info: (msg, meta?) => log("info", msg, meta),
+    warn: (msg, meta?) => log("warn", msg, meta),
     error: (msg, meta?) => log("error", msg, meta),
     fatal: (msg, meta?) => log("fatal", msg, meta),
 

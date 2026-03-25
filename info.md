@@ -3,7 +3,8 @@
 This document consolidates the configuration, automations, and scripts required to control an Atrea RD5 unit via Modbus in Home Assistant.
 
 ## 1. configuration.yaml
-*Main configuration defining Modbus connection, sensors, and input helpers.*
+
+_Main configuration defining Modbus connection, sensors, and input helpers._
 
 ```yaml
 # Note: Ensure you replace IP_ADDRESS with your unit's actual IP.
@@ -230,3 +231,4 @@ V pravém dolním rohu klikněte na odkaz Servisní nastavení
 Na kartě 3. Nastavení zvolte podmenu 3.15. Správa a přepněte parametry 3.15.1 Modbus TCP na Ano (pokud nemáte přístup do servisního nastavení, kontaktujte autorizovaného servisního technika)
 
 Postupujte podle instrukcí dle zvolené automatizační platformy (viz výše)
+```

@@ -73,12 +73,20 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
         setEvents((prev) => {
           const idx = prev.findIndex((e) => e.id === saved.id);
           if (idx >= 0) {
-            logger.info("Timeline event updated", { id: saved.id, dayOfWeek: saved.dayOfWeek, startTime: saved.startTime });
+            logger.info("Timeline event updated", {
+              id: saved.id,
+              dayOfWeek: saved.dayOfWeek,
+              startTime: saved.startTime,
+            });
             const next = [...prev];
             next[idx] = { ...prev[idx], ...saved };
             return next;
           }
-          logger.info("Timeline event created", { id: saved.id, dayOfWeek: saved.dayOfWeek, startTime: saved.startTime });
+          logger.info("Timeline event created", {
+            id: saved.id,
+            dayOfWeek: saved.dayOfWeek,
+            startTime: saved.startTime,
+          });
           return [...prev, saved];
         });
 
@@ -89,7 +97,11 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
         });
         return true;
       } catch (err) {
-        logger.error("Failed to save timeline event", { error: err, eventId: event.id, dayOfWeek: event.dayOfWeek });
+        logger.error("Failed to save timeline event", {
+          error: err,
+          eventId: event.id,
+          dayOfWeek: event.dayOfWeek,
+        });
         notifications.show({
           title: t("settings.timeline.notifications.saveFailedTitle"),
           message:

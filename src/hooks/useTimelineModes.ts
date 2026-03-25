@@ -77,7 +77,11 @@ export function useTimelineModes(t: TFunction) {
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      logger.error("Failed to save timeline mode", { error: err, modeId: mode.id, name: mode.name });
+      logger.error("Failed to save timeline mode", {
+        error: err,
+        modeId: mode.id,
+        name: mode.name,
+      });
 
       // Check for duplicate name error (409)
       if (errorMessage.includes("Mode name already exists")) {

@@ -29,7 +29,9 @@ function normaliseValue(value: unknown, fallback: number): number {
 }
 
 function isValveAvailable(state: HaState): boolean {
-  const rawState = String(state.state ?? "").trim().toLowerCase();
+  const rawState = String(state.state ?? "")
+    .trim()
+    .toLowerCase();
   const attrs = state.attributes ?? {};
   const attributeAvailable = attrs.available;
 
@@ -75,7 +77,9 @@ export function ValvesPage() {
   const [valveMap, setValveMap] = useState<Record<string, Valve>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [haStatus, setHaStatus] = useState<"connected" | "connecting" | "disconnected" | "offline" | null>(null);
+  const [haStatus, setHaStatus] = useState<
+    "connected" | "connecting" | "disconnected" | "offline" | null
+  >(null);
   const [hasUnavailableValves, setHasUnavailableValves] = useState(false);
   const wsRef = useRef<ManagedWebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);

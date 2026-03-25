@@ -56,7 +56,10 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
       const active = await fetchActiveBoost();
       setActiveBoost(active);
       if (active) {
-        logger.debug("Active boost fetched", { modeId: active.modeId, remainingMinutes: Math.ceil((new Date(active.endTime).getTime() - Date.now()) / 60000) });
+        logger.debug("Active boost fetched", {
+          modeId: active.modeId,
+          remainingMinutes: Math.ceil((new Date(active.endTime).getTime() - Date.now()) / 60000),
+        });
       }
     } catch (err) {
       logger.error("Failed to fetch active boost", { err });
@@ -102,7 +105,11 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
       setRemainingMinutes(mins);
       setActiveBoost(active);
 
-      logger.info("Boost mode activated successfully", { modeId, duration, endTime: active.endTime });
+      logger.info("Boost mode activated successfully", {
+        modeId,
+        duration,
+        endTime: active.endTime,
+      });
       notifications.show({
         title: t("dashboard.boostTitle"),
         message: t("dashboard.boostActive", { minutes: duration }),
@@ -110,7 +117,8 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
       });
     } catch (err) {
       logger.error("Failed to activate boost mode", { modeId, duration, error: err });
-      const message = err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
+      const message =
+        err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
       notifications.show({
         title: t("valves.alertTitle"),
         message,
@@ -131,7 +139,8 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
       logger.info("Boost mode cancelled successfully");
     } catch (err) {
       logger.error("Failed to cancel boost mode", { error: err });
-      const message = err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
+      const message =
+        err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
       notifications.show({
         title: t("valves.alertTitle"),
         message,

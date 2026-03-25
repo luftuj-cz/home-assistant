@@ -10,16 +10,22 @@ vi.mock("../../src/services/database.js", () => ({
 }));
 
 const mockModbusWriteHolding = vi.fn(async () => {});
-const mockWithTempModbusClient = vi.fn(async (_cfg: unknown, _logger: unknown, fn: (client: unknown) => Promise<void>) => {
-  const mockClient = {
-    writeHolding: mockModbusWriteHolding,
-  };
-  await fn(mockClient);
-});
+const mockWithTempModbusClient = vi.fn(
+  async (_cfg: unknown, _logger: unknown, fn: (client: unknown) => Promise<void>) => {
+    const mockClient = {
+      writeHolding: mockModbusWriteHolding,
+    };
+    await fn(mockClient);
+  },
+);
 
 vi.mock("../../src/shared/modbus/client.js", () => ({
   withTempModbusClient: mockWithTempModbusClient,
-  getSharedModbusClient: vi.fn(() => ({ isConnected: () => false, connect: vi.fn(), readHolding: vi.fn() })),
+  getSharedModbusClient: vi.fn(() => ({
+    isConnected: () => false,
+    connect: vi.fn(),
+    readHolding: vi.fn(),
+  })),
 }));
 
 vi.mock("../../src/features/hru/hru.service.js", () => ({
@@ -82,7 +88,9 @@ describe("TimelineScheduler", () => {
     mockGetTimelineEvents.mockReturnValue(events);
 
     const scheduler = new TimelineScheduler(mockValveManager, {} as never, {} as never, mockLogger);
-    await (scheduler as unknown as { executeScheduledEvent: () => Promise<void> }).executeScheduledEvent();
+    await (
+      scheduler as unknown as { executeScheduledEvent: () => Promise<void> }
+    ).executeScheduledEvent();
 
     expect(mockSetValue).toHaveBeenCalledWith("valve.1", 100);
     expect(mockSetValue).toHaveBeenCalledTimes(1);
@@ -104,7 +112,9 @@ describe("TimelineScheduler", () => {
     mockGetTimelineEvents.mockReturnValue(events);
 
     const scheduler = new TimelineScheduler(mockValveManager, {} as never, {} as never, mockLogger);
-    await (scheduler as unknown as { executeScheduledEvent: () => Promise<void> }).executeScheduledEvent();
+    await (
+      scheduler as unknown as { executeScheduledEvent: () => Promise<void> }
+    ).executeScheduledEvent();
 
     expect(mockSetValue).not.toHaveBeenCalled();
   });
@@ -125,7 +135,9 @@ describe("TimelineScheduler", () => {
     mockGetTimelineEvents.mockReturnValue(events);
 
     const scheduler = new TimelineScheduler(mockValveManager, {} as never, {} as never, mockLogger);
-    await (scheduler as unknown as { executeScheduledEvent: () => Promise<void> }).executeScheduledEvent();
+    await (
+      scheduler as unknown as { executeScheduledEvent: () => Promise<void> }
+    ).executeScheduledEvent();
 
     expect(mockWithTempModbusClient).toHaveBeenCalled();
   });

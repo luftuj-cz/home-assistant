@@ -895,7 +895,10 @@ export class MqttService extends EventEmitter {
       const res = getResource(lang) ?? getResource("en");
       const value = text.text
         .split(".")
-        .reduce<unknown>((acc, key) => (acc && typeof acc === "object" ? acc[key as keyof typeof acc] : undefined), res);
+        .reduce<unknown>(
+          (acc, key) => (acc && typeof acc === "object" ? acc[key as keyof typeof acc] : undefined),
+          res,
+        );
       if (typeof value === "string") return value;
     }
     return text.text;

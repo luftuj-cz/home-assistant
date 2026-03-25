@@ -35,12 +35,14 @@ export function createStatusRouter(
           .filter((item) => !isValveAvailable(item))
           .map((item) => item.entity_id),
       };
-    const ha = haClient ? { connection: haClient.getConnectionState() } : { connection: "offline" };
-    const mqtt = {
-      connection: mqttService.isConnected() ? "connected" : "disconnected",
-      lastDiscovery: mqttService.getLastDiscoveryTime(),
-    };
-    const timeline = timelineScheduler.getActiveState();
+      const ha = haClient
+        ? { connection: haClient.getConnectionState() }
+        : { connection: "offline" };
+      const mqtt = {
+        connection: mqttService.isConnected() ? "connected" : "disconnected",
+        lastDiscovery: mqttService.getLastDiscoveryTime(),
+      };
+      const timeline = timelineScheduler.getActiveState();
       logger.debug({ ha, mqtt, timeline, valves }, "Status check");
       response.json({ ha, mqtt, timeline, valves, version: APP_VERSION });
     } catch (error) {

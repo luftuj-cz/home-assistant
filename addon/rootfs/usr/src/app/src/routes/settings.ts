@@ -265,19 +265,24 @@ export function createSettingsRouter(
         const resolvedUnitId = unitId ?? 1;
 
         // Validate maxPower against unit's actual maximum
-        const selectedUnit = resolvedUnit !== null
-          ? hruService.getAllUnits().find((u) => u.id === resolvedUnit)
-          : undefined;
+        const selectedUnit =
+          resolvedUnit !== null
+            ? hruService.getAllUnits().find((u) => u.id === resolvedUnit)
+            : undefined;
 
         if (selectedUnit) {
           const powerVar = selectedUnit.variables.find((v) => v.class === "power");
           const isConfigurable = powerVar?.maxConfigurable ?? false;
           const unitMaxValue = powerVar?.max;
           const defaultValue = powerVar?.maxDefault ?? unitMaxValue;
-          const controlUnit = typeof powerVar?.unit === "string" ? powerVar.unit : (powerVar?.unit?.text ?? "");
+          const controlUnit =
+            typeof powerVar?.unit === "string" ? powerVar.unit : (powerVar?.unit?.text ?? "");
 
           if (isConfigurable && maxPower === undefined) {
-            logger.warn({ unit: resolvedUnit }, "Attempted to set configurable HRU without maxPower");
+            logger.warn(
+              { unit: resolvedUnit },
+              "Attempted to set configurable HRU without maxPower",
+            );
             return next(
               new BadRequestError(
                 "Max power is required for the selected unit",

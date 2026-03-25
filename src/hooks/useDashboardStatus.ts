@@ -182,11 +182,12 @@ export function useDashboardStatus() {
           setHaLoading(false);
           return;
         }
-        const data = (await safeJson<{
-          ha?: { connection?: string };
-          mqtt?: { connection?: "connected" | "disconnected"; lastDiscovery?: string | null };
-          timeline?: ActiveMode | null;
-        }>(res)) || {};
+        const data =
+          (await safeJson<{
+            ha?: { connection?: string };
+            mqtt?: { connection?: "connected" | "disconnected"; lastDiscovery?: string | null };
+            timeline?: ActiveMode | null;
+          }>(res)) || {};
         if (!active) return;
         const s = data.ha?.connection;
         if (s === "connected" || s === "connecting" || s === "disconnected" || s === "offline") {
@@ -197,11 +198,17 @@ export function useDashboardStatus() {
           const mqttConn = data.mqtt.connection ?? "disconnected";
           setMqttStatus(mqttConn);
           setMqttLastDiscovery(data.mqtt.lastDiscovery ?? null);
-          logger.debug("MQTT status updated", { status: mqttConn, lastDiscovery: data.mqtt.lastDiscovery });
+          logger.debug("MQTT status updated", {
+            status: mqttConn,
+            lastDiscovery: data.mqtt.lastDiscovery,
+          });
         }
         if (data.timeline !== undefined) {
           const translated = data.timeline?.modeName
-            ? { ...data.timeline, modeName: t(data.timeline.modeName, { defaultValue: data.timeline.modeName }) }
+            ? {
+                ...data.timeline,
+                modeName: t(data.timeline.modeName, { defaultValue: data.timeline.modeName }),
+              }
             : data.timeline;
           setActiveMode(translated);
           logger.debug("Active mode updated", { mode: translated });
@@ -253,7 +260,11 @@ export function useDashboardStatus() {
         const data = (await safeJson<{ reachable?: boolean }>(res)) || {};
         const status = data.reachable ? "reachable" : "unreachable";
         setModbusStatus(status);
-        logger.debug("Modbus status probed", { status, host: currentModbusHost, port: currentModbusPort });
+        logger.debug("Modbus status probed", {
+          status,
+          host: currentModbusHost,
+          port: currentModbusPort,
+        });
       } catch {
         if (!active) return;
         setModbusStatus("unreachable");

@@ -213,7 +213,9 @@ function applyMigrations(database: DatabaseType, logger?: Logger): void {
     if (existing.has(migration.id)) {
       continue;
     }
-    const isVacuum = migration.statements.length === 1 && migration.statements[0]?.trim().toUpperCase() === "VACUUM;";
+    const isVacuum =
+      migration.statements.length === 1 &&
+      migration.statements[0]?.trim().toUpperCase() === "VACUUM;";
 
     if (isVacuum) {
       // VACUUM cannot run inside a transaction; run separately

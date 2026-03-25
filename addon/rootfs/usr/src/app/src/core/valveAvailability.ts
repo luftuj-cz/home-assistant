@@ -1,7 +1,9 @@
 import type { ValveSnapshot } from "./valveManager.js";
 
 export function isValveAvailable(snapshot: ValveSnapshot): boolean {
-  const rawState = String(snapshot.state ?? "").trim().toLowerCase();
+  const rawState = String(snapshot.state ?? "")
+    .trim()
+    .toLowerCase();
   const attrs = snapshot.attributes ?? {};
   const attributeAvailable = attrs.available;
 

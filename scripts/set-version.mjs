@@ -30,8 +30,8 @@ if (!newVersion) {
 }
 
 // Append release type suffix if not already present
-const fullVersion = newVersion.endsWith(`-${releaseType}`) 
-  ? newVersion 
+const fullVersion = newVersion.endsWith(`-${releaseType}`)
+  ? newVersion
   : `${newVersion}-${releaseType}`;
 
 const __filename = fileURLToPath(import.meta.url);
@@ -89,13 +89,25 @@ if (configRegex.test(configContent)) {
 if (releaseType === "dev") {
   configContent = configContent.replace(/^name: .*$/m, `name: LUFTaTOR (Development)`);
   configContent = configContent.replace(/^slug: .*$/m, `slug: luftator-dev`);
-  configContent = configContent.replace(/^description: .*$/m, `description: LUFTaTOR Home Assistant Add-on (Development Version)`);
-  configContent = configContent.replace(/image: "ghcr\.io\/luftuj-cz\/{arch}-addon-luftuj"$/m, `image: "ghcr.io/luftuj-cz/{arch}-addon-luftuj-dev"`);
+  configContent = configContent.replace(
+    /^description: .*$/m,
+    `description: LUFTaTOR Home Assistant Add-on (Development Version)`,
+  );
+  configContent = configContent.replace(
+    /image: "ghcr\.io\/luftuj-cz\/{arch}-addon-luftuj"$/m,
+    `image: "ghcr.io/luftuj-cz/{arch}-addon-luftuj-dev"`,
+  );
 } else {
   configContent = configContent.replace(/^name: .*$/m, `name: LUFTaTOR`);
   configContent = configContent.replace(/^slug: .*$/m, `slug: luftator`);
-  configContent = configContent.replace(/^description: .*$/m, `description: LUFTaTOR Home Assistant Add-on`);
-  configContent = configContent.replace(/image: "ghcr\.io\/luftuj-cz\/{arch}-addon-luftuj-dev"$/m, `image: "ghcr.io/luftuj-cz/{arch}-addon-luftuj"`);
+  configContent = configContent.replace(
+    /^description: .*$/m,
+    `description: LUFTaTOR Home Assistant Add-on`,
+  );
+  configContent = configContent.replace(
+    /image: "ghcr\.io\/luftuj-cz\/{arch}-addon-luftuj-dev"$/m,
+    `image: "ghcr.io/luftuj-cz/{arch}-addon-luftuj"`,
+  );
 }
 writeFileSync(ADDON_CONFIG_PATH, configContent);
 console.log(`Updated ${ADDON_CONFIG_PATH}`);

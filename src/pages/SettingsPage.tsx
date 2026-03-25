@@ -36,7 +36,13 @@ import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
 import { resolveApiUrl } from "../utils/api";
-import { createLogger, getLogLevel, setLogLevel, VALID_LOG_LEVELS, type LogLevel } from "../utils/logger";
+import {
+  createLogger,
+  getLogLevel,
+  setLogLevel,
+  VALID_LOG_LEVELS,
+  type LogLevel,
+} from "../utils/logger";
 import { setLanguage } from "../i18n";
 import { MotionSwitch } from "../components/common/MotionSwitch";
 
@@ -97,27 +103,24 @@ export function SettingsPage() {
     return languageOptions.some((option) => option.value === short) ? short : "en";
   }, [i18n.language, languageOptions]);
 
-  const persistThemePreference = useCallback(
-    async (value: "light" | "dark") => {
-      setSavingTheme(true);
-      logger.info("Saving theme preference", { theme: value });
-      try {
-        const response = await fetch(resolveApiUrl("/api/settings/theme"), {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ theme: value }),
-        });
-        if (response.ok) {
-          logger.info("Theme preference saved successfully", { theme: value });
-        }
-      } catch (err) {
-        logger.error("Failed to save theme preference", { error: err });
-      } finally {
-        setSavingTheme(false);
+  const persistThemePreference = useCallback(async (value: "light" | "dark") => {
+    setSavingTheme(true);
+    logger.info("Saving theme preference", { theme: value });
+    try {
+      const response = await fetch(resolveApiUrl("/api/settings/theme"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: value }),
+      });
+      if (response.ok) {
+        logger.info("Theme preference saved successfully", { theme: value });
       }
-    },
-    [],
-  );
+    } catch (err) {
+      logger.error("Failed to save theme preference", { error: err });
+    } finally {
+      setSavingTheme(false);
+    }
+  }, []);
 
   const handleThemeChange = useCallback(
     (value: string) => {
@@ -258,7 +261,10 @@ export function SettingsPage() {
         });
         return;
       }
-      logger.info("MQTT settings saved successfully", { host: mqttSettings.host, port: mqttSettings.port });
+      logger.info("MQTT settings saved successfully", {
+        host: mqttSettings.host,
+        port: mqttSettings.port,
+      });
       notifications.show({
         title: t("settings.mqtt.notifications.saveSuccessTitle"),
         message: t("settings.mqtt.notifications.saveSuccessMessage"),
@@ -347,7 +353,10 @@ export function SettingsPage() {
         });
         return;
       }
-      logger.info("HRU settings saved successfully", { unit: hruSettings.unit, host: hruSettings.host });
+      logger.info("HRU settings saved successfully", {
+        unit: hruSettings.unit,
+        host: hruSettings.host,
+      });
       notifications.show({
         title: t("settings.hru.notifications.saveSuccessTitle"),
         message: t("settings.hru.notifications.saveSuccessMessage"),
@@ -614,8 +623,10 @@ export function SettingsPage() {
                     {(() => {
                       const unitMissing = hruSettings.unit === null || hruSettings.unit === "";
                       const hostMissing = hruSettings.host.trim() === "";
-                      const portMissing = !Number.isFinite(hruSettings.port) || hruSettings.port <= 0;
-                      const unitIdMissing = !Number.isFinite(hruSettings.unitId) || hruSettings.unitId <= 0;
+                      const portMissing =
+                        !Number.isFinite(hruSettings.port) || hruSettings.port <= 0;
+                      const unitIdMissing =
+                        !Number.isFinite(hruSettings.unitId) || hruSettings.unitId <= 0;
 
                       return (
                         <>
@@ -713,33 +724,42 @@ export function SettingsPage() {
                             {t("settings.hru.configuration.maxPowerDescription")}
                           </Text>
                           {(() => {
-                            const powerVar = selectedUnit.variables.find((v) => v.class === "power");
+                            const powerVar = selectedUnit.variables.find(
+                              (v) => v.class === "power",
+                            );
                             const defaultPower = powerVar?.maxDefault ?? powerVar?.max;
                             const isConfigurable = powerVar?.maxConfigurable ?? false;
-                            const isMissing = isConfigurable && (hruSettings.maxPower === undefined || hruSettings.maxPower === null);
+                            const isMissing =
+                              isConfigurable &&
+                              (hruSettings.maxPower === undefined || hruSettings.maxPower === null);
                             return (
-                          <NumberInput
-                            required
-                            value={hruSettings.maxPower ?? defaultPower}
-                            onChange={(value) => {
-                              const numericValue = typeof value === "number" ? value : undefined;
-                              setHruSettings((prev) => ({ ...prev, maxPower: numericValue }));
-                            }}
-                            label={t("settings.hru.configuration.maxPowerLabel")}
-                            description={t("settings.hru.configuration.maxPowerHint", {
-                              default: defaultPower,
-                              unit: (() => {
-                                const u = selectedUnit.variables.find(
-                                  (v) => v.class === "power",
-                                )?.unit;
-                                return typeof u === "string" ? u : (u?.text ?? "%");
-                              })(),
-                            })}
-                            error={isMissing ? t("settings.hru.configuration.maxPowerRequired") : undefined}
-                            min={1}
-                            max={10000}
-                            size="md"
-                          />
+                              <NumberInput
+                                required
+                                value={hruSettings.maxPower ?? defaultPower}
+                                onChange={(value) => {
+                                  const numericValue =
+                                    typeof value === "number" ? value : undefined;
+                                  setHruSettings((prev) => ({ ...prev, maxPower: numericValue }));
+                                }}
+                                label={t("settings.hru.configuration.maxPowerLabel")}
+                                description={t("settings.hru.configuration.maxPowerHint", {
+                                  default: defaultPower,
+                                  unit: (() => {
+                                    const u = selectedUnit.variables.find(
+                                      (v) => v.class === "power",
+                                    )?.unit;
+                                    return typeof u === "string" ? u : (u?.text ?? "%");
+                                  })(),
+                                })}
+                                error={
+                                  isMissing
+                                    ? t("settings.hru.configuration.maxPowerRequired")
+                                    : undefined
+                                }
+                                min={1}
+                                max={10000}
+                                size="md"
+                              />
                             );
                           })()}
                         </Stack>
@@ -780,7 +800,6 @@ export function SettingsPage() {
                     </Group>
                   </Stack>
                 </Paper>
-
               </Stack>
             </Accordion.Panel>
           </Accordion.Item>
@@ -995,22 +1014,29 @@ export function SettingsPage() {
                           if (value && VALID_LOG_LEVELS.includes(value as LogLevel)) {
                             setLogLevel(value as LogLevel);
                             setLogLevelState(value as LogLevel);
-                            
+
                             // Save to backend
                             try {
-                              const response = await fetch(resolveApiUrl("/api/settings/log-level"), {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({ level: value }),
-                              });
+                              const response = await fetch(
+                                resolveApiUrl("/api/settings/log-level"),
+                                {
+                                  method: "POST",
+                                  headers: { "Content-Type": "application/json" },
+                                  body: JSON.stringify({ level: value }),
+                                },
+                              );
                               if (response.ok) {
                                 notifications.show({
                                   title: t("settings.developer.logLevel"),
-                                  message: t("settings.developer.logLevelChanged", { level: value }),
+                                  message: t("settings.developer.logLevelChanged", {
+                                    level: value,
+                                  }),
                                   color: "blue",
                                 });
                               } else {
-                                logger.error("Failed to save log level to backend", { status: response.status });
+                                logger.error("Failed to save log level to backend", {
+                                  status: response.status,
+                                });
                               }
                             } catch (err) {
                               logger.error("Failed to save log level to backend", { error: err });

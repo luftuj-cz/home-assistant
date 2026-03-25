@@ -80,7 +80,9 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
               opacity: isUnavailable ? 0.7 : 1,
             }}
           >
-            {isUnavailable ? t("valves.status.offlineLabel", { defaultValue: "Offline" }) : formatValue(valve.value)}
+            {isUnavailable
+              ? t("valves.status.offlineLabel", { defaultValue: "Offline" })
+              : formatValue(valve.value)}
           </Badge>
         </Group>
 
@@ -98,7 +100,9 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
           thumbSize={28}
           styles={(theme) => ({
             track: {
-              backgroundColor: isUnavailable ? "var(--mantine-color-gray-3)" : "var(--mantine-color-blue-1)",
+              backgroundColor: isUnavailable
+                ? "var(--mantine-color-gray-3)"
+                : "var(--mantine-color-blue-1)",
               opacity: isUnavailable ? 0.6 : 1,
             },
             mark: {
@@ -108,9 +112,13 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
               display: "none",
             },
             thumb: {
-              backgroundColor: isUnavailable ? "var(--mantine-color-gray-2)" : "var(--mantine-color-white)",
+              backgroundColor: isUnavailable
+                ? "var(--mantine-color-gray-2)"
+                : "var(--mantine-color-white)",
               borderWidth: 2,
-              borderColor: isUnavailable ? "var(--mantine-color-gray-5)" : "var(--mantine-color-blue-6)",
+              borderColor: isUnavailable
+                ? "var(--mantine-color-gray-5)"
+                : "var(--mantine-color-blue-6)",
               boxShadow: theme.shadows.sm,
               transition: "border-color 0.2s ease, transform 0.1s ease",
             },

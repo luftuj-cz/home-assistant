@@ -181,7 +181,12 @@ export function OnboardingPage() {
 
   // Set default maxPower when unit is selected
   useEffect(() => {
-    if (selectedUnit && requiresMaxPower && maxPower === undefined && defaultMaxPower !== undefined) {
+    if (
+      selectedUnit &&
+      requiresMaxPower &&
+      maxPower === undefined &&
+      defaultMaxPower !== undefined
+    ) {
       setMaxPower(defaultMaxPower);
     }
   }, [selectedUnit, requiresMaxPower, defaultMaxPower, maxPower]);
@@ -203,7 +208,13 @@ export function OnboardingPage() {
   }, [systemInfoQuery.data, mqttForm]);
 
   const saveHruMutation = useMutation({
-    mutationFn: async (data: { host: string; port: number; unitId: number; unit: string; maxPower?: number }) => {
+    mutationFn: async (data: {
+      host: string;
+      port: number;
+      unitId: number;
+      unit: string;
+      maxPower?: number;
+    }) => {
       const res = await fetch(resolveApiUrl("/api/settings/hru"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -758,7 +769,10 @@ export function OnboardingPage() {
                   label={t("settings.hru.configuration.maxPowerLabel")}
                   description={t("settings.hru.configuration.maxPowerHint", {
                     default: defaultMaxPower,
-                    unit: typeof powerVariable?.unit === "string" ? powerVariable.unit : (powerVariable?.unit?.text ?? "%"),
+                    unit:
+                      typeof powerVariable?.unit === "string"
+                        ? powerVariable.unit
+                        : (powerVariable?.unit?.text ?? "%"),
                   })}
                   min={1}
                   max={powerVariable?.max ?? 10000}
@@ -774,7 +788,9 @@ export function OnboardingPage() {
             <Button
               onClick={handleUnitSubmit}
               loading={saveHruMutation.isPending}
-              disabled={!selectedUnit || (requiresMaxPower && (maxPower === undefined || maxPower === null))}
+              disabled={
+                !selectedUnit || (requiresMaxPower && (maxPower === undefined || maxPower === null))
+              }
             >
               {t("onboarding.next")}
             </Button>
