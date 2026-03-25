@@ -10,7 +10,7 @@ import { Notifications } from "@mantine/notifications";
 import { RouterProvider } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
-import { Suspense, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { router } from "./router";
 import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from "./i18n";
@@ -218,9 +218,7 @@ export default function App() {
           <LogLevelInitializer />
           <ThemeInitializer />
           <Notifications position="bottom-left" limit={3} zIndex={4000} containerWidth={440} />
-          <Suspense fallback={null}>
-            <RouterProvider router={router} />
-          </Suspense>
+          <RouterProvider router={router} />
         </MantineProvider>
       </I18nextProvider>
     </QueryClientProvider>

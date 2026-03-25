@@ -3,17 +3,15 @@ import {
   createRoute,
   createRouter,
   createHashHistory,
-  lazyRouteComponent,
 } from "@tanstack/react-router";
 
 import { AppLayout } from "./layouts/AppLayout";
-
-const DashboardPage = lazyRouteComponent(() => import("./pages/DashboardPage"));
-const ValvesPage = lazyRouteComponent(() => import("./pages/ValvesPage"));
-const SettingsPage = lazyRouteComponent(() => import("./pages/SettingsPage"));
-const TimelinePage = lazyRouteComponent(() => import("./pages/TimelinePage"));
-const DebugPage = lazyRouteComponent(() => import("./pages/DebugPage"));
-const OnboardingPage = lazyRouteComponent(() => import("./pages/OnboardingPage"));
+import { DashboardPage } from "./pages/DashboardPage";
+import { ValvesPage } from "./pages/ValvesPage";
+import { SettingsPage } from "./pages/SettingsPage";
+import { TimelinePage } from "./pages/TimelinePage";
+import { DebugPage } from "./pages/DebugPage";
+import { OnboardingPage } from "./pages/OnboardingPage";
 
 const rootRoute = createRootRoute({
   component: AppLayout,
