@@ -338,6 +338,40 @@
     "title": "Debug Tools",
     "description": "Advanced diagnostics and register inspection.",
     "placeholder": "This page is a placeholder for future developer tools and manual register inspection.",
+    "backendValues": "Backend Debug Values",
+    "copyValues": "Copy values",
+    "copySuccess": "Debug values copied to clipboard.",
+    "copyFailed": "Failed to copy debug values.",
+    "refresh": "Refresh",
+    "loading": "Loading debug values…",
+    "lastUpdated": "Last updated: {{time}}",
+    "noData": "No debug values received.",
+    "serverLogs": "Server Logs",
+    "homeAssistantApi": "Home Assistant API",
+    "loadFailed": "Failed to load debug values: {{message}}",
+    "loadFailedUnknown": "Failed to load debug values.",
+    "table": {
+      "key": "Key",
+      "value": "Value"
+    },
+    "logs": {
+      "loading": "Loading server logs…",
+      "bufferedCount": "Buffered log lines: {{count}}",
+      "noData": "No server logs captured yet.",
+      "loadFailed": "Failed to load server logs: {{message}}",
+      "loadFailedUnknown": "Failed to load server logs.",
+      "table": {
+        "time": "Time",
+        "level": "Level",
+        "message": "Message"
+      }
+    },
+    "haApi": {
+      "loading": "Loading Home Assistant API data…",
+      "noData": "No Home Assistant API data received.",
+      "loadFailed": "Failed to load Home Assistant API data: {{message}}",
+      "loadFailedUnknown": "Failed to load Home Assistant API data."
+    },
     "onboardingTools": "Onboarding Tools",
     "resetOnboarding": "Reset Onboarding Flag",
     "finishOnboarding": "Finish Onboarding Flag",

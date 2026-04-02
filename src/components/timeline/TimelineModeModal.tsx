@@ -437,7 +437,6 @@ export function TimelineModeModal({
                       </Badge>
                     </Group>
                     <Slider
-                      orientation="horizontal"
                       value={uiValue}
                       onChange={(val) =>
                         setValveOpenings((prev) => ({

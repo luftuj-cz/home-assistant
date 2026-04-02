@@ -87,7 +87,6 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
         </Group>
 
         <Slider
-          orientation="horizontal"
           value={uiValue}
           min={valve.min}
           max={valve.max}

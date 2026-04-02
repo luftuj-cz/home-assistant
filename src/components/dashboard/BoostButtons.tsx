@@ -312,7 +312,6 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
 
               {(!activeBoost || activeBoost.durationMinutes !== INFINITE_DURATION) && (
                 <Slider
-                  orientation="horizontal"
                   value={
                     (activeBoost ? remainingMinutes : duration) === INFINITE_DURATION
                       ? 481
