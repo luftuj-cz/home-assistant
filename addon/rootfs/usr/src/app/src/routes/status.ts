@@ -1,17 +1,64 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
+import fs from "fs";
 import net from "net";
 import type { ValveController } from "../core/valveManager.js";
 import { isValveAvailable } from "../core/valveAvailability.js";
 import type { HomeAssistantClient } from "../services/homeAssistantClient.js";
 import type { MqttService } from "../services/mqttService.js";
-import { getAppSetting } from "../services/database.js";
+import { getAllAppSettings, getAppSetting, getDatabasePath } from "../services/database.js";
+import { getRecentServerLogs, getServerLogBufferSize } from "../logger.js";
 import { HRU_SETTINGS_KEY, type HruSettings } from "../types/index.js";
 import { APP_VERSION } from "../constants.js";
 import { validateQuery } from "../middleware/validateRequest.js";
 import { type ModbusStatusQuery, modbusStatusQuerySchema } from "../schemas/status.js";
 import { getSharedModbusClient, isModbusReachable } from "../shared/modbus/client.js";
+
+type ActiveTimelineState = { source: string; modeName?: string | number } | null;
+
+function formatDuration(totalSeconds: number): string {
+  const days = Math.floor(totalSeconds / 86_400);
+  const hours = Math.floor((totalSeconds % 86_400) / 3_600);
+  const minutes = Math.floor((totalSeconds % 3_600) / 60);
+  const seconds = totalSeconds % 60;
+
+  const parts: string[] = [];
+  if (days > 0) {
+    parts.push(`${days}d`);
+  }
+  if (hours > 0 || days > 0) {
+    parts.push(`${hours}h`);
+  }
+  if (minutes > 0 || hours > 0 || days > 0) {
+    parts.push(`${minutes}m`);
+  }
+  parts.push(`${seconds}s`);
+
+  return parts.join(" ");
+}
+
+function parseSettings(settings: Record<string, string>): Record<string, unknown> {
+  return Object.entries(settings).reduce<Record<string, unknown>>((acc, [key, value]) => {
+    try {
+      acc[key] = JSON.parse(value);
+    } catch {
+      acc[key] = value;
+    }
+    return acc;
+  }, {});
+}
+
+function resolveHassHost(baseUrl: string): string {
+  if (baseUrl && baseUrl !== "http://supervisor/core") {
+    const url = new URL(baseUrl);
+    return url.hostname;
+  }
+  if (baseUrl === "http://supervisor/core") {
+    return "homeassistant.local";
+  }
+  return "localhost";
+}
 
 export function createStatusRouter(
   valveManager: ValveController,
@@ -19,9 +66,13 @@ export function createStatusRouter(
   mqttService: MqttService,
   logger: Logger,
   timelineScheduler: {
-    getActiveState: () => { source: string; modeName?: string | number } | null;
+    getActiveState: () => ActiveTimelineState;
+    getBoostRemainingMinutes?: () => number;
+    getActiveBoostName?: () => string | null;
+    getFormattedActiveMode?: () => string;
   },
   baseUrl: string,
+  appStartedAt: Date,
 ) {
   const router = Router();
 
@@ -53,13 +104,7 @@ export function createStatusRouter(
 
   router.get("/system-info", (_request: Request, response: Response, next: NextFunction) => {
     try {
-      let hassHost = "localhost";
-      if (baseUrl && baseUrl !== "http://supervisor/core") {
-        const url = new URL(baseUrl);
-        hassHost = url.hostname;
-      } else if (baseUrl === "http://supervisor/core") {
-        hassHost = "homeassistant.local";
-      }
+      const hassHost = resolveHassHost(baseUrl);
 
       logger.debug({ hassHost }, "System info check");
       response.json({ hassHost });
@@ -162,6 +207,169 @@ export function createStatusRouter(
       }
     },
   );
+
+  router.get("/debug", async (_request: Request, response: Response, next: NextFunction) => {
+    try {
+      const snapshot = await valveManager.getSnapshot();
+      const unavailableEntities = snapshot
+        .filter((item) => !isValveAvailable(item))
+        .map((item) => item.entity_id);
+      const timelineState = timelineScheduler.getActiveState();
+      const allSettings = getAllAppSettings();
+      const parsedSettings = parseSettings(allSettings);
+
+      const now = new Date();
+      const appUptimeSeconds = Math.max(
+        0,
+        Math.floor((now.getTime() - appStartedAt.getTime()) / 1000),
+      );
+      const processUptimeSeconds = Math.max(0, Math.floor(process.uptime()));
+
+      const dbPath = getDatabasePath();
+      const dbExists = fs.existsSync(dbPath);
+      const dbStat = dbExists ? fs.statSync(dbPath) : null;
+      const walPath = `${dbPath}-wal`;
+      const shmPath = `${dbPath}-shm`;
+      const mqttLastSuccessAtMs = mqttService.getLastSuccessAt();
+      const logBufferSize = getServerLogBufferSize();
+
+      const payload = {
+        capturedAt: now.toISOString(),
+        app: {
+          version: APP_VERSION,
+          startedAt: appStartedAt.toISOString(),
+          uptimeSeconds: appUptimeSeconds,
+          uptimeHuman: formatDuration(appUptimeSeconds),
+          processUptimeSeconds,
+          processUptimeHuman: formatDuration(processUptimeSeconds),
+          pid: process.pid,
+          ppid: process.ppid,
+          nodeVersion: process.version,
+          platform: process.platform,
+          arch: process.arch,
+          cwd: process.cwd(),
+          memory: process.memoryUsage(),
+        },
+        system: {
+          hassBaseUrl: baseUrl,
+          hassHost: resolveHassHost(baseUrl),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        },
+        services: {
+          homeAssistant: {
+            configured: haClient !== null,
+            connection: haClient ? haClient.getConnectionState() : "offline",
+          },
+          mqtt: {
+            connection: mqttService.isConnected() ? "connected" : "disconnected",
+            lastDiscovery: mqttService.getLastDiscoveryTime(),
+            lastSuccessAtMs: mqttLastSuccessAtMs,
+            lastSuccessAt:
+              mqttLastSuccessAtMs !== null
+                ? new Date(mqttLastSuccessAtMs).toISOString()
+                : null,
+          },
+          timeline: {
+            activeState: timelineState,
+            formattedActiveMode: timelineScheduler.getFormattedActiveMode?.() ?? null,
+            boostRemainingMinutes: timelineScheduler.getBoostRemainingMinutes?.() ?? null,
+            activeBoostName: timelineScheduler.getActiveBoostName?.() ?? null,
+          },
+          valves: {
+            total: snapshot.length,
+            unavailableCount: unavailableEntities.length,
+            unavailableEntities,
+          },
+        },
+        database: {
+          path: dbPath,
+          exists: dbExists,
+          sizeBytes: dbStat?.size ?? null,
+          modifiedAt: dbStat?.mtime.toISOString() ?? null,
+          walExists: fs.existsSync(walPath),
+          shmExists: fs.existsSync(shmPath),
+        },
+        logs: {
+          bufferedCount: logBufferSize,
+          maxBufferedCount: 1_000,
+        },
+        settings: {
+          raw: allSettings,
+          parsed: parsedSettings,
+        },
+      };
+
+      logger.debug(
+        {
+          appUptimeSeconds,
+          settingsCount: Object.keys(allSettings).length,
+          valvesTotal: snapshot.length,
+          logBufferSize,
+        },
+        "Debug snapshot generated",
+      );
+
+      response.json(payload);
+    } catch (error) {
+      logger.error({ error }, "Failed to get debug snapshot");
+      next(error);
+    }
+  });
+
+  router.get(
+    "/debug/home-assistant",
+    async (_request: Request, response: Response, next: NextFunction) => {
+      try {
+        const capturedAt = new Date().toISOString();
+
+        if (!haClient) {
+          response.json({
+            capturedAt,
+            available: false,
+            connection: "offline",
+            detail: "Home Assistant client is not configured",
+          });
+          return;
+        }
+
+        const [config, luftatorEntities] = await Promise.all([
+          haClient.fetchConfig(),
+          haClient.fetchLuftatorEntities(),
+        ]);
+
+        response.json({
+          capturedAt,
+          available: true,
+          connection: haClient.getConnectionState(),
+          config,
+          luftatorEntityCount: luftatorEntities.length,
+          luftatorEntities,
+        });
+      } catch (error) {
+        logger.error({ error }, "Failed to fetch Home Assistant debug API data");
+        next(error);
+      }
+    },
+  );
+
+  router.get("/debug/logs", (request: Request, response: Response, next: NextFunction) => {
+    try {
+      const rawLimit = String(request.query.limit ?? "300");
+      const parsedLimit = Number.parseInt(rawLimit, 10);
+      const limit = Number.isFinite(parsedLimit) ? parsedLimit : 300;
+      const logs = getRecentServerLogs(limit);
+
+      response.json({
+        logs,
+        count: logs.length,
+        bufferedCount: getServerLogBufferSize(),
+        limit: Number.isFinite(parsedLimit) ? parsedLimit : 300,
+      });
+    } catch (error) {
+      logger.error({ error }, "Failed to get server logs");
+      next(error);
+    }
+  });
 
   return router;
 }

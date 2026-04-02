@@ -379,6 +379,10 @@ export class MqttService extends EventEmitter {
     this.settingsRepo.setLastDiscoveryTime(time);
   }
 
+  public getLastSuccessAt(): number | null {
+    return this.lastSuccessAt > 0 ? this.lastSuccessAt : null;
+  }
+
   public static async testConnection(
     settings: MqttSettings,
     logger: Logger,

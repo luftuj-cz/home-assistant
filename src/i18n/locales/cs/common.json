@@ -321,6 +321,40 @@
     "title": "Ladicí nástroje",
     "description": "Pokročilá diagnostika a inspektor registrů.",
     "placeholder": "Tato stránka slouží jako základ pro budoucí vývojářské nástroje a ruční inspekci registrů.",
+    "backendValues": "Ladicí hodnoty backendu",
+    "copyValues": "Kopírovat hodnoty",
+    "copySuccess": "Ladicí hodnoty byly zkopírovány do schránky.",
+    "copyFailed": "Nepodařilo se zkopírovat ladicí hodnoty.",
+    "refresh": "Obnovit",
+    "loading": "Načítám ladicí hodnoty…",
+    "lastUpdated": "Naposledy aktualizováno: {{time}}",
+    "noData": "Nebyla přijata žádná ladicí data.",
+    "serverLogs": "Serverové logy",
+    "homeAssistantApi": "Home Assistant API",
+    "loadFailed": "Nepodařilo se načíst ladicí hodnoty: {{message}}",
+    "loadFailedUnknown": "Nepodařilo se načíst ladicí hodnoty.",
+    "table": {
+      "key": "Klíč",
+      "value": "Hodnota"
+    },
+    "logs": {
+      "loading": "Načítám serverové logy…",
+      "bufferedCount": "Počet uložených řádků logu: {{count}}",
+      "noData": "Zatím nebyly zachyceny žádné serverové logy.",
+      "loadFailed": "Nepodařilo se načíst serverové logy: {{message}}",
+      "loadFailedUnknown": "Nepodařilo se načíst serverové logy.",
+      "table": {
+        "time": "Čas",
+        "level": "Úroveň",
+        "message": "Zpráva"
+      }
+    },
+    "haApi": {
+      "loading": "Načítám data Home Assistant API…",
+      "noData": "Nebyla přijata žádná data z Home Assistant API.",
+      "loadFailed": "Nepodařilo se načíst data Home Assistant API: {{message}}",
+      "loadFailedUnknown": "Nepodařilo se načíst data Home Assistant API."
+    },
     "onboardingTools": "Nástroje pro nastavení",
     "resetOnboarding": "Resetovat příznak nastavení",
     "finishOnboarding": "Dokončit příznak nastavení",

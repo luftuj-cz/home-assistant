@@ -98,6 +98,7 @@ if (config.token) {
 const settingsRepo = new SettingsRepository(logger);
 const hruRepo = new HruRepository(logger);
 const hruService = new HruService(hruRepo, settingsRepo, logger);
+const appStartedAt = new Date();
 
 const timelineScheduler = new TimelineScheduler(valveManager, hruService, settingsRepo, logger);
 
@@ -124,6 +125,7 @@ app.use(
     logger,
     timelineScheduler,
     config.baseUrl,
+    appStartedAt,
   ),
 );
 
