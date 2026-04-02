@@ -449,7 +449,11 @@
       "description": "Začínáme",
       "title": "Pojďme nastavit váš systém",
       "text": "Nakonfigurujeme připojení k rekuperační jednotce (Modbus) a Home Assistantu (MQTT).",
-      "button": "Spustit nastavení"
+      "button": "Spustit nastavení",
+      "importButton": "Importovat zálohu",
+      "importText": "Přeskočte nastavení obnovením předchozí zálohy.",
+      "importSuccess": "Databáze úspěšně importována. Přesměrování...",
+      "importError": "Nepodařilo se importovat zálohu databáze."
     },
     "preferences": {
       "label": "Předvolby",

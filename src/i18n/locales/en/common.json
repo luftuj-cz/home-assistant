@@ -449,7 +449,11 @@
       "description": "Get started",
       "title": "Let's set up your system",
       "text": "We'll configure your connection to the Heat Recovery Unit (Modbus) and Home Assistant (MQTT).",
-      "button": "Start Setup"
+      "button": "Start Setup",
+      "importButton": "Import backup",
+      "importText": "Skip setup by restoring a previous backup.",
+      "importSuccess": "Database imported successfully. Redirecting...",
+      "importError": "Failed to import database backup."
     },
     "preferences": {
       "label": "Preferences",

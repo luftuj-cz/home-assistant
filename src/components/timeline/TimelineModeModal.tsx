@@ -437,6 +437,7 @@ export function TimelineModeModal({
                       </Badge>
                     </Group>
                     <Slider
+                      orientation="horizontal"
                       value={uiValue}
                       onChange={(val) =>
                         setValveOpenings((prev) => ({
@@ -460,7 +461,6 @@ export function TimelineModeModal({
                       size="lg"
                       color={statusColor}
                       thumbSize={28}
-                      py="md"
                     />
                   </Stack>
                 );

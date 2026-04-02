@@ -79,7 +79,7 @@ export function HruStatusCard({
 
   if (status === null) {
     return (
-      <Card shadow="sm" padding="lg" withBorder radius="md">
+      <Card shadow="sm" p="lg" withBorder radius="md">
         <Group justify="space-between" align="flex-start" mb="md">
           <Group gap="xs">
             <ThemeIcon color="blue" variant="light" size={32} radius="md">
@@ -102,7 +102,7 @@ export function HruStatusCard({
 
   if ("error" in status) {
     return (
-      <Card shadow="sm" padding="lg" withBorder radius="md">
+      <Card shadow="sm" p="lg" withBorder radius="md">
         <Group justify="space-between" align="flex-start" mb="md">
           <Group gap="xs">
             <ThemeIcon color="red" variant="light" size={32} radius="md">
@@ -341,7 +341,7 @@ export function HruStatusCard({
   }
 
   return (
-    <Card shadow="sm" padding="0" withBorder radius="md">
+    <Card shadow="sm" p="0" withBorder radius="md">
       <Group justify="space-between" align="flex-start" p="lg" pb="xs">
         <Group gap="xs">
           <ThemeIcon color="grape" variant="light" size={32} radius="md">

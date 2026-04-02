@@ -154,7 +154,7 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
   if (boostModes.length === 0) return null;
 
   return (
-    <Card withBorder radius="lg" padding="xl">
+    <Card withBorder radius="lg" p="xl">
       <Stack gap="xl">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="md">
@@ -312,6 +312,7 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
 
               {(!activeBoost || activeBoost.durationMinutes !== INFINITE_DURATION) && (
                 <Slider
+                  orientation="horizontal"
                   value={
                     (activeBoost ? remainingMinutes : duration) === INFINITE_DURATION
                       ? 481
@@ -331,6 +332,7 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                   color="orange"
                   disabled={!!activeBoost || loadingModeId !== null || isCancelling}
                   styles={{
+                    root: { width: "100%" },
                     thumb: {
                       borderWidth: 2,
                       padding: 3,

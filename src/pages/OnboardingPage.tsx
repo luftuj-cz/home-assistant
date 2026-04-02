@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   Button,
   Group,
@@ -20,6 +20,7 @@ import {
   Flex,
   SimpleGrid,
   Progress,
+  Divider,
 } from "@mantine/core";
 import { fetchHruUnits, type HruUnit } from "../api/hru";
 import { useForm } from "@mantine/form";
@@ -98,6 +99,9 @@ export function OnboardingPage() {
   const [selectedTheme, setSelectedTheme] = useState<"light" | "dark">(
     colorScheme === "auto" ? "dark" : (colorScheme as "light" | "dark"),
   );
+
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   const modbusSchema = useMemo(() => createModbusSchema(t), [t]);
 
@@ -345,6 +349,41 @@ export function OnboardingPage() {
     },
   });
 
+  const importDbMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const buffer = await file.arrayBuffer();
+      const res = await fetch(resolveApiUrl("/api/database/import"), {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: buffer,
+      });
+      if (!res.ok) {
+        const detail = await res.text().catch(() => "");
+        throw new Error(detail || "Import failed");
+      }
+      // Mark onboarding as done
+      const finish = await fetch(resolveApiUrl("/api/settings/onboarding-finish"), { method: "POST" });
+      if (!finish.ok) throw new Error("Failed to finish onboarding");
+    },
+    onSuccess: async () => {
+      notifications.show({
+        title: "Success",
+        message: t("onboarding.welcome.importSuccess"),
+        color: "green",
+      });
+      await queryClient.invalidateQueries({ queryKey: ["onboarding-layout-check"] });
+      await navigate({ to: "/" });
+    },
+    onError: (error) => {
+      notifications.show({
+        title: t("onboarding.welcome.importError"),
+        message: (error as Error).message,
+        color: "red",
+      });
+      logger.error("Failed to import database", { error });
+    },
+  });
+
   const statusQuery = useQuery({
     queryKey: ["onboarding-status"],
     queryFn: async () => {
@@ -507,8 +546,6 @@ export function OnboardingPage() {
 
     nextStep();
   }
-
-  const queryClient = useQueryClient();
 
   async function handleFinish() {
     try {
@@ -677,6 +714,29 @@ export function OnboardingPage() {
           <Button size="lg" mt="md" rightSection={<IconArrowRight size={18} />} onClick={nextStep}>
             {t("onboarding.welcome.button")}
           </Button>
+          <Divider label={t("app.nav.optional")} labelPosition="center" w="100%" maw={300} />
+          <Text size="xs" c="dimmed" ta="center">
+            {t("onboarding.welcome.importText")}
+          </Text>
+          <Button
+            variant="subtle"
+            size="sm"
+            loading={importDbMutation.isPending}
+            onClick={() => importInputRef.current?.click()}
+          >
+            {t("onboarding.welcome.importButton")}
+          </Button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".db,application/octet-stream"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) importDbMutation.mutate(file);
+              e.target.value = "";
+            }}
+          />
         </Stack>
 
         <Stack gap="md" py="lg" display={active === 1 ? "flex" : "none"}>

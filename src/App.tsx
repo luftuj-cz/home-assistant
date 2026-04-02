@@ -3,8 +3,6 @@ import {
   createTheme,
   localStorageColorSchemeManager,
   useMantineColorScheme,
-  type MantineTheme,
-  type NotificationProps,
 } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { RouterProvider } from "@tanstack/react-router";
@@ -21,6 +19,8 @@ const logger = createLogger("App");
 
 const theme = createTheme({
   primaryColor: "blue",
+  defaultRadius: "md",
+  cursorType: "pointer",
   colors: {
     blue: [
       "#e7f5ff",
@@ -37,57 +37,39 @@ const theme = createTheme({
   },
   components: {
     Notification: {
-      styles: (_theme: MantineTheme, props: NotificationProps) => {
-        const color = props.color || "gray";
-        return {
-          root: {
-            backdropFilter: "blur(20px)",
-            backgroundColor: props.color
-              ? `rgba(var(--mantine-color-${color}-light-color), 0.45)`
-              : "rgba(var(--mantine-color-body-rgb), 0.95)",
-            border: `1.5px solid ${
-              props.color ? `var(--mantine-color-${color}-filled)` : "rgba(255, 255, 255, 0.5)"
-            }`,
-            boxShadow: props.color
-              ? `0 15px 45px rgba(var(--mantine-color-${color}-light-color), 0.35), 0 0 0 2px rgba(var(--mantine-color-${color}-light-color), 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.2)`
-              : "0 15px 45px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255, 255, 255, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.2)",
-            padding: "var(--mantine-spacing-md)",
-            borderRadius: "var(--mantine-radius-xl)",
-            overflow: "hidden",
-          },
-          icon: {
-            width: 40,
-            height: 40,
-            borderRadius: "var(--mantine-radius-lg)",
-            fontSize: 22,
-            backgroundColor: props.color
-              ? `var(--mantine-color-${color}-light)`
-              : "var(--mantine-color-gray-light)",
-          },
-          inner: {
-            paddingLeft: "var(--mantine-spacing-md)",
-          },
-          title: {
-            fontWeight: 800,
-            fontSize: "var(--mantine-font-size-md)",
-            marginBottom: 6,
-            letterSpacing: "-0.01em",
-            color: props.color ? `var(--mantine-color-${color}-filled)` : "inherit",
-          },
-          description: {
-            color: "var(--mantine-color-text)",
-            opacity: 0.9,
-            fontSize: "var(--mantine-font-size-sm)",
-            lineHeight: 1.5,
-            fontWeight: 500,
-          },
-          closeButton: {
-            borderRadius: "var(--mantine-radius-md)",
-            "&:hover": {
-              backgroundColor: "rgba(0, 0, 0, 0.05)",
-            },
-          },
-        };
+      styles: {
+        root: {
+          backdropFilter: "blur(20px)",
+          padding: "var(--mantine-spacing-md)",
+          borderRadius: "var(--mantine-radius-xl)",
+          overflow: "hidden",
+          border: "1.5px solid rgba(255, 255, 255, 0.5)",
+          backgroundColor: "rgba(var(--mantine-color-body-rgb), 0.95)",
+          boxShadow: "0 15px 45px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255, 255, 255, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.2)",
+        },
+        icon: {
+          width: 40,
+          height: 40,
+          borderRadius: "var(--mantine-radius-lg)",
+          fontSize: 22,
+          backgroundColor: "var(--mantine-color-gray-light)",
+        },
+        title: {
+          fontWeight: 800,
+          fontSize: "var(--mantine-font-size-md)",
+          marginBottom: 6,
+          letterSpacing: "-0.01em",
+        },
+        description: {
+          color: "var(--mantine-color-text)",
+          opacity: 0.9,
+          fontSize: "var(--mantine-font-size-sm)",
+          lineHeight: 1.5,
+          fontWeight: 500,
+        },
+        closeButton: {
+          borderRadius: "var(--mantine-radius-md)",
+        },
       },
     },
   },
@@ -210,7 +192,6 @@ export default function App() {
       <I18nextProvider i18n={i18n} defaultNS="common">
         <MantineProvider
           theme={theme}
-          withCssVariables
           colorSchemeManager={colorSchemeManager}
           defaultColorScheme="dark"
         >

@@ -43,7 +43,7 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
   const statusColor = getValveColor(valve.value);
 
   return (
-    <Card shadow="sm" radius="md" padding="lg" withBorder>
+    <Card shadow="sm" radius="md" p="lg" withBorder>
       <Stack gap="lg">
         <Group justify="space-between" align="flex-start" wrap="nowrap">
           <Group gap="sm" align="flex-start" style={{ flex: 1, minWidth: 0 }}>
@@ -87,6 +87,7 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
         </Group>
 
         <Slider
+          orientation="horizontal"
           value={uiValue}
           min={valve.min}
           max={valve.max}
@@ -98,18 +99,13 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
           size="xl"
           color={statusColor}
           thumbSize={28}
-          styles={(theme) => ({
+          styles={{
+            root: { width: "100%" },
             track: {
               backgroundColor: isUnavailable
                 ? "var(--mantine-color-gray-3)"
                 : "var(--mantine-color-blue-1)",
               opacity: isUnavailable ? 0.6 : 1,
-            },
-            mark: {
-              display: "none",
-            },
-            markFilled: {
-              display: "none",
             },
             thumb: {
               backgroundColor: isUnavailable
@@ -119,10 +115,10 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
               borderColor: isUnavailable
                 ? "var(--mantine-color-gray-5)"
                 : "var(--mantine-color-blue-6)",
-              boxShadow: theme.shadows.sm,
+              boxShadow: "var(--mantine-shadow-sm)",
               transition: "border-color 0.2s ease, transform 0.1s ease",
             },
-          })}
+          }}
         />
       </Stack>
     </Card>

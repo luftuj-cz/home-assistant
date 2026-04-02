@@ -213,10 +213,6 @@ export function AppLayout() {
                               color: active
                                 ? "var(--mantine-color-text)"
                                 : "var(--mantine-color-dimmed)",
-                              "&:hover": {
-                                backgroundColor: "transparent",
-                                color: "var(--mantine-color-text)",
-                              },
                             },
                           }}
                         >
@@ -265,7 +261,7 @@ export function AppLayout() {
       <Drawer
         opened={mobileNavOpened}
         onClose={close}
-        padding="xl"
+        p="xl"
         title={
           <Group gap="xs" align="center">
             <Image src={logoMark} alt={t("app.title")} h={28} w={28} fit="contain" />
@@ -290,7 +286,6 @@ export function AppLayout() {
         }}
         overlayProps={{
           opacity: 0.5,
-          blur: 2,
         }}
       >
         <Stack gap="xs">
@@ -363,7 +358,7 @@ export function AppLayout() {
         >
           <Container size="xl">
             <Stack gap="xl">
-              <Grid gutter="xl" align="flex-start">
+              <Grid gap="xl" align="flex-start">
                 <Grid.Col span={{ base: 12, md: 4 }} order={{ base: 2, md: 1 }}>
                   <Stack gap="sm" align="center">
                     <Text fw={700} size="xs" tt="uppercase" lts={1.2} c="dimmed" ta="center" mb={4}>

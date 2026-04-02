@@ -45,7 +45,7 @@ export function StatusCard({ title, description, status, statusLabel, children }
   );
 
   return (
-    <Card shadow="sm" padding="lg" withBorder radius="md">
+    <Card shadow="sm" p="lg" withBorder radius="md">
       <Group justify="space-between" align="flex-start">
         <Group gap="xs">
           <ThemeIcon color={color} variant="light" size={32} radius="md">
@@ -64,7 +64,7 @@ export function StatusCard({ title, description, status, statusLabel, children }
       </Group>
 
       {children && (
-        <Card shadow="none" padding="md" withBorder radius="md" variant="light" mt="md">
+        <Card shadow="none" p="md" withBorder radius="md" variant="light" mt="md">
           {children}
         </Card>
       )}
