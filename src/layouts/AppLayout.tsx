@@ -23,7 +23,6 @@ import {
   Center,
   useComputedColorScheme,
 } from "@mantine/core";
-import { motion } from "framer-motion";
 import { APP_VERSION } from "../config";
 import {
   IconAt,
@@ -209,7 +208,7 @@ export function AppLayout() {
                 >
                   <div style={{ position: "relative", pointerEvents: "auto" }}>
                     {activeIndex >= 0 && (
-                      <motion.div
+                      <div
                         style={{
                           position: "absolute",
                           top: 0,
@@ -222,16 +221,6 @@ export function AppLayout() {
                           border: "1px solid var(--mantine-color-default-border)",
                           boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
                           pointerEvents: "none",
-                        }}
-                        animate={{
-                          left: buttonOffset,
-                          width: buttonWidth,
-                        }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 500,
-                          damping: 40,
-                          mass: 0.8,
                         }}
                       />
                     )}
@@ -257,26 +246,20 @@ export function AppLayout() {
                             size="sm"
                             radius="md"
                             leftSection={
-                              <motion.div
-                                animate={{
-                                  scale: active ? 1.1 : 1,
+                              <div
+                                style={{
+                                  transform: active ? "scale(1.1)" : "scale(1)",
                                   color: active
                                     ? "var(--mantine-color-primary-filled)"
                                     : "var(--mantine-color-dimmed)",
                                 }}
-                                transition={{
-                                  type: "spring",
-                                  stiffness: 500,
-                                  damping: 35,
-                                }}
                               >
                                 <IconComponent size={18} stroke={active ? 2.5 : 2} />
-                              </motion.div>
+                              </div>
                             }
                             styles={{
                               root: {
                                 fontWeight: active ? 700 : 500,
-                                transition: "color 0.3s ease, font-weight 0.3s ease",
                                 border: "none",
                                 backgroundColor: "transparent",
                                 position: "relative",
@@ -343,16 +326,11 @@ export function AppLayout() {
         }}
       >
         <Stack gap="xs">
-          {navItems.map((item, index) => {
+          {navItems.map((item) => {
             const active = isActive(item.to);
             const IconComponent = item.icon;
             return (
-              <motion.div
-                key={item.to}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.05, duration: 0.3 }}
-              >
+              <div key={item.to}>
                 <NavLink
                   component={Link}
                   to={item.to}
@@ -363,24 +341,23 @@ export function AppLayout() {
                     </Text>
                   }
                   leftSection={
-                    <motion.div
-                      animate={{
-                        scale: active ? 1.15 : 1,
+                    <div
+                      style={{
+                        transform: active ? "scale(1.15)" : "scale(1)",
                         color: active ? "var(--mantine-color-primary-filled)" : "inherit",
                       }}
                     >
                       <IconComponent size={24} stroke={1.5} />
-                    </motion.div>
+                    </div>
                   }
                   active={active}
                   variant="light"
                   color={active ? "primary" : "gray"}
                   style={{
                     borderRadius: "var(--mantine-radius-md)",
-                    transition: "all 0.2s ease",
                   }}
                 />
-              </motion.div>
+              </div>
             );
           })}
         </Stack>
