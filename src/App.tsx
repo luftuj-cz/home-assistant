@@ -48,7 +48,8 @@ const theme = createTheme({
           overflow: "hidden",
           border: "1.5px solid var(--mantine-color-default-border)",
           backgroundColor: "rgba(var(--mantine-color-body-rgb), 0.95)",
-          boxShadow: "0 15px 45px rgba(0, 0, 0, 0.3), 0 0 0 2px var(--mantine-color-default-hover), inset 0 0 0 1px var(--mantine-color-default-hover)",
+          boxShadow:
+            "0 15px 45px rgba(0, 0, 0, 0.3), 0 0 0 2px var(--mantine-color-default-hover), inset 0 0 0 1px var(--mantine-color-default-hover)",
         },
         icon: {
           width: 40,

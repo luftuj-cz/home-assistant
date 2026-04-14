@@ -51,7 +51,7 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
       const selectedMode =
         modes.find((m) => m.id?.toString() === event.hruConfig?.mode?.toString()) ?? null;
       const mergedHruConfig = {
-        ...(event.hruConfig ?? {}),
+        ...event.hruConfig,
         ...(selectedMode?.power !== undefined ? { power: selectedMode.power } : {}),
         ...(selectedMode?.temperature !== undefined
           ? { temperature: selectedMode.temperature }

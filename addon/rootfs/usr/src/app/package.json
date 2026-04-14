@@ -1,16 +1,16 @@
 {
   "name": "luftuj-backend",
+  "private": true,
   "type": "module",
   "module": "src/server.ts",
-  "private": true,
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "build": "tsc --project tsconfig.json",
     "test": "vitest run",
-    "lint": "eslint . --config ../../../../../eslint.config.js",
-    "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "lint": "oxlint . --config ../../../../../oxlint.config.ts",
+    "format": "oxfmt --write .",
+    "format:check": "oxfmt --check ."
   },
   "dependencies": {
     "better-sqlite3": "^12.9.0",

@@ -449,7 +449,12 @@ export function TimelineModeModal({
                             {showCopyButton && (
                               <CopyButton value={entityId}>
                                 {({ copied, copy }) => (
-                                  <Button color={copied ? "teal" : "gray"} size="xs" variant="subtle" onClick={copy}>
+                                  <Button
+                                    color={copied ? "teal" : "gray"}
+                                    size="xs"
+                                    variant="subtle"
+                                    onClick={copy}
+                                  >
                                     {copied ? "Copied" : "Copy"}
                                   </Button>
                                 )}

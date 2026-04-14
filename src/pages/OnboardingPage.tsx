@@ -362,7 +362,9 @@ export function OnboardingPage() {
         throw new Error(detail || "Import failed");
       }
       // Mark onboarding as done
-      const finish = await fetch(resolveApiUrl("/api/settings/onboarding-finish"), { method: "POST" });
+      const finish = await fetch(resolveApiUrl("/api/settings/onboarding-finish"), {
+        method: "POST",
+      });
       if (!finish.ok) throw new Error("Failed to finish onboarding");
     },
     onSuccess: async () => {

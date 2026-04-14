@@ -305,7 +305,9 @@ export function DebugPage() {
     }
 
     try {
-      const response = await fetch(resolveApiUrl("/api/debug/logs?limit=500"), { cache: "no-cache" });
+      const response = await fetch(resolveApiUrl("/api/debug/logs?limit=500"), {
+        cache: "no-cache",
+      });
       if (!response.ok) {
         const detail = (await response.text()).trim();
         throw new Error(detail || `HTTP ${response.status}`);
@@ -649,36 +651,36 @@ export function DebugPage() {
                     </thead>
                     <tbody>
                       {orderedServerLogs.map((entry, index) => (
-                          <tr key={`${entry.timestamp}-${entry.level}-${index}`}>
-                            <td>
-                              <Text size="xs" ff="monospace">
-                                {formatTimestamp(entry.timestamp)}
+                        <tr key={`${entry.timestamp}-${entry.level}-${index}`}>
+                          <td>
+                            <Text size="xs" ff="monospace">
+                              {formatTimestamp(entry.timestamp)}
+                            </Text>
+                          </td>
+                          <td>
+                            <Badge color={getLogLevelColor(entry.level)} variant="light">
+                              {entry.level.toUpperCase()}
+                            </Badge>
+                          </td>
+                          <td>
+                            <Stack gap={4}>
+                              <Text size="sm" fw={600}>
+                                {entry.message}
                               </Text>
-                            </td>
-                            <td>
-                              <Badge color={getLogLevelColor(entry.level)} variant="light">
-                                {entry.level.toUpperCase()}
-                              </Badge>
-                            </td>
-                            <td>
-                              <Stack gap={4}>
-                                <Text size="sm" fw={600}>
-                                  {entry.message}
+                              {entry.context ? (
+                                <Text
+                                  size="xs"
+                                  c="dimmed"
+                                  ff="monospace"
+                                  style={{ whiteSpace: "pre-wrap" }}
+                                >
+                                  {formatLogContext(entry.context)}
                                 </Text>
-                                {entry.context ? (
-                                  <Text
-                                    size="xs"
-                                    c="dimmed"
-                                    ff="monospace"
-                                    style={{ whiteSpace: "pre-wrap" }}
-                                  >
-                                    {formatLogContext(entry.context)}
-                                  </Text>
-                                ) : null}
-                              </Stack>
-                            </td>
-                          </tr>
-                        ))}
+                              ) : null}
+                            </Stack>
+                          </td>
+                        </tr>
+                      ))}
                     </tbody>
                   </Table>
                 </ScrollArea>
@@ -699,7 +701,9 @@ export function DebugPage() {
                   color="red"
                   variant="light"
                   onClick={async () => {
-                    await fetch(resolveApiUrl("/api/settings/onboarding-reset"), { method: "POST" });
+                    await fetch(resolveApiUrl("/api/settings/onboarding-reset"), {
+                      method: "POST",
+                    });
                     window.location.reload();
                   }}
                 >
@@ -709,7 +713,9 @@ export function DebugPage() {
                   color="green"
                   variant="light"
                   onClick={async () => {
-                    await fetch(resolveApiUrl("/api/settings/onboarding-finish"), { method: "POST" });
+                    await fetch(resolveApiUrl("/api/settings/onboarding-finish"), {
+                      method: "POST",
+                    });
                     window.location.reload();
                   }}
                 >

@@ -313,7 +313,7 @@ export class TimelineScheduler {
           let effectivePower = event.hruConfig?.power;
           let effectiveTemperature = event.hruConfig?.temperature;
           let effectiveLuftatorConfig = event.luftatorConfig;
-          const effectiveVariables = { ...(event.hruConfig?.variables ?? {}) } as Record<
+          const effectiveVariables = { ...event.hruConfig?.variables } as Record<
             string,
             number | string | boolean
           >;

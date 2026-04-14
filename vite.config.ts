@@ -1,5 +1,4 @@
 import { defineConfig, type Logger } from "vite";
-import react from "@vitejs/plugin-react";
 
 type ProxyServer = {
   removeAllListeners(event: string): void;
@@ -41,11 +40,10 @@ const filteredLogger: Logger = {
 // https://vite.dev/config/
 export default defineConfig({
   base: "./",
-  plugins: [react()],
   customLogger: filteredLogger,
   build: {
     target: "esnext",
-    minify: "esbuild",
+    minify: true,
     sourcemap: false,
     rollupOptions: {
       output: {

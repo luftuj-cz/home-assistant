@@ -1,16 +1,17 @@
 {
   "name": "luftujha",
-  "private": true,
   "version": "1.0.7-dev",
+  "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite --host",
-    "build": "tsc -b && node scripts/copy-translations.mjs && vite build",
-    "build:addon": "npm run build && node scripts/copy-translations.mjs && node scripts/sync-dist.mjs",
-    "lint": "eslint .",
-    "format": "prettier --write .",
-    "format:check": "prettier --check .",
-    "preview": "vite preview",
+    "dev": "vp dev --host",
+    "build": "tsc -b && node scripts/copy-translations.mjs && vp build",
+    "build:addon": "npm run build && node scripts/sync-dist.mjs",
+    "check": "vp check",
+    "lint": "vp check",
+    "format": "vp fmt",
+    "format:check": "vp check",
+    "preview": "vp preview",
     "test": "npm --prefix addon/rootfs/usr/src/app test",
     "docs:dev": "npm --prefix docs run dev",
     "docs:build": "npm --prefix docs run build",
@@ -38,20 +39,11 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.4",
     "@types/node": "^25.6.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
     "baseline-browser-mapping": "^2.10.19",
-    "esbuild": "^0.28.0",
-    "eslint": "^9.39.4",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.26",
-    "globals": "^17.5.0",
-    "prettier": "^3.8.2",
     "typescript": "^6.0.2",
-    "typescript-eslint": "^8.58.2",
-    "vite": "^8.0.8"
+    "vite-plus": "^0.1.16"
   }
 }

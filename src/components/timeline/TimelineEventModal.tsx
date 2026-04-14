@@ -58,7 +58,7 @@ export function TimelineEventModal({
               if (!value) return;
               onChange({
                 ...event,
-                hruConfig: { ...(event.hruConfig ?? {}), mode: value },
+                hruConfig: { ...event.hruConfig, mode: value },
               });
             }}
             searchable

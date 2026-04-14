@@ -265,9 +265,7 @@ export function createStatusRouter(
             lastDiscovery: mqttService.getLastDiscoveryTime(),
             lastSuccessAtMs: mqttLastSuccessAtMs,
             lastSuccessAt:
-              mqttLastSuccessAtMs !== null
-                ? new Date(mqttLastSuccessAtMs).toISOString()
-                : null,
+              mqttLastSuccessAtMs !== null ? new Date(mqttLastSuccessAtMs).toISOString() : null,
           },
           timeline: {
             activeState: timelineState,

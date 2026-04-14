@@ -796,7 +796,13 @@ export function SettingsPage() {
                         </Badge>
                       )}
                       {probeStatus === "error" && (
-                        <Alert color="red" variant="light" withCloseButton title={t("settings.hru.probe")} icon={<IconAlertCircle size={16} />}>
+                        <Alert
+                          color="red"
+                          variant="light"
+                          withCloseButton
+                          title={t("settings.hru.probe")}
+                          icon={<IconAlertCircle size={16} />}
+                        >
                           {probeError || t("settings.hru.notifications.unknown")}
                         </Alert>
                       )}
@@ -850,7 +856,10 @@ export function SettingsPage() {
                         <NumberInput
                           value={mqttSettings.port}
                           onChange={(val) => {
-                            setMqttSettings((prev) => ({ ...prev, port: typeof val === "number" ? val : 0 }));
+                            setMqttSettings((prev) => ({
+                              ...prev,
+                              port: typeof val === "number" ? val : 0,
+                            }));
                           }}
                           label={t("settings.mqtt.port")}
                           placeholder="1883"

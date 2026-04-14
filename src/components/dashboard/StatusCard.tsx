@@ -18,7 +18,14 @@ interface StatusCardProps {
   children?: ReactNode;
 }
 
-export function StatusCard({ title, description, status, statusLabel, icon, children }: StatusCardProps) {
+export function StatusCard({
+  title,
+  description,
+  status,
+  statusLabel,
+  icon,
+  children,
+}: StatusCardProps) {
   const color =
     status === "success"
       ? "green"
@@ -39,11 +46,9 @@ export function StatusCard({ title, description, status, statusLabel, icon, chil
       <IconRefresh size={20} className="mantine-rotate-animation" />
     );
 
-  const defaultIcon = icon ?? (title.toLowerCase().includes("modbus") ? (
-    <IconNetwork size={18} />
-  ) : (
-    <IconServer size={18} />
-  ));
+  const defaultIcon =
+    icon ??
+    (title.toLowerCase().includes("modbus") ? <IconNetwork size={18} /> : <IconServer size={18} />);
 
   return (
     <Card shadow="sm" p="lg" withBorder radius="md">

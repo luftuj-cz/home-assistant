@@ -235,7 +235,11 @@ export function AppLayout() {
                         }}
                       />
                     )}
-                    <Group gap={4} wrap="nowrap" style={{ position: "relative", zIndex: 2, pointerEvents: "auto" }}>
+                    <Group
+                      gap={4}
+                      wrap="nowrap"
+                      style={{ position: "relative", zIndex: 2, pointerEvents: "auto" }}
+                    >
                       {navItems.map((item) => {
                         const active = isActive(item.to);
                         const IconComponent = item.icon;
