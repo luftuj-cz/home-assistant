@@ -3,6 +3,7 @@ import {
   createTheme,
   localStorageColorSchemeManager,
   useMantineColorScheme,
+  type MantineColorsTuple,
 } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { RouterProvider } from "@tanstack/react-router";
@@ -17,25 +18,36 @@ import { resolveApiUrl } from "./utils/api";
 
 const logger = createLogger("App");
 
+const luftBlue: MantineColorsTuple = [
+  "#dffbff",
+  "#caf2ff",
+  "#99e2ff",
+  "#64d2ff",
+  "#3cc4fe",
+  "#23bcfe",
+  "#00b5ff",
+  "#00a1e4",
+  "#008fcd",
+  "#007cb6",
+];
+
 const theme = createTheme({
-  primaryColor: "blue",
+  primaryColor: "luftBlue",
   defaultRadius: "md",
   cursorType: "pointer",
   colors: {
-    blue: [
-      "#e7f5ff",
-      "#d0ebff",
-      "#a5d8ff",
-      "#74c0fc",
-      "#4dabf7",
-      "#339af0",
-      "#228be6",
-      "#1c7ed6",
-      "#1971c2",
-      "#1864ab",
-    ],
+    luftBlue,
   },
   components: {
+    ThemeIcon: {
+      styles: {
+        root: {
+          "&[data-variant='light']": {
+            backgroundColor: "rgba(255, 255, 255, 0.08) !important",
+          },
+        },
+      },
+    },
     Notification: {
       styles: {
         root: {
@@ -43,9 +55,9 @@ const theme = createTheme({
           padding: "var(--mantine-spacing-md)",
           borderRadius: "var(--mantine-radius-xl)",
           overflow: "hidden",
-          border: "1.5px solid rgba(255, 255, 255, 0.5)",
+          border: "1.5px solid var(--mantine-color-default-border)",
           backgroundColor: "rgba(var(--mantine-color-body-rgb), 0.95)",
-          boxShadow: "0 15px 45px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255, 255, 255, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.2)",
+          boxShadow: "0 15px 45px rgba(0, 0, 0, 0.3), 0 0 0 2px var(--mantine-color-default-hover), inset 0 0 0 1px var(--mantine-color-default-hover)",
         },
         icon: {
           width: 40,

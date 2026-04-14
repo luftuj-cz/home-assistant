@@ -34,7 +34,7 @@ export function TimelineEventModal({
       onClose={onClose}
       title={
         <Group gap="xs">
-          <IconCalendar size={20} color="var(--mantine-primary-color-5)" />
+          <IconCalendar size={20} color="var(--mantine-color-luftBlue-5)" />
           <Text fw={600}>{t("settings.timeline.modal.title")}</Text>
         </Group>
       }

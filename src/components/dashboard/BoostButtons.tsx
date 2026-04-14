@@ -339,7 +339,7 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                       height: 22,
                       display: activeBoost ? "none" : "block",
                     },
-                    track: { backgroundColor: "rgba(255,255,255,0.15)" },
+                    track: { backgroundColor: "var(--mantine-color-default-hover)" },
                   }}
                 />
               )}

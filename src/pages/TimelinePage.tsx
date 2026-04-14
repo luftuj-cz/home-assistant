@@ -111,7 +111,7 @@ export function TimelinePage() {
       <Stack gap="xl">
         <Stack gap={0}>
           <div style={{ display: "flex", gap: "var(--mantine-spacing-sm)", alignItems: "center" }}>
-            <IconCalendar size={32} color="var(--mantine-primary-color-5)" />
+            <IconCalendar size={32} color="var(--mantine-color-luftBlue-5)" />
             <Title order={1}>{t("settings.timeline.title")}</Title>
           </div>
           <Text size="lg" c="dimmed" mt="xs">

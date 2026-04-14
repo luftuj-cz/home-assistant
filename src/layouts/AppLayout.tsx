@@ -38,7 +38,7 @@ import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useDisclosure } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useEffect } from "react";
+import { useMemo, useEffect, useRef, useState } from "react";
 import logoFullLight from "../assets/logo-full-light.svg";
 import logoFullDark from "../assets/logo-full-dark.svg";
 import logoMarkLight from "../assets/logo-mark-light.svg";
@@ -52,6 +52,9 @@ export function AppLayout() {
   const navigate = useNavigate();
   const footerLink = import.meta.env.VITE_FOOTER_LINK ?? "https://www.luftuj.cz/";
   const computedColorScheme = useComputedColorScheme("light", { getInitialValueInEffect: true });
+  const buttonRefs = useRef<Map<string, HTMLElement>>(new Map());
+  const [buttonOffset, setButtonOffset] = useState<number>(0);
+  const [buttonWidth, setButtonWidth] = useState<number>(0);
 
   const logoFull = computedColorScheme === "dark" ? logoFullDark : logoFullLight;
   const logoMark = computedColorScheme === "dark" ? logoMarkDark : logoMarkLight;
@@ -113,6 +116,32 @@ export function AppLayout() {
   function isActive(to: string) {
     return location.pathname === to;
   }
+
+  const activeIndex = navItems.findIndex((item) => isActive(item.to));
+
+  useEffect(() => {
+    const activeRoute = navItems.find((item) => isActive(item.to));
+    if (!activeRoute) {
+      setButtonOffset(0);
+      setButtonWidth(0);
+      return;
+    }
+
+    const activeButton = buttonRefs.current.get(activeRoute.to);
+    if (!activeButton || !activeButton.parentElement) {
+      setButtonOffset(0);
+      setButtonWidth(0);
+      return;
+    }
+
+    const containerRect = activeButton.parentElement.getBoundingClientRect();
+    const buttonRect = activeButton.getBoundingClientRect();
+    const offset = buttonRect.left - containerRect.left;
+    const width = buttonRect.width;
+
+    setButtonOffset(offset);
+    setButtonWidth(width);
+  }, [activeIndex]);
 
   return (
     <AppShell
@@ -177,69 +206,87 @@ export function AppLayout() {
                     zIndex: 1,
                   }}
                 >
-                  <Group gap={4} wrap="nowrap">
-                    {navItems.map((item) => {
-                      const active = isActive(item.to);
-                      const IconComponent = item.icon;
-                      return (
-                        <Button
-                          key={item.to}
-                          component={Link}
-                          to={item.to}
-                          variant="subtle"
-                          size="sm"
-                          radius="md"
-                          leftSection={
-                            <motion.div
-                              animate={{
-                                scale: active ? 1.1 : 1,
+                  <div style={{ position: "relative" }}>
+                    {activeIndex >= 0 && (
+                      <motion.div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: buttonOffset,
+                          right: "auto",
+                          bottom: 0,
+                          width: buttonWidth,
+                          backgroundColor: "var(--mantine-color-default-hover)",
+                          borderRadius: "var(--mantine-radius-md)",
+                          border: "1px solid var(--mantine-color-default-border)",
+                          boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
+                          pointerEvents: "none",
+                        }}
+                        animate={{
+                          left: buttonOffset,
+                          width: buttonWidth,
+                        }}
+                        transition={{
+                          type: "spring",
+                          stiffness: 500,
+                          damping: 40,
+                          mass: 0.8,
+                        }}
+                      />
+                    )}
+                    <Group gap={4} wrap="nowrap" style={{ position: "relative", zIndex: 2 }}>
+                      {navItems.map((item) => {
+                        const active = isActive(item.to);
+                        const IconComponent = item.icon;
+                        return (
+                          <Button
+                            key={item.to}
+                            ref={(el) => {
+                              if (el) {
+                                buttonRefs.current.set(item.to, el);
+                              }
+                            }}
+                            component={Link}
+                            to={item.to}
+                            variant="subtle"
+                            size="sm"
+                            radius="md"
+                            leftSection={
+                              <motion.div
+                                animate={{
+                                  scale: active ? 1.1 : 1,
+                                  color: active
+                                    ? "var(--mantine-color-primary-filled)"
+                                    : "var(--mantine-color-dimmed)",
+                                }}
+                                transition={{
+                                  type: "spring",
+                                  stiffness: 500,
+                                  damping: 35,
+                                }}
+                              >
+                                <IconComponent size={18} stroke={active ? 2.5 : 2} />
+                              </motion.div>
+                            }
+                            styles={{
+                              root: {
+                                fontWeight: active ? 700 : 500,
+                                transition: "color 0.3s ease, font-weight 0.3s ease",
+                                border: "none",
+                                backgroundColor: "transparent",
+                                position: "relative",
                                 color: active
-                                  ? "var(--mantine-color-primary-filled)"
+                                  ? "var(--mantine-color-text)"
                                   : "var(--mantine-color-dimmed)",
-                              }}
-                              transition={{ duration: 0.2 }}
-                            >
-                              <IconComponent size={18} stroke={active ? 2.5 : 2} />
-                            </motion.div>
-                          }
-                          styles={{
-                            root: {
-                              fontWeight: active ? 700 : 500,
-                              transition: "color 0.2s ease",
-                              border: "none",
-                              backgroundColor: "transparent",
-                              position: "relative",
-                              zIndex: 2,
-                              color: active
-                                ? "var(--mantine-color-text)"
-                                : "var(--mantine-color-dimmed)",
-                            },
-                          }}
-                        >
-                          <Box style={{ position: "relative", zIndex: 2 }}>{item.label}</Box>
-                          {active && (
-                            <motion.div
-                              layoutId="nav-active-pill"
-                              style={{
-                                position: "absolute",
-                                inset: 0,
-                                backgroundColor: "rgba(255, 255, 255, 0.08)",
-                                borderRadius: "var(--mantine-radius-md)",
-                                zIndex: 1,
-                                border: "1px solid rgba(255, 255, 255, 0.1)",
-                                boxShadow: "0 4px 12px rgba(0, 0, 0, 0.2)",
-                              }}
-                              transition={{
-                                type: "spring",
-                                stiffness: 380,
-                                damping: 30,
-                              }}
-                            />
-                          )}
-                        </Button>
-                      );
-                    })}
-                  </Group>
+                              },
+                            }}
+                          >
+                            <Box style={{ position: "relative", zIndex: 2 }}>{item.label}</Box>
+                          </Button>
+                        );
+                      })}
+                    </Group>
+                  </div>
                 </Paper>
               </Group>
             )}
@@ -358,7 +405,7 @@ export function AppLayout() {
         >
           <Container size="xl">
             <Stack gap="xl">
-              <Grid gutter="xl" align="flex-start">
+              <Grid gap="xl" align="flex-start">
                 <Grid.Col span={{ base: 12, md: 4 }} order={{ base: 2, md: 1 }}>
                   <Stack gap="sm" align="center">
                     <Text fw={700} size="xs" tt="uppercase" lts={1.2} c="dimmed" ta="center" mb={4}>

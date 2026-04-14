@@ -57,7 +57,7 @@ export function TimelineModeList({
             withBorder
             radius="lg"
             p="md"
-            style={{ backgroundColor: "rgba(255, 255, 255, 0.05)", backdropFilter: "blur(10px)" }}
+            style={{ backgroundColor: "var(--mantine-color-default)", backdropFilter: "blur(10px)" }}
           >
             <Stack align="center" gap="xs">
               <Text size="sm" c="dimmed">
