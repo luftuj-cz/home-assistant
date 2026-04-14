@@ -204,9 +204,10 @@ export function AppLayout() {
                     border: "1px solid var(--mantine-color-default-border)",
                     position: "relative",
                     zIndex: 1,
+                    pointerEvents: "auto",
                   }}
                 >
-                  <div style={{ position: "relative" }}>
+                  <div style={{ position: "relative", pointerEvents: "auto" }}>
                     {activeIndex >= 0 && (
                       <motion.div
                         style={{
@@ -234,7 +235,7 @@ export function AppLayout() {
                         }}
                       />
                     )}
-                    <Group gap={4} wrap="nowrap" style={{ position: "relative", zIndex: 2 }}>
+                    <Group gap={4} wrap="nowrap" style={{ position: "relative", zIndex: 2, pointerEvents: "auto" }}>
                       {navItems.map((item) => {
                         const active = isActive(item.to);
                         const IconComponent = item.icon;
@@ -278,6 +279,8 @@ export function AppLayout() {
                                 color: active
                                   ? "var(--mantine-color-text)"
                                   : "var(--mantine-color-dimmed)",
+                                pointerEvents: "auto",
+                                cursor: "pointer",
                               },
                             }}
                           >

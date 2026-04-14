@@ -1,4 +1,5 @@
 import {
+  CopyButton,
   Modal,
   Stack,
   TextInput,
@@ -29,12 +30,14 @@ import {
 } from "@tabler/icons-react";
 import { useEffect, useState, useRef } from "react";
 import { useMediaQuery } from "@mantine/hooks";
+import { useQuery } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
 import type { Mode } from "../../types/timeline";
 import type { Valve } from "../../types/valve";
 import { cancelBoost, testTimelineMode } from "../../api/timeline";
 import { notifications } from "@mantine/notifications";
 import type { HruVariable, LocalizedText } from "../../api/hru";
+import { resolveApiUrl } from "../../utils/api";
 
 interface TimelineModeModalProps {
   opened: boolean;
@@ -77,6 +80,18 @@ export function TimelineModeModal({
   const [submitted, setSubmitted] = useState(false);
   const [testRemainingSeconds, setTestRemainingSeconds] = useState<number | null>(null);
   const testTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const { data: debugMode } = useQuery({
+    queryKey: ["debug-mode-check"],
+    queryFn: async () => {
+      const res = await fetch(resolveApiUrl("/api/settings/debug-mode"));
+      if (!res.ok) return { enabled: false };
+      return (await res.json()) as { enabled: boolean };
+    },
+    refetchOnWindowFocus: false,
+  });
+
+  const showCopyButton = mode !== null || debugMode?.enabled;
 
   function getLocalizedText(text: LocalizedText): string {
     if (typeof text === "string") return t(text, { defaultValue: text });
@@ -422,16 +437,27 @@ export function TimelineModeModal({
                 return (
                   <Stack key={key} gap={0}>
                     <Group justify="space-between" mb={4}>
-                      <div>
+                      <Stack gap={0}>
                         <Text size="sm" fw={500} lh={1.2}>
                           {name}
                         </Text>
                         {entityId && (
-                          <Text size="xs" c="dimmed">
-                            {entityId}
-                          </Text>
+                          <Group gap={6} align="center">
+                            <Text size="xs" c="dimmed">
+                              {entityId}
+                            </Text>
+                            {showCopyButton && (
+                              <CopyButton value={entityId}>
+                                {({ copied, copy }) => (
+                                  <Button color={copied ? "teal" : "gray"} size="xs" variant="subtle" onClick={copy}>
+                                    {copied ? "Copied" : "Copy"}
+                                  </Button>
+                                )}
+                              </CopyButton>
+                            )}
+                          </Group>
                         )}
-                      </div>
+                      </Stack>
                       <Badge variant="light" color={statusColor}>
                         {badgeText}
                       </Badge>

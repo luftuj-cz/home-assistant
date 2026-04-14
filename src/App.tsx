@@ -39,15 +39,6 @@ const theme = createTheme({
     luftBlue,
   },
   components: {
-    ThemeIcon: {
-      styles: {
-        root: {
-          "&[data-variant='light']": {
-            backgroundColor: "rgba(255, 255, 255, 0.08) !important",
-          },
-        },
-      },
-    },
     Notification: {
       styles: {
         root: {

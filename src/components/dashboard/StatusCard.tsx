@@ -1,4 +1,4 @@
-import { Badge, Card, Group, Text, Title, ThemeIcon } from "@mantine/core";
+import { Badge, Card, Group, Stack, Text, Title, ThemeIcon } from "@mantine/core";
 import {
   IconCheck,
   IconAlertTriangle,
@@ -14,10 +14,11 @@ interface StatusCardProps {
   description: string;
   status: "success" | "warning" | "error" | "neutral";
   statusLabel: string;
+  icon?: ReactNode;
   children?: ReactNode;
 }
 
-export function StatusCard({ title, description, status, statusLabel, children }: StatusCardProps) {
+export function StatusCard({ title, description, status, statusLabel, icon, children }: StatusCardProps) {
   const color =
     status === "success"
       ? "green"
@@ -27,7 +28,7 @@ export function StatusCard({ title, description, status, statusLabel, children }
           ? "red"
           : "gray";
 
-  const icon =
+  const statusIcon =
     status === "success" ? (
       <IconCheck size={20} />
     ) : status === "warning" ? (
@@ -38,35 +39,35 @@ export function StatusCard({ title, description, status, statusLabel, children }
       <IconRefresh size={20} className="mantine-rotate-animation" />
     );
 
-  const connectivityIcon = title.toLowerCase().includes("modbus") ? (
+  const defaultIcon = icon ?? (title.toLowerCase().includes("modbus") ? (
     <IconNetwork size={18} />
   ) : (
     <IconServer size={18} />
-  );
+  ));
 
   return (
     <Card shadow="sm" p="lg" withBorder radius="md">
       <Group justify="space-between" align="flex-start">
         <Group gap="xs">
           <ThemeIcon color={color} variant="light" size={32} radius="md">
-            {connectivityIcon}
+            {defaultIcon}
           </ThemeIcon>
-          <div>
+          <Stack gap={0}>
             <Title order={4}>{title}</Title>
             <Text size="xs" c="dimmed">
               {description}
             </Text>
-          </div>
+          </Stack>
         </Group>
-        <Badge color={color} variant="light" size="lg" radius="sm" leftSection={icon}>
+        <Badge color={color} variant="light" size="lg" radius="sm" leftSection={statusIcon}>
           {statusLabel}
         </Badge>
       </Group>
 
       {children && (
-        <Card shadow="none" p="md" withBorder radius="md" variant="light" mt="md">
+        <Card.Section withBorder inheritPadding mt="md" p="md">
           {children}
-        </Card>
+        </Card.Section>
       )}
     </Card>
   );

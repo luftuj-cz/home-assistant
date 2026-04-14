@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { type HruUnit } from "../api/hru";
 import {
+  Alert,
+  Badge,
   Button,
   FileButton,
   Group,
@@ -21,6 +23,7 @@ import {
   Divider,
 } from "@mantine/core";
 import {
+  IconAlertCircle,
   IconDownload,
   IconUpload,
   IconLanguage,
@@ -788,14 +791,14 @@ export function SettingsPage() {
                         {t("settings.hru.probe")}
                       </Button>
                       {probeStatus === "success" && (
-                        <Text c="green" size="sm" fw={500}>
+                        <Badge color="green" variant="light">
                           {t("settings.hru.probeSuccess")}
-                        </Text>
+                        </Badge>
                       )}
                       {probeStatus === "error" && (
-                        <Text c="red" size="sm" fw={500}>
+                        <Alert color="red" variant="light" withCloseButton title={t("settings.hru.probe")} icon={<IconAlertCircle size={16} />}>
                           {probeError || t("settings.hru.notifications.unknown")}
-                        </Text>
+                        </Alert>
                       )}
                     </Group>
                   </Stack>
@@ -844,18 +847,15 @@ export function SettingsPage() {
                           }
                           size="md"
                         />
-                        <TextInput
-                          value={mqttSettings.port.toString()}
-                          onChange={(e) => {
-                            const val = e.target.value;
-                            // Allow digits only
-                            if (val === "" || /^\d+$/.test(val)) {
-                              const num = Number(val);
-                              setMqttSettings((prev) => ({ ...prev, port: num }));
-                            }
+                        <NumberInput
+                          value={mqttSettings.port}
+                          onChange={(val) => {
+                            setMqttSettings((prev) => ({ ...prev, port: typeof val === "number" ? val : 0 }));
                           }}
                           label={t("settings.mqtt.port")}
                           placeholder="1883"
+                          min={1}
+                          max={65535}
                           error={
                             mqttSettings.enabled &&
                             (mqttSettings.port <= 0 || mqttSettings.port > 65535)
@@ -1049,6 +1049,8 @@ export function SettingsPage() {
                         }))}
                         size="sm"
                         w={120}
+                        searchable
+                        allowDeselect={false}
                       />
                     </Group>
                   </Stack>

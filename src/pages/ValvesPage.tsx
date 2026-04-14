@@ -4,11 +4,12 @@ import {
   Alert,
   Container,
   Group,
-  Loader,
   SimpleGrid,
+  Skeleton,
   Stack,
   Text,
   Title,
+  Tooltip,
 } from "@mantine/core";
 import { IconRefresh, IconAdjustments, IconAlertCircle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
@@ -384,18 +385,20 @@ export function ValvesPage() {
         <Stack gap={0}>
           <Group justify="space-between" align="center">
             <Group gap="sm">
-              <IconAdjustments size={32} color="var(--mantine-primary-color-5)" />
+              <IconAdjustments size={32} color="var(--mantine-color-luftBlue-5)" />
               <Title order={1}>{t("valves.title")}</Title>
             </Group>
-            <ActionIcon
-              variant="light"
-              color="blue"
-              onClick={fetchSnapshot}
-              aria-label={t("valves.refreshAria")}
-              size="lg"
-            >
-              <IconRefresh size={20} stroke={1.8} />
-            </ActionIcon>
+            <Tooltip label={t("valves.refreshAria")}>
+              <ActionIcon
+                variant="light"
+                color="blue"
+                onClick={fetchSnapshot}
+                aria-label={t("valves.refreshAria")}
+                size="lg"
+              >
+                <IconRefresh size={20} stroke={1.8} />
+              </ActionIcon>
+            </Tooltip>
           </Group>
           <Text size="lg" c="dimmed" mt="xs">
             {t("valves.description")}
@@ -451,14 +454,11 @@ export function ValvesPage() {
         )}
 
         {loading || (valves.length === 0 && !gracePeriodExpired) ? (
-          <Group justify="center" align="center" h={240}>
-            <Loader color="blue" size="lg" />
-            {!loading && (
-              <Text size="sm" c="dimmed" ml="md">
-                {t("valves.waiting")}
-              </Text>
-            )}
-          </Group>
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+            <Skeleton height={200} radius="md" />
+            <Skeleton height={200} radius="md" />
+            <Skeleton height={200} radius="md" />
+          </SimpleGrid>
         ) : valves.length === 0 ? (
           <Alert color="yellow" title={t("valves.warningTitle")}>
             {t("valves.empty")}
