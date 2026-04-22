@@ -453,6 +453,21 @@
       "lastDiscovery": "Last refresh: {{time}}"
     }
   },
+  "apiErrors": {
+    "DUPLICATE_EVENT_TIME": "An event already exists at this time for the selected day",
+    "DUPLICATE_MODE_NAME": "Mode name already exists for this unit",
+    "POWER_LIMIT_EXCEEDED": "Power exceeds the allowed limit for this unit",
+    "INVALID_MODE_ID": "Invalid mode ID",
+    "MODE_NOT_FOUND": "Mode not found",
+    "INVALID_EVENT_ID": "Invalid event ID",
+    "HRU_NOT_CONFIGURED": "HRU unit is not configured",
+    "HRU_CONNECTION_ERROR": "Failed to connect to the HRU unit",
+    "MQTT_TEST_FAILED": "MQTT connection test failed",
+    "HRU_HOST_REQUIRED": "Host is required",
+    "UNKNOWN_HRU_UNIT": "Unknown HRU unit",
+    "MAX_POWER_REQUIRED": "Max power is required for the selected unit",
+    "MAX_POWER_EXCEEDED": "Maximum power exceeds the allowed limit for this unit"
+  },
   "errors": {
     "i18n": {
       "title": "Translation initialisation failed",

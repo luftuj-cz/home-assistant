@@ -19,24 +19,24 @@ export function useDayCopyPaste(
 
   useEffect(() => {
     if (copyDay !== null) {
-      const message = Stack({
-        children: [
-          Text({ size: "xs", children: t("settings.timeline.copyHint") }),
-          Button({
-            size: "compact-xs",
-            variant: "light",
-            color: "gray",
-            fullWidth: true,
-            onClick: () => setCopyDay(null),
-            children: t("settings.timeline.modal.cancel"),
-          }),
-        ],
-        gap: "xs",
-      });
+      const message = (
+        <Stack gap="xs">
+          <Text size="xs">{t("settings.timeline.copyHint")}</Text>
+          <Button
+            size="compact-xs"
+            variant="light"
+            color="gray"
+            fullWidth
+            onClick={() => setCopyDay(null)}
+          >
+            {t("settings.timeline.modal.cancel")}
+          </Button>
+        </Stack>
+      );
 
       notifications.show({
         id: "copy-hint",
-        icon: IconCopy({ size: 16 }),
+        icon: <IconCopy size={16} />,
         title: t("settings.timeline.copying", {
           day: dayLabels[copyDay],
         }),

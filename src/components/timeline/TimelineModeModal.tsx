@@ -38,6 +38,7 @@ import { cancelBoost, testTimelineMode } from "../../api/timeline";
 import { notifications } from "@mantine/notifications";
 import type { HruVariable, LocalizedText } from "../../api/hru";
 import { resolveApiUrl } from "../../utils/api";
+import { translateApiError } from "../../utils/apiError";
 
 interface TimelineModeModalProps {
   opened: boolean;
@@ -226,7 +227,7 @@ export function TimelineModeModal({
       .catch((err) => {
         notifications.show({
           title: t("valves.alertTitle"),
-          message: err.message || t("settings.timeline.notifications.unknown"),
+          message: translateApiError(err, t),
           color: "red",
         });
       });

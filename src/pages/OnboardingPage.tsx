@@ -46,6 +46,7 @@ import { useMantineColorScheme } from "@mantine/core";
 import { createLogger } from "../utils/logger";
 import { isSupportedLanguage, setLanguage } from "../i18n";
 import { resolveApiUrl } from "../utils/api";
+import { parseApiError, translateApiError } from "../utils/apiError";
 
 const logger = createLogger("OnboardingPage");
 
@@ -357,10 +358,7 @@ export function OnboardingPage() {
         headers: { "Content-Type": "application/octet-stream" },
         body: buffer,
       });
-      if (!res.ok) {
-        const detail = await res.text().catch(() => "");
-        throw new Error(detail || "Import failed");
-      }
+      if (!res.ok) throw await parseApiError(res);
       // Mark onboarding as done
       const finish = await fetch(resolveApiUrl("/api/settings/onboarding-finish"), {
         method: "POST",
@@ -369,7 +367,7 @@ export function OnboardingPage() {
     },
     onSuccess: async () => {
       notifications.show({
-        title: "Success",
+        title: t("settings.database.notifications.importSuccessTitle"),
         message: t("onboarding.welcome.importSuccess"),
         color: "green",
       });
@@ -379,7 +377,7 @@ export function OnboardingPage() {
     onError: (error) => {
       notifications.show({
         title: t("onboarding.welcome.importError"),
-        message: (error as Error).message,
+        message: translateApiError(error, t),
         color: "red",
       });
       logger.error("Failed to import database", { error });

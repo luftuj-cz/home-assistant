@@ -26,6 +26,7 @@ import type { Mode } from "../../types/timeline";
 import { activateBoost, cancelBoost, fetchActiveBoost } from "../../api/timeline";
 import { notifications } from "@mantine/notifications";
 import { createLogger } from "../../utils/logger";
+import { translateApiError } from "../../utils/apiError";
 
 const logger = createLogger("BoostButtons");
 
@@ -117,11 +118,9 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
       });
     } catch (err) {
       logger.error("Failed to activate boost mode", { modeId, duration, error: err });
-      const message =
-        err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
       notifications.show({
         title: t("valves.alertTitle"),
-        message,
+        message: translateApiError(err, t),
         color: "red",
       });
     } finally {
@@ -139,11 +138,9 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
       logger.info("Boost mode cancelled successfully");
     } catch (err) {
       logger.error("Failed to cancel boost mode", { error: err });
-      const message =
-        err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
       notifications.show({
         title: t("valves.alertTitle"),
-        message,
+        message: translateApiError(err, t),
         color: "red",
       });
     } finally {

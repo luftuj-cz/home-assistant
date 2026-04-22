@@ -4,6 +4,7 @@ import type { TFunction } from "i18next";
 import type { TimelineEvent, Mode } from "../types/timeline";
 import * as api from "../api/timeline";
 import { createLogger } from "../utils/logger";
+import { translateApiError } from "../utils/apiError";
 
 const logger = createLogger("useTimelineEvents");
 
@@ -104,10 +105,7 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
         });
         notifications.show({
           title: t("settings.timeline.notifications.saveFailedTitle"),
-          message:
-            err instanceof Error
-              ? err.message
-              : t("settings.timeline.notifications.saveFailedMessage"),
+          message: translateApiError(err, t),
           color: "red",
         });
         return false;
@@ -128,10 +126,7 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
         logger.error("Failed to delete timeline event", { error: err, id });
         notifications.show({
           title: t("settings.timeline.notifications.deleteFailedTitle"),
-          message:
-            err instanceof Error
-              ? err.message
-              : t("settings.timeline.notifications.deleteFailedMessage"),
+          message: translateApiError(err, t),
           color: "red",
         });
       }

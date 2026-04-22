@@ -462,6 +462,21 @@
       "unavailable": "Některé klapky jsou v Home Assistantu nedostupné. Zobrazované hodnoty mohou být zastaralé."
     }
   },
+  "apiErrors": {
+    "DUPLICATE_EVENT_TIME": "Událost pro tento čas v daný den již existuje",
+    "DUPLICATE_MODE_NAME": "Název režimu pro tuto jednotku již existuje",
+    "POWER_LIMIT_EXCEEDED": "Výkon překračuje povolený limit pro tuto jednotku",
+    "INVALID_MODE_ID": "Neplatné ID režimu",
+    "MODE_NOT_FOUND": "Režim nebyl nalezen",
+    "INVALID_EVENT_ID": "Neplatné ID události",
+    "HRU_NOT_CONFIGURED": "Rekuperační jednotka není nakonfigurována",
+    "HRU_CONNECTION_ERROR": "Nepodařilo se připojit k rekuperační jednotce",
+    "MQTT_TEST_FAILED": "Test MQTT připojení selhal",
+    "HRU_HOST_REQUIRED": "Host je povinný",
+    "UNKNOWN_HRU_UNIT": "Neznámá rekuperační jednotka",
+    "MAX_POWER_REQUIRED": "Maximální výkon je povinný pro vybranou jednotku",
+    "MAX_POWER_EXCEEDED": "Maximální výkon překračuje povolený limit pro tuto jednotku"
+  },
   "errors": {
     "i18n": {
       "title": "Inicializace překladů selhala",

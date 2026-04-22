@@ -39,6 +39,7 @@ import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
 import { resolveApiUrl } from "../utils/api";
+import { parseApiError, translateApiError } from "../utils/apiError";
 import {
   createLogger,
   getLogLevel,
@@ -157,12 +158,7 @@ export function SettingsPage() {
       } catch (persistError) {
         notifications.show({
           title: t("settings.language.notifications.failedTitle"),
-          message: t("settings.language.notifications.failedMessage", {
-            message:
-              persistError instanceof Error
-                ? persistError.message
-                : t("settings.language.notifications.unknown"),
-          }),
+          message: t("settings.language.notifications.unknown"),
           color: "red",
         });
       } finally {
@@ -255,11 +251,11 @@ export function SettingsPage() {
       });
 
       if (!response.ok) {
-        const detail = await response.text();
-        logger.error("Failed to save MQTT settings", { status: response.status, detail });
+        const err = await parseApiError(response);
+        logger.error("Failed to save MQTT settings", { status: response.status, detail: err.message });
         notifications.show({
           title: t("settings.mqtt.notifications.saveFailedTitle"),
-          message: t("settings.mqtt.notifications.saveFailedMessage", { message: detail }),
+          message: translateApiError(err, t),
           color: "red",
         });
         return;
@@ -277,10 +273,7 @@ export function SettingsPage() {
       logger.error("Failed to save MQTT settings", { error });
       notifications.show({
         title: t("settings.mqtt.notifications.saveFailedTitle"),
-        message: t("settings.mqtt.notifications.saveFailedMessage", {
-          message:
-            error instanceof Error ? error.message : t("settings.mqtt.notifications.unknown"),
-        }),
+        message: t("settings.mqtt.notifications.unknown"),
         color: "red",
       });
     } finally {
@@ -298,19 +291,11 @@ export function SettingsPage() {
       });
 
       if (!response.ok) {
-        const detail = await response.text();
-        let errorMessage = detail;
-        try {
-          const json = JSON.parse(detail);
-          errorMessage = json.detail || detail;
-        } catch {
-          // ignore
-        }
-
-        logger.error("MQTT connection test failed", { status: response.status, detail });
+        const err = await parseApiError(response);
+        logger.error("MQTT connection test failed", { status: response.status, detail: err.message });
         notifications.show({
           title: t("settings.mqtt.notifications.testFailedTitle"),
-          message: errorMessage,
+          message: translateApiError(err, t),
           color: "red",
         });
         return;
@@ -325,7 +310,7 @@ export function SettingsPage() {
       logger.error("MQTT connection test failed", { error });
       notifications.show({
         title: t("settings.mqtt.notifications.testFailedTitle"),
-        message: error instanceof Error ? error.message : t("settings.mqtt.notifications.unknown"),
+        message: t("settings.mqtt.notifications.unknown"),
         color: "red",
       });
     } finally {
@@ -347,11 +332,11 @@ export function SettingsPage() {
         body: JSON.stringify(hruSettings),
       });
       if (!response.ok) {
-        const detail = await response.text();
-        logger.error("Failed to save HRU settings", { status: response.status, detail });
+        const err = await parseApiError(response);
+        logger.error("Failed to save HRU settings", { status: response.status, detail: err.message });
         notifications.show({
           title: t("settings.hru.notifications.saveFailedTitle"),
-          message: t("settings.hru.notifications.saveFailedMessage", { message: detail }),
+          message: translateApiError(err, t),
           color: "red",
         });
         return;
@@ -369,9 +354,7 @@ export function SettingsPage() {
       logger.error("Failed to save HRU settings", { error });
       notifications.show({
         title: t("settings.hru.notifications.saveFailedTitle"),
-        message: t("settings.hru.notifications.saveFailedMessage", {
-          message: error instanceof Error ? error.message : t("settings.hru.notifications.unknown"),
-        }),
+        message: t("settings.hru.notifications.unknown"),
         color: "red",
       });
     } finally {
@@ -442,9 +425,7 @@ export function SettingsPage() {
         });
         notifications.show({
           title: t("settings.database.notifications.exportFailedTitle"),
-          message: t("settings.database.notifications.exportFailedMessage", {
-            message: response.statusText || t("settings.database.notifications.unknown"),
-          }),
+          message: t("settings.database.notifications.unknown"),
           color: "red",
         });
         return;
@@ -466,12 +447,7 @@ export function SettingsPage() {
       logger.error("Database export failed", { error: exportError });
       notifications.show({
         title: t("settings.database.notifications.exportFailedTitle"),
-        message: t("settings.database.notifications.exportFailedMessage", {
-          message:
-            exportError instanceof Error
-              ? exportError.message
-              : t("settings.database.notifications.unknown"),
-        }),
+        message: t("settings.database.notifications.unknown"),
         color: "red",
       });
     }
@@ -498,18 +474,15 @@ export function SettingsPage() {
       );
 
       if (!response.ok) {
-        const text = await response.text();
-        const detail = text || "Import failed";
+        const err = await parseApiError(response);
         logger.error("Database import failed with non-OK response", {
           status: response.status,
           statusText: response.statusText,
-          detail,
+          detail: err.message,
         });
         notifications.show({
           title: t("settings.database.notifications.importFailedTitle"),
-          message: t("settings.database.notifications.importFailedMessage", {
-            message: detail || t("settings.database.notifications.unknown"),
-          }),
+          message: translateApiError(err, t),
           color: "red",
         });
         return;
@@ -527,12 +500,7 @@ export function SettingsPage() {
       logger.error("Database import failed", { error: importError });
       notifications.show({
         title: t("settings.database.notifications.importFailedTitle"),
-        message: t("settings.database.notifications.importFailedMessage", {
-          message:
-            importError instanceof Error
-              ? importError.message
-              : t("settings.database.notifications.unknown"),
-        }),
+        message: t("settings.database.notifications.unknown"),
         color: "red",
       });
     } finally {
