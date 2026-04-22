@@ -12,7 +12,7 @@ import {
   Tabs,
   Title,
 } from "@mantine/core";
-import { IconAlertCircle, IconCopy, IconRefresh } from "@tabler/icons-react";
+import { IconAlertCircle, IconCopy, IconPlayerStop, IconRefresh } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -185,6 +185,7 @@ export function DebugPage() {
   const [haApiErrorMessage, setHaApiErrorMessage] = useState<string | null>(null);
   const [discoveryRefreshing, setDiscoveryRefreshing] = useState(false);
   const [overrideStopping, setOverrideStopping] = useState(false);
+  const [schedulerRestarting, setSchedulerRestarting] = useState(false);
   const logsViewportRef = useRef<HTMLDivElement | null>(null);
 
   async function loadDebugSnapshot(initialLoad: boolean): Promise<void> {
@@ -314,6 +315,26 @@ export function DebugPage() {
       console.error("Failed to stop timeline override", error);
     } finally {
       setOverrideStopping(false);
+    }
+  }
+
+  async function restartScheduler(): Promise<void> {
+    setSchedulerRestarting(true);
+    try {
+      const response = await fetch(resolveApiUrl("/api/timeline/scheduler/restart"), {
+        method: "POST",
+      });
+      if (response.ok) {
+        // Reload debug snapshot to see updated state
+        void loadDebugSnapshot(false);
+      } else {
+        const detail = (await response.text()).trim();
+        console.error("Failed to restart scheduler", detail || `HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Failed to restart scheduler", error);
+    } finally {
+      setSchedulerRestarting(false);
     }
   }
 
@@ -773,12 +794,24 @@ export function DebugPage() {
                 <Button
                   color="orange"
                   variant="light"
+                  leftSection={<IconPlayerStop size={16} />}
                   loading={overrideStopping}
                   onClick={() => {
                     void stopTimelineOverride();
                   }}
                 >
                   {t("debug.stopOverride")}
+                </Button>
+                <Button
+                  color="violet"
+                  variant="light"
+                  leftSection={<IconRefresh size={16} />}
+                  loading={schedulerRestarting}
+                  onClick={() => {
+                    void restartScheduler();
+                  }}
+                >
+                  {t("debug.restartScheduler")}
                 </Button>
                 <Button
                   color="red"

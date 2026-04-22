@@ -546,6 +546,12 @@ export function createTimelineRouter(
     },
   );
 
+  router.post("/scheduler/restart", (_request: Request, response: Response) => {
+    logger.info("Timeline scheduler restart requested via Debug Page");
+    timelineScheduler.restart();
+    response.status(204).end();
+  });
+
   router.post(
     "/test",
     validateRequest(testOverrideInputSchema),
