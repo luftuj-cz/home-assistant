@@ -206,6 +206,20 @@ export function createSettingsRouter(
     },
   );
 
+  router.post(
+    "/mqtt/discovery/refresh",
+    async (_request: Request, response: Response, next: NextFunction) => {
+      try {
+        await mqttService.refreshDiscovery();
+        logger.info("MQTT discovery refresh triggered manually via API");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to refresh MQTT discovery");
+        next(error);
+      }
+    },
+  );
+
   router.get("/hru", (_request: Request, response: Response) => {
     const raw = getAppSetting(HRU_SETTINGS_KEY);
     let value: HruSettings;

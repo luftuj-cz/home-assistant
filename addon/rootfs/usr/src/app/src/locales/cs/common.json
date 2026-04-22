@@ -320,7 +320,6 @@
   "debug": {
     "title": "Ladicí nástroje",
     "description": "Pokročilá diagnostika a inspektor registrů.",
-    "placeholder": "Tato stránka slouží jako základ pro budoucí vývojářské nástroje a ruční inspekci registrů.",
     "backendValues": "Ladicí hodnoty backendu",
     "copyValues": "Kopírovat hodnoty",
     "copySuccess": "Ladicí hodnoty byly zkopírovány do schránky.",
@@ -357,8 +356,7 @@
     },
     "onboardingTools": "Nástroje pro nastavení",
     "resetOnboarding": "Resetovat příznak nastavení",
-    "finishOnboarding": "Dokončit příznak nastavení",
-    "resetOnboardingHint": "Toto nastaví `onboarding.done` na `false` a obnoví stránku, čímž spustí průvodce nastavením."
+    "refreshDiscovery": "Obnovit MQTT discovery"
   },
   "schedule": {
     "title": "Týdenní plán",
