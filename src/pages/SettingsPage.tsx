@@ -1,7 +1,6 @@
 import { useCallback, useMemo, useState, useEffect } from "react";
 import { type HruUnit } from "../api/hru";
 import {
-  Alert,
   Badge,
   Button,
   FileButton,
@@ -23,7 +22,6 @@ import {
   Divider,
 } from "@mantine/core";
 import {
-  IconAlertCircle,
   IconDownload,
   IconUpload,
   IconLanguage,
@@ -79,6 +77,8 @@ export function SettingsPage() {
     user: "",
     password: "",
   });
+  const [mqttStatus, setMqttStatus] = useState<"success" | "error" | null>(null);
+  const [mqttError, setMqttError] = useState<string | null>(null);
   const [debugMode, setDebugMode] = useState(false);
   const [logLevel, setLogLevelState] = useState<LogLevel>(() => getLogLevel());
   const { setColorScheme } = useMantineColorScheme();
@@ -282,6 +282,8 @@ export function SettingsPage() {
   }, [mqttSettings, t]);
 
   const testMqttConnection = useCallback(async () => {
+    setMqttStatus(null);
+    setMqttError(null);
     setTestingMqtt(true);
     try {
       const response = await fetch(resolveApiUrl("/api/settings/mqtt/test"), {
@@ -291,28 +293,20 @@ export function SettingsPage() {
       });
 
       if (!response.ok) {
+        setMqttStatus("error");
         const err = await parseApiError(response);
+        const message = translateApiError(err, t);
+        setMqttError(message);
         logger.error("MQTT connection test failed", { status: response.status, detail: err.message });
-        notifications.show({
-          title: t("settings.mqtt.notifications.testFailedTitle"),
-          message: translateApiError(err, t),
-          color: "red",
-        });
         return;
       }
+      setMqttStatus("success");
       logger.info("MQTT connection test successful");
-      notifications.show({
-        title: t("settings.mqtt.notifications.testSuccessTitle"),
-        message: t("settings.mqtt.notifications.testSuccessMessage"),
-        color: "green",
-      });
     } catch (error) {
+      setMqttStatus("error");
+      const message = t("settings.mqtt.notifications.unknown");
+      setMqttError(message);
       logger.error("MQTT connection test failed", { error });
-      notifications.show({
-        title: t("settings.mqtt.notifications.testFailedTitle"),
-        message: t("settings.mqtt.notifications.unknown"),
-        color: "red",
-      });
     } finally {
       setTestingMqtt(false);
     }
@@ -366,11 +360,8 @@ export function SettingsPage() {
 
   const probeHru = useCallback(async () => {
     if (!hruSettings.unit) {
-      notifications.show({
-        title: t("settings.hru.notifications.probeFailedTitle"),
-        message: t("settings.hru.notifications.noUnitSelected"),
-        color: "red",
-      });
+      setProbeStatus("error");
+      setProbeError(t("settings.hru.notifications.noUnitSelected"));
       return;
     }
     setProbeStatus(null);
@@ -388,11 +379,6 @@ export function SettingsPage() {
         const message = t("settings.hru.notifications.connectionFailed");
         setProbeError(message);
         logger.error("HRU connection test failed", { status: response.status });
-        notifications.show({
-          title: t("settings.hru.notifications.probeFailedTitle"),
-          message,
-          color: "red",
-        });
         return;
       }
       setProbeStatus("success");
@@ -402,11 +388,6 @@ export function SettingsPage() {
       const message = t("settings.hru.notifications.connectionFailed");
       setProbeError(message);
       logger.error("HRU connection test failed", { error });
-      notifications.show({
-        title: t("settings.hru.notifications.probeFailedTitle"),
-        message,
-        color: "red",
-      });
     } finally {
       setProbingHru(false);
     }
@@ -764,15 +745,9 @@ export function SettingsPage() {
                         </Badge>
                       )}
                       {probeStatus === "error" && (
-                        <Alert
-                          color="red"
-                          variant="light"
-                          withCloseButton
-                          title={t("settings.hru.probe")}
-                          icon={<IconAlertCircle size={16} />}
-                        >
+                        <Badge color="red" variant="light">
                           {probeError || t("settings.hru.notifications.unknown")}
-                        </Alert>
+                        </Badge>
                       )}
                     </Group>
                   </Stack>
@@ -798,6 +773,8 @@ export function SettingsPage() {
                       onChange={(e) => {
                         const checked = e.currentTarget.checked;
                         setMqttSettings((prev) => ({ ...prev, enabled: checked }));
+                        setMqttStatus(null);
+                        setMqttError(null);
                       }}
                       size="md"
                     />
@@ -811,6 +788,8 @@ export function SettingsPage() {
                           onChange={(e) => {
                             const val = e.target.value;
                             setMqttSettings((prev) => ({ ...prev, host: val }));
+                            setMqttStatus(null);
+                            setMqttError(null);
                           }}
                           label={t("settings.mqtt.host")}
                           placeholder="core-mosquitto"
@@ -828,6 +807,8 @@ export function SettingsPage() {
                               ...prev,
                               port: typeof val === "number" ? val : 0,
                             }));
+                            setMqttStatus(null);
+                            setMqttError(null);
                           }}
                           label={t("settings.mqtt.port")}
                           placeholder="1883"
@@ -849,6 +830,8 @@ export function SettingsPage() {
                           onChange={(e) => {
                             const val = e.target.value;
                             setMqttSettings((prev) => ({ ...prev, user: val }));
+                            setMqttStatus(null);
+                            setMqttError(null);
                           }}
                           label={t("settings.mqtt.user")}
                           autoComplete="off"
@@ -859,6 +842,8 @@ export function SettingsPage() {
                           onChange={(e) => {
                             const val = e.target.value;
                             setMqttSettings((prev) => ({ ...prev, password: val }));
+                            setMqttStatus(null);
+                            setMqttError(null);
                           }}
                           label={t("settings.mqtt.password")}
                           autoComplete="new-password"
@@ -887,6 +872,16 @@ export function SettingsPage() {
                     >
                       {t("settings.mqtt.test")}
                     </Button>
+                    {mqttStatus === "success" && (
+                      <Badge color="green" variant="light">
+                        {t("settings.mqtt.testSuccess")}
+                      </Badge>
+                    )}
+                    {mqttStatus === "error" && (
+                      <Badge color="red" variant="light">
+                        {mqttError || t("settings.mqtt.notifications.unknown")}
+                      </Badge>
+                    )}
                   </Group>
                 </Stack>
               </Paper>

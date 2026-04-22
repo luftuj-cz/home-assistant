@@ -290,6 +290,8 @@
       "portInvalid": "Invalid port number (1-65535)",
       "save": "Save MQTT Settings",
       "test": "Test connection",
+      "testSuccess": "Connection successful",
+      "testFailed": "Connection failed",
       "testing": "Testing...",
       "hostRequired": "Host is required when enabled",
       "notifications": {
@@ -299,8 +301,6 @@
         "saveSuccessMessage": "MQTT configuration saved and service reloaded",
         "saveFailedTitle": "Failed to save MQTT settings",
         "saveFailedMessage": "{{message}}",
-        "testSuccessTitle": "Connection successful",
-        "testSuccessMessage": "Successfully connected to the MQTT broker.",
         "testFailedTitle": "Connection failed",
         "unknown": "Unknown error"
       }

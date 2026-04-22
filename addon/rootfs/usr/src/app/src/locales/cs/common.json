@@ -264,6 +264,8 @@
       "portInvalid": "Neplatné číslo portu (1-65535)",
       "save": "Uložit nastavení MQTT",
       "test": "Testovat připojení",
+      "testSuccess": "Připojení úspěšné",
+      "testFailed": "Připojení selhalo",
       "testing": "Testování...",
       "hostRequired": "Host je povinný, pokud je povoleno",
       "notifications": {
@@ -273,8 +275,6 @@
         "saveSuccessMessage": "Konfigurace MQTT uložena a služba restartována",
         "saveFailedTitle": "Nepodařilo se uložit nastavení MQTT",
         "saveFailedMessage": "{{message}}",
-        "testSuccessTitle": "Připojení úspěšné",
-        "testSuccessMessage": "Úspěšně připojeno k MQTT brokeru.",
         "testFailedTitle": "Připojení selhalo",
         "unknown": "Neznámá chyba"
       }
