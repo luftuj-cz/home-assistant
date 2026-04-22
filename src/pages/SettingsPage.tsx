@@ -155,7 +155,7 @@ export function SettingsPage() {
             color: "green",
           });
         }
-      } catch (persistError) {
+      } catch {
         notifications.show({
           title: t("settings.language.notifications.failedTitle"),
           message: t("settings.language.notifications.unknown"),

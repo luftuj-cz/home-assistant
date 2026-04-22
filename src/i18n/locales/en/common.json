@@ -346,7 +346,6 @@
   "debug": {
     "title": "Debug Tools",
     "description": "Advanced diagnostics and register inspection.",
-    "placeholder": "This page is a placeholder for future developer tools and manual register inspection.",
     "backendValues": "Backend Debug Values",
     "copyValues": "Copy values",
     "copySuccess": "Debug values copied to clipboard.",
@@ -383,8 +382,7 @@
     },
     "onboardingTools": "Onboarding Tools",
     "resetOnboarding": "Reset Onboarding Flag",
-    "finishOnboarding": "Finish Onboarding Flag",
-    "resetOnboardingHint": "This will set `onboarding.done` to `false` and reload the page, triggering the setup wizard."
+    "refreshDiscovery": "Refresh MQTT Discovery"
   },
   "schedule": {
     "title": "Weekly schedule",

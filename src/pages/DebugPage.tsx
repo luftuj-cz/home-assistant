@@ -183,6 +183,7 @@ export function DebugPage() {
   const [haApiLoading, setHaApiLoading] = useState(true);
   const [haApiRefreshing, setHaApiRefreshing] = useState(false);
   const [haApiErrorMessage, setHaApiErrorMessage] = useState<string | null>(null);
+  const [discoveryRefreshing, setDiscoveryRefreshing] = useState(false);
   const logsViewportRef = useRef<HTMLDivElement | null>(null);
 
   async function loadDebugSnapshot(initialLoad: boolean): Promise<void> {
@@ -194,17 +195,23 @@ export function DebugPage() {
 
     try {
       const response = await fetch(resolveApiUrl("/api/debug"), { cache: "no-cache" });
-      if (!response.ok) {
+      if (response.ok) {
+        const payload = (await response.json()) as DebugPayload;
+        setDebugData(payload);
+        const timestamp =
+          typeof payload.capturedAt === "string" ? payload.capturedAt : new Date().toISOString();
+        setCapturedAt(timestamp);
+        setErrorMessage(null);
+      } else {
         const detail = (await response.text()).trim();
-        throw new Error(detail || `HTTP ${response.status}`);
+        const message = detail || `HTTP ${response.status}`;
+        setErrorMessage(
+          t("debug.loadFailed", {
+            defaultValue: "Failed to load debug values: {{message}}",
+            message,
+          }),
+        );
       }
-
-      const payload = (await response.json()) as DebugPayload;
-      setDebugData(payload);
-      const timestamp =
-        typeof payload.capturedAt === "string" ? payload.capturedAt : new Date().toISOString();
-      setCapturedAt(timestamp);
-      setErrorMessage(null);
     } catch (error) {
       const message =
         error instanceof Error && error.message
@@ -233,17 +240,23 @@ export function DebugPage() {
       const response = await fetch(resolveApiUrl("/api/debug/home-assistant"), {
         cache: "no-cache",
       });
-      if (!response.ok) {
+      if (response.ok) {
+        const payload = (await response.json()) as DebugPayload;
+        setHaApiData(payload);
+        const timestamp =
+          typeof payload.capturedAt === "string" ? payload.capturedAt : new Date().toISOString();
+        setHaApiCapturedAt(timestamp);
+        setHaApiErrorMessage(null);
+      } else {
         const detail = (await response.text()).trim();
-        throw new Error(detail || `HTTP ${response.status}`);
+        const message = detail || `HTTP ${response.status}`;
+        setHaApiErrorMessage(
+          t("debug.haApi.loadFailed", {
+            defaultValue: "Failed to load Home Assistant API data: {{message}}",
+            message,
+          }),
+        );
       }
-
-      const payload = (await response.json()) as DebugPayload;
-      setHaApiData(payload);
-      const timestamp =
-        typeof payload.capturedAt === "string" ? payload.capturedAt : new Date().toISOString();
-      setHaApiCapturedAt(timestamp);
-      setHaApiErrorMessage(null);
     } catch (error) {
       const message =
         error instanceof Error && error.message
@@ -260,6 +273,26 @@ export function DebugPage() {
     } finally {
       setHaApiLoading(false);
       setHaApiRefreshing(false);
+    }
+  }
+
+  async function refreshMqttDiscovery(): Promise<void> {
+    setDiscoveryRefreshing(true);
+    try {
+      const response = await fetch(resolveApiUrl("/api/settings/mqtt/discovery/refresh"), {
+        method: "POST",
+      });
+      if (response.ok) {
+        // Reload debug snapshot to see updated lastDiscovery time
+        void loadDebugSnapshot(false);
+      } else {
+        const detail = (await response.text()).trim();
+        console.error("Failed to refresh MQTT discovery", detail || `HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Failed to refresh MQTT discovery", error);
+    } finally {
+      setDiscoveryRefreshing(false);
     }
   }
 
@@ -308,21 +341,27 @@ export function DebugPage() {
       const response = await fetch(resolveApiUrl("/api/debug/logs?limit=500"), {
         cache: "no-cache",
       });
-      if (!response.ok) {
+      if (response.ok) {
+        const payload = (await response.json()) as {
+          logs?: ServerLogEntry[];
+          bufferedCount?: number;
+        };
+
+        setServerLogs(Array.isArray(payload.logs) ? payload.logs : []);
+        setLogsBufferedCount(
+          Number.isFinite(payload.bufferedCount) ? (payload.bufferedCount as number) : 0,
+        );
+        setLogsErrorMessage(null);
+      } else {
         const detail = (await response.text()).trim();
-        throw new Error(detail || `HTTP ${response.status}`);
+        const message = detail || `HTTP ${response.status}`;
+        setLogsErrorMessage(
+          t("debug.logs.loadFailed", {
+            defaultValue: "Failed to load server logs: {{message}}",
+            message,
+          }),
+        );
       }
-
-      const payload = (await response.json()) as {
-        logs?: ServerLogEntry[];
-        bufferedCount?: number;
-      };
-
-      setServerLogs(Array.isArray(payload.logs) ? payload.logs : []);
-      setLogsBufferedCount(
-        Number.isFinite(payload.bufferedCount) ? (payload.bufferedCount as number) : 0,
-      );
-      setLogsErrorMessage(null);
     } catch (error) {
       const message =
         error instanceof Error && error.message
@@ -695,8 +734,19 @@ export function DebugPage() {
           </Tabs.Panel>
 
           <Tabs.Panel value="onboarding-tools" pt="md">
-            <Stack gap="xs">
+            <Stack gap="md">
               <Group gap="md">
+                <Button
+                  color="blue"
+                  variant="light"
+                  leftSection={<IconRefresh size={16} />}
+                  loading={discoveryRefreshing}
+                  onClick={() => {
+                    void refreshMqttDiscovery();
+                  }}
+                >
+                  {t("debug.refreshDiscovery")}
+                </Button>
                 <Button
                   color="red"
                   variant="light"
@@ -709,22 +759,7 @@ export function DebugPage() {
                 >
                   {t("debug.resetOnboarding")}
                 </Button>
-                <Button
-                  color="green"
-                  variant="light"
-                  onClick={async () => {
-                    await fetch(resolveApiUrl("/api/settings/onboarding-finish"), {
-                      method: "POST",
-                    });
-                    window.location.reload();
-                  }}
-                >
-                  {t("debug.finishOnboarding")}
-                </Button>
               </Group>
-              <Text size="xs" c="dimmed">
-                {t("debug.resetOnboardingHint")}
-              </Text>
             </Stack>
           </Tabs.Panel>
         </Tabs>
