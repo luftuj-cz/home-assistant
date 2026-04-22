@@ -2,11 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
 
 export function createRequestLogger(logger: Logger) {
-  return function requestLogger(
-    request: Request,
-    response: Response,
-    next: NextFunction,
-  ) {
+  return function requestLogger(request: Request, response: Response, next: NextFunction) {
     const requestStart = Date.now();
     response.on("finish", () => {
       const durationMs = Date.now() - requestStart;

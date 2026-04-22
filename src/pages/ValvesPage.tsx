@@ -4,20 +4,23 @@ import {
   Alert,
   Container,
   Group,
-  Loader,
   SimpleGrid,
+  Skeleton,
   Stack,
   Text,
   Title,
+  Tooltip,
 } from "@mantine/core";
 import { IconRefresh, IconAdjustments, IconAlertCircle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
 import { ValveCard } from "../components";
 import { resolveApiUrl, resolveWebSocketUrl } from "../utils/api";
-import { logger } from "../utils/logger";
+import { createLogger } from "../utils/logger";
 import type { HaState } from "../types/homeAssistant";
 import type { Valve } from "../types/valve";
+
+const logger = createLogger("ValvesPage");
 
 type ManagedWebSocket = WebSocket & { manualClose?: boolean };
 
@@ -27,7 +30,9 @@ function normaliseValue(value: unknown, fallback: number): number {
 }
 
 function isValveAvailable(state: HaState): boolean {
-  const rawState = String(state.state ?? "").trim().toLowerCase();
+  const rawState = String(state.state ?? "")
+    .trim()
+    .toLowerCase();
   const attrs = state.attributes ?? {};
   const attributeAvailable = attrs.available;
 
@@ -73,7 +78,9 @@ export function ValvesPage() {
   const [valveMap, setValveMap] = useState<Record<string, Valve>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [haStatus, setHaStatus] = useState<"connected" | "connecting" | "disconnected" | "offline" | null>(null);
+  const [haStatus, setHaStatus] = useState<
+    "connected" | "connecting" | "disconnected" | "offline" | null
+  >(null);
   const [hasUnavailableValves, setHasUnavailableValves] = useState(false);
   const wsRef = useRef<ManagedWebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -190,6 +197,7 @@ export function ValvesPage() {
   }, [replaceValves, t]);
 
   useEffect(() => {
+    logger.info("ValvesPage mounted, loading initial data");
     void fetchStatus();
     void fetchSnapshot();
   }, [fetchSnapshot, fetchStatus]);
@@ -246,6 +254,7 @@ export function ValvesPage() {
       if (reconnectTimeoutRef.current !== null) {
         window.clearTimeout(reconnectTimeoutRef.current);
       }
+      logger.debug("Scheduling WebSocket reconnection", { delayMs: 3000 });
       reconnectTimeoutRef.current = window.setTimeout(() => {
         logger.info("Reconnecting valves WebSocket");
         connectWebSocket();
@@ -288,9 +297,11 @@ export function ValvesPage() {
   }, [replaceValves, updateValve, t]);
 
   useEffect(() => {
+    logger.info("Initializing valves WebSocket connection");
     connectWebSocket();
 
     return () => {
+      logger.debug("Cleaning up valves WebSocket connection");
       if (reconnectTimeoutRef.current !== null) {
         window.clearTimeout(reconnectTimeoutRef.current);
       }
@@ -374,18 +385,20 @@ export function ValvesPage() {
         <Stack gap={0}>
           <Group justify="space-between" align="center">
             <Group gap="sm">
-              <IconAdjustments size={32} color="var(--mantine-primary-color-5)" />
+              <IconAdjustments size={32} color="var(--mantine-color-luftBlue-5)" />
               <Title order={1}>{t("valves.title")}</Title>
             </Group>
-            <ActionIcon
-              variant="light"
-              color="blue"
-              onClick={fetchSnapshot}
-              aria-label={t("valves.refreshAria")}
-              size="lg"
-            >
-              <IconRefresh size={20} stroke={1.8} />
-            </ActionIcon>
+            <Tooltip label={t("valves.refreshAria")}>
+              <ActionIcon
+                variant="light"
+                color="blue"
+                onClick={fetchSnapshot}
+                aria-label={t("valves.refreshAria")}
+                size="lg"
+              >
+                <IconRefresh size={20} stroke={1.8} />
+              </ActionIcon>
+            </Tooltip>
           </Group>
           <Text size="lg" c="dimmed" mt="xs">
             {t("valves.description")}
@@ -441,14 +454,11 @@ export function ValvesPage() {
         )}
 
         {loading || (valves.length === 0 && !gracePeriodExpired) ? (
-          <Group justify="center" align="center" h={240}>
-            <Loader color="blue" size="lg" />
-            {!loading && (
-              <Text size="sm" c="dimmed" ml="md">
-                {t("valves.waiting")}
-              </Text>
-            )}
-          </Group>
+          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+            <Skeleton height={200} radius="md" />
+            <Skeleton height={200} radius="md" />
+            <Skeleton height={200} radius="md" />
+          </SimpleGrid>
         ) : valves.length === 0 ? (
           <Alert color="yellow" title={t("valves.warningTitle")}>
             {t("valves.empty")}

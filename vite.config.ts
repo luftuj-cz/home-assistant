@@ -1,5 +1,4 @@
 import { defineConfig, type Logger } from "vite";
-import react from "@vitejs/plugin-react";
 
 type ProxyServer = {
   removeAllListeners(event: string): void;
@@ -41,9 +40,49 @@ const filteredLogger: Logger = {
 // https://vite.dev/config/
 export default defineConfig({
   base: "./",
-  plugins: [react()],
   customLogger: filteredLogger,
-  build: {},
+  build: {
+    target: "esnext",
+    minify: true,
+    sourcemap: false,
+    rollupOptions: {
+      output: {
+        manualChunks: (id) => {
+          if (id.includes("node_modules")) {
+            if (id.includes("@mantine")) {
+              return "mantine";
+            }
+            if (id.includes("@tanstack")) {
+              return "tanstack";
+            }
+            if (id.includes("framer-motion")) {
+              return "motion";
+            }
+            if (id.includes("@tabler")) {
+              return "icons";
+            }
+            if (id.includes("date-fns")) {
+              return "date-fns";
+            }
+          }
+        },
+        chunkFileNames: "assets/js/[name]-[hash].js",
+        entryFileNames: "assets/js/[name]-[hash].js",
+        assetFileNames: (assetInfo) => {
+          const extType = assetInfo.name?.split(".").at(1);
+          if (/png|jpe?g|svg|gif|tiff|bmp|ico/i.test(extType || "")) {
+            return `assets/images/[name]-[hash][extname]`;
+          }
+          if (/woff2?|eot|ttf|otf/i.test(extType || "")) {
+            return `assets/fonts/[name]-[hash][extname]`;
+          }
+          return `assets/[name]-[hash][extname]`;
+        },
+      },
+    },
+    chunkSizeWarningLimit: 500,
+    reportCompressedSize: true,
+  },
   server: {
     proxy: {
       "/api": {

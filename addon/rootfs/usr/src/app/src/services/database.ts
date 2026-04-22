@@ -150,6 +150,7 @@ type StatementMap = {
   upsertController: Statement;
   upsertValveState: Statement;
   getSetting: Statement;
+  getAllSettings: Statement;
   upsertSetting: Statement;
   getTimelineEvents: Statement;
   upsertTimelineEvent: Statement;
@@ -213,7 +214,9 @@ function applyMigrations(database: DatabaseType, logger?: Logger): void {
     if (existing.has(migration.id)) {
       continue;
     }
-    const isVacuum = migration.statements.length === 1 && migration.statements[0]?.trim().toUpperCase() === "VACUUM;";
+    const isVacuum =
+      migration.statements.length === 1 &&
+      migration.statements[0]?.trim().toUpperCase() === "VACUUM;";
 
     if (isVacuum) {
       // VACUUM cannot run inside a transaction; run separately
@@ -276,6 +279,7 @@ function prepareStatements(database: DatabaseType): StatementMap {
          attributes = excluded.attributes`,
     ),
     getSetting: database.prepare("SELECT value FROM app_settings WHERE key = ?"),
+    getAllSettings: database.prepare("SELECT key, value FROM app_settings ORDER BY key ASC"),
     upsertSetting: database.prepare(
       `INSERT INTO app_settings (key, value) VALUES (?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
@@ -450,6 +454,22 @@ export function storeValveSnapshots(records: ValveSnapshotRecord[]): void {
 
 export function getDatabasePath(): string {
   return DATABASE_PATH;
+}
+
+export function getAllAppSettings(): Record<string, string> {
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!statements) {
+    moduleLogger?.error("Database not initialised in getAllAppSettings");
+    throw new Error("Database not initialised");
+  }
+
+  const rows = statements.getAllSettings.all() as Array<{ key: string; value: string }>;
+  return rows.reduce<Record<string, string>>((acc, row) => {
+    acc[row.key] = row.value;
+    return acc;
+  }, {});
 }
 
 export function getAppSetting(key: string): string | null {

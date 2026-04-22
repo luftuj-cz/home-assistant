@@ -1,4 +1,5 @@
 import { resolveApiUrl } from "../utils/api";
+import { parseApiError } from "../utils/apiError";
 import type { Mode, TimelineEvent, ApiTimelineEvent } from "../types/timeline";
 
 export async function fetchTimelineModes(unitId?: string): Promise<Mode[]> {
@@ -17,10 +18,7 @@ export async function createTimelineMode(mode: Omit<Mode, "id">): Promise<Mode> 
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(mode),
   });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || "Failed to create mode");
-  }
+  if (!res.ok) throw await parseApiError(res);
   return res.json();
 }
 
@@ -30,10 +28,7 @@ export async function updateTimelineMode(mode: Mode): Promise<Mode> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(mode),
   });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || "Failed to update mode");
-  }
+  if (!res.ok) throw await parseApiError(res);
   return res.json();
 }
 
@@ -41,10 +36,7 @@ export async function deleteTimelineMode(id: number): Promise<void> {
   const res = await fetch(resolveApiUrl(`/api/timeline/modes/${id}`), {
     method: "DELETE",
   });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || "Failed to delete mode");
-  }
+  if (!res.ok) throw await parseApiError(res);
 }
 
 export async function testTimelineMode(
@@ -56,10 +48,7 @@ export async function testTimelineMode(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ config: mode, durationMinutes }),
   });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || "Failed to start test mode");
-  }
+  if (!res.ok) throw await parseApiError(res);
 }
 
 export async function fetchTimelineEvents(unitId?: string): Promise<TimelineEvent[]> {
@@ -106,10 +95,7 @@ export async function saveTimelineEvent(
     body: JSON.stringify(payload),
   });
 
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || "Failed to save event");
-  }
+  if (!res.ok) throw await parseApiError(res);
   return res.json();
 }
 
@@ -117,10 +103,7 @@ export async function deleteTimelineEvent(id: number): Promise<void> {
   const res = await fetch(resolveApiUrl(`/api/timeline/events/${id}`), {
     method: "DELETE",
   });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || "Failed to delete event");
-  }
+  if (!res.ok) throw await parseApiError(res);
 }
 
 export async function fetchActiveBoost(): Promise<{
@@ -148,10 +131,7 @@ export async function activateBoost(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ modeId, durationMinutes }),
   });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || "Failed to activate boost");
-  }
+  if (!res.ok) throw await parseApiError(res);
   const data = await res.json();
   return data.active;
 }
@@ -160,8 +140,5 @@ export async function cancelBoost(): Promise<void> {
   const res = await fetch(resolveApiUrl("/api/timeline/boost"), {
     method: "DELETE",
   });
-  if (!res.ok) {
-    const detail = await res.text();
-    throw new Error(detail || "Failed to cancel boost");
-  }
+  if (!res.ok) throw await parseApiError(res);
 }

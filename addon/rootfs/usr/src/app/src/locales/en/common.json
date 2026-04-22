@@ -328,13 +328,50 @@
       "debugMode": "Debug Mode",
       "debugModeDescription": "Enables the Debug page in the navigation bar.",
       "debugEnabled": "Debug Mode enabled",
-      "debugDisabled": "Debug Mode disabled"
+      "debugDisabled": "Debug Mode disabled",
+      "logLevel": "Log Level",
+      "logLevelDescription": "Controls the verbosity of console logging.",
+      "logLevelChanged": "Log level changed to {{level}}"
     }
   },
   "debug": {
     "title": "Debug Tools",
     "description": "Advanced diagnostics and register inspection.",
     "placeholder": "This page is a placeholder for future developer tools and manual register inspection.",
+    "backendValues": "Backend Debug Values",
+    "copyValues": "Copy values",
+    "copySuccess": "Debug values copied to clipboard.",
+    "copyFailed": "Failed to copy debug values.",
+    "refresh": "Refresh",
+    "loading": "Loading debug values…",
+    "lastUpdated": "Last updated: {{time}}",
+    "noData": "No debug values received.",
+    "serverLogs": "Server Logs",
+    "homeAssistantApi": "Home Assistant API",
+    "loadFailed": "Failed to load debug values: {{message}}",
+    "loadFailedUnknown": "Failed to load debug values.",
+    "table": {
+      "key": "Key",
+      "value": "Value"
+    },
+    "logs": {
+      "loading": "Loading server logs…",
+      "bufferedCount": "Buffered log lines: {{count}}",
+      "noData": "No server logs captured yet.",
+      "loadFailed": "Failed to load server logs: {{message}}",
+      "loadFailedUnknown": "Failed to load server logs.",
+      "table": {
+        "time": "Time",
+        "level": "Level",
+        "message": "Message"
+      }
+    },
+    "haApi": {
+      "loading": "Loading Home Assistant API data…",
+      "noData": "No Home Assistant API data received.",
+      "loadFailed": "Failed to load Home Assistant API data: {{message}}",
+      "loadFailedUnknown": "Failed to load Home Assistant API data."
+    },
     "onboardingTools": "Onboarding Tools",
     "resetOnboarding": "Reset Onboarding Flag",
     "finishOnboarding": "Finish Onboarding Flag",
@@ -416,6 +453,21 @@
       "lastDiscovery": "Last refresh: {{time}}"
     }
   },
+  "apiErrors": {
+    "DUPLICATE_EVENT_TIME": "An event already exists at this time for the selected day",
+    "DUPLICATE_MODE_NAME": "Mode name already exists for this unit",
+    "POWER_LIMIT_EXCEEDED": "Power exceeds the allowed limit for this unit",
+    "INVALID_MODE_ID": "Invalid mode ID",
+    "MODE_NOT_FOUND": "Mode not found",
+    "INVALID_EVENT_ID": "Invalid event ID",
+    "HRU_NOT_CONFIGURED": "HRU unit is not configured",
+    "HRU_CONNECTION_ERROR": "Failed to connect to the HRU unit",
+    "MQTT_TEST_FAILED": "MQTT connection test failed",
+    "HRU_HOST_REQUIRED": "Host is required",
+    "UNKNOWN_HRU_UNIT": "Unknown HRU unit",
+    "MAX_POWER_REQUIRED": "Max power is required for the selected unit",
+    "MAX_POWER_EXCEEDED": "Maximum power exceeds the allowed limit for this unit"
+  },
   "errors": {
     "i18n": {
       "title": "Translation initialisation failed",
@@ -446,7 +498,11 @@
       "description": "Get started",
       "title": "Let's set up your system",
       "text": "We'll configure your connection to the Heat Recovery Unit (Modbus) and Home Assistant (MQTT).",
-      "button": "Start Setup"
+      "button": "Start Setup",
+      "importButton": "Import backup",
+      "importText": "Skip setup by restoring a previous backup.",
+      "importSuccess": "Database imported successfully. Redirecting...",
+      "importError": "Failed to import database backup."
     },
     "preferences": {
       "label": "Preferences",

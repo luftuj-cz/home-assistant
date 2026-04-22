@@ -74,20 +74,19 @@
           "args": [
             {
               "function": "round",
-              "args": [{
-                "function": "multiply",
-                "args": [
-                  "$power",
-                  {
-                    "function": "sum",
-                    "args": [
-                      100,
-                      "$offset"
-                    ]
-                  },
-                  0.02
-                ]
-              }]
+              "args": [
+                {
+                  "function": "multiply",
+                  "args": [
+                    "$power",
+                    {
+                      "function": "sum",
+                      "args": [100, "$offset"]
+                    },
+                    0.02
+                  ]
+                }
+              ]
             },
             0,
             200
@@ -102,10 +101,7 @@
           "args": [
             {
               "function": "multiply",
-              "args": [
-                "$power",
-                2
-              ]
+              "args": ["$power", 2]
             }
           ]
         }

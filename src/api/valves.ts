@@ -9,7 +9,9 @@ function normalizeValue(value: unknown, fallback: number): number {
 }
 
 function isValveAvailable(state: HaState): boolean {
-  const rawState = String(state.state ?? "").trim().toLowerCase();
+  const rawState = String(state.state ?? "")
+    .trim()
+    .toLowerCase();
   const attrs = state.attributes ?? {};
   const attributeAvailable = attrs.available;
 

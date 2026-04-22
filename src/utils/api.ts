@@ -1,4 +1,6 @@
-import { logger } from "./logger";
+import { createLogger } from "./logger";
+
+const logger = createLogger("API");
 
 function computeBaseUrl(): URL {
   const url = new URL(window.location.origin);

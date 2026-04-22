@@ -1,4 +1,5 @@
-import { Modal, Stack, TextInput, Select, Divider, Group, Button, Text } from "@mantine/core";
+import { Modal, Stack, Select, Group, Button, Text } from "@mantine/core";
+import { TimeInput } from "@mantine/dates";
 import { IconClock, IconAdjustments, IconCalendar } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { TimelineEvent } from "../../types/timeline";
@@ -16,8 +17,6 @@ interface TimelineEventModalProps {
   hruVariables?: HruVariable[];
 }
 
-const TIME_REGEX = /^([0-1][0-9]|2[0-3]):[0-5][0-9]$/;
-
 export function TimelineEventModal({
   opened,
   event,
@@ -34,7 +33,7 @@ export function TimelineEventModal({
       onClose={onClose}
       title={
         <Group gap="xs">
-          <IconCalendar size={20} color="var(--mantine-primary-color-5)" />
+          <IconCalendar size={20} color="var(--mantine-color-luftBlue-5)" />
           <Text fw={600}>{t("settings.timeline.modal.title")}</Text>
         </Group>
       }
@@ -43,18 +42,13 @@ export function TimelineEventModal({
     >
       {event && (
         <Stack gap="md">
-          <Group grow>
-            <TextInput
-              label={t("settings.timeline.form.startTime")}
-              placeholder="08:00"
-              value={event.startTime}
-              type="time"
-              onChange={(e) => onChange({ ...event, startTime: e.target.value })}
-              pattern={TIME_REGEX.source}
-              leftSection={<IconClock size={16} stroke={1.5} />}
-              required
-            />
-          </Group>
+          <TimeInput
+            label={t("settings.timeline.form.startTime")}
+            value={event.startTime}
+            onChange={(e) => onChange({ ...event, startTime: e.currentTarget.value })}
+            leftSection={<IconClock size={16} stroke={1.5} />}
+            required
+          />
 
           <Select
             label={t("schedule.modeSelect")}
@@ -64,7 +58,7 @@ export function TimelineEventModal({
               if (!value) return;
               onChange({
                 ...event,
-                hruConfig: { ...(event.hruConfig ?? {}), mode: value },
+                hruConfig: { ...event.hruConfig, mode: value },
               });
             }}
             searchable
@@ -83,8 +77,6 @@ export function TimelineEventModal({
                   : null
             }
           />
-
-          <Divider mt="xs" />
 
           <Group justify="flex-end" gap="sm">
             <Button variant="light" onClick={onClose} radius="md">

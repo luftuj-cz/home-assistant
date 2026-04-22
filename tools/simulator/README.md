@@ -8,11 +8,12 @@ go build luftuj-cz/hru-simulator
 
 Running
 
-```bash 
+```bash
 hru_simulator <port> <hru_type>
 ```
 
 Supported HRU types:
+
 - xvent
 - meltem
 - atrea-rd5

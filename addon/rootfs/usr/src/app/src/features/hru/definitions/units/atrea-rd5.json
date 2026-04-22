@@ -7,7 +7,7 @@
       "type": "number",
       "editable": true,
       "onDashboard": true,
-      "label": {"text":"hru.power", "translate": true},
+      "label": { "text": "hru.power", "translate": true },
       "unit": "%",
       "min": 0,
       "max": 100,
@@ -110,12 +110,18 @@
       {
         "type": "assignment",
         "variable": "$temperature",
-        "value": { "function": "multiply", "args": [{ "function": "modbus_read_holding", "args": [10706, 1] }, 0.1] }
+        "value": {
+          "function": "multiply",
+          "args": [{ "function": "modbus_read_holding", "args": [10706, 1] }, 0.1]
+        }
       },
       {
         "type": "assignment",
         "variable": "$temperature_target",
-        "value": { "function": "multiply", "args": [{ "function": "modbus_read_holding", "args": [10710, 1] }, 0.1] }
+        "value": {
+          "function": "multiply",
+          "args": [{ "function": "modbus_read_holding", "args": [10710, 1] }, 0.1]
+        }
       },
       {
         "type": "assignment",

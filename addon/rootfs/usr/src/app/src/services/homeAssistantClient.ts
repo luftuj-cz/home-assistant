@@ -88,18 +88,12 @@ export class HomeAssistantClient {
     };
   }
 
+  async fetchConfig(): Promise<Record<string, unknown>> {
+    return this.fetchJson<Record<string, unknown>>("/api/config");
+  }
+
   async fetchLuftatorEntities(): Promise<HassState[]> {
-    const response = await fetch(`${this.baseUrl}/api/states`, {
-      headers: this.headers,
-    });
-
-    if (!response.ok) {
-      const body = await response.text();
-      this.logger.error({ status: response.status, body }, "Failed to fetch Home Assistant states");
-      throw new Error(`Failed to fetch Home Assistant states: ${response.status} ${body}`);
-    }
-
-    const payload = (await response.json()) as HassState[];
+    const payload = await this.fetchJson<HassState[]>("/api/states");
     const entities = payload.filter((entity) =>
       entity.entity_id.startsWith(LUFTATOR_ENTITY_PREFIX),
     );
@@ -127,6 +121,23 @@ export class HomeAssistantClient {
     }
 
     this.logger.info({ entityId, value }, "Successfully set valve value in Home Assistant");
+  }
+
+  private async fetchJson<T>(pathname: string): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${pathname}`, {
+      headers: this.headers,
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      this.logger.error(
+        { pathname, status: response.status, body },
+        "Failed to fetch Home Assistant API payload",
+      );
+      throw new Error(`Failed to fetch Home Assistant API payload: ${response.status} ${body}`);
+    }
+
+    return (await response.json()) as T;
   }
 
   subscribeLuftatorEvents(handler: HassEventHandler): () => void {

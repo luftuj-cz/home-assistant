@@ -19,7 +19,7 @@ export function createErrorHandler(logger: Logger) {
       } else {
         logger.warn({ error }, error.message);
       }
-      response.status(error.statusCode).json({ detail: error.message });
+      response.status(error.statusCode).json({ detail: error.message, code: error.code });
       return;
     }
 

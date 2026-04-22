@@ -197,7 +197,10 @@ export class HruService {
       };
 
       const nextValues = { ...prev.values } as Record<string, number | string | boolean | null>;
-      const nextDisplay = { ...prev.displayValues } as Record<string, string | number | boolean | null>;
+      const nextDisplay = { ...prev.displayValues } as Record<
+        string,
+        string | number | boolean | null
+      >;
 
       for (const [key, value] of Object.entries(data)) {
         nextValues[key] = value;
@@ -247,7 +250,10 @@ export class HruService {
         } else if (typeof value === "string") {
           if (variable.type === "select" && variable.options) {
             const optionMap = Object.fromEntries(
-              variable.options.map((o) => [o.value, typeof o.label === "string" ? o.label : o.label.text]),
+              variable.options.map((o) => [
+                o.value,
+                typeof o.label === "string" ? o.label : o.label.text,
+              ]),
             );
             scriptVars[`$${key}`] = resolveModeValue(optionMap, value);
           } else {
@@ -272,11 +278,14 @@ export class HruService {
 
         const writeTargets = unit.integration.write
           .filter((step) => step.type === "action")
-          .map((step) => step as { type: "action"; expression: { function: string; args: unknown[] } })
-          .filter((step) =>
-            step.expression.function === "modbus_write_holding" ||
-            step.expression.function === "modbus_write_holding_multi" ||
-            step.expression.function === "modbus_write_coil",
+          .map(
+            (step) => step as { type: "action"; expression: { function: string; args: unknown[] } },
+          )
+          .filter(
+            (step) =>
+              step.expression.function === "modbus_write_holding" ||
+              step.expression.function === "modbus_write_holding_multi" ||
+              step.expression.function === "modbus_write_coil",
           )
           .map((step) => {
             const [addrRaw, ...rest] = step.expression.args;

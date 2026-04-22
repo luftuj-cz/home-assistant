@@ -1,4 +1,7 @@
-import type { HassStateChangedEvent, HomeAssistantClient } from "../services/homeAssistantClient.js";
+import type {
+  HassStateChangedEvent,
+  HomeAssistantClient,
+} from "../services/homeAssistantClient.js";
 import type { Logger } from "pino";
 import { Mutex } from "../utils/mutex.js";
 import { storeValveSnapshots } from "../services/database.js";

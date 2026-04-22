@@ -43,7 +43,7 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
   const statusColor = getValveColor(valve.value);
 
   return (
-    <Card shadow="sm" radius="md" padding="lg" withBorder>
+    <Card shadow="sm" radius="md" p="lg" withBorder>
       <Stack gap="lg">
         <Group justify="space-between" align="flex-start" wrap="nowrap">
           <Group gap="sm" align="flex-start" style={{ flex: 1, minWidth: 0 }}>
@@ -80,7 +80,9 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
               opacity: isUnavailable ? 0.7 : 1,
             }}
           >
-            {isUnavailable ? t("valves.status.offlineLabel", { defaultValue: "Offline" }) : formatValue(valve.value)}
+            {isUnavailable
+              ? t("valves.status.offlineLabel", { defaultValue: "Offline" })
+              : formatValue(valve.value)}
           </Badge>
         </Group>
 
@@ -96,25 +98,26 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
           size="xl"
           color={statusColor}
           thumbSize={28}
-          styles={(theme) => ({
+          styles={{
+            root: { width: "100%" },
             track: {
-              backgroundColor: isUnavailable ? "var(--mantine-color-gray-3)" : "var(--mantine-color-blue-1)",
+              backgroundColor: isUnavailable
+                ? "var(--mantine-color-gray-3)"
+                : "var(--mantine-color-blue-1)",
               opacity: isUnavailable ? 0.6 : 1,
             },
-            mark: {
-              display: "none",
-            },
-            markFilled: {
-              display: "none",
-            },
             thumb: {
-              backgroundColor: isUnavailable ? "var(--mantine-color-gray-2)" : "var(--mantine-color-white)",
+              backgroundColor: isUnavailable
+                ? "var(--mantine-color-gray-2)"
+                : "var(--mantine-color-white)",
               borderWidth: 2,
-              borderColor: isUnavailable ? "var(--mantine-color-gray-5)" : "var(--mantine-color-blue-6)",
-              boxShadow: theme.shadows.sm,
+              borderColor: isUnavailable
+                ? "var(--mantine-color-gray-5)"
+                : "var(--mantine-color-blue-6)",
+              boxShadow: "var(--mantine-shadow-sm)",
               transition: "border-color 0.2s ease, transform 0.1s ease",
             },
-          })}
+          }}
         />
       </Stack>
     </Card>

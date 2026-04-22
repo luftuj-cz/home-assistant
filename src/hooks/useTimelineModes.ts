@@ -3,6 +3,10 @@ import { notifications } from "@mantine/notifications";
 import type { TFunction } from "i18next";
 import type { Mode } from "../types/timeline";
 import * as api from "../api/timeline";
+import { createLogger } from "../utils/logger";
+import { translateApiError, ApiResponseError } from "../utils/apiError";
+
+const logger = createLogger("useTimelineModes");
 
 export function useTimelineModes(t: TFunction) {
   const [modes, setModes] = useState<Mode[]>([]);
@@ -28,7 +32,9 @@ export function useTimelineModes(t: TFunction) {
     try {
       const data = await api.fetchTimelineModes(unitId);
       setModes(data.map(mapModeForUi));
-    } catch {
+      logger.info("Timeline modes loaded", { count: data.length, unitId });
+    } catch (err) {
+      logger.error("Failed to load timeline modes", { error: err, unitId });
       notifications.show({
         title: tRef.current("settings.timeline.notifications.loadFailedTitle"),
         message: tRef.current("settings.timeline.notifications.loadFailedModes"),
@@ -53,8 +59,10 @@ export function useTimelineModes(t: TFunction) {
 
       setModes((prev) => {
         if (isEdit) {
+          logger.info("Timeline mode updated", { id: mappedSaved.id, name: mappedSaved.name });
           return prev.map((m) => (m.id === mappedSaved.id ? mappedSaved : m));
         }
+        logger.info("Timeline mode created", { id: mappedSaved.id, name: mappedSaved.name });
         return [...prev, mappedSaved];
       });
 
@@ -69,20 +77,21 @@ export function useTimelineModes(t: TFunction) {
       });
       return true;
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error("Failed to save timeline mode", {
+        error: err,
+        modeId: mode.id,
+        name: mode.name,
+      });
 
       // Check for duplicate name error (409)
-      if (errorMessage.includes("Mode name already exists")) {
+      if (err instanceof ApiResponseError && err.code === "DUPLICATE_MODE_NAME") {
         // Rethrow so the modal can handle it
         throw new Error("DUPLICATE_NAME");
       }
 
       notifications.show({
         title: tRef.current("settings.timeline.notifications.saveFailedTitle"),
-        message:
-          err instanceof Error
-            ? err.message
-            : tRef.current("settings.timeline.notifications.saveFailedMessage"),
+        message: translateApiError(err, tRef.current),
         color: "red",
       });
       return false;
@@ -95,6 +104,7 @@ export function useTimelineModes(t: TFunction) {
     try {
       await api.deleteTimelineMode(id);
       setModes((prev) => prev.filter((m) => m.id !== id));
+      logger.info("Timeline mode deleted", { id });
       notifications.show({
         title: tRef.current("settings.timeline.notifications.modeDeleteSuccessTitle"),
         message: tRef.current("settings.timeline.notifications.modeDeleteSuccessMessage"),
@@ -102,12 +112,10 @@ export function useTimelineModes(t: TFunction) {
       });
       return true;
     } catch (err) {
+      logger.error("Failed to delete timeline mode", { error: err, id });
       notifications.show({
         title: tRef.current("settings.timeline.notifications.deleteFailedTitle"),
-        message:
-          err instanceof Error
-            ? err.message
-            : tRef.current("settings.timeline.notifications.deleteFailedMessage"),
+        message: translateApiError(err, tRef.current),
         color: "red",
       });
       return false;

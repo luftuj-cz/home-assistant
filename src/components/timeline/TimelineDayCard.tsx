@@ -22,7 +22,9 @@ import type { TFunction } from "i18next";
 import type { TimelineEvent, Mode } from "../../types/timeline";
 import { ActionIcon as MantineActionIcon } from "@mantine/core";
 import { MotionSwitch } from "../common/MotionSwitch";
-import { logger } from "../../utils/logger";
+import { createLogger } from "../../utils/logger";
+
+const logger = createLogger("TimelineDayCard");
 
 interface TimelineDayCardProps {
   dayIdx: number;
@@ -89,12 +91,13 @@ export function TimelineDayCard({
 }: TimelineDayCardProps) {
   const sortedEvents = [...events].sort((a, b) => a.startTime.localeCompare(b.startTime));
   const [isDragOver, setIsDragOver] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <Card
       withBorder
       radius="md"
-      padding="md"
+      p="md"
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = "copy";
@@ -115,12 +118,12 @@ export function TimelineDayCard({
           logger.error("Failed to parse dropped mode", { error: err });
         }
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       style={{
         transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
-        "&:hover": {
-          boxShadow: "var(--mantine-shadow-md)",
-          transform: "translateY(-2px)",
-        },
+        boxShadow: isHovered ? "var(--mantine-shadow-md)" : undefined,
+        transform: isHovered ? "translateY(-2px)" : "translateY(0)",
         borderColor: isDragOver ? "var(--mantine-color-blue-filled)" : undefined,
         display: "flex",
         flexDirection: "column",
@@ -133,7 +136,11 @@ export function TimelineDayCard({
         <Group gap="xs">
           {copyDay === null ? (
             <Tooltip label={t("settings.timeline.copyDay")} withArrow>
-              <ActionIcon variant="light" aria-label={t("settings.timeline.copyDay")} onClick={() => onCopy(dayIdx)}>
+              <ActionIcon
+                variant="light"
+                aria-label={t("settings.timeline.copyDay")}
+                onClick={() => onCopy(dayIdx)}
+              >
                 <IconCopy size={16} />
               </ActionIcon>
             </Tooltip>
@@ -149,11 +156,12 @@ export function TimelineDayCard({
               </ActionIcon>
             </Tooltip>
           ) : (
-            <Tooltip
-              label={t("settings.timeline.pasteDay")}
-              withArrow
-            >
-              <ActionIcon variant="light" aria-label={t("settings.timeline.pasteDay")} onClick={() => onPaste(dayIdx)}>
+            <Tooltip label={t("settings.timeline.pasteDay")} withArrow>
+              <ActionIcon
+                variant="light"
+                aria-label={t("settings.timeline.pasteDay")}
+                onClick={() => onPaste(dayIdx)}
+              >
                 <IconClipboardCheck size={16} />
               </ActionIcon>
             </Tooltip>
@@ -192,7 +200,8 @@ export function TimelineDayCard({
             const active = isEventActive(ev, sortedEvents, dayIdx);
             const mode = modes.find((m) => m.id.toString() === ev.hruConfig?.mode?.toString());
             const highlightColor = mode?.color || "blue";
-            const modeLabel = mode?.name ?? (typeof ev.hruConfig?.mode === "string" ? ev.hruConfig.mode : "-");
+            const modeLabel =
+              mode?.name ?? (typeof ev.hruConfig?.mode === "string" ? ev.hruConfig.mode : "-");
 
             return (
               <Timeline.Item
@@ -246,7 +255,7 @@ export function TimelineDayCard({
               >
                 <Card
                   withBorder={active}
-                  padding="xs"
+                  p="xs"
                   radius="sm"
                   variant={active ? "light" : "transparent"}
                   color={active ? highlightColor : undefined}

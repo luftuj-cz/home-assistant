@@ -25,6 +25,7 @@ HA_BASE_URL=http://homeassistant.local:8123
 HA_TOKEN=<HA_TOKEN>
 PORT=8000
 ```
+
 HA_TOKEN documentation: https://developers.home-assistant.io/docs/auth_api/#long-lived-access-token
 
 ## Scripts

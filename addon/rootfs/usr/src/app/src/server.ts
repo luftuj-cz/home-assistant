@@ -98,6 +98,7 @@ if (config.token) {
 const settingsRepo = new SettingsRepository(logger);
 const hruRepo = new HruRepository(logger);
 const hruService = new HruService(hruRepo, settingsRepo, logger);
+const appStartedAt = new Date();
 
 const timelineScheduler = new TimelineScheduler(valveManager, hruService, settingsRepo, logger);
 
@@ -117,7 +118,15 @@ app.use(
 app.use("/api/valves", createValvesRouter(valveManager, logger));
 app.use(
   "/api",
-  createStatusRouter(valveManager, haClient, mqttService, logger, timelineScheduler, config.baseUrl),
+  createStatusRouter(
+    valveManager,
+    haClient,
+    mqttService,
+    logger,
+    timelineScheduler,
+    config.baseUrl,
+    appStartedAt,
+  ),
 );
 
 const staticRoot = config.staticRoot;

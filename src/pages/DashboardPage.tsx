@@ -8,7 +8,9 @@ import { StatusCard } from "../components/dashboard/StatusCard";
 import { HruStatusCard } from "../components/dashboard/HruStatusCard";
 import { BoostButtons } from "../components/dashboard/BoostButtons";
 import * as hruApi from "../api/hru";
-import { logger } from "../utils/logger";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("DashboardPage");
 
 export function DashboardPage() {
   const { t } = useTranslation();

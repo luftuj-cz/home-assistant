@@ -88,7 +88,9 @@ export class ModbusTcpClient {
   private isPortClosedError(err: unknown) {
     const e = err as { message?: string; errno?: string };
     const msg = e?.message?.toLowerCase() ?? "";
-    return msg.includes("port not open") || e?.errno === "ECONNRESET" || e?.errno === "ECONNREFUSED";
+    return (
+      msg.includes("port not open") || e?.errno === "ECONNRESET" || e?.errno === "ECONNREFUSED"
+    );
   }
 
   private async ensureConnected() {

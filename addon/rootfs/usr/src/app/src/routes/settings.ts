@@ -12,10 +12,13 @@ import {
   THEME_SETTING_KEY,
   LANGUAGE_SETTING_KEY,
   DEBUG_MODE_KEY,
+  LOG_LEVEL_KEY,
   ONBOARDING_DONE_KEY,
   type HruSettings,
   MQTT_SETTINGS_KEY,
   type MqttSettings,
+  VALID_LOG_LEVELS,
+  type LogLevel,
 } from "../types/index.js";
 import {
   addonModeInputSchema,
@@ -25,6 +28,7 @@ import {
   mqttTestInputSchema,
   themeSettingInputSchema,
   debugModeInputSchema,
+  logLevelInputSchema,
   type HruSettingsInput,
   type MqttSettingsInput,
   type MqttTestInput,
@@ -32,6 +36,7 @@ import {
   type ThemeSettingInput,
   type LanguageSettingInput,
   type DebugModeInput,
+  type LogLevelInput,
 } from "../schemas/settings.js";
 import type { HruService } from "../features/hru/hru.service.js";
 import { validateRequest } from "../middleware/validateRequest.js";
@@ -260,19 +265,24 @@ export function createSettingsRouter(
         const resolvedUnitId = unitId ?? 1;
 
         // Validate maxPower against unit's actual maximum
-        const selectedUnit = resolvedUnit !== null
-          ? hruService.getAllUnits().find((u) => u.id === resolvedUnit)
-          : undefined;
+        const selectedUnit =
+          resolvedUnit !== null
+            ? hruService.getAllUnits().find((u) => u.id === resolvedUnit)
+            : undefined;
 
         if (selectedUnit) {
           const powerVar = selectedUnit.variables.find((v) => v.class === "power");
           const isConfigurable = powerVar?.maxConfigurable ?? false;
           const unitMaxValue = powerVar?.max;
           const defaultValue = powerVar?.maxDefault ?? unitMaxValue;
-          const controlUnit = typeof powerVar?.unit === "string" ? powerVar.unit : (powerVar?.unit?.text ?? "");
+          const controlUnit =
+            typeof powerVar?.unit === "string" ? powerVar.unit : (powerVar?.unit?.text ?? "");
 
           if (isConfigurable && maxPower === undefined) {
-            logger.warn({ unit: resolvedUnit }, "Attempted to set configurable HRU without maxPower");
+            logger.warn(
+              { unit: resolvedUnit },
+              "Attempted to set configurable HRU without maxPower",
+            );
             return next(
               new BadRequestError(
                 "Max power is required for the selected unit",
@@ -433,6 +443,32 @@ export function createSettingsRouter(
         response.status(204).end();
       } catch (error) {
         logger.error({ error }, "Failed to update debug mode");
+        next(error);
+      }
+    },
+  );
+
+  router.get("/log-level", (_request: Request, response: Response) => {
+    const level = getAppSetting(LOG_LEVEL_KEY) ?? "info";
+    const validLevel = VALID_LOG_LEVELS.includes(level as LogLevel) ? level : "info";
+    response.json({ level: validLevel });
+  });
+
+  router.post(
+    "/log-level",
+    validateRequest(logLevelInputSchema),
+    (
+      request: Request<Record<string, unknown>, Record<string, unknown>, LogLevelInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const { level } = request.body;
+        setAppSetting(LOG_LEVEL_KEY, level);
+        logger.info({ level }, "Frontend log level updated");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to update log level");
         next(error);
       }
     },

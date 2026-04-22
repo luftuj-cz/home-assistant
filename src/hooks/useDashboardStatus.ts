@@ -2,7 +2,9 @@ import type { HruUnit } from "../api/hru";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { resolveApiUrl, resolveWebSocketUrl } from "../utils/api";
-import { logger } from "../utils/logger";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("useDashboardStatus");
 
 export type ConnectionState = "connected" | "connecting" | "disconnected" | "offline";
 export type ModbusState = "loading" | "reachable" | "unreachable";
@@ -140,13 +142,19 @@ export function useDashboardStatus() {
           const found = allUnits.find((u) => u.id === unitId);
           if (found) {
             setHruName(found.name);
+            logger.info("HRU unit loaded", { unitId, unitName: found.name });
           }
         }
-      } catch {
+        logger.info("Dashboard configuration loaded", {
+          modbusHost: resolvedHost,
+          modbusPort: resolvedPort,
+          unitsCount: allUnits.length,
+        });
+      } catch (err) {
         if (!canceled) {
           setModbusConfigLoaded(true);
         }
-        logger.error("Failed to load data");
+        logger.error("Failed to load data", { error: err });
       }
     }
     void loadData();
@@ -174,25 +182,36 @@ export function useDashboardStatus() {
           setHaLoading(false);
           return;
         }
-        const data = (await safeJson<{
-          ha?: { connection?: string };
-          mqtt?: { connection?: "connected" | "disconnected"; lastDiscovery?: string | null };
-          timeline?: ActiveMode | null;
-        }>(res)) || {};
+        const data =
+          (await safeJson<{
+            ha?: { connection?: string };
+            mqtt?: { connection?: "connected" | "disconnected"; lastDiscovery?: string | null };
+            timeline?: ActiveMode | null;
+          }>(res)) || {};
         if (!active) return;
         const s = data.ha?.connection;
         if (s === "connected" || s === "connecting" || s === "disconnected" || s === "offline") {
           setHaStatus(s);
+          logger.debug("HA status updated", { status: s });
         }
         if (data.mqtt) {
-          setMqttStatus(data.mqtt.connection ?? "disconnected");
+          const mqttConn = data.mqtt.connection ?? "disconnected";
+          setMqttStatus(mqttConn);
           setMqttLastDiscovery(data.mqtt.lastDiscovery ?? null);
+          logger.debug("MQTT status updated", {
+            status: mqttConn,
+            lastDiscovery: data.mqtt.lastDiscovery,
+          });
         }
         if (data.timeline !== undefined) {
           const translated = data.timeline?.modeName
-            ? { ...data.timeline, modeName: t(data.timeline.modeName, { defaultValue: data.timeline.modeName }) }
+            ? {
+                ...data.timeline,
+                modeName: t(data.timeline.modeName, { defaultValue: data.timeline.modeName }),
+              }
             : data.timeline;
           setActiveMode(translated);
+          logger.debug("Active mode updated", { mode: translated });
         }
         setHaLoading(false);
       } catch {
@@ -239,7 +258,13 @@ export function useDashboardStatus() {
           return;
         }
         const data = (await safeJson<{ reachable?: boolean }>(res)) || {};
-        setModbusStatus(data.reachable ? "reachable" : "unreachable");
+        const status = data.reachable ? "reachable" : "unreachable";
+        setModbusStatus(status);
+        logger.debug("Modbus status probed", {
+          status,
+          host: currentModbusHost,
+          port: currentModbusPort,
+        });
       } catch {
         if (!active) return;
         setModbusStatus("unreachable");
@@ -293,6 +318,7 @@ export function useDashboardStatus() {
             registers: data.registers,
           });
           setModbusStatus("reachable");
+          logger.debug("HRU state updated", { variableCount: data.variables.length });
         } else {
           setHruStatus({ error: "Invalid HRU response" });
           setModbusStatus("unreachable");
@@ -352,13 +378,16 @@ export function useDashboardStatus() {
           const s = msg?.payload?.ha?.connection;
           if (s === "connected" || s === "connecting" || s === "disconnected" || s === "offline") {
             setHaStatus(s);
+            logger.debug("HA status updated via WebSocket", { status: s });
           }
           const m = msg?.payload?.mqtt?.connection;
           if (m === "connected" || m === "disconnected") {
             setMqttStatus(m);
+            logger.debug("MQTT status updated via WebSocket", { status: m });
           }
           if (msg?.payload?.timeline !== undefined) {
             setActiveMode(msg.payload.timeline);
+            logger.debug("Active mode updated via WebSocket", { mode: msg.payload.timeline });
           }
           setHaLoading(false);
         }
@@ -383,8 +412,10 @@ export function useDashboardStatus() {
     function connect() {
       cleanupSocket();
       const url = resolveWebSocketUrl("/ws/valves");
+      logger.debug("Connecting to status WebSocket", { url });
       const ws = new WebSocket(url);
       valvesWsRef.current = ws;
+      ws.addEventListener("open", () => logger.info("Status WebSocket connected"));
       ws.addEventListener("message", onMessage);
       ws.addEventListener("error", onError);
       ws.addEventListener("close", onClose);

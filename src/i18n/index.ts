@@ -4,7 +4,9 @@ import { notifications } from "@mantine/notifications";
 
 import enCommon from "./locales/en/common.json";
 import csCommon from "./locales/cs/common.json";
-import { logger } from "../utils/logger";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger("i18n");
 
 declare module "i18next" {
   interface CustomTypeOptions {

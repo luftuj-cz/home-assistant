@@ -3,89 +3,77 @@ import {
   createTheme,
   localStorageColorSchemeManager,
   useMantineColorScheme,
-  type MantineTheme,
-  type NotificationProps,
+  type MantineColorsTuple,
 } from "@mantine/core";
 import { Notifications } from "@mantine/notifications";
 import { RouterProvider } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
-import { Suspense, useEffect, useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { router } from "./router";
 import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from "./i18n";
-import { logger } from "./utils/logger";
+import { createLogger, setLogLevel, type LogLevel } from "./utils/logger";
 import { resolveApiUrl } from "./utils/api";
 
+const logger = createLogger("App");
+
+const luftBlue: MantineColorsTuple = [
+  "#dffbff",
+  "#caf2ff",
+  "#99e2ff",
+  "#64d2ff",
+  "#3cc4fe",
+  "#23bcfe",
+  "#00b5ff",
+  "#00a1e4",
+  "#008fcd",
+  "#007cb6",
+];
+
 const theme = createTheme({
-  primaryColor: "blue",
+  primaryColor: "luftBlue",
+  defaultRadius: "md",
+  cursorType: "pointer",
   colors: {
-    blue: [
-      "#e7f5ff",
-      "#d0ebff",
-      "#a5d8ff",
-      "#74c0fc",
-      "#4dabf7",
-      "#339af0",
-      "#228be6",
-      "#1c7ed6",
-      "#1971c2",
-      "#1864ab",
-    ],
+    luftBlue,
   },
   components: {
     Notification: {
-      styles: (_theme: MantineTheme, props: NotificationProps) => {
-        const color = props.color || "gray";
-        return {
-          root: {
-            backdropFilter: "blur(20px)",
-            backgroundColor: props.color
-              ? `rgba(var(--mantine-color-${color}-light-color), 0.45)`
-              : "rgba(var(--mantine-color-body-rgb), 0.95)",
-            border: `1.5px solid ${
-              props.color ? `var(--mantine-color-${color}-filled)` : "rgba(255, 255, 255, 0.5)"
-            }`,
-            boxShadow: props.color
-              ? `0 15px 45px rgba(var(--mantine-color-${color}-light-color), 0.35), 0 0 0 2px rgba(var(--mantine-color-${color}-light-color), 0.2), inset 0 0 0 1px rgba(255, 255, 255, 0.2)`
-              : "0 15px 45px rgba(0, 0, 0, 0.3), 0 0 0 2px rgba(255, 255, 255, 0.05), inset 0 0 0 1px rgba(255, 255, 255, 0.2)",
-            padding: "var(--mantine-spacing-md)",
-            borderRadius: "var(--mantine-radius-xl)",
-            overflow: "hidden",
-          },
-          icon: {
-            width: 40,
-            height: 40,
-            borderRadius: "var(--mantine-radius-lg)",
-            fontSize: 22,
-            backgroundColor: props.color
-              ? `var(--mantine-color-${color}-light)`
-              : "var(--mantine-color-gray-light)",
-          },
-          inner: {
-            paddingLeft: "var(--mantine-spacing-md)",
-          },
-          title: {
-            fontWeight: 800,
-            fontSize: "var(--mantine-font-size-md)",
-            marginBottom: 6,
-            letterSpacing: "-0.01em",
-            color: props.color ? `var(--mantine-color-${color}-filled)` : "inherit",
-          },
-          description: {
-            color: "var(--mantine-color-text)",
-            opacity: 0.9,
-            fontSize: "var(--mantine-font-size-sm)",
-            lineHeight: 1.5,
-            fontWeight: 500,
-          },
-          closeButton: {
-            borderRadius: "var(--mantine-radius-md)",
-            "&:hover": {
-              backgroundColor: "rgba(0, 0, 0, 0.05)",
-            },
-          },
-        };
+      styles: {
+        root: {
+          backdropFilter: "blur(20px)",
+          padding: "var(--mantine-spacing-md)",
+          borderRadius: "var(--mantine-radius-xl)",
+          overflow: "hidden",
+          border: "1.5px solid var(--mantine-color-default-border)",
+          backgroundColor: "rgba(var(--mantine-color-body-rgb), 0.95)",
+          boxShadow:
+            "0 15px 45px rgba(0, 0, 0, 0.3), 0 0 0 2px var(--mantine-color-default-hover), inset 0 0 0 1px var(--mantine-color-default-hover)",
+        },
+        icon: {
+          width: 40,
+          height: 40,
+          borderRadius: "var(--mantine-radius-lg)",
+          fontSize: 22,
+          backgroundColor: "var(--mantine-color-gray-light)",
+        },
+        title: {
+          fontWeight: 800,
+          fontSize: "var(--mantine-font-size-md)",
+          marginBottom: 6,
+          letterSpacing: "-0.01em",
+        },
+        description: {
+          color: "var(--mantine-color-text)",
+          opacity: 0.9,
+          fontSize: "var(--mantine-font-size-sm)",
+          lineHeight: 1.5,
+          fontWeight: 500,
+        },
+        closeButton: {
+          borderRadius: "var(--mantine-radius-md)",
+        },
       },
     },
   },
@@ -133,6 +121,39 @@ function ThemeInitializer() {
   return null;
 }
 
+function LogLevelInitializer() {
+  useEffect(() => {
+    let active = true;
+
+    async function initialiseLogLevel() {
+      try {
+        const response = await fetch(resolveApiUrl("/api/settings/log-level"));
+        if (!response?.ok) {
+          return;
+        }
+        const data = (await response.json()) as { level?: string };
+        if (!active) {
+          return;
+        }
+        if (data.level) {
+          setLogLevel(data.level as LogLevel);
+          logger.info("Log level initialised from backend", { level: data.level });
+        }
+      } catch (error) {
+        logger.error("Failed to initialise log level from backend", { error });
+      }
+    }
+
+    void initialiseLogLevel();
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  return null;
+}
+
 function LanguageInitializer() {
   useEffect(() => {
     let active = true;
@@ -175,16 +196,14 @@ export default function App() {
       <I18nextProvider i18n={i18n} defaultNS="common">
         <MantineProvider
           theme={theme}
-          withCssVariables
           colorSchemeManager={colorSchemeManager}
           defaultColorScheme="dark"
         >
           <LanguageInitializer />
+          <LogLevelInitializer />
           <ThemeInitializer />
           <Notifications position="bottom-left" limit={3} zIndex={4000} containerWidth={440} />
-          <Suspense fallback={null}>
-            <RouterProvider router={router} />
-          </Suspense>
+          <RouterProvider router={router} />
         </MantineProvider>
       </I18nextProvider>
     </QueryClientProvider>

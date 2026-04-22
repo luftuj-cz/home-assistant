@@ -302,7 +302,10 @@
       "debugMode": "Ladicí režim",
       "debugModeDescription": "Povolí stránku Ladění v navigačním panelu.",
       "debugEnabled": "Ladicí režim povolen",
-      "debugDisabled": "Ladicí režim zakázán"
+      "debugDisabled": "Ladicí režim zakázán",
+      "logLevel": "Úroveň logování",
+      "logLevelDescription": "Ovládá podrobnost logování do konzole.",
+      "logLevelChanged": "Úroveň logování změněna na {{level}}"
     }
   },
   "validation": {
@@ -318,6 +321,40 @@
     "title": "Ladicí nástroje",
     "description": "Pokročilá diagnostika a inspektor registrů.",
     "placeholder": "Tato stránka slouží jako základ pro budoucí vývojářské nástroje a ruční inspekci registrů.",
+    "backendValues": "Ladicí hodnoty backendu",
+    "copyValues": "Kopírovat hodnoty",
+    "copySuccess": "Ladicí hodnoty byly zkopírovány do schránky.",
+    "copyFailed": "Nepodařilo se zkopírovat ladicí hodnoty.",
+    "refresh": "Obnovit",
+    "loading": "Načítám ladicí hodnoty…",
+    "lastUpdated": "Naposledy aktualizováno: {{time}}",
+    "noData": "Nebyla přijata žádná ladicí data.",
+    "serverLogs": "Serverové logy",
+    "homeAssistantApi": "Home Assistant API",
+    "loadFailed": "Nepodařilo se načíst ladicí hodnoty: {{message}}",
+    "loadFailedUnknown": "Nepodařilo se načíst ladicí hodnoty.",
+    "table": {
+      "key": "Klíč",
+      "value": "Hodnota"
+    },
+    "logs": {
+      "loading": "Načítám serverové logy…",
+      "bufferedCount": "Počet uložených řádků logu: {{count}}",
+      "noData": "Zatím nebyly zachyceny žádné serverové logy.",
+      "loadFailed": "Nepodařilo se načíst serverové logy: {{message}}",
+      "loadFailedUnknown": "Nepodařilo se načíst serverové logy.",
+      "table": {
+        "time": "Čas",
+        "level": "Úroveň",
+        "message": "Zpráva"
+      }
+    },
+    "haApi": {
+      "loading": "Načítám data Home Assistant API…",
+      "noData": "Nebyla přijata žádná data z Home Assistant API.",
+      "loadFailed": "Nepodařilo se načíst data Home Assistant API: {{message}}",
+      "loadFailedUnknown": "Nepodařilo se načíst data Home Assistant API."
+    },
     "onboardingTools": "Nástroje pro nastavení",
     "resetOnboarding": "Resetovat příznak nastavení",
     "finishOnboarding": "Dokončit příznak nastavení",
@@ -425,6 +462,21 @@
       "unavailable": "Některé klapky jsou v Home Assistantu nedostupné. Zobrazované hodnoty mohou být zastaralé."
     }
   },
+  "apiErrors": {
+    "DUPLICATE_EVENT_TIME": "Událost pro tento čas v daný den již existuje",
+    "DUPLICATE_MODE_NAME": "Název režimu pro tuto jednotku již existuje",
+    "POWER_LIMIT_EXCEEDED": "Výkon překračuje povolený limit pro tuto jednotku",
+    "INVALID_MODE_ID": "Neplatné ID režimu",
+    "MODE_NOT_FOUND": "Režim nebyl nalezen",
+    "INVALID_EVENT_ID": "Neplatné ID události",
+    "HRU_NOT_CONFIGURED": "Rekuperační jednotka není nakonfigurována",
+    "HRU_CONNECTION_ERROR": "Nepodařilo se připojit k rekuperační jednotce",
+    "MQTT_TEST_FAILED": "Test MQTT připojení selhal",
+    "HRU_HOST_REQUIRED": "Host je povinný",
+    "UNKNOWN_HRU_UNIT": "Neznámá rekuperační jednotka",
+    "MAX_POWER_REQUIRED": "Maximální výkon je povinný pro vybranou jednotku",
+    "MAX_POWER_EXCEEDED": "Maximální výkon překračuje povolený limit pro tuto jednotku"
+  },
   "errors": {
     "i18n": {
       "title": "Inicializace překladů selhala",
@@ -446,7 +498,11 @@
       "description": "Začínáme",
       "title": "Pojďme nastavit váš systém",
       "text": "Nakonfigurujeme připojení k rekuperační jednotce (Modbus) a Home Assistantu (MQTT).",
-      "button": "Spustit nastavení"
+      "button": "Spustit nastavení",
+      "importButton": "Importovat zálohu",
+      "importText": "Přeskočte nastavení obnovením předchozí zálohy.",
+      "importSuccess": "Databáze úspěšně importována. Přesměrování...",
+      "importError": "Nepodařilo se importovat zálohu databáze."
     },
     "preferences": {
       "label": "Předvolby",

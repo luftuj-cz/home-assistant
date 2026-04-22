@@ -25,7 +25,10 @@ import type { TFunction } from "i18next";
 import type { Mode } from "../../types/timeline";
 import { activateBoost, cancelBoost, fetchActiveBoost } from "../../api/timeline";
 import { notifications } from "@mantine/notifications";
-import { logger } from "../../utils/logger";
+import { createLogger } from "../../utils/logger";
+import { translateApiError } from "../../utils/apiError";
+
+const logger = createLogger("BoostButtons");
 
 interface BoostButtonsProps {
   modes: Mode[];
@@ -53,6 +56,12 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
     try {
       const active = await fetchActiveBoost();
       setActiveBoost(active);
+      if (active) {
+        logger.debug("Active boost fetched", {
+          modeId: active.modeId,
+          remainingMinutes: Math.ceil((new Date(active.endTime).getTime() - Date.now()) / 60000),
+        });
+      }
     } catch (err) {
       logger.error("Failed to fetch active boost", { err });
     }
@@ -88,6 +97,7 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
 
   async function handleActivate(modeId: number) {
     setLoadingModeId(modeId);
+    logger.info("Activating boost mode", { modeId, duration, activeUnitId });
     try {
       const active = await activateBoost(modeId, duration, activeUnitId);
 
@@ -96,16 +106,21 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
       setRemainingMinutes(mins);
       setActiveBoost(active);
 
+      logger.info("Boost mode activated successfully", {
+        modeId,
+        duration,
+        endTime: active.endTime,
+      });
       notifications.show({
         title: t("dashboard.boostTitle"),
         message: t("dashboard.boostActive", { minutes: duration }),
         color: "green",
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
+      logger.error("Failed to activate boost mode", { modeId, duration, error: err });
       notifications.show({
         title: t("valves.alertTitle"),
-        message,
+        message: translateApiError(err, t),
         color: "red",
       });
     } finally {
@@ -115,15 +130,17 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
 
   async function handleCancel() {
     setIsCancelling(true);
+    logger.info("Cancelling boost mode");
     try {
       await cancelBoost();
       setRemainingMinutes(0);
       setActiveBoost(null);
+      logger.info("Boost mode cancelled successfully");
     } catch (err) {
-      const message = err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
+      logger.error("Failed to cancel boost mode", { error: err });
       notifications.show({
         title: t("valves.alertTitle"),
-        message,
+        message: translateApiError(err, t),
         color: "red",
       });
     } finally {
@@ -134,7 +151,7 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
   if (boostModes.length === 0) return null;
 
   return (
-    <Card withBorder radius="lg" padding="xl">
+    <Card withBorder radius="lg" p="xl">
       <Stack gap="xl">
         <Group justify="space-between" wrap="nowrap">
           <Group gap="md">
@@ -311,6 +328,7 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                   color="orange"
                   disabled={!!activeBoost || loadingModeId !== null || isCancelling}
                   styles={{
+                    root: { width: "100%" },
                     thumb: {
                       borderWidth: 2,
                       padding: 3,
@@ -318,7 +336,7 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                       height: 22,
                       display: activeBoost ? "none" : "block",
                     },
-                    track: { backgroundColor: "rgba(255,255,255,0.15)" },
+                    track: { backgroundColor: "var(--mantine-color-default-hover)" },
                   }}
                 />
               )}

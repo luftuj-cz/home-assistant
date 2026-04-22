@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import {
   Button,
   Group,
@@ -20,6 +20,7 @@ import {
   Flex,
   SimpleGrid,
   Progress,
+  Divider,
 } from "@mantine/core";
 import { fetchHruUnits, type HruUnit } from "../api/hru";
 import { useForm } from "@mantine/form";
@@ -42,9 +43,12 @@ import { z } from "zod";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 import { useMantineColorScheme } from "@mantine/core";
-import { logger } from "../utils/logger";
+import { createLogger } from "../utils/logger";
 import { isSupportedLanguage, setLanguage } from "../i18n";
 import { resolveApiUrl } from "../utils/api";
+import { parseApiError, translateApiError } from "../utils/apiError";
+
+const logger = createLogger("OnboardingPage");
 
 function createModbusSchema(t: (key: string) => string) {
   return z.object({
@@ -96,6 +100,9 @@ export function OnboardingPage() {
   const [selectedTheme, setSelectedTheme] = useState<"light" | "dark">(
     colorScheme === "auto" ? "dark" : (colorScheme as "light" | "dark"),
   );
+
+  const importInputRef = useRef<HTMLInputElement>(null);
+  const queryClient = useQueryClient();
 
   const modbusSchema = useMemo(() => createModbusSchema(t), [t]);
 
@@ -179,7 +186,12 @@ export function OnboardingPage() {
 
   // Set default maxPower when unit is selected
   useEffect(() => {
-    if (selectedUnit && requiresMaxPower && maxPower === undefined && defaultMaxPower !== undefined) {
+    if (
+      selectedUnit &&
+      requiresMaxPower &&
+      maxPower === undefined &&
+      defaultMaxPower !== undefined
+    ) {
       setMaxPower(defaultMaxPower);
     }
   }, [selectedUnit, requiresMaxPower, defaultMaxPower, maxPower]);
@@ -201,7 +213,13 @@ export function OnboardingPage() {
   }, [systemInfoQuery.data, mqttForm]);
 
   const saveHruMutation = useMutation({
-    mutationFn: async (data: { host: string; port: number; unitId: number; unit: string; maxPower?: number }) => {
+    mutationFn: async (data: {
+      host: string;
+      port: number;
+      unitId: number;
+      unit: string;
+      maxPower?: number;
+    }) => {
       const res = await fetch(resolveApiUrl("/api/settings/hru"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -332,6 +350,40 @@ export function OnboardingPage() {
     },
   });
 
+  const importDbMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const buffer = await file.arrayBuffer();
+      const res = await fetch(resolveApiUrl("/api/database/import"), {
+        method: "POST",
+        headers: { "Content-Type": "application/octet-stream" },
+        body: buffer,
+      });
+      if (!res.ok) throw await parseApiError(res);
+      // Mark onboarding as done
+      const finish = await fetch(resolveApiUrl("/api/settings/onboarding-finish"), {
+        method: "POST",
+      });
+      if (!finish.ok) throw new Error("Failed to finish onboarding");
+    },
+    onSuccess: async () => {
+      notifications.show({
+        title: t("settings.database.notifications.importSuccessTitle"),
+        message: t("onboarding.welcome.importSuccess"),
+        color: "green",
+      });
+      await queryClient.invalidateQueries({ queryKey: ["onboarding-layout-check"] });
+      await navigate({ to: "/" });
+    },
+    onError: (error) => {
+      notifications.show({
+        title: t("onboarding.welcome.importError"),
+        message: translateApiError(error, t),
+        color: "red",
+      });
+      logger.error("Failed to import database", { error });
+    },
+  });
+
   const statusQuery = useQuery({
     queryKey: ["onboarding-status"],
     queryFn: async () => {
@@ -437,7 +489,12 @@ export function OnboardingPage() {
     try {
       await saveMqttMutation.mutateAsync(mqttForm.values);
       logger.info("MQTT settings saved successfully");
-      nextStep();
+      // Demo units don't need Modbus — skip to status step
+      if (isDemoUnit) {
+        setActive(5);
+      } else {
+        nextStep();
+      }
     } catch (err) {
       notifications.show({
         title: t("onboarding.mqtt.failed"),
@@ -466,7 +523,7 @@ export function OnboardingPage() {
       return;
     }
 
-    // For demo interface, finish onboarding immediately (no MQTT/Modbus steps needed)
+    // For demo interface, save HRU config and proceed to MQTT step (skip Modbus later)
     if (isDemoUnit) {
       try {
         await saveHruMutation.mutateAsync({
@@ -474,25 +531,21 @@ export function OnboardingPage() {
           unit: selectedUnit,
           maxPower: requiresMaxPower ? maxPower : undefined,
         });
-        await finishOnboardingMutation.mutateAsync();
-        await queryClient.invalidateQueries({ queryKey: ["onboarding-layout-check"] });
-        logger.info("Demo unit selected; onboarding skipped to completion", { unit: selectedUnit });
-        await navigate({ to: "/" });
+        logger.info("Demo unit selected; proceeding to MQTT step", { unit: selectedUnit });
+        nextStep();
       } catch (err) {
         notifications.show({
           title: t("onboarding.mqtt.failed"),
           message: t("onboarding.unit.saveFailed"),
           color: "red",
         });
-        logger.error("Failed to finish onboarding for demo unit", { error: err });
+        logger.error("Failed to save HRU settings for demo unit", { error: err });
       }
       return;
     }
 
     nextStep();
   }
-
-  const queryClient = useQueryClient();
 
   async function handleFinish() {
     try {
@@ -661,6 +714,29 @@ export function OnboardingPage() {
           <Button size="lg" mt="md" rightSection={<IconArrowRight size={18} />} onClick={nextStep}>
             {t("onboarding.welcome.button")}
           </Button>
+          <Divider label={t("app.nav.optional")} labelPosition="center" w="100%" maw={300} />
+          <Text size="xs" c="dimmed" ta="center">
+            {t("onboarding.welcome.importText")}
+          </Text>
+          <Button
+            variant="subtle"
+            size="sm"
+            loading={importDbMutation.isPending}
+            onClick={() => importInputRef.current?.click()}
+          >
+            {t("onboarding.welcome.importButton")}
+          </Button>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".db,application/octet-stream"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) importDbMutation.mutate(file);
+              e.target.value = "";
+            }}
+          />
         </Stack>
 
         <Stack gap="md" py="lg" display={active === 1 ? "flex" : "none"}>
@@ -753,7 +829,10 @@ export function OnboardingPage() {
                   label={t("settings.hru.configuration.maxPowerLabel")}
                   description={t("settings.hru.configuration.maxPowerHint", {
                     default: defaultMaxPower,
-                    unit: typeof powerVariable?.unit === "string" ? powerVariable.unit : (powerVariable?.unit?.text ?? "%"),
+                    unit:
+                      typeof powerVariable?.unit === "string"
+                        ? powerVariable.unit
+                        : (powerVariable?.unit?.text ?? "%"),
                   })}
                   min={1}
                   max={powerVariable?.max ?? 10000}
@@ -769,7 +848,9 @@ export function OnboardingPage() {
             <Button
               onClick={handleUnitSubmit}
               loading={saveHruMutation.isPending}
-              disabled={!selectedUnit || (requiresMaxPower && (maxPower === undefined || maxPower === null))}
+              disabled={
+                !selectedUnit || (requiresMaxPower && (maxPower === undefined || maxPower === null))
+              }
             >
               {t("onboarding.next")}
             </Button>

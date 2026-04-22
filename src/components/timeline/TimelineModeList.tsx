@@ -11,6 +11,7 @@ import {
   SimpleGrid,
 } from "@mantine/core";
 import { IconPlus, IconEdit, IconTrash } from "@tabler/icons-react";
+import { useState } from "react";
 import type { TFunction } from "i18next";
 import type { Mode } from "../../types/timeline";
 import { formatTemperature, getTemperatureLabel } from "../../utils/temperature";
@@ -32,8 +33,10 @@ export function TimelineModeList({
   t,
   powerUnit = "%",
 }: TimelineModeListProps) {
+  const [hoveredCardId, setHoveredCardId] = useState<number | null>(null);
+
   return (
-    <Card withBorder radius="md" padding="md">
+    <Card withBorder radius="md" p="md">
       <Stack gap="md">
         <Group justify="space-between">
           <Group gap="xs">
@@ -53,8 +56,11 @@ export function TimelineModeList({
           <Card
             withBorder
             radius="lg"
-            padding="md"
-            style={{ backgroundColor: "rgba(255, 255, 255, 0.05)", backdropFilter: "blur(10px)" }}
+            p="md"
+            style={{
+              backgroundColor: "var(--mantine-color-default)",
+              backdropFilter: "blur(10px)",
+            }}
           >
             <Stack align="center" gap="xs">
               <Text size="sm" c="dimmed">
@@ -76,27 +82,23 @@ export function TimelineModeList({
               <Card
                 key={m.id}
                 withBorder
-                padding="md"
+                p="md"
                 radius="lg"
                 draggable
                 onDragStart={(e) => {
                   e.dataTransfer.setData("application/json", JSON.stringify(m));
                   e.dataTransfer.effectAllowed = "copy";
                 }}
+                onMouseEnter={() => setHoveredCardId(m.id)}
+                onMouseLeave={() => setHoveredCardId(null)}
                 style={{
                   borderTop: `6px solid ${m.color || "var(--mantine-color-blue-6)"}`,
                   backgroundColor: "rgba(255, 255, 255, 0.05)",
                   backdropFilter: "blur(10px)",
                   transition: "transform 0.2s ease, box-shadow 0.2s ease",
                   cursor: "grab",
-                }}
-                styles={{
-                  root: {
-                    "&:hover": {
-                      transform: "translateY(-2px)",
-                      boxShadow: "var(--mantine-shadow-md)",
-                    },
-                  },
+                  transform: hoveredCardId === m.id ? "translateY(-2px)" : "translateY(0)",
+                  boxShadow: hoveredCardId === m.id ? "var(--mantine-shadow-md)" : undefined,
                 }}
               >
                 <Stack gap="md">
