@@ -191,6 +191,7 @@ export function DebugPage() {
   const [haApiRefreshing, setHaApiRefreshing] = useState(false);
   const [haApiErrorMessage, setHaApiErrorMessage] = useState<string | null>(null);
   const [discoveryRefreshing, setDiscoveryRefreshing] = useState(false);
+  const [valvesRefreshing, setValvesRefreshing] = useState(false);
   const [overrideStopping, setOverrideStopping] = useState(false);
   const [schedulerRestarting, setSchedulerRestarting] = useState(false);
   const [databaseResetting, setDatabaseResetting] = useState(false);
@@ -303,6 +304,31 @@ export function DebugPage() {
       console.error("Failed to refresh MQTT discovery", error);
     } finally {
       setDiscoveryRefreshing(false);
+    }
+  }
+
+  async function refreshValves(): Promise<void> {
+    setValvesRefreshing(true);
+    try {
+      const response = await fetch(resolveApiUrl("/api/valves/refresh"), {
+        method: "POST",
+      });
+      if (response.ok) {
+        notifications.show({
+          title: t("debug.valvesRefreshSuccess"),
+          message: t("debug.valvesRefreshSuccessMessage"),
+          color: "green",
+        });
+        // Reload debug snapshot to see updated state
+        void loadDebugSnapshot(false);
+      } else {
+        const detail = (await response.text()).trim();
+        console.error("Failed to refresh valves", detail || `HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Failed to refresh valves", error);
+    } finally {
+      setValvesRefreshing(false);
     }
   }
 
@@ -832,6 +858,17 @@ export function DebugPage() {
                   }}
                 >
                   {t("debug.refreshDiscovery")}
+                </Button>
+                <Button
+                  color="blue"
+                  variant="light"
+                  leftSection={<IconRefresh size={16} />}
+                  loading={valvesRefreshing}
+                  onClick={() => {
+                    void refreshValves();
+                  }}
+                >
+                  {t("debug.refreshValves")}
                 </Button>
                 <Button
                   color="orange"

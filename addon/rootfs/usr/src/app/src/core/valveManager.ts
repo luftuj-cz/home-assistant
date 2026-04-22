@@ -30,6 +30,7 @@ export type BroadcastFn = (message: BroadcastMessage) => Promise<void>;
 export interface ValveController {
   start(): Promise<void>;
   stop(): Promise<void>;
+  refresh(): Promise<void>;
   getSnapshot(): Promise<ValveSnapshot[]>;
   setValue(entityId: string, value: number): Promise<ValveSnapshot>;
 }
@@ -116,7 +117,7 @@ export class ValveManager implements ValveController {
         timestamp: valve.last_updated ?? valve.last_changed ?? new Date().toISOString(),
       })),
     );
-    this.logger.debug({ count: filteredSnapshot.length }, "Valve snapshot synchronised");
+    this.logger.info({ count: filteredSnapshot.length }, "Valve snapshot synchronised");
   }
 
   async setValue(entityId: string, value: number): Promise<ValveSnapshot> {

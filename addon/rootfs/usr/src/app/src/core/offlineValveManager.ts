@@ -18,6 +18,11 @@ export class OfflineValveManager implements ValveController {
     this.logger.info("Valve manager offline shutdown complete");
   }
 
+  async refresh(): Promise<void> {
+    this.logger.info("Offline mode: skip valve refresh");
+    await this.broadcast({ type: "snapshot", payload: [] });
+  }
+
   async getSnapshot(): Promise<ValveSnapshot[]> {
     return [];
   }

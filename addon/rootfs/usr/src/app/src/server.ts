@@ -305,7 +305,7 @@ async function shutdown(signal: string) {
   logger.info({ signal }, "Shutting down LUFTaTOR backend");
 
   // Force exit if graceful shutdown takes too long
-  const forceExitTimeout = setTimeout(() => {
+  setTimeout(() => {
     const restarting = !!(global as any).isRestarting;
     logger.error({ restarting }, "Shutdown timed out, forcing exit");
     process.exit(restarting ? 1 : 0);
