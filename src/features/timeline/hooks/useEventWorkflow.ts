@@ -9,7 +9,7 @@ const logger = createLogger("useEventWorkflow");
 
 export function useEventWorkflow(
   t: TFunction,
-  saveEvent: (event: TimelineEvent) => Promise<boolean>,
+  saveEvent: (event: TimelineEvent, options?: { silent?: boolean }) => Promise<boolean>,
   modes: Array<{ id?: number | string; name: string }>,
 ) {
   const [eventModalOpen, setEventModalOpen] = useState(false);

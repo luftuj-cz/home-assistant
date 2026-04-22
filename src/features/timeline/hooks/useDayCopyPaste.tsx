@@ -11,8 +11,8 @@ const logger = createLogger("useDayCopyPaste");
 export function useDayCopyPaste(
   t: TFunction,
   eventsByDay: Map<number, TimelineEvent[]>,
-  deleteEvent: (id: number) => Promise<void>,
-  saveEvent: (event: TimelineEvent) => Promise<void | boolean>,
+  deleteEvent: (id: number, options?: { silent?: boolean }) => Promise<void>,
+  saveEvent: (event: TimelineEvent, options?: { silent?: boolean }) => Promise<void | boolean>,
   dayLabels: string[],
 ) {
   const [copyDay, setCopyDay] = useState<number | null>(null);
@@ -49,7 +49,7 @@ export function useDayCopyPaste(
     } else {
       notifications.hide("copy-hint");
     }
-  }, [copyDay, dayLabels, t, deleteEvent, saveEvent, eventsByDay]);
+  }, [copyDay, dayLabels, t]);
 
   const handlePasteDay = useCallback(
     async (targetDay: number) => {
@@ -59,18 +59,21 @@ export function useDayCopyPaste(
 
       for (const ev of targetEvents) {
         if (ev.id !== undefined) {
-          await deleteEvent(ev.id);
+          await deleteEvent(ev.id, { silent: true });
         }
       }
 
       for (const ev of source) {
-        await saveEvent({
-          startTime: ev.startTime,
-          dayOfWeek: targetDay,
-          hruConfig: ev.hruConfig,
-          luftatorConfig: ev.luftatorConfig,
-          enabled: ev.enabled,
-        });
+        await saveEvent(
+          {
+            startTime: ev.startTime,
+            dayOfWeek: targetDay,
+            hruConfig: ev.hruConfig,
+            luftatorConfig: ev.luftatorConfig,
+            enabled: ev.enabled,
+          },
+          { silent: true },
+        );
       }
       setCopyDay(null);
       notifications.show({

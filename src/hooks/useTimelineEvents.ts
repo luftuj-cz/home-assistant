@@ -48,7 +48,7 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
   );
 
   const saveEvent = useCallback(
-    async (event: TimelineEvent) => {
+    async (event: TimelineEvent, options?: { silent?: boolean }) => {
       const selectedMode =
         modes.find((m) => m.id?.toString() === event.hruConfig?.mode?.toString()) ?? null;
       const mergedHruConfig = {
@@ -91,11 +91,13 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
           return [...prev, saved];
         });
 
-        notifications.show({
-          title: t("settings.timeline.notifications.saveSuccessTitle"),
-          message: t("settings.timeline.notifications.saveSuccessMessage"),
-          color: "green",
-        });
+        if (!options?.silent) {
+          notifications.show({
+            title: t("settings.timeline.notifications.saveSuccessTitle"),
+            message: t("settings.timeline.notifications.saveSuccessMessage"),
+            color: "green",
+          });
+        }
         return true;
       } catch (err) {
         logger.error("Failed to save timeline event", {
@@ -103,11 +105,13 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
           eventId: event.id,
           dayOfWeek: event.dayOfWeek,
         });
-        notifications.show({
-          title: t("settings.timeline.notifications.saveFailedTitle"),
-          message: translateApiError(err, t),
-          color: "red",
-        });
+        if (!options?.silent) {
+          notifications.show({
+            title: t("settings.timeline.notifications.saveFailedTitle"),
+            message: translateApiError(err, t),
+            color: "red",
+          });
+        }
         return false;
       } finally {
         setSaving(false);
@@ -117,18 +121,20 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
   );
 
   const deleteEvent = useCallback(
-    async (id: number) => {
+    async (id: number, options?: { silent?: boolean }) => {
       try {
         await api.deleteTimelineEvent(id);
         setEvents((prev) => prev.filter((e) => e.id !== id));
         logger.info("Timeline event deleted", { id });
       } catch (err) {
         logger.error("Failed to delete timeline event", { error: err, id });
-        notifications.show({
-          title: t("settings.timeline.notifications.deleteFailedTitle"),
-          message: translateApiError(err, t),
-          color: "red",
-        });
+        if (!options?.silent) {
+          notifications.show({
+            title: t("settings.timeline.notifications.deleteFailedTitle"),
+            message: translateApiError(err, t),
+            color: "red",
+          });
+        }
       }
     },
     [t],
