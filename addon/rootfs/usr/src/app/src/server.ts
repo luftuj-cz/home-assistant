@@ -87,8 +87,8 @@ let haClient: HomeAssistantClient | null = null;
 if (config.token) {
   haClient = new HomeAssistantClient(config.baseUrl, config.token, logger);
   valveManager = new ValveManager(haClient, logger, broadcast);
-  haClient.addStatusListener((state) => {
-    void broadcast({ type: "status", payload: { ha: { connection: state } } });
+  haClient.addStatusListener(() => {
+    broadcastSystemStatus();
   });
 } else {
   valveManager = new OfflineValveManager(logger, broadcast);
@@ -105,6 +105,18 @@ const timelineScheduler = new TimelineScheduler(valveManager, hruService, settin
 const mqttService = new MqttService(config.mqtt, settingsRepo, timelineScheduler, logger);
 const hruMonitor = new HruMonitor(hruService, mqttService, timelineScheduler, logger);
 
+function broadcastSystemStatus() {
+  const haStatus = haClient ? haClient.getConnectionState() : "offline";
+  const mqttStatus = mqttService.isConnected() ? "connected" : "disconnected";
+  void broadcast({
+    type: "status",
+    payload: {
+      ha: { connection: haStatus },
+      mqtt: { connection: mqttStatus },
+    },
+  });
+}
+
 const hruController = new HruController(hruService, logger);
 
 // Routes
@@ -113,7 +125,7 @@ app.use("/api/timeline", createTimelineRouter(logger, timelineScheduler, hruServ
 app.use("/api/settings", createSettingsRouter(hruService, mqttService, haClient, logger));
 app.use(
   "/api/database",
-  createDatabaseRouter(valveManager, mqttService, timelineScheduler, logger),
+  createDatabaseRouter(valveManager, mqttService, timelineScheduler, hruMonitor, logger),
 );
 app.use("/api/valves", createValvesRouter(valveManager, logger));
 app.use(
@@ -208,13 +220,13 @@ wss.on("connection", async (socket) => {
 
   // Send initial status
   try {
-    const status = haClient ? haClient.getConnectionState() : "offline";
+    const haStatus = haClient ? haClient.getConnectionState() : "offline";
     const mqttStatus = mqttService.isConnected() ? "connected" : "disconnected";
     socket.send(
       JSON.stringify({
         type: "status",
         payload: {
-          ha: { connection: status },
+          ha: { connection: haStatus },
           mqtt: { connection: mqttStatus },
         },
       }),
@@ -251,6 +263,16 @@ async function start() {
     await mqttService.connect();
     hruMonitor.start();
     logger.info("MQTT Service and HRU Monitor started successfully");
+
+    mqttService.on("connect", () => {
+      logger.debug("MQTT Service connected, broadcasting status");
+      broadcastSystemStatus();
+    });
+
+    mqttService.on("disconnect", () => {
+      logger.debug("MQTT Service disconnected, broadcasting status");
+      broadcastSystemStatus();
+    });
   } catch (err) {
     logger.error({ err }, "Failed to start MQTT Service or HRU Monitor");
     // Continue even if MQTT fails
@@ -283,54 +305,57 @@ async function shutdown(signal: string) {
   logger.info({ signal }, "Shutting down LUFTaTOR backend");
 
   // Force exit if graceful shutdown takes too long
-  setTimeout(() => {
-    logger.error("Shutdown timed out, forcing exit");
-    process.exit(1);
-  }, 5000).unref(); // unref prevents this timer from keeping the loop process alive
+  const forceExitTimeout = setTimeout(() => {
+    const restarting = !!(global as any).isRestarting;
+    logger.error({ restarting }, "Shutdown timed out, forcing exit");
+    process.exit(restarting ? 1 : 0);
+  }, 3000);
+  // Do NOT unref this timeout - it must fire to force exit if shutdown hangs
 
   hruMonitor.stop();
   timelineScheduler.stop();
-  wss.close();
+
+  // Terminate all WebSocket connections
+  logger.debug({ clientCount: clients.size }, "Terminating all WebSocket clients");
+  for (const client of clients) {
+    try {
+      client.terminate();
+    } catch {
+      // Ignore
+    }
+  }
+  clients.clear();
+
+  // Close WebSocket server with timeout
+  try {
+    await Promise.race([
+      new Promise<void>((resolve) => wss.close(() => resolve())),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("wss.close timeout")), 1000)),
+    ]);
+  } catch (err) {
+    logger.warn({ err }, "WebSocket server close timed out or failed");
+  }
 
   await mqttService.disconnect();
   await valveManager.stop();
   await closeAllSharedClients();
   logger.info("All services stopped successfully");
 
-  // Broadcast status helper
-  function broadcastStatus() {
-    const haState = haClient ? haClient.getConnectionState() : "offline";
-    const mqttState = mqttService.isConnected() ? "connected" : "disconnected";
-    const msg = JSON.stringify({
-      type: "status",
-      payload: {
-        ha: { connection: haState },
-        mqtt: { connection: mqttState },
-      },
-    });
-    for (const client of clients) {
-      if (client.readyState === WebSocket.OPEN) {
-        client.send(msg);
-      }
-    }
+  // Close all HTTP/WebSocket connections to ensure the server can stop promptly
+  if (typeof httpServer.closeAllConnections === "function") {
+    httpServer.closeAllConnections();
   }
 
-  // Subscribe to status changes
-  mqttService.on("connect", () => {
-    logger.info("MQTT Service connected, broadcasting status");
-    broadcastStatus();
-  });
+  // Attempt to close HTTP server gracefully but don't hang on it
+  httpServer.close();
 
-  mqttService.on("disconnect", () => {
-    logger.info("MQTT Service disconnected, broadcasting status");
-    broadcastStatus();
-  });
-
-  await new Promise<void>((resolve) => {
-    httpServer.close(() => resolve());
-  });
-
-  process.exit(0);
+  // Final definitive exit after a short delay for logs to flush
+  setTimeout(() => {
+    const restarting = !!(global as any).isRestarting;
+    logger.info({ restarting }, "Exiting process now");
+    // Use exit code 1 for restarts to ensure Supervisor/Docker restarts the container
+    process.exit(restarting ? 1 : 0);
+  }, 500);
 }
 
 process.on("SIGINT", (signal) => {
