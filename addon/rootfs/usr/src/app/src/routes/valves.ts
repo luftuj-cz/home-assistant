@@ -25,6 +25,17 @@ export function createValvesRouter(valveManager: ValveController, logger: Logger
     }
   });
 
+  router.post("/refresh", async (_request: Request, response: Response, next: NextFunction) => {
+    try {
+      logger.info("Manual valve snapshot refresh requested");
+      await valveManager.refresh();
+      response.status(204).end();
+    } catch (error) {
+      logger.error({ error }, "Failed to refresh valves snapshot");
+      next(error);
+    }
+  });
+
   router.post(
     "/:entityId",
     validateParams(valveUpdateParamsSchema),
