@@ -12,9 +12,16 @@ import {
   Tabs,
   Title,
 } from "@mantine/core";
-import { IconAlertCircle, IconCopy, IconPlayerStop, IconRefresh } from "@tabler/icons-react";
+import {
+  IconAlertCircle,
+  IconCopy,
+  IconPlayerStop,
+  IconRefresh,
+  IconTrash,
+} from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { notifications } from "@mantine/notifications";
 
 import { resolveApiUrl } from "../utils/api";
 
@@ -186,6 +193,7 @@ export function DebugPage() {
   const [discoveryRefreshing, setDiscoveryRefreshing] = useState(false);
   const [overrideStopping, setOverrideStopping] = useState(false);
   const [schedulerRestarting, setSchedulerRestarting] = useState(false);
+  const [databaseResetting, setDatabaseResetting] = useState(false);
   const logsViewportRef = useRef<HTMLDivElement | null>(null);
 
   async function loadDebugSnapshot(initialLoad: boolean): Promise<void> {
@@ -335,6 +343,40 @@ export function DebugPage() {
       console.error("Failed to restart scheduler", error);
     } finally {
       setSchedulerRestarting(false);
+    }
+  }
+
+  async function resetDatabase(): Promise<void> {
+    if (!window.confirm(t("debug.resetDatabaseConfirm"))) {
+      return;
+    }
+
+    setDatabaseResetting(true);
+    try {
+      const response = await fetch(resolveApiUrl("/api/database/reset"), {
+        method: "POST",
+      });
+      if (response.ok) {
+        notifications.show({
+          title: t("debug.databaseResetSuccess"),
+          message: t("debug.databaseResetSuccessMessage"),
+          color: "green",
+          autoClose: false,
+        });
+
+        // Since the backend restarts, we should probably reload the whole page after a delay
+        // Increased to 15 seconds to give enough time for HA to restart the container
+        setTimeout(() => {
+          window.location.reload();
+        }, 15000);
+      } else {
+        const detail = (await response.text()).trim();
+        console.error("Failed to reset database", detail || `HTTP ${response.status}`);
+        setDatabaseResetting(false);
+      }
+    } catch (error) {
+      console.error("Failed to reset database", error);
+      setDatabaseResetting(false);
     }
   }
 
@@ -812,6 +854,17 @@ export function DebugPage() {
                   }}
                 >
                   {t("debug.restartScheduler")}
+                </Button>
+                <Button
+                  color="red"
+                  variant="filled"
+                  leftSection={<IconTrash size={16} />}
+                  loading={databaseResetting}
+                  onClick={() => {
+                    void resetDatabase();
+                  }}
+                >
+                  {t("debug.resetDatabase")}
                 </Button>
                 <Button
                   color="red"

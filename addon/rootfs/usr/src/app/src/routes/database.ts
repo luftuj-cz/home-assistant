@@ -7,15 +7,19 @@ import {
   replaceDatabaseWithFile,
   createDatabaseBackup,
   checkpointDatabase,
+  resetDatabase,
 } from "../services/database.js";
+import { closeAllSharedClients } from "../shared/modbus/client.js";
 import type { ValveController } from "../core/valveManager.js";
 import type { MqttService } from "../services/mqttService.js";
 import type { TimelineScheduler } from "../services/timelineScheduler.js";
+import type { HruMonitor } from "../services/hruMonitor.js";
 
 export function createDatabaseRouter(
   valveManager: ValveController,
   mqttService: MqttService,
   timelineScheduler: TimelineScheduler,
+  hruMonitor: HruMonitor,
   logger: Logger,
 ) {
   const router = Router();
@@ -87,6 +91,31 @@ export function createDatabaseRouter(
       response.status(204).end();
     } catch (error) {
       logger.error({ error }, "Failed to import database");
+      next(error);
+    }
+  });
+
+  router.post("/reset", async (_request: Request, response: Response, next: NextFunction) => {
+    try {
+      logger.info("Database reset requested");
+
+      hruMonitor.stop();
+      timelineScheduler.stop();
+      await mqttService.disconnect();
+      await valveManager.stop();
+      await closeAllSharedClients();
+
+      await createDatabaseBackup();
+      await resetDatabase(logger);
+
+      response.status(204).end();
+      if (response.socket) {
+        response.socket.destroy();
+      }
+
+      process.exit(1);
+    } catch (error) {
+      logger.error({ error }, "Failed to reset database");
       next(error);
     }
   });

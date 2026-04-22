@@ -165,6 +165,7 @@ type StatementMap = {
 
 let moduleLogger: Logger | null = null;
 let statements: StatementMap | null = null;
+let isStopping = false;
 
 type ValveStateRecord = {
   entity_id: string;
@@ -334,6 +335,9 @@ function prepareStatements(database: DatabaseType): StatementMap {
 }
 
 export function setupDatabase(logger?: Logger): void {
+  if (isStopping) {
+    return;
+  }
   moduleLogger = logger || moduleLogger;
   if (statements) {
     finalizeStatements();
@@ -839,6 +843,36 @@ export async function replaceDatabaseWithFile(buffer: Buffer, logger?: Logger): 
 
   setupDatabase(logger);
   logger?.info("Database replaced from backup file");
+}
+
+export async function resetDatabase(logger?: Logger): Promise<void> {
+  isStopping = true;
+
+  if (statements) {
+    finalizeStatements();
+  }
+  if (db) {
+    db.close();
+    db = null;
+  }
+
+  const dbPath = getDatabasePath();
+  const walPath = `${dbPath}-wal`;
+  const shmPath = `${dbPath}-shm`;
+
+  try {
+    if (existsSync(dbPath)) await fsp.unlink(dbPath);
+    if (existsSync(walPath)) await fsp.unlink(walPath);
+    if (existsSync(shmPath)) await fsp.unlink(shmPath);
+    logger?.info("Database files removed successfully");
+  } catch (error) {
+    logger?.error({ error }, "Failed to remove database files");
+    isStopping = false;
+    throw error;
+  }
+
+  logger?.info("Reset database completed");
+  (global as any).isRestarting = true;
 }
 
 export function checkpointDatabase(logger?: Logger): void {

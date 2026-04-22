@@ -358,7 +358,11 @@
     "resetOnboarding": "Resetovat příznak nastavení",
     "refreshDiscovery": "Obnovit MQTT discovery",
     "restartScheduler": "Restartovat plánovač",
-    "stopOverride": "Zrušit override plánu"
+    "stopOverride": "Zrušit override plánu",
+    "resetDatabase": "Resetovat databázi",
+    "resetDatabaseConfirm": "Opravdu chcete resetovat databázi? Veškerá nastavení, režimy a události časové osy budou smazány. Backend se restartuje.",
+    "databaseResetSuccess": "Reset databáze",
+    "databaseResetSuccessMessage": "Databáze byla resetována a backend se restartuje. Stránka se znovu načte za 5 sekund."
   },
   "schedule": {
     "title": "Týdenní plán",
