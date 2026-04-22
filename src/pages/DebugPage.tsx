@@ -184,6 +184,7 @@ export function DebugPage() {
   const [haApiRefreshing, setHaApiRefreshing] = useState(false);
   const [haApiErrorMessage, setHaApiErrorMessage] = useState<string | null>(null);
   const [discoveryRefreshing, setDiscoveryRefreshing] = useState(false);
+  const [overrideStopping, setOverrideStopping] = useState(false);
   const logsViewportRef = useRef<HTMLDivElement | null>(null);
 
   async function loadDebugSnapshot(initialLoad: boolean): Promise<void> {
@@ -296,6 +297,26 @@ export function DebugPage() {
     }
   }
 
+  async function stopTimelineOverride(): Promise<void> {
+    setOverrideStopping(true);
+    try {
+      const response = await fetch(resolveApiUrl("/api/timeline/override/stop"), {
+        method: "POST",
+      });
+      if (response.ok) {
+        // Reload debug snapshot to see updated state
+        void loadDebugSnapshot(false);
+      } else {
+        const detail = (await response.text()).trim();
+        console.error("Failed to stop timeline override", detail || `HTTP ${response.status}`);
+      }
+    } catch (error) {
+      console.error("Failed to stop timeline override", error);
+    } finally {
+      setOverrideStopping(false);
+    }
+  }
+
   async function copyBackendValues(): Promise<void> {
     if (!debugData) {
       setCopyStatus("failed");
@@ -319,11 +340,13 @@ export function DebugPage() {
         const successful = document.execCommand("copy");
         document.body.removeChild(textArea);
         if (!successful) {
-          throw new Error("Clipboard copy failed");
+          setCopyStatus("failed");
+          return;
         }
       }
       setCopyStatus("copied");
-    } catch {
+    } catch (error) {
+      console.error("Clipboard copy failed", error);
       setCopyStatus("failed");
     } finally {
       setCopyingValues(false);
@@ -746,6 +769,16 @@ export function DebugPage() {
                   }}
                 >
                   {t("debug.refreshDiscovery")}
+                </Button>
+                <Button
+                  color="orange"
+                  variant="light"
+                  loading={overrideStopping}
+                  onClick={() => {
+                    void stopTimelineOverride();
+                  }}
+                >
+                  {t("debug.stopOverride")}
                 </Button>
                 <Button
                   color="red"

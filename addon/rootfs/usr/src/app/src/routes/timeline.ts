@@ -529,6 +529,24 @@ export function createTimelineRouter(
   });
 
   router.post(
+    "/override/stop",
+    async (_request: Request, response: Response, next: NextFunction) => {
+      try {
+        setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
+        logger.info("Timeline override stopped via debug/manual command");
+
+        // Trigger immediate execution to apply schedule or manual defaults
+        await timelineScheduler.executeScheduledEvent();
+
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to stop timeline override");
+        next(error);
+      }
+    },
+  );
+
+  router.post(
     "/test",
     validateRequest(testOverrideInputSchema),
     async (request: Request, response: Response, next: NextFunction) => {
