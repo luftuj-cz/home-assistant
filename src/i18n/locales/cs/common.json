@@ -362,7 +362,7 @@
     "resetDatabase": "Resetovat databázi",
     "resetDatabaseConfirm": "Opravdu chcete resetovat databázi? Veškerá nastavení, režimy a události časové osy budou smazány. Backend se restartuje.",
     "databaseResetSuccess": "Reset databáze",
-    "databaseResetSuccessMessage": "Databáze byla resetována a backend se restartuje. Stránka se znovu načte za 5 sekund."
+    "databaseResetSuccessMessage": "Databáze byla resetována a backend se restartuje. Stránka se znovu načte za 15 sekund."
   },
   "schedule": {
     "title": "Týdenní plán",

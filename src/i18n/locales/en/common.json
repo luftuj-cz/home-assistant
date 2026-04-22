@@ -379,7 +379,7 @@
     "resetDatabase": "Reset Database",
     "resetDatabaseConfirm": "Are you sure you want to reset the database? All settings, modes and timeline events will be deleted. The backend will restart.",
     "databaseResetSuccess": "Database Reset",
-    "databaseResetSuccessMessage": "The database has been reset and the backend is restarting. The page will reload in 5 seconds."
+    "databaseResetSuccessMessage": "The database has been reset and the backend is restarting. The page will reload in 15 seconds."
   },
   "schedule": {
     "title": "Weekly schedule",
