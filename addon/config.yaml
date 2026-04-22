@@ -1,7 +1,7 @@
-name: LUFTaTOR
-version: 1.0.7-stable
-slug: luftator
-description: LUFTaTOR Home Assistant Add-on
+name: LUFTaTOR (Development)
+version: 1.0.8-dev
+slug: luftator-dev
+description: LUFTaTOR Home Assistant Add-on (Development Version)
 url: https://github.com/luftuj-cz/home-assistant
 arch:
   - aarch64
@@ -35,4 +35,4 @@ schema:
   mqtt_port: int(1,65535)
   mqtt_user: str?
   mqtt_password: str?
-image: "ghcr.io/luftuj-cz/{arch}-addon-luftuj"
+image: "ghcr.io/luftuj-cz/{arch}-addon-luftuj-dev"
