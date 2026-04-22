@@ -47,6 +47,13 @@ export class TimelineScheduler {
     }
   }
 
+  public restart(): void {
+    this.logger.info("TimelineScheduler: Restarting scheduler service");
+    this.stop();
+    this.start();
+    this.logger.info("TimelineScheduler: Scheduler service successfully restarted");
+  }
+
   private scheduleNextTick(): void {
     if (this.schedulerTimer) {
       clearTimeout(this.schedulerTimer);

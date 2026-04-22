@@ -2,6 +2,22 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+## [1.0.8-dev] - Unreleased
+
+### Added
+
+- **Debug Page Tools**: Added buttons to refresh MQTT discovery, restart the timeline scheduler, and stop active timeline overrides.
+- **Improved UI Feedback**: Replaced notifications with badges for HRU and MQTT connection tests in Settings for better visual consistency.
+
+### Changed
+
+- **Timeline Operations**: Multiple notifications during day copy-paste operations are now replaced by a single summary notification.
+
+### Fixed
+
+- **Code Quality**: Refactored internal error handling patterns and fixed various linting/formatting issues.
+- **Backend Tests**: Restored broken backend tests for HRU and Timeline services.
+
 ## [1.0.7-stable] - 2026-04-22
 
 ### Added

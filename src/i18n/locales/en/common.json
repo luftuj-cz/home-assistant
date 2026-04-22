@@ -374,6 +374,7 @@
     "onboardingTools": "Onboarding Tools",
     "resetOnboarding": "Reset Onboarding Flag",
     "refreshDiscovery": "Refresh MQTT Discovery",
+    "restartScheduler": "Restart Scheduler",
     "stopOverride": "Stop Plan Override"
   },
   "schedule": {
