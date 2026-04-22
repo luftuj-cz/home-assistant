@@ -2,6 +2,29 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+## [1.0.7-stable] - 2026-04-22
+
+### Added
+
+- **New Debug Page**: Added a specialized debug page for easier troubleshooting and system status monitoring.
+- **Improved Error Handling**: API errors in notifications are now translated and more user-friendly instead of raw JSON strings.
+- **Flexible Onboarding**: Users can now skip the onboarding process and import an existing database directly.
+- **AI Guidance**: Added `CLAUDE.md` to provide better context and guidance for AI assistants working with the codebase.
+
+### Changed
+
+- **Unified Toolchain**: Migrated to **Vite+** (including Rolldown, Oxlint, and Oxfmt) for significantly faster builds and unified code quality checks.
+- **Mantine v9 Upgrade**: Upgraded the component library to Mantine v9 with major UX improvements across valves, settings, timeline, and navigation.
+- **Performance Optimization**: Replaced `framer-motion` with native CSS animations, reducing the overall bundle size.
+- **Dependencies Clean-up**: Removed Prettier and ESLint in favor of the faster Vite+ toolchain (Oxlint/Oxfmt).
+- **Frontend Logging**: Refined and improved the client-side logging system for better development and debugging experience.
+
+### Fixed
+
+- **Add-on Builder**: Updated deprecated Home Assistant builder image to ensure stable builds.
+- **Onboarding Flow**: Fixed an issue where MQTT settings couldn't be configured before skipping onboarding.
+- **UI Polishing**: Numerous small fixes for layout and styling after the Mantine v9 migration.
+
 ## [1.0.6-stable] - 2026-03-21
 
 ### Added
