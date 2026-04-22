@@ -1,6 +1,6 @@
 {
   "name": "luftujha",
-  "version": "1.0.7-stable",
+  "version": "1.0.8-dev",
   "private": true,
   "type": "module",
   "scripts": {
