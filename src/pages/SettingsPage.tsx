@@ -252,7 +252,10 @@ export function SettingsPage() {
 
       if (!response.ok) {
         const err = await parseApiError(response);
-        logger.error("Failed to save MQTT settings", { status: response.status, detail: err.message });
+        logger.error("Failed to save MQTT settings", {
+          status: response.status,
+          detail: err.message,
+        });
         notifications.show({
           title: t("settings.mqtt.notifications.saveFailedTitle"),
           message: translateApiError(err, t),
@@ -297,7 +300,10 @@ export function SettingsPage() {
         const err = await parseApiError(response);
         const message = translateApiError(err, t);
         setMqttError(message);
-        logger.error("MQTT connection test failed", { status: response.status, detail: err.message });
+        logger.error("MQTT connection test failed", {
+          status: response.status,
+          detail: err.message,
+        });
         return;
       }
       setMqttStatus("success");
@@ -327,7 +333,10 @@ export function SettingsPage() {
       });
       if (!response.ok) {
         const err = await parseApiError(response);
-        logger.error("Failed to save HRU settings", { status: response.status, detail: err.message });
+        logger.error("Failed to save HRU settings", {
+          status: response.status,
+          detail: err.message,
+        });
         notifications.show({
           title: t("settings.hru.notifications.saveFailedTitle"),
           message: translateApiError(err, t),
