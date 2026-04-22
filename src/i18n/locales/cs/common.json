@@ -356,7 +356,8 @@
     },
     "onboardingTools": "Nástroje pro nastavení",
     "resetOnboarding": "Resetovat příznak nastavení",
-    "refreshDiscovery": "Obnovit MQTT discovery"
+    "refreshDiscovery": "Obnovit MQTT discovery",
+    "stopOverride": "Zrušit override plánu"
   },
   "schedule": {
     "title": "Týdenní plán",

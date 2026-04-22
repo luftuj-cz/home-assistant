@@ -373,7 +373,8 @@
     },
     "onboardingTools": "Onboarding Tools",
     "resetOnboarding": "Reset Onboarding Flag",
-    "refreshDiscovery": "Refresh MQTT Discovery"
+    "refreshDiscovery": "Refresh MQTT Discovery",
+    "stopOverride": "Stop Plan Override"
   },
   "schedule": {
     "title": "Weekly schedule",
