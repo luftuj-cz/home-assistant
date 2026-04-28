@@ -12,7 +12,7 @@ import {
 } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
-import { useOnboardingWizard } from "../hooks/useOnboardingWizard";
+import { useOnboardingWizard } from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
 
 export function HruDiscoveryStep() {
   const { t } = useTranslation();

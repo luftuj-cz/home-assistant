@@ -22,7 +22,18 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    /* Path aliases */
+    "baseUrl": "src",
+    "ignoreDeprecations": "6.0",
+    "paths": {
+      "@luftuj/app/*": ["app/*"],
+      "@luftuj/shared/*": ["shared/*"],
+      "@luftuj/features/*": ["features/*"],
+      "@luftuj/config": ["config.ts"],
+      "@luftuj/assets/*": ["assets/*"]
+    }
   },
   "include": ["src"]
 }

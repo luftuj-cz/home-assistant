@@ -14,11 +14,11 @@ import {
 import { IconRefresh, IconAdjustments, IconAlertCircle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
-import { ValveCard } from "./components/ValveCard";
-import { resolveApiUrl, resolveWebSocketUrl } from "../../shared/utils/api";
-import { createLogger } from "../../shared/utils/logger";
-import type { HaState } from "../../shared/types/homeAssistant";
-import type { Valve } from "../../shared/types/valve";
+import { ValveCard } from "@luftuj/features/valves/components/ValveCard";
+import { resolveApiUrl, resolveWebSocketUrl } from "@luftuj/shared/utils/api";
+import { createLogger } from "@luftuj/shared/utils/logger";
+import type { HaState } from "@luftuj/shared/types/homeAssistant";
+import type { Valve } from "@luftuj/shared/types/valve";
 
 const logger = createLogger("ValvesPage");
 

@@ -1,4 +1,10 @@
 import { defineConfig, type Logger } from "vite";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const rootDir = path.resolve(__dirname);
 
 type ProxyServer = {
   removeAllListeners(event: string): void;
@@ -40,6 +46,15 @@ const filteredLogger: Logger = {
 // https://vite.dev/config/
 export default defineConfig({
   base: "./",
+  resolve: {
+    alias: {
+      "@luftuj/app": path.resolve(rootDir, "src/app"),
+      "@luftuj/shared": path.resolve(rootDir, "src/shared"),
+      "@luftuj/features": path.resolve(rootDir, "src/features"),
+      "@luftuj/config": path.resolve(rootDir, "src/config.ts"),
+      "@luftuj/assets": path.resolve(rootDir, "src/assets"),
+    },
+  },
   customLogger: filteredLogger,
   build: {
     target: "esnext",

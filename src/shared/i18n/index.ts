@@ -2,9 +2,9 @@ import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
 import { notifications } from "@mantine/notifications";
 
-import enCommon from "./locales/en/common.json";
-import csCommon from "./locales/cs/common.json";
-import { createLogger } from "../utils/logger";
+import enCommon from "@luftuj/shared/i18n/locales/en/common.json";
+import csCommon from "@luftuj/shared/i18n/locales/cs/common.json";
+import { createLogger } from "@luftuj/shared/utils/logger";
 
 const logger = createLogger("i18n");
 

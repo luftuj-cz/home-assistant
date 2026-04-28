@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import type { Mode } from "../../../shared/types/timeline";
-import type { Valve } from "../../../shared/types/valve";
+import type { Mode } from "@luftuj/shared/types/timeline";
+import type { Valve } from "@luftuj/shared/types/valve";
 
 export interface ModeFormState {
   name: string;

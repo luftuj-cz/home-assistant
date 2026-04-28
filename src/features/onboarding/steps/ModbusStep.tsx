@@ -1,7 +1,7 @@
 import { Button, Flex, Group, NumberInput, Stack, Text, TextInput } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
-import { useOnboardingWizard } from "../hooks/useOnboardingWizard";
+import { useOnboardingWizard } from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
 
 export function ModbusStep() {
   const { t } = useTranslation();

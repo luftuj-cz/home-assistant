@@ -2,8 +2,8 @@ import { Badge, Group, Slider, Stack, Text, ThemeIcon, rem, Tooltip } from "@man
 import { IconAdjustments } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
-import type { Valve } from "../../../shared/types/valve";
-import { BaseCard } from "../../../shared/ui";
+import type { Valve } from "@luftuj/shared/types/valve";
+import { BaseCard } from "@luftuj/shared/ui";
 
 export interface ValveCardProps {
   valve: Valve;

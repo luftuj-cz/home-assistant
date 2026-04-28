@@ -1,9 +1,9 @@
 import { Container, Stack, Tabs, Text, Title } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import { BackendValuesPanel } from "./panels/BackendValuesPanel";
-import { HomeAssistantApiPanel } from "./panels/HomeAssistantApiPanel";
-import { OnboardingToolsPanel } from "./panels/OnboardingToolsPanel";
-import { ServerLogsPanel } from "./panels/ServerLogsPanel";
+import { BackendValuesPanel } from "@luftuj/features/debug/panels/BackendValuesPanel";
+import { HomeAssistantApiPanel } from "@luftuj/features/debug/panels/HomeAssistantApiPanel";
+import { OnboardingToolsPanel } from "@luftuj/features/debug/panels/OnboardingToolsPanel";
+import { ServerLogsPanel } from "@luftuj/features/debug/panels/ServerLogsPanel";
 
 export function DebugPage() {
   const { t } = useTranslation();

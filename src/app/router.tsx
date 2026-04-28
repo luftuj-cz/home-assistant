@@ -6,8 +6,8 @@ import {
   createHashHistory,
 } from "@tanstack/react-router";
 
-import { AppLayout } from "./layouts/AppLayout";
-import { LoadingState } from "../shared/ui";
+import { AppLayout } from "@luftuj/app/layouts/AppLayout";
+import { LoadingState } from "@luftuj/shared/ui";
 
 const DashboardPage = lazy(() =>
   import("../features/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })),

@@ -1,10 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { notifications } from "@mantine/notifications";
 import type { TFunction } from "i18next";
-import type { Mode } from "../../../shared/types/timeline";
-import * as api from "../api";
-import { createLogger } from "../../../shared/utils/logger";
-import { translateApiError, ApiResponseError } from "../../../shared/utils/apiError";
+import type { Mode } from "@luftuj/shared/types/timeline";
+import * as api from "@luftuj/features/timeline/api";
+import { createLogger } from "@luftuj/shared/utils/logger";
+import { translateApiError, ApiResponseError } from "@luftuj/shared/utils/apiError";
 
 const logger = createLogger("useTimelineModes");
 

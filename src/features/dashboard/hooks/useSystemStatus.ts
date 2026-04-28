@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { resolveApiUrl, resolveWebSocketUrl } from "../../../shared/utils/api";
-import { createLogger } from "../../../shared/utils/logger";
-import type { ActiveMode, ConnectionState, MqttState } from "../types";
+import { resolveApiUrl, resolveWebSocketUrl } from "@luftuj/shared/utils/api";
+import { createLogger } from "@luftuj/shared/utils/logger";
+import type { ActiveMode, ConnectionState, MqttState } from "@luftuj/features/dashboard/types";
 
 const logger = createLogger("useSystemStatus");
 

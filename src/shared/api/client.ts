@@ -1,5 +1,5 @@
-import { resolveApiUrl } from "../utils/api";
-import { parseApiError } from "../utils/apiError";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import { parseApiError } from "@luftuj/shared/utils/apiError";
 
 interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;

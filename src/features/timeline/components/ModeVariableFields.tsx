@@ -1,7 +1,7 @@
 import { Fieldset, Group, NumberInput, Select, SimpleGrid, Switch, Text } from "@mantine/core";
 import { IconSettings, IconThermometer, IconWind } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
-import type { HruVariable, LocalizedText } from "../../../shared/api/hru";
+import type { HruVariable, LocalizedText } from "@luftuj/shared/api/hru";
 
 interface ModeVariableFieldsProps {
   hruVariables: HruVariable[];

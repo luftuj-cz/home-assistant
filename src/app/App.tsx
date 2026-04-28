@@ -11,10 +11,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
 import { useEffect, useMemo } from "react";
 
-import { router } from "./router";
-import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from "../shared/i18n";
-import { createLogger, setLogLevel, type LogLevel } from "../shared/utils/logger";
-import { resolveApiUrl } from "../shared/utils/api";
+import { router } from "@luftuj/app/router";
+import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from "@luftuj/shared/i18n";
+import { createLogger, setLogLevel, type LogLevel } from "@luftuj/shared/utils/logger";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
 
 const logger = createLogger("App");
 

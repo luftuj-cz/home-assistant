@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import * as hruApi from "../../../shared/api/hru";
-import * as valveApi from "../../valves/api";
-import type { Valve } from "../../../shared/types/valve";
-import { resolveApiUrl } from "../../../shared/utils/api";
-import { createLogger } from "../../../shared/utils/logger";
-import { calculatePowerConfig } from "../utils";
+import * as hruApi from "@luftuj/shared/api/hru";
+import * as valveApi from "@luftuj/features/valves/api";
+import type { Valve } from "@luftuj/shared/types/valve";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import { createLogger } from "@luftuj/shared/utils/logger";
+import { calculatePowerConfig } from "@luftuj/features/timeline/utils";
 
 const logger = createLogger("useHruContext");
 

@@ -11,7 +11,7 @@ import {
 } from "@mantine/core";
 import { IconAlertCircle, IconDroplet } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
-import type { Valve } from "../../../shared/types/valve";
+import type { Valve } from "@luftuj/shared/types/valve";
 
 interface ModeValveSelectorProps {
   valves: Valve[];

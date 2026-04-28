@@ -20,13 +20,13 @@ import {
   IconWind,
   IconPlugConnected,
   IconServer,
-} from "./hooks/useOnboardingWizard";
-import { WelcomeStep } from "./steps/WelcomeStep";
-import { PreferencesStep } from "./steps/PreferencesStep";
-import { HruDiscoveryStep } from "./steps/HruDiscoveryStep";
-import { MqttStep } from "./steps/MqttStep";
-import { ModbusStep } from "./steps/ModbusStep";
-import { StatusStep } from "./steps/StatusStep";
+} from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
+import { WelcomeStep } from "@luftuj/features/onboarding/steps/WelcomeStep";
+import { PreferencesStep } from "@luftuj/features/onboarding/steps/PreferencesStep";
+import { HruDiscoveryStep } from "@luftuj/features/onboarding/steps/HruDiscoveryStep";
+import { MqttStep } from "@luftuj/features/onboarding/steps/MqttStep";
+import { ModbusStep } from "@luftuj/features/onboarding/steps/ModbusStep";
+import { StatusStep } from "@luftuj/features/onboarding/steps/StatusStep";
 
 const STEPS = [
   {

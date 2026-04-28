@@ -2,11 +2,11 @@ import { Accordion, Container, Group, Stack, Text, Title } from "@mantine/core";
 import { IconSettings } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
-import { AppearanceSection } from "./sections/AppearanceSection";
-import { HruSection } from "./sections/HruSection";
-import { MqttSection } from "./sections/MqttSection";
-import { DatabaseSection } from "./sections/DatabaseSection";
-import { DeveloperSection } from "./sections/DeveloperSection";
+import { AppearanceSection } from "@luftuj/features/settings/sections/AppearanceSection";
+import { HruSection } from "@luftuj/features/settings/sections/HruSection";
+import { MqttSection } from "@luftuj/features/settings/sections/MqttSection";
+import { DatabaseSection } from "@luftuj/features/settings/sections/DatabaseSection";
+import { DeveloperSection } from "@luftuj/features/settings/sections/DeveloperSection";
 
 export function SettingsPage() {
   const { t } = useTranslation();

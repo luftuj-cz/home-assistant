@@ -1,6 +1,10 @@
 import { Button, Divider, Stack, Text, ThemeIcon } from "@mantine/core";
 import { useTranslation } from "react-i18next";
-import { useOnboardingWizard, IconRocket, IconArrowRight } from "../hooks/useOnboardingWizard";
+import {
+  useOnboardingWizard,
+  IconRocket,
+  IconArrowRight,
+} from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
 
 export function WelcomeStep() {
   const { t } = useTranslation();

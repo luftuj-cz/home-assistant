@@ -6,8 +6,8 @@ import {
   IconLanguage,
   IconPalette,
   IconArrowRight,
-} from "../hooks/useOnboardingWizard";
-import { setLanguage } from "../../../shared/i18n";
+} from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
+import { setLanguage } from "@luftuj/shared/i18n";
 
 export function PreferencesStep() {
   const { t } = useTranslation();

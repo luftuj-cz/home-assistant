@@ -1,7 +1,7 @@
 import { Card } from "@mantine/core";
 import { IconNetwork, IconServer } from "@tabler/icons-react";
 import type { ReactNode } from "react";
-import { BaseCard, CardHeader, StatusBadge, type StatusKind } from "../../../shared/ui";
+import { BaseCard, CardHeader, StatusBadge, type StatusKind } from "@luftuj/shared/ui";
 
 interface StatusCardProps {
   title: string;

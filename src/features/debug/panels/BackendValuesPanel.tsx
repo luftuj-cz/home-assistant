@@ -2,8 +2,12 @@ import { Alert, Button, Group, Loader, ScrollArea, Stack, Table, Text, Title } f
 import { IconAlertCircle, IconCopy, IconRefresh } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { resolveApiUrl } from "../../../shared/utils/api";
-import { flattenDebugRows, formatTimestamp, type DebugPayload } from "./utils";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import {
+  flattenDebugRows,
+  formatTimestamp,
+  type DebugPayload,
+} from "@luftuj/features/debug/panels/utils";
 
 export function BackendValuesPanel() {
   const { t } = useTranslation();

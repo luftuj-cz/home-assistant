@@ -1,7 +1,7 @@
-import { useHruConfig } from "./useHruConfig";
-import { useModbusProbe } from "./useModbusProbe";
-import { useHruPoll } from "./useHruPoll";
-import { useSystemStatus } from "./useSystemStatus";
+import { useHruConfig } from "@luftuj/features/dashboard/hooks/useHruConfig";
+import { useModbusProbe } from "@luftuj/features/dashboard/hooks/useModbusProbe";
+import { useHruPoll } from "@luftuj/features/dashboard/hooks/useHruPoll";
+import { useSystemStatus } from "@luftuj/features/dashboard/hooks/useSystemStatus";
 
 export function useDashboardStatus() {
   const config = useHruConfig();

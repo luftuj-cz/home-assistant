@@ -1,6 +1,6 @@
 import { Group, Stack, Text, ThemeIcon, Title } from "@mantine/core";
 import type { ReactNode } from "react";
-import { statusToColor, type StatusKind } from "./types";
+import { statusToColor, type StatusKind } from "@luftuj/shared/ui/types";
 
 interface CardHeaderProps {
   icon?: ReactNode;

@@ -16,10 +16,10 @@ import { IconServer } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
-import type { HruUnit } from "../../../shared/api/hru";
-import { resolveApiUrl } from "../../../shared/utils/api";
-import { parseApiError, translateApiError } from "../../../shared/utils/apiError";
-import { createLogger } from "../../../shared/utils/logger";
+import type { HruUnit } from "@luftuj/shared/api/hru";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import { parseApiError, translateApiError } from "@luftuj/shared/utils/apiError";
+import { createLogger } from "@luftuj/shared/utils/logger";
 
 const logger = createLogger("HruSection");
 

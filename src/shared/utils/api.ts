@@ -1,4 +1,4 @@
-import { createLogger } from "./logger";
+import { createLogger } from "@luftuj/shared/utils/logger";
 
 const logger = createLogger("API");
 

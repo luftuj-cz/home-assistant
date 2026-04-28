@@ -1,9 +1,9 @@
 import { useState, useCallback } from "react";
 import { notifications } from "@mantine/notifications";
 import type { TFunction } from "i18next";
-import type { TimelineEvent } from "../../../shared/types/timeline";
-import { createLogger } from "../../../shared/utils/logger";
-import { DEFAULT_START_TIME, validateEvent } from "../utils";
+import type { TimelineEvent } from "@luftuj/shared/types/timeline";
+import { createLogger } from "@luftuj/shared/utils/logger";
+import { DEFAULT_START_TIME, validateEvent } from "@luftuj/features/timeline/utils";
 
 const logger = createLogger("useEventWorkflow");
 

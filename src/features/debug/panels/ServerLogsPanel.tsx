@@ -13,8 +13,13 @@ import {
 import { IconAlertCircle, IconRefresh } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { resolveApiUrl } from "../../../shared/utils/api";
-import { formatLogContext, formatTimestamp, getLogLevelColor, type ServerLogEntry } from "./utils";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import {
+  formatLogContext,
+  formatTimestamp,
+  getLogLevelColor,
+  type ServerLogEntry,
+} from "@luftuj/features/debug/panels/utils";
 
 export function ServerLogsPanel() {
   const { t } = useTranslation();

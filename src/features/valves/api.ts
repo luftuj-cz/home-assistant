@@ -1,7 +1,7 @@
-import { resolveApiUrl } from "../../shared/utils/api";
-import type { Valve } from "../../shared/types/valve";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import type { Valve } from "@luftuj/shared/types/valve";
 
-import type { HaState } from "../../shared/types/homeAssistant";
+import type { HaState } from "@luftuj/shared/types/homeAssistant";
 
 function normalizeValue(value: unknown, fallback: number): number {
   const parsed = Number(value);

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { resolveApiUrl } from "../../../shared/utils/api";
-import { createLogger } from "../../../shared/utils/logger";
-import type { HruState, HruVariable, ModbusState } from "../types";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import { createLogger } from "@luftuj/shared/utils/logger";
+import type { HruState, HruVariable, ModbusState } from "@luftuj/features/dashboard/types";
 
 const logger = createLogger("useHruPoll");
 

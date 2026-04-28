@@ -3,7 +3,7 @@ import { notifications } from "@mantine/notifications";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { IconPlayerStop, IconRefresh, IconTrash } from "@tabler/icons-react";
-import { resolveApiUrl } from "../../../shared/utils/api";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
 
 export function OnboardingToolsPanel() {
   const { t } = useTranslation();

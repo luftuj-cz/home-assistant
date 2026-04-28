@@ -5,15 +5,15 @@ import { useMediaQuery } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
 import { notifications } from "@mantine/notifications";
 import type { TFunction } from "i18next";
-import type { Mode } from "../../../shared/types/timeline";
-import type { Valve } from "../../../shared/types/valve";
-import type { HruVariable } from "../../../shared/api/hru";
-import { cancelBoost, testTimelineMode } from "../api";
-import { resolveApiUrl } from "../../../shared/utils/api";
-import { translateApiError } from "../../../shared/utils/apiError";
-import { useModeForm } from "../hooks/useModeForm";
-import { ModeVariableFields } from "./ModeVariableFields";
-import { ModeValveSelector } from "./ModeValveSelector";
+import type { Mode } from "@luftuj/shared/types/timeline";
+import type { Valve } from "@luftuj/shared/types/valve";
+import type { HruVariable } from "@luftuj/shared/api/hru";
+import { cancelBoost, testTimelineMode } from "@luftuj/features/timeline/api";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import { translateApiError } from "@luftuj/shared/utils/apiError";
+import { useModeForm } from "@luftuj/features/timeline/hooks/useModeForm";
+import { ModeVariableFields } from "@luftuj/features/timeline/components/ModeVariableFields";
+import { ModeValveSelector } from "@luftuj/features/timeline/components/ModeValveSelector";
 
 interface TimelineModeModalProps {
   opened: boolean;

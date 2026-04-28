@@ -3,22 +3,27 @@ import { Stack, Text, Title, Divider, Container } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { IconCalendar } from "@tabler/icons-react";
 
-import { useTimelineModes } from "./hooks/useTimelineModes";
-import { useTimelineEvents } from "./hooks/useTimelineEvents";
-import { useDragAutoScroll } from "../../shared/hooks/useDragScroll";
-import { TimelineModeList } from "./components/TimelineModeList";
-import { TimelineDayCard } from "./components/TimelineDayCard";
-import { TimelineEventModal } from "./components/TimelineEventModal";
-import { TimelineModeModal } from "./components/TimelineModeModal";
+import { useTimelineModes } from "@luftuj/features/timeline/hooks/useTimelineModes";
+import { useTimelineEvents } from "@luftuj/features/timeline/hooks/useTimelineEvents";
+import { useDragAutoScroll } from "@luftuj/shared/hooks/useDragScroll";
+import { TimelineModeList } from "@luftuj/features/timeline/components/TimelineModeList";
+import { TimelineDayCard } from "@luftuj/features/timeline/components/TimelineDayCard";
+import { TimelineEventModal } from "@luftuj/features/timeline/components/TimelineEventModal";
+import { TimelineModeModal } from "@luftuj/features/timeline/components/TimelineModeModal";
 
-import { useEventWorkflow } from "./hooks";
-import { useModeWorkflow } from "./hooks";
-import { useDayCopyPaste } from "./hooks";
-import { useHruContext } from "./hooks";
+import { useEventWorkflow } from "@luftuj/features/timeline/hooks";
+import { useModeWorkflow } from "@luftuj/features/timeline/hooks";
+import { useDayCopyPaste } from "@luftuj/features/timeline/hooks";
+import { useHruContext } from "@luftuj/features/timeline/hooks";
 
-import { DAY_ORDER, getDayLabels, getModeOptions, DEFAULT_START_TIME } from "./utils";
-import type { TimelineEvent, Mode } from "../../shared/types/timeline";
-import { createLogger } from "../../shared/utils/logger";
+import {
+  DAY_ORDER,
+  getDayLabels,
+  getModeOptions,
+  DEFAULT_START_TIME,
+} from "@luftuj/features/timeline/utils";
+import type { TimelineEvent, Mode } from "@luftuj/shared/types/timeline";
+import { createLogger } from "@luftuj/shared/utils/logger";
 
 const logger = createLogger("TimelinePage");
 

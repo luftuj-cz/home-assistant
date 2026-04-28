@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import type { HruUnit } from "../../../shared/api/hru";
-import { resolveApiUrl } from "../../../shared/utils/api";
-import { createLogger } from "../../../shared/utils/logger";
-import type { HruVariable } from "../types";
+import type { HruUnit } from "@luftuj/shared/api/hru";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import { createLogger } from "@luftuj/shared/utils/logger";
+import type { HruVariable } from "@luftuj/features/dashboard/types";
 
 const logger = createLogger("useHruConfig");
 
