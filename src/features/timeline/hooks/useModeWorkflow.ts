@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import type { TFunction } from "i18next";
-import type { Mode } from "../../../types/timeline";
-import { createLogger } from "../../../utils/logger";
+import type { Mode } from "../../../shared/types/timeline";
+import { createLogger } from "../../../shared/utils/logger";
 
 const logger = createLogger("useModeWorkflow");
 

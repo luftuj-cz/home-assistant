@@ -2,7 +2,7 @@ import { Badge, Card, Group, Slider, Stack, Text, ThemeIcon, rem, Tooltip } from
 import { IconAdjustments } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
-import type { Valve } from "../types/valve";
+import type { Valve } from "../shared/types/valve";
 
 export interface ValveCardProps {
   valve: Valve;

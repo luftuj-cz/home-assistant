@@ -13,8 +13,8 @@ import {
 import { IconPlus, IconEdit, IconTrash } from "@tabler/icons-react";
 import { useState } from "react";
 import type { TFunction } from "i18next";
-import type { Mode } from "../../types/timeline";
-import { formatTemperature, getTemperatureLabel } from "../../utils/temperature";
+import type { Mode } from "../../shared/types/timeline";
+import { formatTemperature, getTemperatureLabel } from "../../shared/utils/temperature";
 
 interface TimelineModeListProps {
   modes: Mode[];

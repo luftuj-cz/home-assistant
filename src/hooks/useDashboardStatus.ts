@@ -1,8 +1,8 @@
 import type { HruUnit } from "../api/hru";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { resolveApiUrl, resolveWebSocketUrl } from "../utils/api";
-import { createLogger } from "../utils/logger";
+import { resolveApiUrl, resolveWebSocketUrl } from "../shared/utils/api";
+import { createLogger } from "../shared/utils/logger";
 
 const logger = createLogger("useDashboardStatus");
 

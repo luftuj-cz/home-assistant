@@ -2,12 +2,12 @@
 // Unified frontend logger — mirrors the backend Pino logger conventions.
 //
 // Usage:
-//   import { createLogger } from "../utils/logger";
+//   import { createLogger } from "../shared/utils/logger";
 //   const log = createLogger("ValvesPage");
 //   log.info("Snapshot loaded", { count: 5 });
 //
 // A pre-made singleton is available for quick/shared use:
-//   import { logger } from "../utils/logger";
+//   import { logger } from "../shared/utils/logger";
 //   logger.warn("Something happened");
 // ---------------------------------------------------------------------------
 

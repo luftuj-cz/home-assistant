@@ -43,10 +43,10 @@ import { z } from "zod";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 import { useMantineColorScheme } from "@mantine/core";
-import { createLogger } from "../utils/logger";
-import { isSupportedLanguage, setLanguage } from "../i18n";
-import { resolveApiUrl } from "../utils/api";
-import { parseApiError, translateApiError } from "../utils/apiError";
+import { createLogger } from "../shared/utils/logger";
+import { isSupportedLanguage, setLanguage } from "../shared/i18n";
+import { resolveApiUrl } from "../shared/utils/api";
+import { parseApiError, translateApiError } from "../shared/utils/apiError";
 
 const logger = createLogger("OnboardingPage");
 

@@ -23,7 +23,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
 
-import { resolveApiUrl } from "../utils/api";
+import { resolveApiUrl } from "../shared/utils/api";
 
 type DebugPayload = Record<string, unknown>;
 

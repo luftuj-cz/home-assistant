@@ -1,4 +1,4 @@
-import type { Mode } from "../../../types/timeline";
+import type { Mode } from "../../../shared/types/timeline";
 import type { HruVariable } from "../../../api/hru";
 import type { TFunction } from "i18next";
 

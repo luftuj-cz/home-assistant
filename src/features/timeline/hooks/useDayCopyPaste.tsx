@@ -3,8 +3,8 @@ import { notifications } from "@mantine/notifications";
 import { Stack, Text, Button } from "@mantine/core";
 import type { TFunction } from "i18next";
 import { IconCopy } from "@tabler/icons-react";
-import type { TimelineEvent } from "../../../types/timeline";
-import { createLogger } from "../../../utils/logger";
+import type { TimelineEvent } from "../../../shared/types/timeline";
+import { createLogger } from "../../../shared/utils/logger";
 
 const logger = createLogger("useDayCopyPaste");
 

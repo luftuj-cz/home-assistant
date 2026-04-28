@@ -42,7 +42,7 @@ import logoFullLight from "../../assets/logo-full-light.svg";
 import logoFullDark from "../../assets/logo-full-dark.svg";
 import logoMarkLight from "../../assets/logo-mark-light.svg";
 import logoMarkDark from "../../assets/logo-mark-dark.svg";
-import { resolveApiUrl } from "../../utils/api";
+import { resolveApiUrl } from "../../shared/utils/api";
 
 export function AppLayout() {
   const [mobileNavOpened, { toggle, close }] = useDisclosure(false);

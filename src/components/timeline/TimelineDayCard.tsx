@@ -19,10 +19,10 @@ import {
   IconClock,
 } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
-import type { TimelineEvent, Mode } from "../../types/timeline";
+import type { TimelineEvent, Mode } from "../../shared/types/timeline";
 import { ActionIcon as MantineActionIcon } from "@mantine/core";
 import { MotionSwitch } from "../common/MotionSwitch";
-import { createLogger } from "../../utils/logger";
+import { createLogger } from "../../shared/utils/logger";
 
 const logger = createLogger("TimelineDayCard");
 

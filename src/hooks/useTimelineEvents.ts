@@ -1,10 +1,10 @@
 import { useState, useCallback, useMemo } from "react";
 import { notifications } from "@mantine/notifications";
 import type { TFunction } from "i18next";
-import type { TimelineEvent, Mode } from "../types/timeline";
+import type { TimelineEvent, Mode } from "../shared/types/timeline";
 import * as api from "../api/timeline";
-import { createLogger } from "../utils/logger";
-import { translateApiError } from "../utils/apiError";
+import { createLogger } from "../shared/utils/logger";
+import { translateApiError } from "../shared/utils/apiError";
 
 const logger = createLogger("useTimelineEvents");
 

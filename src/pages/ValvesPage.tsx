@@ -15,10 +15,10 @@ import { IconRefresh, IconAdjustments, IconAlertCircle } from "@tabler/icons-rea
 import { useTranslation } from "react-i18next";
 
 import { ValveCard } from "../components";
-import { resolveApiUrl, resolveWebSocketUrl } from "../utils/api";
-import { createLogger } from "../utils/logger";
-import type { HaState } from "../types/homeAssistant";
-import type { Valve } from "../types/valve";
+import { resolveApiUrl, resolveWebSocketUrl } from "../shared/utils/api";
+import { createLogger } from "../shared/utils/logger";
+import type { HaState } from "../shared/types/homeAssistant";
+import type { Valve } from "../shared/types/valve";
 
 const logger = createLogger("ValvesPage");
 

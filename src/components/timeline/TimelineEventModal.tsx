@@ -2,7 +2,7 @@ import { Modal, Stack, Select, Group, Button, Text } from "@mantine/core";
 import { TimeInput } from "@mantine/dates";
 import { IconClock, IconAdjustments, IconCalendar } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
-import type { TimelineEvent } from "../../types/timeline";
+import type { TimelineEvent } from "../../shared/types/timeline";
 import type { HruVariable } from "../../api/hru";
 
 interface TimelineEventModalProps {

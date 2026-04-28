@@ -22,11 +22,11 @@ import {
 } from "@tabler/icons-react";
 import { useState, useEffect, useCallback } from "react";
 import type { TFunction } from "i18next";
-import type { Mode } from "../../types/timeline";
+import type { Mode } from "../../shared/types/timeline";
 import { activateBoost, cancelBoost, fetchActiveBoost } from "../../api/timeline";
 import { notifications } from "@mantine/notifications";
-import { createLogger } from "../../utils/logger";
-import { translateApiError } from "../../utils/apiError";
+import { createLogger } from "../../shared/utils/logger";
+import { translateApiError } from "../../shared/utils/apiError";
 
 const logger = createLogger("BoostButtons");
 

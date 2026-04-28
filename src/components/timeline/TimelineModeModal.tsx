@@ -32,13 +32,13 @@ import { useEffect, useState, useRef } from "react";
 import { useMediaQuery } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
 import type { TFunction } from "i18next";
-import type { Mode } from "../../types/timeline";
-import type { Valve } from "../../types/valve";
+import type { Mode } from "../../shared/types/timeline";
+import type { Valve } from "../../shared/types/valve";
 import { cancelBoost, testTimelineMode } from "../../api/timeline";
 import { notifications } from "@mantine/notifications";
 import type { HruVariable, LocalizedText } from "../../api/hru";
-import { resolveApiUrl } from "../../utils/api";
-import { translateApiError } from "../../utils/apiError";
+import { resolveApiUrl } from "../../shared/utils/api";
+import { translateApiError } from "../../shared/utils/apiError";
 
 interface TimelineModeModalProps {
   opened: boolean;

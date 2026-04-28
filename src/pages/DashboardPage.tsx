@@ -8,7 +8,7 @@ import { StatusCard } from "../components/dashboard/StatusCard";
 import { HruStatusCard } from "../components/dashboard/HruStatusCard";
 import { BoostButtons } from "../components/dashboard/BoostButtons";
 import * as hruApi from "../api/hru";
-import { createLogger } from "../utils/logger";
+import { createLogger } from "../shared/utils/logger";
 
 const logger = createLogger("DashboardPage");
 

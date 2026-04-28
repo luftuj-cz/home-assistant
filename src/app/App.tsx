@@ -12,9 +12,9 @@ import { I18nextProvider } from "react-i18next";
 import { useEffect, useMemo } from "react";
 
 import { router } from "./router";
-import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from "../i18n";
-import { createLogger, setLogLevel, type LogLevel } from "../utils/logger";
-import { resolveApiUrl } from "../utils/api";
+import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from "../shared/i18n";
+import { createLogger, setLogLevel, type LogLevel } from "../shared/utils/logger";
+import { resolveApiUrl } from "../shared/utils/api";
 
 const logger = createLogger("App");
 

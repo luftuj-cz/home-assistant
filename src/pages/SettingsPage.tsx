@@ -36,16 +36,16 @@ import {
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
-import { resolveApiUrl } from "../utils/api";
-import { parseApiError, translateApiError } from "../utils/apiError";
+import { resolveApiUrl } from "../shared/utils/api";
+import { parseApiError, translateApiError } from "../shared/utils/apiError";
 import {
   createLogger,
   getLogLevel,
   setLogLevel,
   VALID_LOG_LEVELS,
   type LogLevel,
-} from "../utils/logger";
-import { setLanguage } from "../i18n";
+} from "../shared/utils/logger";
+import { setLanguage } from "../shared/i18n";
 import { MotionSwitch } from "../components/common/MotionSwitch";
 
 const logger = createLogger("SettingsPage");
