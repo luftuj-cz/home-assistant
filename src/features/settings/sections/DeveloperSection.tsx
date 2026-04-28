@@ -1,18 +1,10 @@
 import { useEffect, useState } from "react";
-import {
-  Accordion,
-  Divider,
-  Group,
-  Paper,
-  Select,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { Accordion, Divider, Group, Paper, Select, Stack, Text } from "@mantine/core";
 import { IconBug, IconCode } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
-import { MotionSwitch } from "../../../components/common/MotionSwitch";
+import { MotionSwitch } from "../../../shared/ui";
 import { resolveApiUrl } from "../../../shared/utils/api";
 import {
   createLogger,

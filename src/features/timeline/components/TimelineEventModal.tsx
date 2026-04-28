@@ -3,7 +3,7 @@ import { TimeInput } from "@mantine/dates";
 import { IconClock, IconAdjustments, IconCalendar } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { TimelineEvent } from "../../../shared/types/timeline";
-import type { HruVariable } from "../../../api/hru";
+import type { HruVariable } from "../../../shared/api/hru";
 
 interface TimelineEventModalProps {
   opened: boolean;

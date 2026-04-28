@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import type { HruUnit } from "../../../api/hru";
+import type { HruUnit } from "../../../shared/api/hru";
 import { resolveApiUrl } from "../../../shared/utils/api";
 import { createLogger } from "../../../shared/utils/logger";
 import type { HruVariable } from "../types";

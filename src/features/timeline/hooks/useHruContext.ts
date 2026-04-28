@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import * as hruApi from "../../../api/hru";
+import * as hruApi from "../../../shared/api/hru";
 import * as valveApi from "../../valves/api";
 import type { Valve } from "../../../shared/types/valve";
 import { resolveApiUrl } from "../../../shared/utils/api";

@@ -1,4 +1,4 @@
-import { resolveApiUrl } from "../shared/utils/api";
+import { resolveApiUrl } from "../utils/api";
 
 export type LocalizedText = string | { text: string; translate: boolean };
 

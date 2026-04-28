@@ -16,7 +16,7 @@ import { IconSettings } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
-import { MotionSwitch } from "../../../components/common/MotionSwitch";
+import { MotionSwitch } from "../../../shared/ui";
 import { resolveApiUrl } from "../../../shared/utils/api";
 import { parseApiError, translateApiError } from "../../../shared/utils/apiError";
 import { createLogger } from "../../../shared/utils/logger";

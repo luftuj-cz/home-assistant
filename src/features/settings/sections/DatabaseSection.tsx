@@ -113,9 +113,7 @@ export function DatabaseSection() {
                     variant="filled"
                     size="md"
                   >
-                    {uploading
-                      ? t("settings.database.importing")
-                      : t("settings.database.import")}
+                    {uploading ? t("settings.database.importing") : t("settings.database.import")}
                   </Button>
                 )}
               </FileButton>

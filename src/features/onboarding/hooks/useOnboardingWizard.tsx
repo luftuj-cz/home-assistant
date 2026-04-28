@@ -14,12 +14,12 @@ import { useMantineColorScheme } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
 import { z } from "zod";
-import { fetchHruUnits, type HruUnit, type HruVariable } from "../../../api/hru";
+import { fetchHruUnits, type HruUnit, type HruVariable } from "../../../shared/api/hru";
 import { createLogger } from "../../../shared/utils/logger";
 import { resolveApiUrl } from "../../../shared/utils/api";
 import { parseApiError, translateApiError } from "../../../shared/utils/apiError";
 
-export type { HruUnit, HruVariable } from "../../../api/hru";
+export type { HruUnit, HruVariable } from "../../../shared/api/hru";
 export * from "@tabler/icons-react";
 
 const logger = createLogger("OnboardingWizard");

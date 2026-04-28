@@ -1,5 +1,5 @@
 import type { Mode } from "../../../shared/types/timeline";
-import type { HruVariable } from "../../../api/hru";
+import type { HruVariable } from "../../../shared/api/hru";
 import type { TFunction } from "i18next";
 
 export const DAY_ORDER = [0, 1, 2, 3, 4, 5, 6] as const;

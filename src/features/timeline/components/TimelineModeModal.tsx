@@ -1,11 +1,5 @@
 import { Button, ColorInput, Group, Modal, Stack, Switch, Text, TextInput } from "@mantine/core";
-import {
-  IconEdit,
-  IconFileText,
-  IconPalette,
-  IconPlus,
-  IconTestPipe,
-} from "@tabler/icons-react";
+import { IconEdit, IconFileText, IconPalette, IconPlus, IconTestPipe } from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { useMediaQuery } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
@@ -13,7 +7,7 @@ import { notifications } from "@mantine/notifications";
 import type { TFunction } from "i18next";
 import type { Mode } from "../../../shared/types/timeline";
 import type { Valve } from "../../../shared/types/valve";
-import type { HruVariable } from "../../../api/hru";
+import type { HruVariable } from "../../../shared/api/hru";
 import { cancelBoost, testTimelineMode } from "../api";
 import { resolveApiUrl } from "../../../shared/utils/api";
 import { translateApiError } from "../../../shared/utils/apiError";
@@ -194,8 +188,7 @@ export function TimelineModeModal({
           }}
           leftSection={<IconFileText size={16} stroke={1.5} />}
           error={
-            nameError ||
-            (!form.name.trim() && form.submitted ? t("validation.required") : null)
+            nameError || (!form.name.trim() && form.submitted ? t("validation.required") : null)
           }
           required
         />

@@ -16,7 +16,7 @@ import { IconServer } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
-import type { HruUnit } from "../../../api/hru";
+import type { HruUnit } from "../../../shared/api/hru";
 import { resolveApiUrl } from "../../../shared/utils/api";
 import { parseApiError, translateApiError } from "../../../shared/utils/apiError";
 import { createLogger } from "../../../shared/utils/logger";
@@ -73,10 +73,7 @@ export function HruSection() {
     };
   }, []);
 
-  const unitOptions = useMemo(
-    () => units.map((u) => ({ value: u.id, label: u.name })),
-    [units],
-  );
+  const unitOptions = useMemo(() => units.map((u) => ({ value: u.id, label: u.name })), [units]);
   const selectedUnit = useMemo(
     () => units.find((u) => u.id === settings.unit),
     [units, settings.unit],
@@ -166,9 +163,7 @@ export function HruSection() {
   const portMissing = !Number.isFinite(settings.port) || settings.port <= 0;
   const unitIdMissing = !Number.isFinite(settings.unitId) || settings.unitId <= 0;
 
-  const powerVar = selectedUnit?.variables?.find(
-    (v) => v.class === "power" && v.maxConfigurable,
-  );
+  const powerVar = selectedUnit?.variables?.find((v) => v.class === "power" && v.maxConfigurable);
 
   return (
     <Accordion.Item value="hru">
@@ -252,16 +247,15 @@ export function HruSection() {
                   </Text>
                   <NumberInput
                     required
-                    value={settings.maxPower ?? (powerVar.maxDefault ?? powerVar.max)}
-                    onChange={(v) =>
-                      update("maxPower", typeof v === "number" ? v : undefined)
-                    }
+                    value={settings.maxPower ?? powerVar.maxDefault ?? powerVar.max}
+                    onChange={(v) => update("maxPower", typeof v === "number" ? v : undefined)}
                     label={t("settings.hru.configuration.maxPowerLabel")}
                     description={t("settings.hru.configuration.maxPowerHint", {
                       default: powerVar.maxDefault ?? powerVar.max,
-                      unit: typeof powerVar.unit === "string"
-                        ? powerVar.unit
-                        : (powerVar.unit?.text ?? "%"),
+                      unit:
+                        typeof powerVar.unit === "string"
+                          ? powerVar.unit
+                          : (powerVar.unit?.text ?? "%"),
                     })}
                     error={
                       settings.maxPower === undefined || settings.maxPower === null

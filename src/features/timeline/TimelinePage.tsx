@@ -16,12 +16,7 @@ import { useModeWorkflow } from "./hooks";
 import { useDayCopyPaste } from "./hooks";
 import { useHruContext } from "./hooks";
 
-import {
-  DAY_ORDER,
-  getDayLabels,
-  getModeOptions,
-  DEFAULT_START_TIME,
-} from "./utils";
+import { DAY_ORDER, getDayLabels, getModeOptions, DEFAULT_START_TIME } from "./utils";
 import type { TimelineEvent, Mode } from "../../shared/types/timeline";
 import { createLogger } from "../../shared/utils/logger";
 

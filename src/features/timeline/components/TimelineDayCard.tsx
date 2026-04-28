@@ -21,7 +21,7 @@ import {
 import type { TFunction } from "i18next";
 import type { TimelineEvent, Mode } from "../../../shared/types/timeline";
 import { ActionIcon as MantineActionIcon } from "@mantine/core";
-import { MotionSwitch } from "../../../components/common/MotionSwitch";
+import { MotionSwitch } from "../../../shared/ui";
 import { createLogger } from "../../../shared/utils/logger";
 
 const logger = createLogger("TimelineDayCard");

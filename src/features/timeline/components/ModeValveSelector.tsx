@@ -17,9 +17,7 @@ interface ModeValveSelectorProps {
   valves: Valve[];
   openings: Record<string, number | undefined>;
   onChange: (
-    updater: (
-      prev: Record<string, number | undefined>,
-    ) => Record<string, number | undefined>,
+    updater: (prev: Record<string, number | undefined>) => Record<string, number | undefined>,
   ) => void;
   showCopyButton: boolean;
   t: TFunction;
@@ -70,8 +68,7 @@ export function ModeValveSelector({
           const storageKey = v.entityId || key;
           const backendValue = openings[storageKey] ?? 0;
           const uiValue = 90 - backendValue;
-          const statusColor =
-            backendValue >= 90 ? "red" : backendValue <= 0 ? "green" : "orange";
+          const statusColor = backendValue >= 90 ? "red" : backendValue <= 0 ? "green" : "orange";
           let badgeText = `${Math.round(90 - backendValue)}°`;
           if (backendValue === 0) badgeText = t("valves.status.open");
           if (backendValue >= 90) badgeText = t("valves.status.closed");
@@ -111,9 +108,7 @@ export function ModeValveSelector({
               </Group>
               <Slider
                 value={uiValue}
-                onChange={(val) =>
-                  onChange((prev) => ({ ...prev, [storageKey]: 90 - val }))
-                }
+                onChange={(val) => onChange((prev) => ({ ...prev, [storageKey]: 90 - val }))}
                 min={0}
                 max={90}
                 step={5}

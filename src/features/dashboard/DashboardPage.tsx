@@ -7,7 +7,7 @@ import { useTimelineModes } from "../timeline/hooks/useTimelineModes";
 import { StatusCard } from "./components/StatusCard";
 import { HruStatusCard } from "./components/HruStatusCard";
 import { BoostButtons } from "./components/BoostButtons";
-import * as hruApi from "../../api/hru";
+import * as hruApi from "../../shared/api/hru";
 import { createLogger } from "../../shared/utils/logger";
 
 const logger = createLogger("DashboardPage");
