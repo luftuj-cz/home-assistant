@@ -6,6 +6,8 @@ import {
   useEffect,
   useMemo,
   useCallback,
+  type RefObject,
+  type ReactNode,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -112,7 +114,7 @@ interface StepsContextValue {
       Error
     >
   >;
-  importInputRef: React.RefObject<HTMLInputElement | null>;
+  importInputRef: RefObject<HTMLInputElement | null>;
 }
 
 const StepsContext = createContext<StepsContextValue | null>(null);
@@ -124,7 +126,7 @@ export function useStepsContext() {
 }
 
 interface OnboardingWizardProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function OnboardingWizard({ children }: OnboardingWizardProps) {
@@ -467,6 +469,5 @@ export function OnboardingWizard({ children }: OnboardingWizardProps) {
 }
 
 export function useOnboardingWizard() {
-  const ctx = useStepsContext();
-  return ctx;
+  return useStepsContext();
 }

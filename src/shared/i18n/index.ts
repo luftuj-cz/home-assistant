@@ -9,6 +9,7 @@ import { createLogger } from "@luftuj/shared/utils/logger";
 const logger = createLogger("i18n");
 
 declare module "i18next" {
+  // noinspection JSUnusedGlobalSymbols
   interface CustomTypeOptions {
     defaultNS: "common";
   }

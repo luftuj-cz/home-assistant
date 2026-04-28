@@ -1,4 +1,4 @@
-import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import { apiClient } from "@luftuj/shared/api/client";
 
 export type LocalizedText = string | { text: string; translate: boolean };
 
@@ -32,21 +32,16 @@ export interface HruUnit {
 }
 
 export async function fetchHruUnits(): Promise<HruUnit[]> {
-  const res = await fetch(resolveApiUrl("/api/hru/units"));
-  if (!res.ok) throw new Error("Failed to fetch HRU units");
-  return res.json();
+  return apiClient.get<HruUnit[]>("/api/hru/units");
 }
 
 export async function fetchActiveUnit() {
-  const [settingsRes, units] = await Promise.all([
-    fetch(resolveApiUrl("/api/settings/hru")),
+  const [settings, units] = await Promise.all([
+    apiClient
+      .get<{ unit?: string }>("/api/settings/hru")
+      .catch((): { unit?: string } => ({})),
     fetchHruUnits().catch(() => [] as HruUnit[]),
   ]);
-
-  let settings: { unit?: string } = {};
-  if (settingsRes.ok) {
-    settings = (await settingsRes.json()) as { unit?: string };
-  }
 
   const activeUnit = units.find((u) => u.id === settings.unit) || units[0];
   return {

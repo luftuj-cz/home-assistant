@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { Dispatch, SetStateAction } from "react";
 import type { Mode } from "@luftuj/shared/types/timeline";
 import type { Valve } from "@luftuj/shared/types/valve";
 
@@ -6,15 +7,13 @@ export interface ModeFormState {
   name: string;
   setName: (v: string) => void;
   variableValues: Record<string, number | string | boolean>;
-  setVariableValues: React.Dispatch<
-    React.SetStateAction<Record<string, number | string | boolean>>
-  >;
+  setVariableValues: Dispatch<SetStateAction<Record<string, number | string | boolean>>>;
   color: string;
   setColor: (v: string) => void;
   isBoost: boolean;
   setIsBoost: (v: boolean) => void;
   valveOpenings: Record<string, number | undefined>;
-  setValveOpenings: React.Dispatch<React.SetStateAction<Record<string, number | undefined>>>;
+  setValveOpenings: Dispatch<SetStateAction<Record<string, number | undefined>>>;
   submitted: boolean;
   setSubmitted: (v: boolean) => void;
   getPayload: () => Omit<Partial<Mode>, "id">;

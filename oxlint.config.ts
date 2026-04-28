@@ -1,5 +1,6 @@
 import { defineConfig } from "oxlint";
 
+// noinspection JSUnusedGlobalSymbols
 export default defineConfig({
   ignorePatterns: [
     "dist/",

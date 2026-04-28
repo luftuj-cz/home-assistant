@@ -1,9 +1,9 @@
 import { Button, Group, Modal, type ModalProps, Stack } from "@mantine/core";
-import type { FormEvent, ReactNode } from "react";
+import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 interface FormModalProps extends Omit<ModalProps, "children" | "onSubmit"> {
   children: ReactNode;
-  onSubmit?: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit?: ComponentPropsWithoutRef<"form">["onSubmit"];
   submitLabel?: ReactNode;
   cancelLabel?: ReactNode;
   onCancel?: () => void;

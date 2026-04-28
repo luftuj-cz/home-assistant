@@ -49,10 +49,10 @@ export function PreferencesStep() {
           { value: "cs", label: "Čeština" },
         ]}
         value={selectedLanguage}
-        onChange={(val) => {
+        onChange={async (val) => {
           if (val === "en" || val === "cs") {
             setSelectedLanguage(val);
-            setLanguage(val);
+            await setLanguage(val);
           }
         }}
       />

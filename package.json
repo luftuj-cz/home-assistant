@@ -43,6 +43,6 @@
     "@types/react-dom": "^19.2.3",
     "baseline-browser-mapping": "^2.10.19",
     "typescript": "^6.0.2",
-    "vite-plus": "^0.1.16"
+    "vite-plus": "0.1.17"
   }
 }

@@ -39,7 +39,5 @@ addon/rootfs/usr/src/app/data
 /.claude/
 /.ai/
 /.junie/
-/.junie/
 /.windsurf/
-/.junie/
 /.agents/
