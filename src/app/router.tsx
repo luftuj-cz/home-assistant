@@ -10,7 +10,7 @@ import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { ValvesPage } from "../features/valves/ValvesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { TimelinePage } from "../features/timeline/TimelinePage";
-import { DebugPage } from "../pages/DebugPage";
+import { DebugPage } from "../features/debug/DebugPage";
 import { OnboardingPage } from "../features/onboarding/OnboardingPage";
 
 const rootRoute = createRootRoute({
