@@ -37,9 +37,7 @@ export async function fetchHruUnits(): Promise<HruUnit[]> {
 
 export async function fetchActiveUnit() {
   const [settings, units] = await Promise.all([
-    apiClient
-      .get<{ unit?: string }>("/api/settings/hru")
-      .catch((): { unit?: string } => ({})),
+    apiClient.get<{ unit?: string }>("/api/settings/hru").catch((): { unit?: string } => ({})),
     fetchHruUnits().catch(() => [] as HruUnit[]),
   ]);
 
