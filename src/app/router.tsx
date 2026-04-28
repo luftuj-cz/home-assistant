@@ -1,3 +1,4 @@
+import { lazy } from "react";
 import {
   createRootRoute,
   createRoute,
@@ -6,12 +7,26 @@ import {
 } from "@tanstack/react-router";
 
 import { AppLayout } from "./layouts/AppLayout";
-import { DashboardPage } from "../features/dashboard/DashboardPage";
-import { ValvesPage } from "../features/valves/ValvesPage";
-import { SettingsPage } from "../features/settings/SettingsPage";
-import { TimelinePage } from "../features/timeline/TimelinePage";
-import { DebugPage } from "../features/debug/DebugPage";
-import { OnboardingPage } from "../features/onboarding/OnboardingPage";
+import { LoadingState } from "../shared/ui";
+
+const DashboardPage = lazy(() =>
+  import("../features/dashboard/DashboardPage").then((m) => ({ default: m.DashboardPage })),
+);
+const ValvesPage = lazy(() =>
+  import("../features/valves/ValvesPage").then((m) => ({ default: m.ValvesPage })),
+);
+const SettingsPage = lazy(() =>
+  import("../features/settings/SettingsPage").then((m) => ({ default: m.SettingsPage })),
+);
+const TimelinePage = lazy(() =>
+  import("../features/timeline/TimelinePage").then((m) => ({ default: m.TimelinePage })),
+);
+const DebugPage = lazy(() =>
+  import("../features/debug/DebugPage").then((m) => ({ default: m.DebugPage })),
+);
+const OnboardingPage = lazy(() =>
+  import("../features/onboarding/OnboardingPage").then((m) => ({ default: m.OnboardingPage })),
+);
 
 const rootRoute = createRootRoute({
   component: AppLayout,
@@ -64,7 +79,11 @@ const routeTree = rootRoute.addChildren([
 
 const hashHistory = createHashHistory();
 
-const router = createRouter({ routeTree, history: hashHistory });
+const router = createRouter({
+  routeTree,
+  history: hashHistory,
+  defaultPendingComponent: () => <LoadingState label="Loading…" minHeight="100vh" />,
+});
 
 declare module "@tanstack/react-router" {
   // noinspection JSUnusedGlobalSymbols
