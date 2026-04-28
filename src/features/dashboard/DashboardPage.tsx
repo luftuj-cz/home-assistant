@@ -1,16 +1,12 @@
 import { Container, Stack, Title, Group, Text } from "@mantine/core";
 import { IconLayoutDashboard } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { useEffect, useState } from "react";
 import { useDashboardStatus } from "@luftuj/features/dashboard/hooks/useDashboardStatus";
-import { useTimelineModes } from "@luftuj/features/timeline/hooks/useTimelineModes";
+import { useActiveUnitQuery } from "@luftuj/features/dashboard/hooks/useActiveUnitQuery";
+import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimelineModesQuery";
 import { StatusCard } from "@luftuj/features/dashboard/components/StatusCard";
 import { HruStatusCard } from "@luftuj/features/dashboard/components/HruStatusCard";
 import { BoostButtons } from "@luftuj/features/dashboard/components/BoostButtons";
-import * as hruApi from "@luftuj/shared/api/hru";
-import { createLogger } from "@luftuj/shared/utils/logger";
-
-const logger = createLogger("DashboardPage");
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -25,24 +21,10 @@ export function DashboardPage() {
     activeMode,
     configuredMaxPower,
   } = useDashboardStatus();
-  const { modes, loadModes } = useTimelineModes(t);
-  const [activeUnitId, setActiveUnitId] = useState<string | undefined>(undefined);
 
-  useEffect(() => {
-    async function init() {
-      try {
-        const { unitId } = await hruApi.fetchActiveUnit();
-        setActiveUnitId(unitId);
-
-        await loadModes(unitId);
-        logger.info("Dashboard context loaded successfully", { unitId });
-      } catch (err) {
-        logger.error("Failed to load dashboard context", { error: err });
-      }
-    }
-    void init();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const { data: activeUnitData } = useActiveUnitQuery();
+  const activeUnitId = activeUnitData?.unitId;
+  const { modes } = useTimelineModesQuery(activeUnitId);
 
   function getHaStatusType() {
     if (haLoading) return "neutral";
