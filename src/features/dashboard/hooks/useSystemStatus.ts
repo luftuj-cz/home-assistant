@@ -35,11 +35,12 @@ export function useSystemStatus(): SystemStatus {
           setHaLoading(false);
           return;
         }
-        const data = ((await res.json().catch(() => null)) as {
-          ha?: { connection?: string };
-          mqtt?: { connection?: "connected" | "disconnected"; lastDiscovery?: string | null };
-          timeline?: ActiveMode | null;
-        } | null) ?? {};
+        const data =
+          ((await res.json().catch(() => null)) as {
+            ha?: { connection?: string };
+            mqtt?: { connection?: "connected" | "disconnected"; lastDiscovery?: string | null };
+            timeline?: ActiveMode | null;
+          } | null) ?? {};
         if (!active) return;
         const s = data.ha?.connection;
         if (s === "connected" || s === "connecting" || s === "disconnected" || s === "offline") {

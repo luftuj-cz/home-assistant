@@ -11,7 +11,7 @@ import { ValvesPage } from "../features/valves/ValvesPage";
 import { SettingsPage } from "../features/settings/SettingsPage";
 import { TimelinePage } from "../features/timeline/TimelinePage";
 import { DebugPage } from "../pages/DebugPage";
-import { OnboardingPage } from "../pages/OnboardingPage";
+import { OnboardingPage } from "../features/onboarding/OnboardingPage";
 
 const rootRoute = createRootRoute({
   component: AppLayout,
