@@ -1,6 +1,6 @@
-import { resolveApiUrl } from "../shared/utils/api";
-import { parseApiError } from "../shared/utils/apiError";
-import type { Mode, TimelineEvent, ApiTimelineEvent } from "../shared/types/timeline";
+import { resolveApiUrl } from "../../shared/utils/api";
+import { parseApiError } from "../../shared/utils/apiError";
+import type { Mode, TimelineEvent, ApiTimelineEvent } from "../../shared/types/timeline";
 
 export async function fetchTimelineModes(unitId?: string): Promise<Mode[]> {
   const url = unitId

@@ -3,27 +3,27 @@ import { Stack, Text, Title, Divider, Container } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { IconCalendar } from "@tabler/icons-react";
 
-import { useTimelineModes } from "../hooks/useTimelineModes";
-import { useTimelineEvents } from "../hooks/useTimelineEvents";
-import { useDragAutoScroll } from "../hooks/useDragScroll";
-import { TimelineModeList } from "../components/timeline/TimelineModeList";
-import { TimelineDayCard } from "../components/timeline/TimelineDayCard";
-import { TimelineEventModal } from "../components/timeline/TimelineEventModal";
-import { TimelineModeModal } from "../components/timeline/TimelineModeModal";
+import { useTimelineModes } from "./hooks/useTimelineModes";
+import { useTimelineEvents } from "./hooks/useTimelineEvents";
+import { useDragAutoScroll } from "../../shared/hooks/useDragScroll";
+import { TimelineModeList } from "./components/TimelineModeList";
+import { TimelineDayCard } from "./components/TimelineDayCard";
+import { TimelineEventModal } from "./components/TimelineEventModal";
+import { TimelineModeModal } from "./components/TimelineModeModal";
 
-import { useEventWorkflow } from "../features/timeline/hooks";
-import { useModeWorkflow } from "../features/timeline/hooks";
-import { useDayCopyPaste } from "../features/timeline/hooks";
-import { useHruContext } from "../features/timeline/hooks";
+import { useEventWorkflow } from "./hooks";
+import { useModeWorkflow } from "./hooks";
+import { useDayCopyPaste } from "./hooks";
+import { useHruContext } from "./hooks";
 
 import {
   DAY_ORDER,
   getDayLabels,
   getModeOptions,
   DEFAULT_START_TIME,
-} from "../features/timeline/utils";
-import type { TimelineEvent, Mode } from "../shared/types/timeline";
-import { createLogger } from "../shared/utils/logger";
+} from "./utils";
+import type { TimelineEvent, Mode } from "../../shared/types/timeline";
+import { createLogger } from "../../shared/utils/logger";
 
 const logger = createLogger("TimelinePage");
 

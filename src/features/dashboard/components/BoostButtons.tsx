@@ -23,7 +23,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import type { TFunction } from "i18next";
 import type { Mode } from "../../../shared/types/timeline";
-import { activateBoost, cancelBoost, fetchActiveBoost } from "../../../api/timeline";
+import { activateBoost, cancelBoost, fetchActiveBoost } from "../../timeline/api";
 import { notifications } from "@mantine/notifications";
 import { createLogger } from "../../../shared/utils/logger";
 import { translateApiError } from "../../../shared/utils/apiError";

@@ -9,7 +9,7 @@ import { AppLayout } from "./layouts/AppLayout";
 import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { ValvesPage } from "../features/valves/ValvesPage";
 import { SettingsPage } from "../pages/SettingsPage";
-import { TimelinePage } from "../pages/TimelinePage";
+import { TimelinePage } from "../features/timeline/TimelinePage";
 import { DebugPage } from "../pages/DebugPage";
 import { OnboardingPage } from "../pages/OnboardingPage";
 

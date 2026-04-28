@@ -3,7 +3,7 @@ import { IconLayoutDashboard } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
 import { useDashboardStatus } from "./hooks/useDashboardStatus";
-import { useTimelineModes } from "../../hooks/useTimelineModes";
+import { useTimelineModes } from "../timeline/hooks/useTimelineModes";
 import { StatusCard } from "./components/StatusCard";
 import { HruStatusCard } from "./components/HruStatusCard";
 import { BoostButtons } from "./components/BoostButtons";
