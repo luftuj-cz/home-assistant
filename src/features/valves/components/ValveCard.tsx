@@ -1,8 +1,9 @@
-import { Badge, Card, Group, Slider, Stack, Text, ThemeIcon, rem, Tooltip } from "@mantine/core";
+import { Badge, Group, Slider, Stack, Text, ThemeIcon, rem, Tooltip } from "@mantine/core";
 import { IconAdjustments } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
-import type { Valve } from "../shared/types/valve";
+import type { Valve } from "../../../shared/types/valve";
+import { BaseCard } from "../../../shared/ui";
 
 export interface ValveCardProps {
   valve: Valve;
@@ -43,7 +44,7 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
   const statusColor = getValveColor(valve.value);
 
   return (
-    <Card shadow="sm" radius="md" p="lg" withBorder>
+    <BaseCard>
       <Stack gap="lg">
         <Group justify="space-between" align="flex-start" wrap="nowrap">
           <Group gap="sm" align="flex-start" style={{ flex: 1, minWidth: 0 }}>
@@ -120,6 +121,6 @@ export function ValveCard({ valve, formatValue, onPreview, onCommit }: ValveCard
           }}
         />
       </Stack>
-    </Card>
+    </BaseCard>
   );
 }
