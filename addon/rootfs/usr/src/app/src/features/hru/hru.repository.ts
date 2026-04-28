@@ -28,6 +28,7 @@ export class HruRepository {
         return evaluateExpression(val);
       }
 
+      // noinspection JSUnusedGlobalSymbols
       const handlers: Record<string, (args: number[]) => Promise<number> | number> = {
         bit_and: async ([a = 0, b = 0]) => a & b,
         bit_or: async ([a = 0, b = 0]) => a | b,
