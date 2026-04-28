@@ -2,13 +2,13 @@ import { Container, Stack, Title, Group, Text } from "@mantine/core";
 import { IconLayoutDashboard } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useEffect, useState } from "react";
-import { useDashboardStatus } from "../hooks/useDashboardStatus";
-import { useTimelineModes } from "../hooks/useTimelineModes";
-import { StatusCard } from "../components/dashboard/StatusCard";
-import { HruStatusCard } from "../components/dashboard/HruStatusCard";
-import { BoostButtons } from "../components/dashboard/BoostButtons";
-import * as hruApi from "../api/hru";
-import { createLogger } from "../shared/utils/logger";
+import { useDashboardStatus } from "./hooks/useDashboardStatus";
+import { useTimelineModes } from "../../hooks/useTimelineModes";
+import { StatusCard } from "./components/StatusCard";
+import { HruStatusCard } from "./components/HruStatusCard";
+import { BoostButtons } from "./components/BoostButtons";
+import * as hruApi from "../../api/hru";
+import { createLogger } from "../../shared/utils/logger";
 
 const logger = createLogger("DashboardPage");
 

@@ -21,12 +21,7 @@ import {
   IconWind,
   IconEye,
 } from "@tabler/icons-react";
-import type {
-  HruState,
-  ActiveMode,
-  HruVariable,
-  LocalizedText,
-} from "../../hooks/useDashboardStatus";
+import type { HruState, ActiveMode, HruVariable, LocalizedText } from "../types";
 import type { TFunction } from "i18next";
 
 interface HruStatusCardProps {

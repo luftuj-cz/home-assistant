@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-router";
 
 import { AppLayout } from "./layouts/AppLayout";
-import { DashboardPage } from "../pages/DashboardPage";
+import { DashboardPage } from "../features/dashboard/DashboardPage";
 import { ValvesPage } from "../features/valves/ValvesPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { TimelinePage } from "../pages/TimelinePage";
