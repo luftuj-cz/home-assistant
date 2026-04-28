@@ -3,8 +3,8 @@ import { Stack, Text, Title, Divider, Container } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { IconCalendar } from "@tabler/icons-react";
 
-import { useTimelineModes } from "@luftuj/features/timeline/hooks/useTimelineModes";
-import { useTimelineEvents } from "@luftuj/features/timeline/hooks/useTimelineEvents";
+import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimelineModesQuery";
+import { useTimelineEventsQuery } from "@luftuj/features/timeline/hooks/useTimelineEventsQuery";
 import { useDragAutoScroll } from "@luftuj/shared/hooks/useDragScroll";
 import { TimelineModeList } from "@luftuj/features/timeline/components/TimelineModeList";
 import { TimelineDayCard } from "@luftuj/features/timeline/components/TimelineDayCard";
@@ -31,19 +31,16 @@ export function TimelinePage() {
   const { t } = useTranslation();
   const dragScroll = useDragAutoScroll();
 
-  const { modes, loadModes, saveMode, deleteMode, savingMode } = useTimelineModes(t);
+  const { modes, saveMode, deleteMode } = useTimelineModesQuery();
   const {
     eventsByDay,
-    loadEvents,
     saveEvent,
     deleteEvent,
-    saving: savingEvent,
-  } = useTimelineEvents(modes, t);
+    refetch: refetchEvents,
+    isMutating,
+  } = useTimelineEventsQuery(modes);
 
-  const { valves, hruVariables, powerUnit, maxPower, activeUnitId, loading } = useHruContext(
-    loadModes,
-    loadEvents,
-  );
+  const { valves, hruVariables, powerUnit, maxPower, activeUnitId, loading } = useHruContext();
 
   const {
     eventModalOpen,
@@ -65,7 +62,7 @@ export function TimelinePage() {
     handleDeleteMode,
     handleNameChange,
     handleCloseModeModal,
-  } = useModeWorkflow(t, saveMode, deleteMode, loadEvents, activeUnitId);
+  } = useModeWorkflow(t, saveMode, deleteMode, refetchEvents, activeUnitId);
 
   const dayLabels = useMemo(() => getDayLabels(t), [t]);
 
@@ -153,6 +150,7 @@ export function TimelinePage() {
                 display: "grid",
                 gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
                 gap: "var(--mantine-spacing-lg)",
+                contentVisibility: "auto",
               }}
             >
               {DAY_ORDER.map((dayIdx: number) => (
@@ -183,7 +181,7 @@ export function TimelinePage() {
           opened={eventModalOpen}
           event={editingEvent}
           modeOptions={modeOptions}
-          saving={savingEvent}
+          saving={isMutating}
           onClose={handleCloseEventModal}
           onSave={handleSaveEvent}
           onChange={handleEventChange}
@@ -195,7 +193,7 @@ export function TimelinePage() {
           opened={modeModalOpen}
           mode={editingMode}
           valves={valves}
-          saving={savingMode}
+          saving={false}
           onClose={handleCloseModeModal}
           onSave={handleSaveMode}
           t={t}

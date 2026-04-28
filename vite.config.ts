@@ -70,9 +70,6 @@ export default defineConfig({
             if (id.includes("@tanstack")) {
               return "tanstack";
             }
-            if (id.includes("framer-motion")) {
-              return "motion";
-            }
             if (id.includes("@tabler")) {
               return "icons";
             }

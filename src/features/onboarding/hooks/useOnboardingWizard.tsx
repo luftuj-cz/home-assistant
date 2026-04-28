@@ -22,7 +22,16 @@ import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import { parseApiError, translateApiError } from "@luftuj/shared/utils/apiError";
 
 export type { HruUnit, HruVariable } from "@luftuj/shared/api/hru";
-export * from "@tabler/icons-react";
+export {
+  IconRocket,
+  IconAdjustments,
+  IconWind,
+  IconPlugConnected,
+  IconServer,
+  IconLanguage,
+  IconPalette,
+  IconArrowRight,
+} from "@tabler/icons-react";
 
 const logger = createLogger("OnboardingWizard");
 

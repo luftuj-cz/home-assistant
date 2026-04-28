@@ -11,8 +11,8 @@ const logger = createLogger("useDayCopyPaste");
 export function useDayCopyPaste(
   t: TFunction,
   eventsByDay: Map<number, TimelineEvent[]>,
-  deleteEvent: (id: number, options?: { silent?: boolean }) => Promise<void>,
-  saveEvent: (event: TimelineEvent, options?: { silent?: boolean }) => Promise<void | boolean>,
+  deleteEvent: (id: number, options?: { silent?: boolean }) => Promise<boolean>,
+  saveEvent: (event: TimelineEvent, options?: { silent?: boolean }) => Promise<boolean>,
   dayLabels: string[],
 ) {
   const [copyDay, setCopyDay] = useState<number | null>(null);

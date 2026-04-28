@@ -8,10 +8,7 @@ import { calculatePowerConfig } from "@luftuj/features/timeline/utils";
 
 const logger = createLogger("useHruContext");
 
-export function useHruContext(
-  loadModes: (unitId?: string) => Promise<void>,
-  loadEvents: (unitId?: string) => Promise<void>,
-) {
+export function useHruContext() {
   const [valves, setValves] = useState<Valve[]>([]);
   const [hruVariables, setHruVariables] = useState<hruApi.HruVariable[]>([]);
   const [powerUnit, setPowerUnit] = useState<string>("%");
@@ -48,7 +45,6 @@ export function useHruContext(
           }
         }
 
-        await Promise.all([loadModes(unitId), loadEvents(unitId)]);
         logger.info("HRU context loaded successfully", { unitId });
       } catch (err) {
         logger.error("Failed to load HRU context", { error: err });
@@ -57,7 +53,7 @@ export function useHruContext(
       }
     }
     void init();
-  }, [loadModes, loadEvents]);
+  }, []);
 
   return {
     valves,

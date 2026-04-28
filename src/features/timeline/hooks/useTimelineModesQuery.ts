@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
 import type { Mode } from "@luftuj/shared/types/timeline";
@@ -21,23 +21,20 @@ export function useTimelineModesQuery(unitId?: string) {
       logger.info("Timeline modes loaded", { count: data.length, unitId });
       return data.map(mapModeForUi);
     },
-    enabled: !!unitId,
     staleTime: 30 * 1000,
   });
 
-  const saveMode = async (mode: Partial<Mode>): Promise<boolean> => {
-    try {
-      let saved: Mode;
+  const saveModeMutation = useMutation({
+    mutationFn: async (mode: Partial<Mode>) => {
       const isEdit = typeof mode.id === "number";
-
       if (isEdit) {
-        saved = await api.updateTimelineMode(mode as Mode);
-      } else {
-        saved = await api.createTimelineMode(mode as Omit<Mode, "id">);
+        return api.updateTimelineMode(mode as Mode);
       }
-
+      return api.createTimelineMode(mode as Omit<Mode, "id">);
+    },
+    onSuccess: (saved) => {
       const mappedSaved = mapModeForUi(saved);
-
+      const isEdit = typeof saved.id === "number";
       queryClient.setQueryData<Mode[]>(["timeline-modes", unitId], (prev) => {
         if (!prev) return [mappedSaved];
         if (isEdit) {
@@ -47,7 +44,6 @@ export function useTimelineModesQuery(unitId?: string) {
         logger.info("Timeline mode created", { id: mappedSaved.id, name: mappedSaved.name });
         return [...prev, mappedSaved];
       });
-
       notifications.show({
         title: t("settings.timeline.notifications.saveSuccessTitle"),
         message: t(
@@ -57,30 +53,31 @@ export function useTimelineModesQuery(unitId?: string) {
         ),
         color: "green",
       });
-      return true;
-    } catch (err) {
+    },
+    onError: (err, mode) => {
       logger.error("Failed to save timeline mode", {
         error: err,
         modeId: mode.id,
         name: mode.name,
       });
 
-      if (err instanceof ApiResponseError && err.code === "DUPLICATE_MODE_NAME") {
-        throw new Error("DUPLICATE_NAME");
-      }
-
+      const isDuplicate = err instanceof ApiResponseError && err.code === "DUPLICATE_MODE_NAME";
       notifications.show({
         title: t("settings.timeline.notifications.saveFailedTitle"),
         message: translateApiError(err, t),
         color: "red",
       });
-      return false;
-    }
-  };
 
-  const deleteMode = async (id: number): Promise<boolean> => {
-    try {
-      await api.deleteTimelineMode(id);
+      if (isDuplicate) {
+        throw new Error("DUPLICATE_NAME");
+      }
+      throw err;
+    },
+  });
+
+  const deleteModeMutation = useMutation({
+    mutationFn: (id: number) => api.deleteTimelineMode(id),
+    onSuccess: (_, id) => {
       queryClient.setQueryData<Mode[]>(["timeline-modes", unitId], (prev) =>
         prev ? prev.filter((m) => m.id !== id) : [],
       );
@@ -90,14 +87,35 @@ export function useTimelineModesQuery(unitId?: string) {
         message: t("settings.timeline.notifications.modeDeleteSuccessMessage"),
         color: "green",
       });
-      return true;
-    } catch (err) {
+    },
+    onError: (err, id) => {
       logger.error("Failed to delete timeline mode", { error: err, id });
       notifications.show({
         title: t("settings.timeline.notifications.deleteFailedTitle"),
         message: translateApiError(err, t),
         color: "red",
       });
+      throw err;
+    },
+  });
+
+  const saveMode = async (mode: Partial<Mode>): Promise<boolean> => {
+    try {
+      await saveModeMutation.mutateAsync(mode);
+      return true;
+    } catch (err) {
+      if (err instanceof Error && err.message === "DUPLICATE_NAME") {
+        throw err;
+      }
+      return false;
+    }
+  };
+
+  const deleteMode = async (id: number): Promise<boolean> => {
+    try {
+      await deleteModeMutation.mutateAsync(id);
+      return true;
+    } catch {
       return false;
     }
   };
@@ -109,6 +127,6 @@ export function useTimelineModesQuery(unitId?: string) {
     error: query.error,
     saveMode,
     deleteMode,
-    refetch: query.refetch,
+    isMutating: saveModeMutation.isPending || deleteModeMutation.isPending,
   };
 }
