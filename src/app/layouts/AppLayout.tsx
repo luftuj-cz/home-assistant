@@ -23,7 +23,7 @@ import {
   Center,
   useComputedColorScheme,
 } from "@mantine/core";
-import { APP_VERSION } from "../config";
+import { APP_VERSION } from "../../config";
 import {
   IconAt,
   IconPhone,
@@ -38,11 +38,11 @@ import { useDisclosure } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useEffect, useRef, useState } from "react";
-import logoFullLight from "../assets/logo-full-light.svg";
-import logoFullDark from "../assets/logo-full-dark.svg";
-import logoMarkLight from "../assets/logo-mark-light.svg";
-import logoMarkDark from "../assets/logo-mark-dark.svg";
-import { resolveApiUrl } from "../utils/api";
+import logoFullLight from "../../assets/logo-full-light.svg";
+import logoFullDark from "../../assets/logo-full-dark.svg";
+import logoMarkLight from "../../assets/logo-mark-light.svg";
+import logoMarkDark from "../../assets/logo-mark-dark.svg";
+import { resolveApiUrl } from "../../utils/api";
 
 export function AppLayout() {
   const [mobileNavOpened, { toggle, close }] = useDisclosure(false);

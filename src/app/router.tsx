@@ -6,12 +6,12 @@ import {
 } from "@tanstack/react-router";
 
 import { AppLayout } from "./layouts/AppLayout";
-import { DashboardPage } from "./pages/DashboardPage";
-import { ValvesPage } from "./pages/ValvesPage";
-import { SettingsPage } from "./pages/SettingsPage";
-import { TimelinePage } from "./pages/TimelinePage";
-import { DebugPage } from "./pages/DebugPage";
-import { OnboardingPage } from "./pages/OnboardingPage";
+import { DashboardPage } from "../pages/DashboardPage";
+import { ValvesPage } from "../pages/ValvesPage";
+import { SettingsPage } from "../pages/SettingsPage";
+import { TimelinePage } from "../pages/TimelinePage";
+import { DebugPage } from "../pages/DebugPage";
+import { OnboardingPage } from "../pages/OnboardingPage";
 
 const rootRoute = createRootRoute({
   component: AppLayout,
