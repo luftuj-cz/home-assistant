@@ -155,9 +155,7 @@ export function createTimelineRouter(
     return payload;
   }
 
-  function mapTimelineModeInput(
-    payload: TimelineModeInput,
-  ): Omit<TimelineMode, "id" | "hruId"> {
+  function mapTimelineModeInput(payload: TimelineModeInput): Omit<TimelineMode, "id" | "hruId"> {
     return {
       name: payload.name,
       color: payload.color,
