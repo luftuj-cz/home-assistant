@@ -23,7 +23,7 @@ export function useTimelineEvents(modes: Mode[], t: TFunction, activeUnitId?: st
       map.set(ev.dayOfWeek, list);
     }
     for (const [key, list] of map.entries()) {
-      list.sort((a, b) => a.startTime.localeCompare(b.startTime));
+      list.toSorted((a, b) => a.startTime.localeCompare(b.startTime));
       map.set(key, list);
     }
     return map;

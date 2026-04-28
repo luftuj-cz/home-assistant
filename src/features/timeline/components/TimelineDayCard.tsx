@@ -89,7 +89,7 @@ export function TimelineDayCard({
   onDropMode,
   t,
 }: TimelineDayCardProps) {
-  const sortedEvents = [...events].sort((a, b) => a.startTime.localeCompare(b.startTime));
+  const sortedEvents = events.toSorted((a, b) => a.startTime.localeCompare(b.startTime));
   const [isDragOver, setIsDragOver] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 

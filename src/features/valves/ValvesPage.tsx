@@ -111,7 +111,7 @@ export function ValvesPage() {
   );
 
   const valves = useMemo(() => {
-    return Object.values(valveMap).sort((a, b) => a.name.localeCompare(b.name));
+    return Object.values(valveMap).toSorted((a, b) => a.name.localeCompare(b.name));
   }, [valveMap]);
 
   const allValvesClosed = useMemo(() => {
