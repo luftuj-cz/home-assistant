@@ -153,6 +153,7 @@ export function OnboardingWizard({ children }: OnboardingWizardProps) {
   const [maxPower, setMaxPower] = useState<number | undefined>(undefined);
   const [fullUnits, setFullUnits] = useState<HruUnit[]>([]);
   const importInputRef = useRef<HTMLInputElement>(null);
+  const mqttHostPrefilled = useRef(false);
 
   const totalSteps = 6;
 
@@ -239,8 +240,9 @@ export function OnboardingWizard({ children }: OnboardingWizardProps) {
   });
 
   useEffect(() => {
-    if (systemInfoQuery.data?.hassHost && !mqttForm.values.host) {
+    if (systemInfoQuery.data?.hassHost && !mqttHostPrefilled.current) {
       mqttForm.setFieldValue("host", systemInfoQuery.data.hassHost);
+      mqttHostPrefilled.current = true;
     }
   }, [systemInfoQuery.data, mqttForm]);
 
