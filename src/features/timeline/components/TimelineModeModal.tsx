@@ -60,7 +60,7 @@ export function TimelineModeModal({
     refetchOnWindowFocus: false,
   });
 
-  const showCopyButton = mode !== null || !!debugMode?.enabled;
+  const showCopyButton = !!debugMode?.enabled;
 
   useEffect(() => {
     if (!opened) {
