@@ -6,12 +6,11 @@ import { IconCheck, IconX } from "@tabler/icons-react";
 
 export function StatusStep() {
   const { t } = useTranslation();
-  const { prevStep, statusQuery, finishMutation, nextStep } = useOnboardingWizard();
+  const { prevStep, statusQuery, finishMutation } = useOnboardingWizard();
 
   async function handleFinish() {
     try {
       await finishMutation.mutateAsync();
-      nextStep();
     } catch {
       notifications.show({
         title: t("valves.alertTitle"),

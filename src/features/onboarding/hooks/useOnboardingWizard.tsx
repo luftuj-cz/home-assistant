@@ -370,6 +370,10 @@ export function OnboardingWizard({ children }: OnboardingWizardProps) {
         throw new Error("Failed to finish onboarding");
       }
     },
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["onboarding-layout-check"] });
+      await navigate({ to: "/" });
+    },
   });
 
   const importDbMutation = useMutation({
