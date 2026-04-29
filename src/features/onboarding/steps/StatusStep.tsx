@@ -64,7 +64,7 @@ export function StatusStep() {
         <Button variant="default" onClick={prevStep}>
           {t("onboarding.back")}
         </Button>
-        <Button size="lg" onClick={handleFinish} loading={finishMutation.isPending}>
+        <Button onClick={handleFinish} loading={finishMutation.isPending}>
           {t("onboarding.status.dashboard")}
         </Button>
       </Group>
