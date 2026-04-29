@@ -32,9 +32,9 @@ export function useTimelineModesQuery(unitId?: string) {
       }
       return api.createTimelineMode(mode as Omit<Mode, "id">);
     },
-    onSuccess: (saved) => {
+    onSuccess: (saved, variables) => {
       const mappedSaved = mapModeForUi(saved);
-      const isEdit = typeof saved.id === "number";
+      const isEdit = typeof variables.id === "number";
       queryClient.setQueryData<Mode[]>(["timeline-modes", unitId], (prev) => {
         if (!prev) return [mappedSaved];
         if (isEdit) {
