@@ -98,6 +98,17 @@ export function TimelineModeModal({
       });
       return false;
     }
+    const missingVariable = hruVariables
+      .filter((v) => v.editable && v.type !== "boolean")
+      .some((v) => form.variableValues[v.name] === undefined);
+    if (missingVariable) {
+      notifications.show({
+        title: t("settings.timeline.notifications.validationFailedTitle"),
+        message: t("validation.requiredField"),
+        color: "red",
+      });
+      return false;
+    }
     return true;
   }
 
