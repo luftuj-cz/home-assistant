@@ -91,7 +91,6 @@ export function TimelineDayCard({
 }: TimelineDayCardProps) {
   const sortedEvents = events.toSorted((a, b) => a.startTime.localeCompare(b.startTime));
   const [isDragOver, setIsDragOver] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
 
   return (
     <Card
@@ -118,12 +117,7 @@ export function TimelineDayCard({
           logger.error("Failed to parse dropped mode", { error: err });
         }
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
       style={{
-        transition: "transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease",
-        boxShadow: isHovered ? "var(--mantine-shadow-md)" : undefined,
-        transform: isHovered ? "translateY(-2px)" : "translateY(0)",
         borderColor: isDragOver ? "var(--mantine-color-blue-filled)" : undefined,
         display: "flex",
         flexDirection: "column",

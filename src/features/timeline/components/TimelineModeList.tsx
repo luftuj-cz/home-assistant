@@ -11,7 +11,6 @@ import {
   SimpleGrid,
 } from "@mantine/core";
 import { IconPlus, IconEdit, IconTrash } from "@tabler/icons-react";
-import { useState } from "react";
 import type { TFunction } from "i18next";
 import type { Mode } from "@luftuj/shared/types/timeline";
 import { formatTemperature, getTemperatureLabel } from "@luftuj/shared/utils/temperature";
@@ -33,8 +32,6 @@ export function TimelineModeList({
   t,
   powerUnit = "%",
 }: TimelineModeListProps) {
-  const [hoveredCardId, setHoveredCardId] = useState<number | null>(null);
-
   return (
     <Card withBorder radius="md" p="md">
       <Stack gap="md">
@@ -89,16 +86,11 @@ export function TimelineModeList({
                   e.dataTransfer.setData("application/json", JSON.stringify(m));
                   e.dataTransfer.effectAllowed = "copy";
                 }}
-                onMouseEnter={() => setHoveredCardId(m.id)}
-                onMouseLeave={() => setHoveredCardId(null)}
                 style={{
                   borderTop: `6px solid ${m.color || "var(--mantine-color-blue-6)"}`,
                   backgroundColor: "rgba(255, 255, 255, 0.05)",
                   backdropFilter: "blur(10px)",
-                  transition: "transform 0.2s ease, box-shadow 0.2s ease",
                   cursor: "grab",
-                  transform: hoveredCardId === m.id ? "translateY(-2px)" : "translateY(0)",
-                  boxShadow: hoveredCardId === m.id ? "var(--mantine-shadow-md)" : undefined,
                 }}
               >
                 <Stack gap="md">
