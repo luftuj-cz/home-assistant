@@ -3,6 +3,7 @@ import {
   Button,
   Flex,
   Group,
+  NumberInput,
   PasswordInput,
   Stack,
   Switch,
@@ -59,7 +60,7 @@ export function MqttStep() {
               {...mqttForm.getInputProps("host")}
               style={{ flex: 1 }}
             />
-            <TextInput
+            <NumberInput
               label={t("onboarding.mqtt.portLabel")}
               required
               min={1}
