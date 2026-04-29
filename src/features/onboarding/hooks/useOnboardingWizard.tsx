@@ -175,6 +175,7 @@ export function OnboardingWizard({ children }: OnboardingWizardProps) {
   const mqttForm = useForm<MqttForm>({
     initialValues: { enabled: true, host: "", port: 1883, user: "", password: "" },
     validate: (values) => {
+      if (!values.enabled) return {};
       const result = mqttSchema.safeParse(values);
       const errors: Record<string, string> = {};
       if (!result.success) {
@@ -182,7 +183,7 @@ export function OnboardingWizard({ children }: OnboardingWizardProps) {
           if (issue.path[0]) errors[issue.path[0].toString()] = issue.message;
         });
       }
-      if (values.enabled && !values.host?.trim()) {
+      if (!values.host?.trim()) {
         errors.host = t("onboarding.mqtt.hostRequired");
       }
       return errors;
