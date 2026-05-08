@@ -226,6 +226,29 @@ export class ModbusTcpClient {
     });
   }
 
+  async readDiscreet(start: number, length: number): Promise<boolean[]> {
+    return this.runExclusive(async () => {
+      await this.ensureConnected();
+      try {
+        const res = await this.client.readDiscreteInputs(start, length);
+        this.logger.debug({ start, length }, "Modbus TCP: readDiscreet success");
+        return Array.from(res.data);
+      } catch (err) {
+        this.logger.error({ err, start, length }, "Modbus TCP: readDiscreet failed");
+        if (this.isPortClosedError(err)) {
+          this.resetClient();
+          this.handleDisconnect();
+          await this.ensureConnected();
+          const res = await this.client.readDiscreteInputs(start, length);
+          this.logger.debug({ start, length }, "Modbus TCP: readDiscreet retry success");
+          return Array.from(res.data);
+        }
+        this.handleDisconnect();
+        throw err;
+      }
+    });
+  }
+
   async writeHolding(start: number, values: number | number[]): Promise<void> {
     return this.runExclusive(async () => {
       await this.ensureConnected();

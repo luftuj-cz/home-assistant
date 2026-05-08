@@ -55,7 +55,16 @@
     "offset": "Disbalance offset",
     "flowOut": "Flow out",
     "flowIn": "Flow in",
-    "serialNo": "Serial number"
+    "serialNo": "Serial number",
+    "errorState": "Error state",
+    "changeFilters": "Change filters",
+    "changeFiltersIn": "Change filters in",
+    "days": "days",
+    "roomTemperature": "Room temperature",
+    "roomHumidity": "Room relative humidity",
+    "outsideTemperature": "Outside temperature",
+    "supplyTemperature": "Supply temperature",
+    "temperatureProfile": "Temperature profile"
   },
   "valves": {
     "title": "LUFTaTOR Zones",

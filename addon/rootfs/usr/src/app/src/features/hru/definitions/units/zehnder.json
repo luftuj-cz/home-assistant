@@ -1,0 +1,167 @@
+{
+  "code": "zehnder",
+  "name": "Zehnder",
+  "variables": [
+    {
+      "name": "power",
+      "type": "number",
+      "editable": true,
+      "onDashboard": true,
+      "label": { "text": "hru.power", "translate": true },
+      "unit": { "text": "hru.level", "translate": true },
+      "min": 0,
+      "max": 3,
+      "maxConfigurable": false,
+      "step": 1,
+      "class": "power"
+    },
+    {
+      "name": "temperatureProfile",
+      "type": "select",
+      "editable": true,
+      "onDashboard": true,
+      "label": { "text": "hru.temperatureProfile", "translate": true },
+      "class": "mode",
+      "options": [
+        { "value": 0, "label": "Normal" },
+        { "value": 1, "label": "Cool" },
+        { "value": 2, "label": "Warm" }
+      ]
+    },
+    {
+      "name": "comfoClime",
+      "type": "boolean",
+      "editable": true,
+      "onDashboard": true,
+      "label": "ComfoClime"
+    },
+    {
+      "name": "replaceFilterDays",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.changeFiltersIn", "translate": true },
+      "unit": { "text": "hru.days", "translate": true },
+      "class": "other"
+    },
+    {
+      "name": "changeFilter",
+      "type": "boolean",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.changeFilters", "translate": true }
+    },
+    {
+      "name": "error",
+      "type": "boolean",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.errorState", "translate": true }
+    },
+    {
+      "name": "roomTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.roomTemperature", "translate": true },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "outsideTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.outsideTemperature", "translate": true },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "supplyTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.supplyTemperature", "translate": true },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "roomHumidity",
+      "type": "number",
+      "editable": false,
+      "onDashboard": false,
+      "label": { "text": "hru.roomHumidity", "translate": true },
+      "unit": "%",
+      "class": "humidity"
+    }
+  ],
+  "interface-type": "modbus-tcp",
+  "integration": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$power",
+        "value": { "function": "modbus_read_holding", "args": [1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$temperatureProfile",
+        "value": { "function": "modbus_read_holding", "args": [2] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$comfoClime",
+        "value": { "function": "modbus_read_coil", "args": [3] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$replaceFilterDays",
+        "value": { "function": "modbus_read_input", "args": [26] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$changeFilter",
+        "value": { "function": "modbus_read_discrete", "args": [4] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$error",
+        "value": { "function": "modbus_read_discrete", "args": [1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$roomTemperature",
+        "value": { "function": "multiply", "args": [{ "function": "modbus_read_input", "args": [8] }, 0.1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$outsideTemperature",
+        "value": { "function": "multiply", "args": [{ "function": "modbus_read_input", "args": [11] }, 0.1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$supplyTemperature",
+        "value": { "function": "multiply", "args": [{ "function": "modbus_read_input", "args": [12] }, 0.1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$roomHumidity",
+        "value": { "function": "modbus_read_input", "args": [13] }
+      }
+    ],
+    "write": [
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [1, "$power"] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [2, "$temperatureProfile"] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_coil", "args": [3, "$comfoClime"] }
+      }
+    ]
+  }
+}

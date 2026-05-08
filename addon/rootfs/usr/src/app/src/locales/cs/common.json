@@ -55,7 +55,16 @@
     "offset": "Procentuální rozvážení",
     "flowOut": "Průtok výfuk",
     "flowIn": "Průtok sání",
-    "serialNo": "Výrobní číslo"
+    "serialNo": "Výrobní číslo",
+    "errorState": "Chybový stav",
+    "changeFilters": "Vyměňte filtry",
+    "changeFiltersIn": "Vyměňte filtry za",
+    "days": "dní",
+    "roomTemperature": "Vnitřní teplota",
+    "roomHumidity": "Vnitřní relativní vlhkost",
+    "outsideTemperature": "Venkovní teplota",
+    "supplyTemperature": "Přívodní teplota",
+    "temperatureProfile": "Teplotní profil"
   },
   "settings": {
     "title": "Nastavení",

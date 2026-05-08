@@ -10,6 +10,7 @@ export type AllowedFunction =
   | "modbus_read_holding"
   | "modbus_read_input"
   | "modbus_write_coil"
+  | "modbus_read_discrete"
   | "round"
   | "multiply"
   | "sum"
