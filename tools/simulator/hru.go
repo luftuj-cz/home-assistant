@@ -70,3 +70,51 @@ func OnWriteCoil(s *Server, function func(address uint16, value bool) *Exception
 		return frame.GetData()[0:4], function(address, value)
 	})
 }
+
+func OnReadCoils(s *Server, function func(address uint16, numCoils int) ([]bool, *Exception)) {
+	s.RegisterFunctionHandler(FnReadCoils, func(s *Server, frame Framer) ([]byte, *Exception) {
+		data := frame.GetData()
+		address := binary.BigEndian.Uint16(data[0:2])
+		numCoils := int(binary.BigEndian.Uint16(data[2:4]))
+		values, err := function(address, numCoils)
+		log.Printf("modbus_read_coils: address=%d, number=%v\n", address, numCoils)
+
+		dataSize := numCoils / 8
+		if (numCoils % 8) != 0 {
+			dataSize++
+		}
+		res := make([]byte, 1+dataSize)
+		res[0] = byte(dataSize)
+		for i, value := range values {
+			if value {
+				res[1+i/8] |= byte(1 << (uint(i) % 8))
+			}
+		}
+
+		return res, err
+	})
+}
+
+func OnReadDiscreteInputs(s *Server, function func(address uint16, numInputs int) ([]bool, *Exception)) {
+	s.RegisterFunctionHandler(FnReadDiscreteInputs, func(s *Server, frame Framer) ([]byte, *Exception) {
+		data := frame.GetData()
+		address := binary.BigEndian.Uint16(data[0:2])
+		numInputs := int(binary.BigEndian.Uint16(data[2:4]))
+		values, err := function(address, numInputs)
+		log.Printf("modbus_read_discrete_inputs: address=%d, number=%v\n", address, numInputs)
+
+		dataSize := numInputs / 8
+		if (numInputs % 8) != 0 {
+			dataSize++
+		}
+		res := make([]byte, 1+dataSize)
+		res[0] = byte(dataSize)
+		for i, value := range values {
+			if value {
+				res[1+i/8] |= byte(1 << (uint(i) % 8))
+			}
+		}
+
+		return res, err
+	})
+}

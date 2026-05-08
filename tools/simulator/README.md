@@ -19,3 +19,4 @@ Supported HRU types:
 - atrea-rd5
 - korado
 - atrea-am
+- zehnder

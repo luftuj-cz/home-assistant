@@ -30,8 +30,10 @@ func main() {
 		logic = NewAtreaAM(380)
 	case "korado":
 		logic = NewKorado()
+	case "zehnder":
+		logic = NewZehnder()
 	default:
-		fmt.Fprintf(os.Stderr, "Error: unknown HRU type '%s'. Valid options: xvent, meltem\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "Error: unknown HRU type '%s'. Valid options: xvent, meltem, atrea-rd5, atrea-am, korado, zehnder\n", os.Args[1])
 		os.Exit(1)
 	}
 
