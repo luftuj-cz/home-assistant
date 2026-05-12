@@ -10,6 +10,7 @@ import {
   ThemeIcon,
   Center,
   Box,
+  ColorSwatch,
 } from "@mantine/core";
 import {
   IconFlame,
@@ -132,11 +133,13 @@ export function HruStatusCard({
   const powerVar = dashboardVars.find((v) => v.class === "power" || v.name === "power");
   const tempVars = dashboardVars.filter((v) => v.class === "temperature");
   const modeVar = dashboardVars.find((v) => v.class === "mode" || v.name === "mode");
+  const flagsVars = dashboardVars.filter((v) => v.class === "flag");
   const otherVars = dashboardVars.filter(
     (v) =>
       v.class !== "power" &&
       v.class !== "temperature" &&
       v.class !== "mode" &&
+      v.class !== "flag" &&
       v.name !== "power" &&
       v.name !== "mode",
   );
@@ -302,6 +305,45 @@ export function HruStatusCard({
     );
   }
 
+  function renderFlags(variables: HruVariable[]) {
+    if (variables.length === 0) return null;
+
+    return (
+      <Card
+        key="flags-card"
+        shadow="none"
+        withBorder
+        radius="md"
+        p="md"
+        variant="light"
+        style={{ height: "100%" }}
+      >
+        <Stack gap="xs" justify="center" h="100%">
+          {variables.map((variable) => {
+            const rawVal = values[variable.name];
+            const isActive = !!rawVal;
+            let color = "var(--mantine-color-gray-4)";
+            if (isActive) {
+              color =
+                variable.flag === "negative"
+                  ? "var(--mantine-color-red-filled)"
+                  : "var(--mantine-color-green-filled)";
+            }
+
+            return (
+              <Group key={variable.name} justify="space-between" wrap="nowrap">
+                <Text size="sm" fw={500} truncate>
+                  {getLocalizedText(variable.label)}:
+                </Text>
+                <ColorSwatch color={color} size={14} />
+              </Group>
+            );
+          })}
+        </Stack>
+      </Card>
+    );
+  }
+
   function renderOther(variable: HruVariable) {
     const displayVal = displayValues[variable.name];
     const rawVal = values[variable.name];
@@ -376,6 +418,7 @@ export function HruStatusCard({
           {powerVar && renderPower(powerVar)}
           {renderMode()}
           {tempVars.map((v) => renderTemp(v))}
+          {renderFlags(flagsVars)}
           {otherVars.map((v) => renderOther(v))}
         </SimpleGrid>
       </Box>

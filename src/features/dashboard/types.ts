@@ -9,7 +9,9 @@ export interface ActiveMode {
 
 export type LocalizedText = string | { text: string; translate: boolean };
 
-export type VariableClass = "power" | "temperature" | "mode" | "other";
+export type VariableClass = "power" | "temperature" | "mode" | "flag" | "other";
+
+export type VariableFlag = "positive" | "negative";
 
 export interface HruVariable {
   name: string;
@@ -19,6 +21,7 @@ export interface HruVariable {
   label: LocalizedText;
   unit?: LocalizedText;
   class?: VariableClass;
+  flag?: VariableFlag;
   min?: number;
   max?: number;
   step?: number;

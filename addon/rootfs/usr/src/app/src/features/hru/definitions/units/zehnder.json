@@ -33,7 +33,9 @@
       "type": "boolean",
       "editable": true,
       "onDashboard": true,
-      "label": "ComfoClime"
+      "label": "ComfoClime",
+      "class": "flag",
+      "flag": "positive"
     },
     {
       "name": "replaceFilterDays",
@@ -49,14 +51,18 @@
       "type": "boolean",
       "editable": false,
       "onDashboard": true,
-      "label": { "text": "hru.changeFilters", "translate": true }
+      "label": { "text": "hru.changeFilters", "translate": true },
+      "class": "flag",
+      "flag": "negative"
     },
     {
       "name": "error",
       "type": "boolean",
       "editable": false,
       "onDashboard": true,
-      "label": { "text": "hru.errorState", "translate": true }
+      "label": { "text": "hru.errorState", "translate": true },
+      "class": "flag",
+      "flag": "negative"
     },
     {
       "name": "roomTemperature",

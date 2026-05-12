@@ -25,13 +25,13 @@ type Zehnder struct {
 
 func NewZehnder() *Zehnder {
 	return &Zehnder{
-		error:                  false,
+		error:                  true,
 		connectionState:        0,
 		ventilationMode:        1,
 		temperatureProfile:     0,
 		temperatureProfileMode: 0,
 		requestedTemperature:   21,
-		comfoClime:             false,
+		comfoClime:             true,
 		roomTemperature:        210,
 		insideTemperature:      210,
 		outsideTemperature:     140,
@@ -40,7 +40,7 @@ func NewZehnder() *Zehnder {
 		roomHumidity:           40,
 		insideHumidity:         40,
 		replaceFilterDays:      300,
-		changeFilter:           false,
+		changeFilter:           true,
 	}
 }
 

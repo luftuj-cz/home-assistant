@@ -251,21 +251,44 @@ export class ModbusTcpClient {
     });
   }
 
-  async readDiscreet(start: number, length: number): Promise<boolean[]> {
+  async readDiscrete(start: number, length: number): Promise<boolean[]> {
     return this.runExclusive(async () => {
       await this.ensureConnected();
       try {
         const res = await this.client.readDiscreteInputs(start, length);
-        this.logger.debug({ start, length }, "Modbus TCP: readDiscreet success");
+        this.logger.debug({ start, length }, "Modbus TCP: readDiscrete success");
         return Array.from(res.data);
       } catch (err) {
-        this.logger.error({ err, start, length }, "Modbus TCP: readDiscreet failed");
+        this.logger.error({ err, start, length }, "Modbus TCP: readDiscrete failed");
         if (this.isPortClosedError(err)) {
           this.resetClient();
           this.handleDisconnect();
           await this.ensureConnected();
           const res = await this.client.readDiscreteInputs(start, length);
-          this.logger.debug({ start, length }, "Modbus TCP: readDiscreet retry success");
+          this.logger.debug({ start, length }, "Modbus TCP: readDiscrete retry success");
+          return Array.from(res.data);
+        }
+        this.handleDisconnect();
+        throw err;
+      }
+    });
+  }
+
+  async readCoil(start: number, length: number): Promise<boolean[]> {
+    return this.runExclusive(async () => {
+      await this.ensureConnected();
+      try {
+        const res = await this.client.readCoils(start, length);
+        this.logger.debug({ start, length }, "Modbus TCP: readCoil success");
+        return Array.from(res.data);
+      } catch (err) {
+        this.logger.error({ err, start, length }, "Modbus TCP: readCoil failed");
+        if (this.isPortClosedError(err)) {
+          this.resetClient();
+          this.handleDisconnect();
+          await this.ensureConnected();
+          const res = await this.client.readCoils(start, length);
+          this.logger.debug({ start, length }, "Modbus TCP: readCoil retry success");
           return Array.from(res.data);
         }
         this.handleDisconnect();
