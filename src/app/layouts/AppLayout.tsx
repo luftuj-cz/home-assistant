@@ -147,6 +147,9 @@ export function AppLayout() {
       header={{ height: 70 }}
       withBorder={true}
       styles={{
+        root: {
+          '--app-shell-offset': '0',
+        },
         header: {
           backgroundColor: "var(--mantine-color-body)",
           borderBottom: "1px solid var(--mantine-color-default-border)",
@@ -299,6 +302,9 @@ export function AppLayout() {
         opened={mobileNavOpened}
         onClose={close}
         p="xl"
+        position="right"
+        withCloseButton={true}
+        transitionProps={{ duration: 300, timingFunction: "ease", transition: "slide-left" }}
         title={
           <Group gap="xs" align="center">
             <Image src={logoMark} alt={t("app.title")} h={28} w={28} fit="contain" />
@@ -308,21 +314,41 @@ export function AppLayout() {
           </Group>
         }
         size="100%"
+        w="100vw"
         hiddenFrom="md"
         styles={{
           content: {
             backgroundColor: "var(--mantine-color-body)",
+            width: "100vw",
+            maxWidth: "100vw !important",
+            marginRight: "0",
+            right: "0",
+            position: "fixed",
+            top: "0",
+            bottom: "0",
+            height: "100vh",
           },
           header: {
             borderBottom: "1px solid var(--mantine-color-default-border)",
             paddingBottom: "1rem",
+            marginBottom: "0",
+            paddingRight: "0.5rem",
           },
           body: {
             paddingTop: "1.5rem",
+            height: "calc(100vh - 80px)",
+            overflowY: "auto",
+          },
+          close: {
+            color: "var(--mantine-color-text)",
+            "&:hover": {
+              backgroundColor: "var(--mantine-color-default-hover)",
+            },
           },
         }}
         overlayProps={{
-          opacity: 0.5,
+          opacity: 0.6,
+          backgroundOpacity: 0.7,
         }}
       >
         <Stack gap="xs">
