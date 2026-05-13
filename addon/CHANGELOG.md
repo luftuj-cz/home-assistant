@@ -2,21 +2,28 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
-## [1.0.8-dev] - Unreleased
+## [1.0.8-stable] - 2026-05-13
 
 ### Added
 
 - **Debug Page Tools**: Added buttons to refresh MQTT discovery, restart the timeline scheduler, and stop active timeline overrides.
 - **Improved UI Feedback**: Replaced notifications with badges for HRU and MQTT connection tests in Settings for better visual consistency.
+- **Zehnder Support**: Added support for Zehnder HRU units, including simulator coverage for development and testing.
 
 ### Changed
 
 - **Timeline Operations**: Multiple notifications during day copy-paste operations are now replaced by a single summary notification.
+- **Frontend Architecture**: Reorganized the frontend into feature-based modules and shared UI building blocks for better maintainability.
+- **Data Fetching**: Migrated more frontend data loading to TanStack Query and lazy-loaded routes to improve synchronization and responsiveness.
+- **Valve Controls**: Updated slider behavior to better match real Luftator valve values.
 
 ### Fixed
 
 - **Code Quality**: Refactored internal error handling patterns and fixed various linting/formatting issues.
 - **Backend Tests**: Restored broken backend tests for HRU and Timeline services.
+- **Valve Entity Filtering**: Adjusted frontend filtering so valid valve entities are shown correctly.
+- **Zehnder Integration**: Fixed follow-up issues in Zehnder definitions and translations after the initial integration.
+- **Onboarding and Mobile UI**: Fixed several onboarding flow issues and polished mobile navigation behavior.
 
 ## [1.0.7-stable] - 2026-04-22
 
