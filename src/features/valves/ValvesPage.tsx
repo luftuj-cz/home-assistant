@@ -101,22 +101,13 @@ export function ValvesPage() {
 
   const { t } = useTranslation();
 
-  const formatValveValue = useCallback(
-    (value: number) => {
-      if (value === 0) return t("valves.status.open");
-      if (value >= 90) return t("valves.status.closed");
-      return `${90 - value}°`;
-    },
-    [t],
-  );
-
   const valves = useMemo(() => {
     return Object.values(valveMap).toSorted((a, b) => a.name.localeCompare(b.name));
   }, [valveMap]);
 
   const allValvesClosed = useMemo(() => {
     if (valves.length === 0) return false;
-    return valves.every((v) => v.value >= 90);
+    return valves.every((v) => v.value >= v.max);
   }, [valves]);
 
   const anyValveUnavailable = useMemo(() => {
@@ -469,7 +460,6 @@ export function ValvesPage() {
               <ValveCard
                 key={valve.entityId}
                 valve={valve}
-                formatValue={formatValveValue}
                 onPreview={previewValveValue}
                 onCommit={commitValveValue}
               />

@@ -9,4 +9,6 @@ export { MotionSwitch } from "./MotionSwitch";
 export { TextInputField } from "./fields/TextInputField";
 export { NumberField } from "./fields/NumberField";
 export { SelectField } from "./fields/SelectField";
+export { ValveSlider } from "./ValveSlider";
+export type { ValveSliderProps } from "./ValveSlider";
 export { statusToColor, type StatusKind } from "./types";

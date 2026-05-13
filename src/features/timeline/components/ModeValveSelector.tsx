@@ -5,13 +5,15 @@ import {
   CopyButton,
   Fieldset,
   Group,
-  Slider,
   Stack,
   Text,
 } from "@mantine/core";
 import { IconAlertCircle, IconDroplet } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
+
 import type { Valve } from "@luftuj/shared/types/valve";
+import { formatValveValue, getValveStatusColor } from "@luftuj/shared/utils/valve";
+import { ValveSlider } from "@luftuj/shared/ui";
 
 interface ModeValveSelectorProps {
   valves: Valve[];
@@ -34,7 +36,7 @@ export function ModeValveSelector({
 
   const allClosed = valves.every((v) => {
     const key = v.entityId || v.name;
-    return (openings[key] ?? 0) >= 90;
+    return (openings[key] ?? 0) >= v.max;
   });
 
   return (
@@ -67,11 +69,8 @@ export function ModeValveSelector({
           const entityId = v.entityId || "";
           const storageKey = v.entityId || key;
           const backendValue = openings[storageKey] ?? 0;
-          const uiValue = 90 - backendValue;
-          const statusColor = backendValue >= 90 ? "red" : backendValue <= 0 ? "green" : "orange";
-          let badgeText = `${Math.round(90 - backendValue)}°`;
-          if (backendValue === 0) badgeText = t("valves.status.open");
-          if (backendValue >= 90) badgeText = t("valves.status.closed");
+          const statusColor = getValveStatusColor(backendValue, v.min, v.max);
+          const badgeText = formatValveValue(backendValue, v.min, v.max, t);
 
           return (
             <Stack key={key} gap={0}>
@@ -106,25 +105,17 @@ export function ModeValveSelector({
                   {badgeText}
                 </Badge>
               </Group>
-              <Slider
-                value={uiValue}
-                onChange={(val) => onChange((prev) => ({ ...prev, [storageKey]: 90 - val }))}
-                min={0}
-                max={90}
-                step={5}
-                marks={[
-                  { value: 0 },
-                  { value: 15 },
-                  { value: 30 },
-                  { value: 45 },
-                  { value: 60 },
-                  { value: 75 },
-                  { value: 90 },
-                ]}
-                label={null}
-                size="lg"
+              <ValveSlider
+                value={backendValue}
+                min={v.min}
+                max={v.max}
+                step={v.step}
+                onChange={(val) =>
+                  onChange((prev) => ({ ...prev, [storageKey]: val }))
+                }
                 color={statusColor}
-                thumbSize={28}
+                size="lg"
+                label={null}
               />
             </Stack>
           );
