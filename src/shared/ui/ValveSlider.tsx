@@ -23,7 +23,7 @@ export function ValveSlider({
   step,
   disabled = false,
   color,
-  inverted = true,
+  inverted = false,
   label,
   marks,
   size = "xl",

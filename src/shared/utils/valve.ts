@@ -10,5 +10,5 @@ export function getValveStatusColor(value: number, min: number, max: number, una
 export function formatValveValue(value: number, min: number, max: number, t: TFunction): string {
   if (value <= min) return t("valves.status.open");
   if (value >= max) return t("valves.status.closed");
-  return `${Math.round(max - value)}°`;
+  return `${Math.round(value)}`;
 }
