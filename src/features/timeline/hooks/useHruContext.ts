@@ -1,17 +1,14 @@
 import { useEffect, useState } from "react";
-import * as hruApi from "../../../api/hru";
-import * as valveApi from "../../../api/valves";
-import type { Valve } from "../../../types/valve";
-import { resolveApiUrl } from "../../../utils/api";
-import { createLogger } from "../../../utils/logger";
-import { calculatePowerConfig } from "../utils";
+import * as hruApi from "@luftuj/shared/api/hru";
+import * as valveApi from "@luftuj/features/valves/api";
+import type { Valve } from "@luftuj/shared/types/valve";
+import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import { createLogger } from "@luftuj/shared/utils/logger";
+import { calculatePowerConfig } from "@luftuj/features/timeline/utils";
 
 const logger = createLogger("useHruContext");
 
-export function useHruContext(
-  loadModes: (unitId?: string) => Promise<void>,
-  loadEvents: (unitId?: string) => Promise<void>,
-) {
+export function useHruContext() {
   const [valves, setValves] = useState<Valve[]>([]);
   const [hruVariables, setHruVariables] = useState<hruApi.HruVariable[]>([]);
   const [powerUnit, setPowerUnit] = useState<string>("%");
@@ -48,7 +45,6 @@ export function useHruContext(
           }
         }
 
-        await Promise.all([loadModes(unitId), loadEvents(unitId)]);
         logger.info("HRU context loaded successfully", { unitId });
       } catch (err) {
         logger.error("Failed to load HRU context", { error: err });
@@ -57,7 +53,7 @@ export function useHruContext(
       }
     }
     void init();
-  }, [loadModes, loadEvents]);
+  }, []);
 
   return {
     valves,

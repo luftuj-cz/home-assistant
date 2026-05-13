@@ -1,7 +1,7 @@
 import { useState, useCallback } from "react";
 import type { TFunction } from "i18next";
-import type { Mode } from "../../../types/timeline";
-import { createLogger } from "../../../utils/logger";
+import type { Mode } from "@luftuj/shared/types/timeline";
+import { createLogger } from "@luftuj/shared/utils/logger";
 
 const logger = createLogger("useModeWorkflow");
 
@@ -9,8 +9,8 @@ export function useModeWorkflow(
   t: TFunction,
   saveMode: (mode: Partial<Mode>) => Promise<boolean>,
   deleteMode: (id: number) => Promise<boolean>,
-  loadEvents: (unitId?: string) => Promise<void>,
-  activeUnitId?: string,
+  refetchEvents?: () => Promise<unknown>,
+  _activeUnitId?: string,
 ) {
   const [modeModalOpen, setModeModalOpen] = useState(false);
   const [editingMode, setEditingMode] = useState<Mode | null>(null);
@@ -50,12 +50,12 @@ export function useModeWorkflow(
   const handleDeleteMode = useCallback(
     async (id: number) => {
       const success = await deleteMode(id);
-      if (success) {
-        await loadEvents(activeUnitId);
+      if (success && refetchEvents) {
+        await refetchEvents();
         logger.info("Mode deleted successfully", { id });
       }
     },
-    [deleteMode, loadEvents, activeUnitId],
+    [deleteMode, refetchEvents],
   );
 
   const handleNameChange = useCallback(() => {

@@ -1,4 +1,4 @@
-import type { TimelineEvent } from "../../../types/timeline";
+import type { TimelineEvent } from "@luftuj/shared/types/timeline";
 import type { TFunction } from "i18next";
 
 export function validateEvent(event: TimelineEvent, t: TFunction): string | null {

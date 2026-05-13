@@ -104,6 +104,16 @@ export class ModbusTcpClient {
     return new Promise((resolve, reject) => {
       this.logger.info({ host: this.cfg.host, port: this.cfg.port }, "Connecting Modbus TCP");
       this.client.connectTCP(this.cfg.host, { port: this.cfg.port }, (err?: Error) => {
+        if (this.destroyed) {
+          this.logger.debug("Modbus TCP connection finished after destruction, closing");
+          try {
+            this.client.close(() => {});
+          } catch {
+            // Ignore
+          }
+          reject(new Error("Client destroyed during connection"));
+          return;
+        }
         if (err) {
           this.logger.warn(
             { err, host: this.cfg.host, port: this.cfg.port },
@@ -158,15 +168,30 @@ export class ModbusTcpClient {
   async destroy(): Promise<void> {
     this.destroyed = true;
     this.clearReconnectTimer();
-    if (!this.connected) return;
-    try {
-      this.client.close(() => {
-        this.connected = false;
-        this.logger.info("Modbus TCP disconnected (requested)");
-      });
-    } catch (e) {
-      this.logger.warn({ e }, "Modbus TCP disconnect error");
+
+    // If there is a connection in flight, wait for it to finish (it will handle destruction)
+    if (this.connectInFlight) {
+      try {
+        await this.connectInFlight;
+      } catch {
+        // Ignore connection errors during destruction
+      }
     }
+
+    if (!this.connected) return;
+
+    return new Promise((resolve) => {
+      try {
+        this.client.close(() => {
+          this.connected = false;
+          this.logger.info("Modbus TCP disconnected (requested)");
+          resolve();
+        });
+      } catch (e) {
+        this.logger.warn({ e }, "Modbus TCP disconnect error");
+        resolve();
+      }
+    });
   }
 
   private clearReconnectTimer() {
@@ -226,21 +251,44 @@ export class ModbusTcpClient {
     });
   }
 
-  async readDiscreet(start: number, length: number): Promise<boolean[]> {
+  async readDiscrete(start: number, length: number): Promise<boolean[]> {
     return this.runExclusive(async () => {
       await this.ensureConnected();
       try {
         const res = await this.client.readDiscreteInputs(start, length);
-        this.logger.debug({ start, length }, "Modbus TCP: readDiscreet success");
+        this.logger.debug({ start, length }, "Modbus TCP: readDiscrete success");
         return Array.from(res.data);
       } catch (err) {
-        this.logger.error({ err, start, length }, "Modbus TCP: readDiscreet failed");
+        this.logger.error({ err, start, length }, "Modbus TCP: readDiscrete failed");
         if (this.isPortClosedError(err)) {
           this.resetClient();
           this.handleDisconnect();
           await this.ensureConnected();
           const res = await this.client.readDiscreteInputs(start, length);
-          this.logger.debug({ start, length }, "Modbus TCP: readDiscreet retry success");
+          this.logger.debug({ start, length }, "Modbus TCP: readDiscrete retry success");
+          return Array.from(res.data);
+        }
+        this.handleDisconnect();
+        throw err;
+      }
+    });
+  }
+
+  async readCoil(start: number, length: number): Promise<boolean[]> {
+    return this.runExclusive(async () => {
+      await this.ensureConnected();
+      try {
+        const res = await this.client.readCoils(start, length);
+        this.logger.debug({ start, length }, "Modbus TCP: readCoil success");
+        return Array.from(res.data);
+      } catch (err) {
+        this.logger.error({ err, start, length }, "Modbus TCP: readCoil failed");
+        if (this.isPortClosedError(err)) {
+          this.resetClient();
+          this.handleDisconnect();
+          await this.ensureConnected();
+          const res = await this.client.readCoils(start, length);
+          this.logger.debug({ start, length }, "Modbus TCP: readCoil retry success");
           return Array.from(res.data);
         }
         this.handleDisconnect();
@@ -335,7 +383,10 @@ export async function closeAllSharedClients(): Promise<void> {
   for (const client of clientCache.values()) {
     promises.push(client.destroy());
   }
-  await Promise.all(promises);
+
+  // Use a safety timeout to ensure we don't hang during shutdown
+  await Promise.race([Promise.all(promises), new Promise((resolve) => setTimeout(resolve, 2000))]);
+
   clientCache.clear();
 }
 

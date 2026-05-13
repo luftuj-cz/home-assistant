@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(scriptDir, "..");
-const srcLocalesDir = path.join(rootDir, "src", "i18n", "locales");
+const srcLocalesDir = path.join(rootDir, "src", "shared", "i18n", "locales");
 const destLocalesDir = path.join(rootDir, "addon", "rootfs", "usr", "src", "app", "src", "locales");
 
 async function ensureDir(dir) {

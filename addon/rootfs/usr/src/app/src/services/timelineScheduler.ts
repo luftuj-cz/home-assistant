@@ -47,6 +47,13 @@ export class TimelineScheduler {
     }
   }
 
+  public restart(): void {
+    this.logger.info("TimelineScheduler: Restarting scheduler service");
+    this.stop();
+    this.start();
+    this.logger.info("TimelineScheduler: Scheduler service successfully restarted");
+  }
+
   private scheduleNextTick(): void {
     if (this.schedulerTimer) {
       clearTimeout(this.schedulerTimer);
@@ -73,26 +80,36 @@ export class TimelineScheduler {
     });
   }
 
+  private buildHruWriteValues(config?: {
+    mode?: string | number;
+    power?: number;
+    temperature?: number;
+    variables?: Record<string, number | string | boolean>;
+  }): Record<string, number | string | boolean> {
+    const values: Record<string, number | string | boolean> = {};
+    if (!config) return values;
+
+    if (config.mode !== undefined) values.mode = config.mode;
+    if (config.power !== undefined) values.power = config.power;
+    if (config.temperature !== undefined) values.temperature = config.temperature;
+    if (config.variables) {
+      for (const [key, value] of Object.entries(config.variables)) {
+        if (value !== undefined && value !== null) {
+          values[key] = value;
+        }
+      }
+    }
+
+    return values;
+  }
+
   private async applyHruConfig(config?: {
     mode?: string | number;
     power?: number;
     temperature?: number;
     variables?: Record<string, number | string | boolean>;
   }): Promise<void> {
-    if (!config) return;
-
-    const payload: Record<string, number | string | boolean> = {};
-
-    if (config.mode !== undefined) payload.mode = config.mode;
-    if (config.power !== undefined) payload.power = config.power;
-    if (config.temperature !== undefined) payload.temperature = config.temperature;
-    if (config.variables) {
-      for (const [key, value] of Object.entries(config.variables)) {
-        if (value !== undefined && value !== null) {
-          payload[key] = value;
-        }
-      }
-    }
+    const payload = this.buildHruWriteValues(config);
 
     if (Object.keys(payload).length === 0) return;
 
@@ -463,15 +480,7 @@ export class TimelineScheduler {
 
       if (hasHru && hruConfig) {
         try {
-          const values: Record<string, number | string | boolean> = {};
-          if (hruConfig.power !== undefined) values.power = hruConfig.power;
-          if (hruConfig.temperature !== undefined) values.temperature = hruConfig.temperature;
-          if (hruConfig.mode !== undefined) values.mode = hruConfig.mode;
-          if (hruConfig.variables) {
-            for (const [k, v] of Object.entries(hruConfig.variables)) {
-              if (v !== undefined) values[k] = v;
-            }
-          }
+          const values = this.buildHruWriteValues(hruConfig);
 
           if (Object.keys(values).length > 0) {
             await this.hruService.writeValues(values);

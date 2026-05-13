@@ -36,3 +36,8 @@ addon/rootfs/usr/src/app/data
 #Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
 /tools/simulator/hru-simulator
+/.claude/
+/.ai/
+/.junie/
+/.windsurf/
+/.agents/

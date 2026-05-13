@@ -1,5 +1,5 @@
-import type { Mode } from "../../../types/timeline";
-import type { HruVariable } from "../../../api/hru";
+import type { Mode } from "@luftuj/shared/types/timeline";
+import type { HruVariable } from "@luftuj/shared/api/hru";
 import type { TFunction } from "i18next";
 
 export const DAY_ORDER = [0, 1, 2, 3, 4, 5, 6] as const;
@@ -12,6 +12,17 @@ export interface ModeOption {
 
 export function getModeOptions(modes: Mode[]): ModeOption[] {
   return modes.map((m) => ({ value: m.id?.toString() ?? "", label: m.name }));
+}
+
+export function mapModeForUi(mode: Mode): Mode {
+  if (mode.variables && Object.keys(mode.variables).length > 0) return mode;
+
+  const variables: Record<string, number> = {};
+  if (typeof mode.power === "number") variables.power = mode.power;
+  if (typeof mode.temperature === "number") variables.temperature = mode.temperature;
+  if (typeof mode.nativeMode === "number") variables.mode = mode.nativeMode;
+
+  return Object.keys(variables).length > 0 ? { ...mode, variables } : mode;
 }
 
 export function getDayLabels(t: TFunction): string[] {

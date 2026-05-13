@@ -28,6 +28,7 @@ export class HruRepository {
         return evaluateExpression(val);
       }
 
+      // noinspection JSUnusedGlobalSymbols
       const handlers: Record<string, (args: number[]) => Promise<number> | number> = {
         bit_and: async ([a = 0, b = 0]) => a & b,
         bit_or: async ([a = 0, b = 0]) => a | b,
@@ -52,8 +53,8 @@ export class HruRepository {
           const data = await mb.readInput(addr, count);
           return data[0] ?? 0;
         },
-        modbus_read_discreet: async ([addr = 0, count = 1]) => {
-          const data = await mb.readDiscreet(addr, count);
+        modbus_read_discrete: async ([addr = 0, count = 1]) => {
+          const data = await mb.readDiscrete(addr, count);
           return data[0] ? 1 : 0;
         },
         modbus_write_holding_multi: async (args) => {
@@ -69,6 +70,10 @@ export class HruRepository {
         modbus_write_coil: async ([addr = 0, val = 0]) => {
           await mb.writeCoil(addr, val);
           return val;
+        },
+        modbus_read_coil: async ([addr = 0, count = 1]) => {
+          const data = await mb.readCoil(addr, count);
+          return data[0] ? 1 : 0;
         },
       };
 
