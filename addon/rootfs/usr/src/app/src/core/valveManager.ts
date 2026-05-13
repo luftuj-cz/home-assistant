@@ -51,13 +51,56 @@ export class ValveManager implements ValveController {
   }
 
   private isValveEntity(entityId: string): boolean {
-    // Allow valve ids like number.luftator_<controller>_<zone>[...]
-    const matchesPattern = /^(?:number\.)?luftator_[a-z0-9]+(?:_[a-z0-9]+)+$/i.test(entityId);
+    // Valve entities follow pattern: number.luftator_<controller>_<zone>[_<extra>]
+    // Examples: number.luftator_master_bedroom, number.luftator_ground_floor_office
+    // HRU variables follow pattern: number.luftator_<hru>_<variable>
+    // Examples: number.luftator_zehnder_duration, number.luftator_atrea_power
+    
+    // Must start with number.luftator_ or luftator_
+    const hasValidPrefix = /^(?:number\.)?luftator_/i.test(entityId);
+    if (!hasValidPrefix) return false;
+    
+    // Exclude app-internal entities
     const isAppInternal = /^(?:number\.)?luftator_app_/i.test(entityId);
-    const isManualDuration = ["_doba_manualniho_rezimu", "_manual_mode_duration"].some((suffix) =>
-      entityId.endsWith(suffix),
-    );
-    return matchesPattern && !isManualDuration && !isAppInternal;
+    if (isAppInternal) return false;
+    
+    // Exclude demonstration entities
+    if (entityId.includes("_demonstration_")) return false;
+    
+    // Exclude known non-valve suffixes (HRU variables, timeline entities)
+    // This list covers all HRU unit definitions: Zehnder, Atrea, Meltem, Korado, Xvent
+    const isNonValveEntity = [
+      // Timeline / manual mode entities
+      "_doba_manualniho_rezimu",
+      "_manual_mode_duration",
+      "_manual_duration",
+      "_duration",
+      // HRU control variables
+      "_power",
+      "_power_target",
+      "_temperature",
+      "_temperature_target",
+      "_mode",
+      "_mode_target",
+      "_bypass",
+      "_boost",
+      "_offset",
+      "_comfo_clime",
+      // HRU status variables
+      "_error",
+      "_change_filter",
+      "_replace_filter_days",
+      "_flow_in",
+      "_flow_out",
+      "_outside_temperature",
+      "_room_temperature",
+      "_room_humidity",
+      "_supply_temperature",
+      "_temperature_profile",
+      "_unit_sn",
+    ].some((suffix) => entityId.toLowerCase().endsWith(suffix));
+    
+    return !isNonValveEntity;
   }
 
   constructor(
