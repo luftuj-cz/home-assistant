@@ -40,6 +40,7 @@ export class HruRepository {
         round: async ([a = 0]) => Math.round(a),
         sum: async (args) => args.reduce((a, b) => a + b, 0),
         multiply: async (args) => args.reduce((a, b) => a * b, 1),
+        substract: async ([a = 0, b = 0]) => a - b,
         clamp: async ([a = 0, min = 0, max = 100]) => Math.min(Math.max(a, min), max),
         delay: async ([ms = 0]) => {
           await new Promise((resolve) => setTimeout(resolve, ms));

@@ -14,6 +14,7 @@ export type AllowedFunction =
   | "round"
   | "multiply"
   | "sum"
+  | "substract"
   | "clamp";
 
 export type CommandValue = number | string | CommandExpression;
