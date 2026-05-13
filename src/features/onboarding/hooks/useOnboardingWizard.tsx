@@ -21,18 +21,6 @@ import { createLogger } from "@luftuj/shared/utils/logger";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import { parseApiError, translateApiError } from "@luftuj/shared/utils/apiError";
 
-export type { HruUnit, HruVariable } from "@luftuj/shared/api/hru";
-export {
-  IconRocket,
-  IconAdjustments,
-  IconWind,
-  IconPlugConnected,
-  IconServer,
-  IconLanguage,
-  IconPalette,
-  IconArrowRight,
-} from "@tabler/icons-react";
-
 const logger = createLogger("OnboardingWizard");
 
 function createModbusSchema(t: (key: string) => string) {
@@ -371,7 +359,7 @@ export function OnboardingWizard({ children }: OnboardingWizardProps) {
       }
     },
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["onboarding-layout-check"] });
+      await queryClient.invalidateQueries({ queryKey: ["onboarding-status"] });
       await navigate({ to: "/" });
     },
   });
@@ -396,7 +384,7 @@ export function OnboardingWizard({ children }: OnboardingWizardProps) {
         message: t("onboarding.welcome.importSuccess"),
         color: "green",
       });
-      await queryClient.invalidateQueries({ queryKey: ["onboarding-layout-check"] });
+      await queryClient.invalidateQueries({ queryKey: ["onboarding-status"] });
       await navigate({ to: "/" });
     },
     onError: (error) => {

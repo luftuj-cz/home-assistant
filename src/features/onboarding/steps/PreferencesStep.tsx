@@ -2,12 +2,8 @@ import { Button, Group, Select, Stack } from "@mantine/core";
 import { useMantineColorScheme } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
-import {
-  useOnboardingWizard,
-  IconLanguage,
-  IconPalette,
-  IconArrowRight,
-} from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
+import { IconLanguage, IconPalette, IconArrowRight } from "@tabler/icons-react";
+import { useOnboardingWizard } from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
 import { setLanguage } from "@luftuj/shared/i18n";
 
 export function PreferencesStep() {

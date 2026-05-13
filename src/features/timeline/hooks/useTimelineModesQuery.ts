@@ -60,18 +60,11 @@ export function useTimelineModesQuery(unitId?: string) {
         modeId: mode.id,
         name: mode.name,
       });
-
-      const isDuplicate = err instanceof ApiResponseError && err.code === "DUPLICATE_MODE_NAME";
       notifications.show({
         title: t("settings.timeline.notifications.saveFailedTitle"),
         message: translateApiError(err, t),
         color: "red",
       });
-
-      if (isDuplicate) {
-        throw new Error("DUPLICATE_NAME");
-      }
-      throw err;
     },
   });
 
@@ -95,7 +88,6 @@ export function useTimelineModesQuery(unitId?: string) {
         message: translateApiError(err, t),
         color: "red",
       });
-      throw err;
     },
   });
 
@@ -104,8 +96,8 @@ export function useTimelineModesQuery(unitId?: string) {
       await saveModeMutation.mutateAsync(mode);
       return true;
     } catch (err) {
-      if (err instanceof Error && err.message === "DUPLICATE_NAME") {
-        throw err;
+      if (err instanceof ApiResponseError && err.code === "DUPLICATE_MODE_NAME") {
+        throw new Error("DUPLICATE_NAME");
       }
       return false;
     }

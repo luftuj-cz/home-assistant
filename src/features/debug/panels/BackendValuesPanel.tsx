@@ -1,6 +1,6 @@
 import { Alert, Button, Group, Loader, ScrollArea, Stack, Table, Text, Title } from "@mantine/core";
 import { IconAlertCircle, IconCopy, IconRefresh } from "@tabler/icons-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import {
@@ -19,48 +19,51 @@ export function BackendValuesPanel() {
   const [copyingValues, setCopyingValues] = useState(false);
   const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
 
-  async function loadDebugSnapshot(initialLoad: boolean): Promise<void> {
-    if (initialLoad) {
-      setLoading(true);
-    } else {
-      setRefreshing(true);
-    }
-
-    try {
-      const response = await fetch(resolveApiUrl("/api/debug"), { cache: "no-cache" });
-      if (response.ok) {
-        const payload = (await response.json()) as DebugPayload;
-        setDebugData(payload);
-        const timestamp =
-          typeof payload.capturedAt === "string" ? payload.capturedAt : new Date().toISOString();
-        setCapturedAt(timestamp);
-        setErrorMessage(null);
+  const loadDebugSnapshot = useCallback(
+    async (initialLoad: boolean): Promise<void> => {
+      if (initialLoad) {
+        setLoading(true);
       } else {
-        const detail = (await response.text()).trim();
-        const message = detail || `HTTP ${response.status}`;
+        setRefreshing(true);
+      }
+
+      try {
+        const response = await fetch(resolveApiUrl("/api/debug"), { cache: "no-cache" });
+        if (response.ok) {
+          const payload = (await response.json()) as DebugPayload;
+          setDebugData(payload);
+          const timestamp =
+            typeof payload.capturedAt === "string" ? payload.capturedAt : new Date().toISOString();
+          setCapturedAt(timestamp);
+          setErrorMessage(null);
+        } else {
+          const detail = (await response.text()).trim();
+          const message = detail || `HTTP ${response.status}`;
+          setErrorMessage(
+            t("debug.loadFailed", {
+              defaultValue: "Failed to load debug values: {{message}}",
+              message,
+            }),
+          );
+        }
+      } catch (error) {
+        const msg =
+          error instanceof Error && error.message
+            ? error.message
+            : t("debug.loadFailedUnknown", { defaultValue: "Failed to load debug values." });
         setErrorMessage(
           t("debug.loadFailed", {
             defaultValue: "Failed to load debug values: {{message}}",
-            message,
+            message: msg,
           }),
         );
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    } catch (error) {
-      const msg =
-        error instanceof Error && error.message
-          ? error.message
-          : t("debug.loadFailedUnknown", { defaultValue: "Failed to load debug values." });
-      setErrorMessage(
-        t("debug.loadFailed", {
-          defaultValue: "Failed to load debug values: {{message}}",
-          message: msg,
-        }),
-      );
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }
+    },
+    [t],
+  );
 
   async function copyBackendValues(): Promise<void> {
     if (!debugData) {
@@ -90,7 +93,7 @@ export function BackendValuesPanel() {
     return () => {
       window.clearInterval(intervalId);
     };
-  }, [t]);
+  }, [loadDebugSnapshot]);
 
   const rows = useMemo(() => flattenDebugRows(debugData), [debugData]);
 

@@ -9,7 +9,7 @@ import { Notifications } from "@mantine/notifications";
 import { RouterProvider } from "@tanstack/react-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { I18nextProvider } from "react-i18next";
-import { useEffect, useMemo } from "react";
+import { useEffect } from "react";
 
 import { router } from "@luftuj/app/router";
 import i18n, { getInitialLanguage, isSupportedLanguage, setLanguage } from "@luftuj/shared/i18n";
@@ -80,6 +80,7 @@ const theme = createTheme({
 });
 
 const colorSchemeManager = localStorageColorSchemeManager({ key: "luftujha-color-scheme" });
+const queryClient = new QueryClient();
 
 function ThemeInitializer() {
   const { setColorScheme } = useMantineColorScheme();
@@ -189,7 +190,6 @@ function LanguageInitializer() {
 }
 
 export default function App() {
-  const queryClient = useMemo(() => new QueryClient(), []);
 
   return (
     <QueryClientProvider client={queryClient}>

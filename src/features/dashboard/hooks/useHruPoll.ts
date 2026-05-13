@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import { createLogger } from "@luftuj/shared/utils/logger";
 import type { HruState, HruVariable, ModbusState } from "@luftuj/features/dashboard/types";
@@ -7,6 +7,8 @@ const logger = createLogger("useHruPoll");
 
 export function useHruPoll(onModbusStatus?: (s: ModbusState) => void): HruState {
   const [hruStatus, setHruStatus] = useState<HruState>(null);
+  const onModbusStatusRef = useRef(onModbusStatus);
+  onModbusStatusRef.current = onModbusStatus;
 
   useEffect(() => {
     let active = true;
@@ -38,16 +40,16 @@ export function useHruPoll(onModbusStatus?: (s: ModbusState) => void): HruState 
             variables: data.variables,
             registers: data.registers,
           });
-          onModbusStatus?.("reachable");
+          onModbusStatusRef.current?.("reachable");
           logger.debug("HRU state updated", { variableCount: data.variables.length });
         } else {
           setHruStatus({ error: "Invalid HRU response" });
-          onModbusStatus?.("unreachable");
+          onModbusStatusRef.current?.("unreachable");
         }
       } catch {
         if (!active) return;
         setHruStatus({ error: "Failed to read HRU" });
-        onModbusStatus?.("unreachable");
+        onModbusStatusRef.current?.("unreachable");
       }
     }
     void poll();
@@ -57,7 +59,7 @@ export function useHruPoll(onModbusStatus?: (s: ModbusState) => void): HruState 
       controller.abort();
       clearInterval(id);
     };
-  }, [onModbusStatus]);
+  }, []);
 
   return hruStatus;
 }

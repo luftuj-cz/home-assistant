@@ -60,7 +60,7 @@ export function AppLayout() {
 
   // Check Onboarding Status
   const { data: onboardingStatus, isLoading: isLoadingStatus } = useQuery({
-    queryKey: ["onboarding-layout-check"],
+    queryKey: ["onboarding-status"],
     queryFn: async () => {
       const res = await fetch(resolveApiUrl("/api/settings/onboarding-status"));
       if (!res.ok) return null; // Fail silently

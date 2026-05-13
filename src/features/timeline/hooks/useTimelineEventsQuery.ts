@@ -79,7 +79,6 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string) {
         message: translateApiError(err, t),
         color: "red",
       });
-      throw err;
     },
   });
 
@@ -98,7 +97,6 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string) {
         message: translateApiError(err, t),
         color: "red",
       });
-      throw err;
     },
   });
 

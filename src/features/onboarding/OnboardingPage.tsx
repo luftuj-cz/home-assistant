@@ -13,13 +13,15 @@ import {
 import { useMediaQuery } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
 import {
-  OnboardingWizard,
-  useOnboardingWizard,
   IconRocket,
   IconAdjustments,
   IconWind,
   IconPlugConnected,
   IconServer,
+} from "@tabler/icons-react";
+import {
+  OnboardingWizard,
+  useOnboardingWizard,
 } from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
 import { WelcomeStep } from "@luftuj/features/onboarding/steps/WelcomeStep";
 import { PreferencesStep } from "@luftuj/features/onboarding/steps/PreferencesStep";

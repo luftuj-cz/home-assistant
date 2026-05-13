@@ -31,16 +31,16 @@ export function TimelinePage() {
   const { t } = useTranslation();
   const dragScroll = useDragAutoScroll();
 
-  const { modes, saveMode, deleteMode } = useTimelineModesQuery();
+  const { valves, hruVariables, powerUnit, maxPower, activeUnitId, loading } = useHruContext();
+
+  const { modes, saveMode, deleteMode, isMutating: isModesMutating } = useTimelineModesQuery(activeUnitId);
   const {
     eventsByDay,
     saveEvent,
     deleteEvent,
     refetch: refetchEvents,
     isMutating,
-  } = useTimelineEventsQuery(modes);
-
-  const { valves, hruVariables, powerUnit, maxPower, activeUnitId, loading } = useHruContext();
+  } = useTimelineEventsQuery(modes, activeUnitId);
 
   const {
     eventModalOpen,
@@ -193,7 +193,7 @@ export function TimelinePage() {
           opened={modeModalOpen}
           mode={editingMode}
           valves={valves}
-          saving={false}
+          saving={isModesMutating}
           onClose={handleCloseModeModal}
           onSave={handleSaveMode}
           t={t}

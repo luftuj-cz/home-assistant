@@ -2,7 +2,6 @@ import { Container, Stack, Title, Group, Text } from "@mantine/core";
 import { IconLayoutDashboard } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import { useDashboardStatus } from "@luftuj/features/dashboard/hooks/useDashboardStatus";
-import { useActiveUnitQuery } from "@luftuj/features/dashboard/hooks/useActiveUnitQuery";
 import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimelineModesQuery";
 import { StatusCard } from "@luftuj/features/dashboard/components/StatusCard";
 import { HruStatusCard } from "@luftuj/features/dashboard/components/HruStatusCard";
@@ -20,11 +19,10 @@ export function DashboardPage() {
     mqttLastDiscovery,
     activeMode,
     configuredMaxPower,
+    unitId,
   } = useDashboardStatus();
 
-  const { data: activeUnitData } = useActiveUnitQuery();
-  const activeUnitId = activeUnitData?.unitId;
-  const { modes } = useTimelineModesQuery(activeUnitId);
+  const { modes } = useTimelineModesQuery(unitId);
 
   function getHaStatusType() {
     if (haLoading) return "neutral";
@@ -68,7 +66,7 @@ export function DashboardPage() {
           </Text>
         </Stack>
 
-        <BoostButtons modes={modes} t={t} activeUnitId={activeUnitId} />
+        <BoostButtons modes={modes} t={t} activeUnitId={unitId} />
 
         <HruStatusCard
           status={hruStatus}

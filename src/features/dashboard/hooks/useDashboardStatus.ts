@@ -23,5 +23,6 @@ export function useDashboardStatus() {
     mqttLastDiscovery: system.mqttLastDiscovery,
     activeMode: system.activeMode,
     configuredMaxPower: config.configuredMaxPower,
+    unitId: config.unitId,
   };
 }

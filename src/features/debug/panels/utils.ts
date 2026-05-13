@@ -106,7 +106,7 @@ export function flattenDebugRows(payload: DebugPayload | null): DebugRow[] {
   collectDebugRows(payload, "", rows);
   return rows
     .filter((item) => item.key.trim().length > 0)
-    .sort((a, b) => a.key.localeCompare(b.key));
+    .toSorted((a, b) => a.key.localeCompare(b.key));
 }
 
 export function formatTimestamp(value: string): string {
