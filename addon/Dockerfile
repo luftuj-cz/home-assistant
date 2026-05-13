@@ -10,7 +10,9 @@ RUN chmod +x /etc/services.d/luftujha/run
 
 WORKDIR /usr/src/app
 
-RUN npm ci --omit=dev
+RUN apk add --no-cache --virtual .build-deps build-base python3 \
+  && npm ci --omit=dev \
+  && apk del .build-deps
 
 # Labels
 LABEL \
