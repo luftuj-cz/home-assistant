@@ -2,6 +2,18 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+## [1.0.8.1-stable] - 2026-05-13
+
+### Added
+
+- **Extended Xvent Parameters**: Added Xvent dashboard support for error state and remaining filter lifetime.
+
+### Changed
+
+- **Xvent Status Presentation**: Updated Xvent bypass and boost fields to use positive status flags for clearer dashboard visibility.
+- **HRU Scripting Functions**: Added the `substract` operation so Xvent definitions can derive values such as remaining filter life from Modbus registers.
+- **Xvent Simulator**: Expanded the Xvent simulator with filter lifetime, elapsed runtime, and error register support for development and testing.
+
 ## [1.0.8-stable] - 2026-05-13
 
 ### Added
