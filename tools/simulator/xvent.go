@@ -7,16 +7,22 @@ import (
 )
 
 type Xvent struct {
-	bypass  bool
-	boost   bool
-	powerOn bool
-	speed   int
+	bypass         bool
+	boost          bool
+	powerOn        bool
+	speed          int
+	filterElapsed  int
+	filterLifetime int
+	error          int
 }
 
 func NewXvent() *Xvent {
 	return &Xvent{
-		speed:   2,
-		powerOn: true,
+		speed:          2,
+		powerOn:        true,
+		filterLifetime: 180 * 24,
+		filterElapsed:  15 * 24,
+		error:          0,
 	}
 }
 
@@ -34,6 +40,18 @@ func (x *Xvent) Configure(serv *Server) {
 				res |= 0x4
 			}
 			return []uint16{uint16(res)}, &Success
+		}
+		if register == 0x9C57 && numRegs == 1 {
+			return []uint16{uint16(x.filterLifetime)}, &Success
+		}
+		return []uint16{}, &IllegalDataAddress
+	})
+	OnReadInputRegisters(serv, func(register uint16, numRegs int) ([]uint16, *Exception) {
+		if register == 0x754C && numRegs == 1 {
+			return []uint16{uint16(x.filterElapsed)}, &Success
+		}
+		if register == 0x7552 && numRegs == 1 {
+			return []uint16{uint16(x.error)}, &Success
 		}
 		return []uint16{}, &IllegalDataAddress
 	})

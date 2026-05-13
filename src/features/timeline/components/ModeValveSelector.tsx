@@ -84,26 +84,28 @@ export function ModeValveSelector({
                       <Text size="xs" c="dimmed">
                         {entityId}
                       </Text>
-                      {showCopyButton && (
-                        <CopyButton value={entityId}>
-                          {({ copied, copy }) => (
-                            <Button
-                              color={copied ? "teal" : "gray"}
-                              size="xs"
-                              variant="subtle"
-                              onClick={copy}
-                            >
-                              {copied ? "Copied" : "Copy"}
-                            </Button>
-                          )}
-                        </CopyButton>
-                      )}
                     </Group>
                   )}
                 </Stack>
-                <Badge variant="light" color={statusColor}>
-                  {badgeText}
-                </Badge>
+                <Group gap="xs" align="center">
+                  <Badge variant="light" color={statusColor}>
+                    {badgeText}
+                  </Badge>
+                  {showCopyButton && entityId && (
+                    <CopyButton value={entityId}>
+                      {({ copied, copy }) => (
+                        <Button
+                          color={copied ? "teal" : "gray"}
+                          size="xs"
+                          variant="subtle"
+                          onClick={copy}
+                        >
+                          {copied ? "Copied" : "Copy"}
+                        </Button>
+                      )}
+                    </CopyButton>
+                  )}
+                </Group>
               </Group>
               <ValveSlider
                 value={backendValue}

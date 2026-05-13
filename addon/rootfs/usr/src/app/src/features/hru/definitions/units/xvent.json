@@ -18,6 +18,8 @@
     {
       "name": "bypass",
       "type": "boolean",
+      "class": "flag",
+      "flag": "positive",
       "editable": true,
       "onDashboard": true,
       "label": { "text": "hru.bypass", "translate": true }
@@ -25,9 +27,29 @@
     {
       "name": "boost",
       "type": "boolean",
+      "class": "flag",
+      "flag": "positive",
       "editable": true,
       "onDashboard": true,
       "label": { "text": "hru.boost", "translate": true }
+    },
+    {
+      "name": "error",
+      "type": "boolean",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.errorState", "translate": true },
+      "class": "flag",
+      "flag": "negative"
+    },
+    {
+      "name": "replaceFilterDays",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.changeFiltersIn", "translate": true },
+      "unit": { "text": "hru.days", "translate": true },
+      "class": "other"
     }
   ],
   "interface-type": "modbus-tcp",
@@ -74,6 +96,33 @@
             {
               "function": "bit_and",
               "args": ["$frontPanel", "0x4"]
+            }
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$error",
+        "value": { "function": "modbus_read_input", "args": ["0x7552"] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$replaceFilterDays",
+        "value": {
+          "function": "round",
+          "args": [
+            {
+              "function": "multiply",
+              "args": [
+                {
+                  "function": "substract",
+                  "args": [
+                    { "function": "modbus_read_holding", "args": ["0x9C57"] },
+                    { "function": "modbus_read_input", "args": ["0x754C"] }
+                  ]
+                },
+                0.0416666666667
+              ]
             }
           ]
         }
