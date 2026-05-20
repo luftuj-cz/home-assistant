@@ -29,7 +29,8 @@
       "onDashboard": true,
       "label": "Te1",
       "unit": "˚C",
-      "class": "temperature"
+      "class": "temperature",
+      "dataType": "int16"
     },
     {
       "name": "te1p",
@@ -38,7 +39,8 @@
       "onDashboard": true,
       "label": "Te1p",
       "unit": "˚C",
-      "class": "temperature"
+      "class": "temperature",
+      "dataType": "int16"
     },
     {
       "name": "te2",
@@ -47,7 +49,8 @@
       "onDashboard": true,
       "label": "Te2",
       "unit": "˚C",
-      "class": "temperature"
+      "class": "temperature",
+      "dataType": "int16"
     },
     {
       "name": "ti1",
@@ -56,7 +59,8 @@
       "onDashboard": true,
       "label": "Ti1",
       "unit": "˚C",
-      "class": "temperature"
+      "class": "temperature",
+      "dataType": "int16"
     },
     {
       "name": "ti2",
@@ -65,7 +69,8 @@
       "onDashboard": true,
       "label": "Ti2",
       "unit": "˚C",
-      "class": "temperature"
+      "class": "temperature",
+      "dataType": "int16"
     }
   ],
   "interface-type": "modbus-tcp",

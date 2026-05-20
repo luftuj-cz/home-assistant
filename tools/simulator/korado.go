@@ -27,7 +27,13 @@ func (k *Korado) Configure(serv *Server) {
 		if register == 107 && numRegs == 1 {
 			return []uint16{uint16(k.power)}, &Success
 		}
-		if (register >= 110 && register <= 114) && numRegs == 1 {
+		if register == 110 && numRegs == 1 {
+			return []uint16{uint16(457)}, &Success
+		}
+		if register == 111 && numRegs == 1 {
+			return []uint16{uint16(65404)}, &Success
+		}
+		if (register >= 112 && register <= 114) && numRegs == 1 {
 			return []uint16{uint16(200)}, &Success
 		}
 		return []uint16{}, &IllegalDataAddress

@@ -71,7 +71,8 @@
       "onDashboard": true,
       "label": { "text": "hru.roomTemperature", "translate": true },
       "unit": "˚C",
-      "class": "temperature"
+      "class": "temperature",
+      "dataType": "int16"
     },
     {
       "name": "outsideTemperature",
@@ -80,7 +81,8 @@
       "onDashboard": true,
       "label": { "text": "hru.outsideTemperature", "translate": true },
       "unit": "˚C",
-      "class": "temperature"
+      "class": "temperature",
+      "dataType": "int16"
     },
     {
       "name": "supplyTemperature",
@@ -89,7 +91,8 @@
       "onDashboard": true,
       "label": { "text": "hru.supplyTemperature", "translate": true },
       "unit": "˚C",
-      "class": "temperature"
+      "class": "temperature",
+      "dataType": "int16"
     },
     {
       "name": "roomHumidity",

@@ -17,6 +17,8 @@ export type AllowedFunction =
   | "substract"
   | "clamp";
 
+export type DataType = "uint16" | "int16";
+
 export type CommandValue = number | string | CommandExpression;
 
 export interface CommandExpression {
@@ -51,6 +53,7 @@ export interface HruVariable {
     label: LocalizedText;
   }>;
   maxConfigurable?: boolean;
+  dataType?: DataType;
 }
 
 export interface HeatRecoveryUnit {
