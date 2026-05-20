@@ -46,6 +46,8 @@ export class HruRepository {
           await new Promise((resolve) => setTimeout(resolve, ms));
           return 0;
         },
+        int16: async ([a = 0]) => new Int16Array([a])[0] ?? 0,
+        uint16: async ([a = 0]) => new Uint16Array([a])[0] ?? 0,
         modbus_read_holding: async ([addr = 0, count = 1]) => {
           const data = await mb.readHolding(addr, count);
           return data[0] ?? 0;

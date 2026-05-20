@@ -71,8 +71,7 @@
       "onDashboard": true,
       "label": { "text": "hru.roomTemperature", "translate": true },
       "unit": "˚C",
-      "class": "temperature",
-      "dataType": "int16"
+      "class": "temperature"
     },
     {
       "name": "outsideTemperature",
@@ -81,8 +80,7 @@
       "onDashboard": true,
       "label": { "text": "hru.outsideTemperature", "translate": true },
       "unit": "˚C",
-      "class": "temperature",
-      "dataType": "int16"
+      "class": "temperature"
     },
     {
       "name": "supplyTemperature",
@@ -91,8 +89,7 @@
       "onDashboard": true,
       "label": { "text": "hru.supplyTemperature", "translate": true },
       "unit": "˚C",
-      "class": "temperature",
-      "dataType": "int16"
+      "class": "temperature"
     },
     {
       "name": "roomHumidity",
@@ -140,17 +137,17 @@
       {
         "type": "assignment",
         "variable": "$roomTemperature",
-        "value": { "function": "multiply", "args": [{ "function": "modbus_read_input", "args": [8] }, 0.1] }
+        "value": { "function": "multiply", "args": [{ "function": "int16", "args": [{ "function": "modbus_read_input", "args": [8] }] }, 0.1] }
       },
       {
         "type": "assignment",
         "variable": "$outsideTemperature",
-        "value": { "function": "multiply", "args": [{ "function": "modbus_read_input", "args": [11] }, 0.1] }
+        "value": { "function": "multiply", "args": [{ "function": "int16", "args": [{ "function": "modbus_read_input", "args": [11] }] }, 0.1] }
       },
       {
         "type": "assignment",
         "variable": "$supplyTemperature",
-        "value": { "function": "multiply", "args": [{ "function": "modbus_read_input", "args": [12] }, 0.1] }
+        "value": { "function": "multiply", "args": [{ "function": "int16", "args": [{ "function": "modbus_read_input", "args": [12] }] }, 0.1] }
       },
       {
         "type": "assignment",

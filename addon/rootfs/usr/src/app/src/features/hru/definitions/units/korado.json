@@ -29,8 +29,7 @@
       "onDashboard": true,
       "label": "Te1",
       "unit": "˚C",
-      "class": "temperature",
-      "dataType": "int16"
+      "class": "temperature"
     },
     {
       "name": "te1p",
@@ -39,8 +38,7 @@
       "onDashboard": true,
       "label": "Te1p",
       "unit": "˚C",
-      "class": "temperature",
-      "dataType": "int16"
+      "class": "temperature"
     },
     {
       "name": "te2",
@@ -49,8 +47,7 @@
       "onDashboard": true,
       "label": "Te2",
       "unit": "˚C",
-      "class": "temperature",
-      "dataType": "int16"
+      "class": "temperature"
     },
     {
       "name": "ti1",
@@ -59,8 +56,7 @@
       "onDashboard": true,
       "label": "Ti1",
       "unit": "˚C",
-      "class": "temperature",
-      "dataType": "int16"
+      "class": "temperature"
     },
     {
       "name": "ti2",
@@ -69,8 +65,7 @@
       "onDashboard": true,
       "label": "Ti2",
       "unit": "˚C",
-      "class": "temperature",
-      "dataType": "int16"
+      "class": "temperature"
     }
   ],
   "interface-type": "modbus-tcp",
@@ -99,8 +94,13 @@
           "function": "multiply",
           "args": [
             {
-              "function": "modbus_read_input",
-              "args": [110, 1]
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [110, 1]
+                }
+              ]
             },
             0.1
           ]
@@ -113,8 +113,13 @@
           "function": "multiply",
           "args": [
             {
-              "function": "modbus_read_input",
-              "args": [111, 1]
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [111, 1]
+                }
+              ]
             },
             0.1
           ]
@@ -127,8 +132,13 @@
           "function": "multiply",
           "args": [
             {
-              "function": "modbus_read_input",
-              "args": [112, 1]
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [112, 1]
+                }
+              ]
             },
             0.1
           ]
@@ -141,8 +151,13 @@
           "function": "multiply",
           "args": [
             {
-              "function": "modbus_read_input",
-              "args": [113, 1]
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [113, 1]
+                }
+              ]
             },
             0.1
           ]
@@ -155,8 +170,13 @@
           "function": "multiply",
           "args": [
             {
-              "function": "modbus_read_input",
-              "args": [114, 1]
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [114, 1]
+                }
+              ]
             },
             0.1
           ]
