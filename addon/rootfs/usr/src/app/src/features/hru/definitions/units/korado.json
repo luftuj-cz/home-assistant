@@ -94,8 +94,13 @@
           "function": "multiply",
           "args": [
             {
-              "function": "modbus_read_input",
-              "args": [110, 1]
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [110, 1]
+                }
+              ]
             },
             0.1
           ]
@@ -108,8 +113,13 @@
           "function": "multiply",
           "args": [
             {
-              "function": "modbus_read_input",
-              "args": [111, 1]
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [111, 1]
+                }
+              ]
             },
             0.1
           ]
@@ -122,8 +132,13 @@
           "function": "multiply",
           "args": [
             {
-              "function": "modbus_read_input",
-              "args": [112, 1]
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [112, 1]
+                }
+              ]
             },
             0.1
           ]
@@ -136,8 +151,13 @@
           "function": "multiply",
           "args": [
             {
-              "function": "modbus_read_input",
-              "args": [113, 1]
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [113, 1]
+                }
+              ]
             },
             0.1
           ]
@@ -150,8 +170,13 @@
           "function": "multiply",
           "args": [
             {
-              "function": "modbus_read_input",
-              "args": [114, 1]
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [114, 1]
+                }
+              ]
             },
             0.1
           ]

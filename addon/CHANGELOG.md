@@ -2,6 +2,14 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+## [1.0.8.2-stable] - 2026-05-21
+
+### Fixed
+
+- **HRU Data Type Conversions**: Added support for signed data types in HRU unit definitions.
+- **HRU Register Value Handling**: Added signed/unsigned conversion support in unit definitions to correctly map register values.
+- **Timeline Mode Copy Button**: Fixed copy button behavior in the mode valve selector.
+
 ## [1.0.8.1-stable] - 2026-05-13
 
 ### Added

@@ -15,7 +15,9 @@ export type AllowedFunction =
   | "multiply"
   | "sum"
   | "substract"
-  | "clamp";
+  | "clamp"
+  | "int16"
+  | "uint16";
 
 export type CommandValue = number | string | CommandExpression;
 
