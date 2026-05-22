@@ -17,6 +17,19 @@ export interface ActiveState {
 }
 
 export class TimelineScheduler {
+  private static readonly INFINITE_BOOST_DURATION = 999999;
+  private static readonly TRANSLATIONS = {
+    cs: {
+      manual: "Manuální",
+      boost: "Manuální režim",
+      schedule: "Plán",
+    },
+    en: {
+      manual: "Manual",
+      boost: "Boost",
+      schedule: "Schedule",
+    },
+  };
   private schedulerTimer: NodeJS.Timeout | null = null;
   private keepAliveTimer: NodeJS.Timeout | null = null;
   private lastActiveState: ActiveState | null = null;
@@ -64,26 +77,22 @@ export class TimelineScheduler {
     if (!state) return "?";
 
     const lang = getAppSetting(LANGUAGE_SETTING_KEY) || "en";
-    const isCs = lang === "cs";
+    const translations = TimelineScheduler.TRANSLATIONS[lang as keyof typeof TimelineScheduler.TRANSLATIONS] || TimelineScheduler.TRANSLATIONS.en;
 
     if (state.source === "manual") {
-      return isCs ? "Manuální" : "Manual";
+      return translations.manual;
     }
 
-    let prefix: string;
-    if (state.source === "boost") {
-      prefix = isCs ? "Manuální režim" : "Boost";
-    } else {
-      prefix = isCs ? "Plán" : "Schedule";
-    }
-
+    const prefix = state.source === "boost" ? translations.boost : translations.schedule;
     return `${prefix}: ${state.modeName || "?"}`;
   }
 
   public getBoostRemainingMinutes(): number {
     const override = this.settingsRepo.getTimelineOverride();
     if (!override?.endTime) return 0;
-    if (override.durationMinutes === 999999) return 999999;
+    if (override.durationMinutes === TimelineScheduler.INFINITE_BOOST_DURATION) {
+      return TimelineScheduler.INFINITE_BOOST_DURATION;
+    }
     const diff = new Date(override.endTime).getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / 60000));
   }
@@ -180,6 +189,7 @@ export class TimelineScheduler {
       await this.hruService.writeValues(payload);
     } catch (err) {
       this.logger.error({ err, payload }, "TimelineScheduler: Failed to apply HRU config");
+      throw err;
     }
   }
 
