@@ -10,6 +10,10 @@ import {
   statements,
 } from "../database.js";
 
+/**
+ * Creates a backup of the current database
+ * @returns Path to the backup file or null if database doesn't exist
+ */
 export async function createDatabaseBackup(): Promise<string | null> {
   const sourcePath = getDatabasePath();
   if (!existsSync(sourcePath)) {
@@ -22,6 +26,11 @@ export async function createDatabaseBackup(): Promise<string | null> {
   return backupPath;
 }
 
+/**
+ * Replaces the current database with a provided buffer
+ * @param buffer - Database file content as buffer
+ * @param logger - Optional logger instance
+ */
 export async function replaceDatabaseWithFile(buffer: Buffer, logger?: Logger): Promise<void> {
   if (statements) {
     finalizeStatements();
@@ -51,6 +60,10 @@ export async function replaceDatabaseWithFile(buffer: Buffer, logger?: Logger): 
   logger?.info("Database replaced from backup file");
 }
 
+/**
+ * Resets the database by deleting all database files
+ * @param logger - Optional logger instance
+ */
 export async function resetDatabase(logger?: Logger): Promise<void> {
   setStopping(true);
 
@@ -80,6 +93,10 @@ export async function resetDatabase(logger?: Logger): Promise<void> {
   (globalThis as any).isRestarting = true;
 }
 
+/**
+ * Performs a WAL checkpoint to flush changes to the main database file
+ * @param logger - Optional logger instance
+ */
 export function checkpointDatabase(logger?: Logger): void {
   if (!db || !statements) {
     setupDatabase(logger);

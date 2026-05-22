@@ -1,11 +1,20 @@
 import type { TimelineEvent } from "../database.js";
 import { getTimelineEvents, getTimelineModes } from "../database.js";
 
+/**
+ * Converts JavaScript day (0=Sunday) to timeline day (0=Monday)
+ * @returns Timeline day number (0-6, where 0=Monday)
+ */
 export function mapTodayToTimelineDay(): number {
   const jsDay = new Date().getDay();
   return jsDay === 0 ? 6 : jsDay - 1;
 }
 
+/**
+ * Converts time string (HH:MM) to minutes since midnight
+ * @param value - Time string in HH:MM format
+ * @returns Minutes since midnight
+ */
 export function timeToMinutes(value: string): number {
   const parts = value.split(":");
   const h = Number.parseInt(parts[0] ?? "0", 10);
@@ -15,6 +24,14 @@ export function timeToMinutes(value: string): number {
   return hh * 60 + mm;
 }
 
+/**
+ * Picks the active timeline event for the current time
+ * Searches backwards through days to find the most recent applicable event
+ * @param currentUnitId - Optional HRU unit ID for unit-specific events
+ * @param nowMinutes - Current time in minutes since midnight
+ * @param today - Current timeline day (0-6, where 0=Monday)
+ * @returns The active timeline event or null if no event applies
+ */
 export function pickActiveEvent(
   currentUnitId: string | undefined,
   nowMinutes: number,
