@@ -402,8 +402,9 @@ export function deleteTimelineEvent(id: number): void {
 /**
  * Deletes all timeline events associated with a specific mode
  * @param modeId - Timeline mode ID
+ * @param modeName - Optional timeline mode name reference
  */
-export function deleteTimelineEventsByMode(modeId: number): void {
+export function deleteTimelineEventsByMode(modeId: number, modeName?: string): void {
   if (!db || !statements) {
     setupDatabase();
   }
@@ -411,8 +412,8 @@ export function deleteTimelineEventsByMode(modeId: number): void {
     moduleLogger?.error({ modeId }, "Database not initialised in deleteTimelineEventsByMode");
     throw new Error("Database not initialised");
   }
-  statements.deleteEventsByMode.run(modeId);
-  moduleLogger?.debug({ modeId }, "Deleted timeline events by mode");
+  statements.deleteEventsByMode.run(modeId, modeName ?? "");
+  moduleLogger?.debug({ modeId, modeName }, "Deleted timeline events by mode");
 }
 
 /**
@@ -438,7 +439,7 @@ export function migrateModesToTable(getAppSetting: (key: string) => string | nul
         for (const mode of oldModes) {
           try {
             stmt.upsertTimelineMode.run(
-              mode.id,
+              mode.id ?? null,
               mode.name,
               mode.color ?? null,
               mode.power ?? null,
@@ -446,12 +447,18 @@ export function migrateModesToTable(getAppSetting: (key: string) => string | nul
               mode.luftatorConfig ? JSON.stringify(mode.luftatorConfig) : null,
               mode.isBoost ? 1 : 0,
               mode.hruId ?? null,
+              mode.nativeMode ?? null,
+              mode.variables ? JSON.stringify(mode.variables) : null,
             );
           } catch (err) {
-            moduleLogger?.warn(
-              { name: mode.name, err },
-              "Skipping duplicate mode during migration",
-            );
+            if (String(err).includes("UNIQUE constraint failed")) {
+              moduleLogger?.warn(
+                { name: mode.name, err },
+                "Skipping duplicate mode during migration",
+              );
+              continue;
+            }
+            throw err;
           }
         }
         stmt.upsertSetting.run(TIMELINE_MODES_KEY, "");
