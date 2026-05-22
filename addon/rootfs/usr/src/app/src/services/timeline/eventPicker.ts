@@ -1,5 +1,6 @@
 import type { TimelineEvent } from "../database.js";
 import { getTimelineEvents, getTimelineModes } from "../database.js";
+import { hasResolvableTimelineModeReference } from "./modeReference.js";
 
 /**
  * Converts JavaScript day (0=Sunday) to timeline day (0=Monday)
@@ -46,18 +47,9 @@ export function pickActiveEvent(
     );
 
     const modes = getTimelineModes(currentUnitId);
-    const modeIdSet = new Set(modes.map((m) => m.id));
-
-    let filtered = dayCandidates.filter((e) => {
-      const modeId = e.hruConfig?.mode;
-      if (!modeId) return true;
-      // Only enforce filtering when we actually have modes loaded for the unit
-      if (modeIdSet.size === 0) return true;
-      if (/^\d+$/.test(String(modeId))) {
-        return modeIdSet.has(Number.parseInt(String(modeId), 10));
-      }
-      return true;
-    });
+    let filtered = dayCandidates.filter((e) =>
+      hasResolvableTimelineModeReference(modes, e.hruConfig?.mode),
+    );
 
     if (d === 0) {
       filtered = filtered.filter((e) => timeToMinutes(e.startTime) <= nowMinutes);
