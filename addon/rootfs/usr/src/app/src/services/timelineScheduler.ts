@@ -152,14 +152,19 @@ export class TimelineScheduler {
       clearTimeout(this.keepAliveTimer);
     }
 
-    void this.hruService.executeKeepAlive().then((period) => {
-      if (period) {
-        this.keepAliveTimer = setTimeout(() => this.runKeepAliveLoop(), period);
-      } else {
-        // Retry later if no keep-alive is currently configured/needed
+    void this.hruService.executeKeepAlive()
+      .then((period) => {
+        if (period) {
+          this.keepAliveTimer = setTimeout(() => this.runKeepAliveLoop(), period);
+        } else {
+          // Retry later if no keep-alive is currently configured/needed
+          this.keepAliveTimer = setTimeout(() => this.runKeepAliveLoop(), 60_000);
+        }
+      })
+      .catch((err) => {
+        this.logger.warn({ err }, "TimelineScheduler: KeepAlive loop unexpected error");
         this.keepAliveTimer = setTimeout(() => this.runKeepAliveLoop(), 60_000);
-      }
-    });
+      });
   }
 
   private buildHruWriteValues(config?: {

@@ -665,7 +665,7 @@ export function createTimelineRouter(
         const currentUnitId = getCurrentUnitId();
 
         // Validate max power just like regular creation
-        if (!validatePowerAndValves(config, response)) {
+        if (!validatePowerAndValves(config, response, currentUnitId)) {
           return;
         }
         validateModeHruPayload(config, currentUnitId);
