@@ -15,7 +15,7 @@ export const timelineModeInputSchema = z.object({
 });
 
 // Timeline Event Schemas
-const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+const timeRegex = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
 export const timelineEventInputSchema = z.object({
   id: z.number().int().positive().optional(),
