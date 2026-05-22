@@ -2,6 +2,7 @@ import type { Logger } from "pino";
 import type { ValveController } from "../core/valveManager.js";
 import { getAppSetting, getTimelineModes } from "./database.js";
 import { mapTodayToTimelineDay, pickActiveEvent, timeToMinutes } from "./timeline/eventPicker.js";
+import { findTimelineModeByReference } from "./timeline/modeReference.js";
 
 import type { HruService } from "../features/hru/hru.service.js";
 import { HRU_SETTINGS_KEY, type HruSettings, LANGUAGE_SETTING_KEY } from "../types/index.js";
@@ -108,23 +109,31 @@ export class TimelineScheduler {
 
   public async executeScheduledEvent(): Promise<void> {
     try {
-      await this.reportValveStates();
-
-      const activePayload = await this.resolveActiveEvent();
-
-      if (!activePayload) {
-        this.logger.debug("TimelineScheduler: no active event or boost for current time");
-        this.lastActiveState = { source: "manual" };
-        return;
-      }
-
-      await this.applyEventValues(activePayload);
+      await this.executeScheduledEventInternal(false);
     } catch (criticalError) {
       this.logger.error(
         { criticalError },
         "CRITICAL: TimelineScheduler encountered an unhandled error",
       );
     }
+  }
+
+  public async executeScheduledEventOrThrow(): Promise<void> {
+    await this.executeScheduledEventInternal(true);
+  }
+
+  private async executeScheduledEventInternal(throwOnApplyError: boolean): Promise<void> {
+    await this.reportValveStates();
+
+    const activePayload = await this.resolveActiveEvent();
+
+    if (!activePayload) {
+      this.logger.debug("TimelineScheduler: no active event or boost for current time");
+      this.lastActiveState = { source: "manual" };
+      return;
+    }
+
+    await this.applyEventValues(activePayload, throwOnApplyError);
   }
 
   private scheduleNextTick(): void {
@@ -173,24 +182,6 @@ export class TimelineScheduler {
     }
 
     return values;
-  }
-
-  private async applyHruConfig(config?: {
-    mode?: string | number;
-    power?: number;
-    temperature?: number;
-    variables?: HruWritePayload;
-  }): Promise<void> {
-    const payload = this.buildHruWriteValues(config);
-
-    if (Object.keys(payload).length === 0) return;
-
-    try {
-      await this.hruService.writeValues(payload);
-    } catch (err) {
-      this.logger.error({ err, payload }, "TimelineScheduler: Failed to apply HRU config");
-      throw err;
-    }
   }
 
   private getCurrentUnitId(): string | undefined {
@@ -248,9 +239,14 @@ export class TimelineScheduler {
           const modes = getTimelineModes(currentUnitId);
           const mode = modes.find((m) => m.id === override.modeId);
           if (mode) {
+            const modeVariables = mode.variables ?? {};
+            const nativeMode =
+              typeof modeVariables.mode === "number" || typeof modeVariables.mode === "string"
+                ? modeVariables.mode
+                : mode.nativeMode;
             return {
               hruConfig: {
-                mode: mode.nativeMode ?? mode.name,
+                mode: nativeMode,
                 power: mode.power,
                 temperature: mode.temperature,
                 variables: mode.variables,
@@ -272,6 +268,7 @@ export class TimelineScheduler {
               mode: override.customConfig.nativeMode,
               power: override.customConfig.power,
               temperature: override.customConfig.temperature,
+              variables: override.customConfig.variables,
             },
             luftatorConfig: override.customConfig.luftatorConfig,
             source: "boost",
@@ -301,25 +298,14 @@ export class TimelineScheduler {
       number | string | boolean
     >;
 
-    let modeToSend: string | number | undefined =
-      typeof event.hruConfig?.mode === "number" || typeof event.hruConfig?.mode === "string"
-        ? event.hruConfig.mode
-        : undefined;
+    let modeToSend: string | number | undefined;
 
     let foundMode;
     if (displayModeName) {
       const modes = getTimelineModes(currentUnitId);
-
-      if (typeof displayModeName === "number" || /^\d+$/.test(displayModeName)) {
-        const modeId = Number.parseInt(String(displayModeName), 10);
-        foundMode = modes.find((m) => m.id === modeId);
-      } else {
-        foundMode = modes.find((m) => m.name === displayModeName);
-      }
+      foundMode = findTimelineModeByReference(modes, displayModeName);
 
       if (foundMode) {
-        displayModeName = foundMode.name;
-
         // New schema: prefer variables map first
         const v = foundMode.variables ?? {};
         if (typeof v.power === "number") effectivePower = v.power;
@@ -342,17 +328,11 @@ export class TimelineScheduler {
           if (value !== undefined) effectiveVariables[key] = value;
         }
 
-        // If variables map did not provide mode, fall back to event payload (no legacy mapping)
-        if (modeToSend === undefined) {
-          const m = event.hruConfig?.mode;
-          if (typeof m === "number" || typeof m === "string") modeToSend = m;
-        }
-
         if (foundMode.luftatorConfig) effectiveLuftatorConfig = foundMode.luftatorConfig;
       } else {
         this.logger.warn(
           { mode: displayModeName, eventId: event.id },
-          "TimelineScheduler: event mode not found, applying raw config",
+          "TimelineScheduler: event mode reference not found, skipping native mode write",
         );
       }
     }
@@ -387,11 +367,9 @@ export class TimelineScheduler {
     source: TimelineSource;
     id?: number;
     friendlyModeName?: string;
-  }): Promise<void> {
+  }, throwOnApplyError = false): Promise<void> {
     const { hruConfig, luftatorConfig, source, id } = activePayload;
-
-    // Apply HRU settings immediately
-    await this.applyHruConfig(hruConfig ?? undefined);
+    let firstApplyError: Error | null = null;
 
     let modeName: string | number | undefined;
     if (source === "boost" || source === "schedule") {
@@ -445,6 +423,7 @@ export class TimelineScheduler {
             { entityId, err, source },
             "TimelineScheduler: CRITICAL ERROR - could not move valve",
           );
+          firstApplyError ??= err instanceof Error ? err : new Error(String(err));
         }
       }
     }
@@ -462,7 +441,12 @@ export class TimelineScheduler {
         }
       } catch (err) {
         this.logger.error({ err, source }, "TimelineScheduler: Failed to apply HRU settings");
+        firstApplyError ??= err instanceof Error ? err : new Error(String(err));
       }
+    }
+
+    if (throwOnApplyError && firstApplyError) {
+      throw firstApplyError;
     }
   }
 }
