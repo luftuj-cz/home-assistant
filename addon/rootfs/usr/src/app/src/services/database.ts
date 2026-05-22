@@ -183,7 +183,8 @@ function prepareStatements(database: DatabaseType): StatementMap {
     deleteEventsByMode: database.prepare(
       `DELETE
        FROM timeline_events
-       WHERE CAST(json_extract(hru_config, '$.mode') AS INTEGER) = ?`,
+       WHERE CAST(json_extract(hru_config, '$.mode') AS INTEGER) = ?
+          OR json_extract(hru_config, '$.mode') = ?`,
     ),
     getTimelineModes: database.prepare(
       `SELECT *
