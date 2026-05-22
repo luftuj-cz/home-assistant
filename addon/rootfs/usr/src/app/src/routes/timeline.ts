@@ -1,25 +1,25 @@
+import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
-import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
 import {
-  getAppSetting,
-  setAppSetting,
-  getTimelineEvents,
-  upsertTimelineEvent,
+  assignLegacyEventsToUnit,
   deleteTimelineEvent,
   deleteTimelineEventsByMode,
-  getTimelineModes,
-  getTimelineMode,
-  upsertTimelineMode,
   deleteTimelineMode,
-  assignLegacyEventsToUnit,
+  getAppSetting,
+  getTimelineEvents,
+  getTimelineMode,
+  getTimelineModes,
+  setAppSetting,
+  upsertTimelineEvent,
+  upsertTimelineMode,
 } from "../services/database.js";
 import {
-  TIMELINE_OVERRIDE_KEY,
   HRU_SETTINGS_KEY,
+  type HruSettings,
+  TIMELINE_OVERRIDE_KEY,
   type TimelineMode,
   type TimelineOverride,
-  type HruSettings,
 } from "../types/index.js";
 
 import type { TimelineScheduler } from "../services/timelineScheduler.js";
@@ -27,21 +27,102 @@ import type { HruService } from "../features/hru/hru.service.js";
 import type { MqttService } from "../services/mqttService.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import {
-  timelineModeInputSchema,
-  timelineEventInputSchema,
-  boostOverrideInputSchema,
-  testOverrideInputSchema,
-  type TimelineModeInput,
-  type TimelineEventInput,
   type BoostOverrideInput,
+  boostOverrideInputSchema,
   type TestOverrideInput,
+  testOverrideInputSchema,
+  type TimelineEventInput,
+  timelineEventInputSchema,
+  type TimelineModeInput,
+  timelineModeInputSchema,
 } from "../schemas/timeline.js";
+import {
+  findTimelineModeByReference,
+  hasResolvableTimelineModeReference,
+} from "../services/timeline/modeReference.js";
 import {
   ApiError,
   BadRequestError,
   ConflictError,
   NotFoundError,
+  ServiceUnavailableError,
 } from "../shared/errors/apiErrors.js";
+
+type HruValue = number | string | boolean;
+
+function buildHruPayload(config: {
+  nativeMode?: string | number;
+  power?: number;
+  temperature?: number;
+  variables?: Record<string, HruValue>;
+}): Record<string, HruValue> {
+  const payload: Record<string, HruValue> = {};
+  if (config.nativeMode !== undefined) payload.mode = config.nativeMode;
+  if (config.power !== undefined) payload.power = config.power;
+  if (config.temperature !== undefined) payload.temperature = config.temperature;
+  if (config.variables) {
+    for (const [key, value] of Object.entries(config.variables)) {
+      if (value !== undefined && value !== null) payload[key] = value;
+    }
+  }
+  return payload;
+}
+
+function buildDirectEventHruPayload(config?: {
+  power?: number;
+  temperature?: number;
+  variables?: Record<string, HruValue>;
+} | null): Record<string, HruValue> {
+  if (!config) return {};
+
+  const payload: Record<string, HruValue> = {};
+  if (config.power !== undefined) payload.power = config.power;
+  if (config.temperature !== undefined) payload.temperature = config.temperature;
+  if (config.variables) {
+    for (const [key, value] of Object.entries(config.variables)) {
+      if (value !== undefined && value !== null) payload[key] = value;
+    }
+  }
+  return payload;
+}
+
+function mapTimelineModeInput(payload: TimelineModeInput): Omit<TimelineMode, "id" | "hruId"> {
+  return {
+    name: payload.name,
+    color: payload.color,
+    variables: payload.variables,
+    power: payload.power,
+    temperature: payload.temperature,
+    luftatorConfig: payload.luftatorConfig,
+    isBoost: payload.isBoost ?? false,
+    nativeMode: payload.nativeMode,
+  };
+}
+
+function eventsOverlapByDay(
+  firstDay: number | null | undefined,
+  secondDay: number | null | undefined,
+): boolean {
+  if (firstDay === null || firstDay === undefined) return true;
+  if (secondDay === null || secondDay === undefined) return true;
+  return firstDay === secondDay;
+}
+
+function hasTimeConflict(event: TimelineEventInput, hruId: string | null): boolean {
+  const existingEvents = getTimelineEvents(hruId);
+
+  return existingEvents.some((existingEvent) => {
+    if (existingEvent.id === event.id) {
+      return false;
+    }
+
+    if (existingEvent.startTime !== event.startTime) {
+      return false;
+    }
+
+    return eventsOverlapByDay(existingEvent.dayOfWeek, event.dayOfWeek);
+  });
+}
 
 export function createTimelineRouter(
   logger: Logger,
@@ -67,20 +148,17 @@ export function createTimelineRouter(
     }
   }
 
-  function getHruMaxPower(): number {
+  function getHruMaxPower(unitIdOverride?: string | null): number {
     try {
-      // Get current HRU settings to find which unit is selected
+      let settings: HruSettings | null = null;
       const settingsRaw = getAppSetting(HRU_SETTINGS_KEY);
-      if (!settingsRaw) {
-        logger.warn("No HRU settings found, using default max power 100");
-        return 100;
+      if (settingsRaw) {
+        settings = JSON.parse(String(settingsRaw)) as HruSettings;
       }
-
-      const settings = JSON.parse(String(settingsRaw)) as HruSettings;
-      const unitId = settings.unit;
+      const unitId = unitIdOverride ?? settings?.unit;
 
       if (!unitId) {
-        logger.warn("No unit ID in HRU settings, using default max power 100");
+        logger.warn("No unit ID available for HRU power validation, using default max power 100");
         return 100;
       }
 
@@ -97,15 +175,18 @@ export function createTimelineRouter(
       const powerVar = currentUnit.variables.find((v) => v.class === "power");
       const isConfigurable = powerVar?.maxConfigurable ?? false;
       const unitMaxValue = powerVar?.max;
+      const unitMaxDefault = powerVar?.maxDefault;
 
+      const configuredMaxPower = settings?.unit === unitId ? settings?.maxPower : undefined;
       const maxPower =
-        isConfigurable && settings.maxPower ? settings.maxPower : unitMaxValue || 100;
+        isConfigurable ? (configuredMaxPower ?? unitMaxDefault ?? unitMaxValue ?? 100) : unitMaxValue || 100;
 
       logger.info(
         {
           unitId,
           unitMaxValue,
-          settingsMaxPower: settings.maxPower,
+          unitMaxDefault,
+          settingsMaxPower: configuredMaxPower,
           isConfigurable,
           finalMaxPower: maxPower,
         },
@@ -119,15 +200,27 @@ export function createTimelineRouter(
     }
   }
 
-  function validatePowerAndValves(payload: TimelineModeInput, response: Response): boolean {
-    const maxPower = getHruMaxPower();
+  function validatePowerAndValves(
+    payload: TimelineModeInput,
+    response: Response,
+    unitIdOverride?: string | null,
+  ): boolean {
+    const maxPower = getHruMaxPower(unitIdOverride);
+    let payloadPower: number | undefined;
+    if (typeof payload.power === "number") {
+      payloadPower = payload.power;
+    } else if (typeof payload.variables?.power === "number") {
+      payloadPower = payload.variables.power;
+    } else {
+      payloadPower = undefined;
+    }
 
     logger.info(
-      { maxPower, payloadPower: payload.power, valves: payload.luftatorConfig },
+      { maxPower, payloadPower, valves: payload.luftatorConfig },
       "Validating timeline mode power and valves",
     );
 
-    if (payload.power !== undefined && payload.power > maxPower) {
+    if (payloadPower !== undefined && payloadPower > maxPower) {
       response.status(400).json({
         detail: `Power must be between 0 and ${maxPower}`,
       });
@@ -137,60 +230,47 @@ export function createTimelineRouter(
     return true;
   }
 
-  function buildHruPayload(config: {
-    nativeMode?: string | number;
-    power?: number;
-    temperature?: number;
-    variables?: Record<string, number | string | boolean>;
-  }): Record<string, number | string | boolean> {
-    const payload: Record<string, number | string | boolean> = {};
-    if (config.nativeMode !== undefined) payload.mode = config.nativeMode;
-    if (config.power !== undefined) payload.power = config.power;
-    if (config.temperature !== undefined) payload.temperature = config.temperature;
-    if (config.variables) {
-      for (const [key, value] of Object.entries(config.variables)) {
-        if (value !== undefined && value !== null) payload[key] = value;
+  function validateModeHruPayload(payload: TimelineModeInput, unitId: string | null): void {
+    const hruPayload = buildHruPayload(payload);
+    if (Object.keys(hruPayload).length === 0) return;
+    hruService.validateWriteValues(hruPayload, unitId || undefined);
+  }
+
+  function validateEventHruPayload(payload: TimelineEventInput, unitId: string | null): void {
+    if (payload.hruConfig?.mode !== undefined) {
+      const modes = getTimelineModes(unitId || undefined);
+      const referencedMode = findTimelineModeByReference(modes, payload.hruConfig.mode);
+      if (!referencedMode) {
+        throw new NotFoundError("Referenced timeline mode not found", "MODE_NOT_FOUND");
       }
     }
-    return payload;
+
+    const hruPayload = buildDirectEventHruPayload(payload.hruConfig);
+    if (Object.keys(hruPayload).length === 0) return;
+    hruService.validateWriteValues(hruPayload, unitId || undefined);
   }
 
-  function mapTimelineModeInput(payload: TimelineModeInput): Omit<TimelineMode, "id" | "hruId"> {
-    return {
-      name: payload.name,
-      color: payload.color,
-      variables: payload.variables,
-      power: payload.power,
-      temperature: payload.temperature,
-      luftatorConfig: payload.luftatorConfig,
-      isBoost: payload.isBoost ?? false,
-      nativeMode: payload.nativeMode,
-    };
-  }
+  async function rollbackTimelineOverride(
+    previousOverrideRaw: string,
+    action: string,
+    originalError: unknown,
+  ): Promise<never> {
+    setAppSetting(TIMELINE_OVERRIDE_KEY, previousOverrideRaw);
 
-  function eventsOverlapByDay(
-    firstDay: number | null | undefined,
-    secondDay: number | null | undefined,
-  ): boolean {
-    if (firstDay === null || firstDay === undefined) return true;
-    if (secondDay === null || secondDay === undefined) return true;
-    return firstDay === secondDay;
-  }
+    try {
+      await timelineScheduler.executeScheduledEventOrThrow();
+    } catch (rollbackError) {
+      logger.error(
+        { rollbackError, originalError, action },
+        "Failed to rollback timeline state after apply failure",
+      );
+      throw new ServiceUnavailableError(
+        "Timeline change failed and previous state could not be restored",
+        "TIMELINE_ROLLBACK_FAILED",
+      );
+    }
 
-  function hasTimeConflict(event: TimelineEventInput, hruId: string | null): boolean {
-    const existingEvents = getTimelineEvents(hruId);
-
-    return existingEvents.some((existingEvent) => {
-      if (existingEvent.id === event.id) {
-        return false;
-      }
-
-      if (existingEvent.startTime !== event.startTime) {
-        return false;
-      }
-
-      return eventsOverlapByDay(existingEvent.dayOfWeek, event.dayOfWeek);
-    });
+    throw originalError instanceof Error ? originalError : new Error(String(originalError));
   }
 
   router.get("/modes", (request: Request, response: Response) => {
@@ -214,13 +294,14 @@ export function createTimelineRouter(
     async (request: Request, response: Response, next: NextFunction) => {
       try {
         const payload = request.body as TimelineModeInput;
-        const currentUnitId = getCurrentUnitId();
+        const currentUnitId = getCurrentUnitId(request.query.unitId as string);
         const modeData = mapTimelineModeInput(payload);
 
         // Validate against HRU max power
-        if (!validatePowerAndValves(payload, response)) {
+        if (!validatePowerAndValves(payload, response, currentUnitId)) {
           return;
         }
+        validateModeHruPayload(payload, currentUnitId);
 
         const newMode: TimelineMode = {
           // ID is auto-generated by DB if creating
@@ -261,23 +342,24 @@ export function createTimelineRouter(
         if (!Number.isFinite(id)) {
           return next(new BadRequestError("Invalid mode id", "INVALID_MODE_ID"));
         }
-        const payload = request.body as TimelineModeInput;
-        const modeData = mapTimelineModeInput(payload);
-
-        // Validate against HRU max power
-        if (!validatePowerAndValves(payload, response)) {
-          return;
-        }
-
         const original = getTimelineMode(id);
         if (!original) {
           return next(new NotFoundError("Mode not found", "MODE_NOT_FOUND"));
         }
+        const payload = request.body as TimelineModeInput;
+        const modeData = mapTimelineModeInput(payload);
+        const modeUnitId = original.hruId || getCurrentUnitId() || "";
+
+        // Validate against HRU max power
+        if (!validatePowerAndValves(payload, response, modeUnitId)) {
+          return;
+        }
+        validateModeHruPayload(payload, modeUnitId);
 
         const updated: TimelineMode = {
           id: id,
           ...modeData,
-          hruId: original.hruId || getCurrentUnitId() || "",
+          hruId: modeUnitId,
         };
 
         const saved = upsertTimelineMode(updated);
@@ -309,9 +391,14 @@ export function createTimelineRouter(
         return next(new BadRequestError("Invalid mode id", "INVALID_MODE_ID"));
       }
 
+      const original = getTimelineMode(id);
+      if (!original) {
+        return next(new NotFoundError("Mode not found", "MODE_NOT_FOUND"));
+      }
+
       try {
         // Cascade: delete events using this mode
-        deleteTimelineEventsByMode(id);
+        deleteTimelineEventsByMode(id, original.name);
       } catch (error) {
         logger.error({ error, id }, "Failed to delete associated timeline events");
       }
@@ -363,13 +450,10 @@ export function createTimelineRouter(
 
       // Self-healing: purge orphaned events (referencing non-existent modes)
       const modes = getTimelineModes(hruId || undefined);
-      const modeIds = new Set(modes.map((m) => m.id));
       const orphanedIds = events
         .filter((e) => {
-          const hruConfig = e.hruConfig as { mode?: number | string } | null;
-          const modeId = hruConfig?.mode;
-          if (modeId === undefined) return false;
-          return !modeIds.has(Number(modeId));
+          const modeReference = e.hruConfig?.mode;
+          return !hasResolvableTimelineModeReference(modes, modeReference);
         })
         .filter((e) => typeof e.id === "number")
         .map((e) => e.id as number);
@@ -385,7 +469,7 @@ export function createTimelineRouter(
         }
         // Return filtered list to UI immediately
         const orphanSet = new Set(orphanedIds);
-        response.json(events.filter((e) => e.id === undefined || !orphanSet.has(e.id as number)));
+        response.json(events.filter((e) => e.id === undefined || !orphanSet.has(e.id)));
       } else {
         logger.debug({ count: events.length }, "Retrieved timeline events");
         response.json(events);
@@ -404,13 +488,7 @@ export function createTimelineRouter(
         const body = request.body as TimelineEventInput;
         const hruId = getCurrentUnitId(request.query.unitId as string);
 
-        // Validate HRU config against max power
-        const maxPower = getHruMaxPower();
-        if (body.hruConfig?.power !== undefined && body.hruConfig.power > maxPower) {
-          return next(
-            new BadRequestError(`Power must be between 0 and ${maxPower}`, "POWER_LIMIT_EXCEEDED"),
-          );
-        }
+        validateEventHruPayload(body, hruId);
 
         if (hasTimeConflict(body, hruId)) {
           return next(
@@ -488,6 +566,7 @@ export function createTimelineRouter(
     ) => {
       try {
         const { modeId, durationMinutes } = request.body;
+        const currentOverrideRaw = getAppSetting(TIMELINE_OVERRIDE_KEY) ?? "null";
 
         const unitId = request.query.unitId as string | undefined;
         const hruId = getCurrentUnitId(unitId);
@@ -502,8 +581,11 @@ export function createTimelineRouter(
         setAppSetting(TIMELINE_OVERRIDE_KEY, JSON.stringify(override));
         logger.info({ modeId, durationMinutes, endTime }, "Timeline boost activated");
 
-        // Trigger immediate execution
-        await timelineScheduler.executeScheduledEvent();
+        try {
+          await timelineScheduler.executeScheduledEventOrThrow();
+        } catch (error) {
+          await rollbackTimelineOverride(currentOverrideRaw, "boost", error);
+        }
 
         response.json({ active: override });
       } catch (error) {
@@ -516,11 +598,15 @@ export function createTimelineRouter(
 
   router.delete("/boost", async (_request: Request, response: Response, next: NextFunction) => {
     try {
+      const currentOverrideRaw = getAppSetting(TIMELINE_OVERRIDE_KEY) ?? "null";
       setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
       logger.info("Timeline boost cancelled");
 
-      // Trigger immediate execution
-      await timelineScheduler.executeScheduledEvent();
+      try {
+        await timelineScheduler.executeScheduledEventOrThrow();
+      } catch (error) {
+        await rollbackTimelineOverride(currentOverrideRaw, "cancel_boost", error);
+      }
 
       response.status(204).end();
     } catch (error) {
@@ -533,11 +619,15 @@ export function createTimelineRouter(
     "/override/stop",
     async (_request: Request, response: Response, next: NextFunction) => {
       try {
+        const currentOverrideRaw = getAppSetting(TIMELINE_OVERRIDE_KEY) ?? "null";
         setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
         logger.info("Timeline override stopped via debug/manual command");
 
-        // Trigger immediate execution to apply schedule or manual defaults
-        await timelineScheduler.executeScheduledEvent();
+        try {
+          await timelineScheduler.executeScheduledEventOrThrow();
+        } catch (error) {
+          await rollbackTimelineOverride(currentOverrideRaw, "stop_override", error);
+        }
 
         response.status(204).end();
       } catch (error) {
@@ -559,21 +649,14 @@ export function createTimelineRouter(
     async (request: Request, response: Response, next: NextFunction) => {
       try {
         const { durationMinutes, config } = request.body as TestOverrideInput;
+        const currentOverrideRaw = getAppSetting(TIMELINE_OVERRIDE_KEY) ?? "null";
+        const currentUnitId = getCurrentUnitId();
 
         // Validate max power just like regular creation
         if (!validatePowerAndValves(config, response)) {
           return;
         }
-
-        // Apply HRU config immediately for test mode (mirrors boost behavior)
-        try {
-          const payload = buildHruPayload(config);
-          if (Object.keys(payload).length > 0) {
-            await hruService.writeValues(payload);
-          }
-        } catch (error) {
-          logger.error({ error, config }, "Failed to apply HRU config for test mode");
-        }
+        validateModeHruPayload(config, currentUnitId);
 
         // Add 5s buffer to account for network latency and timer drift
         // This ensures the frontend timer finishes (reverting UI) before the backend actually reverts the mode
@@ -584,6 +667,7 @@ export function createTimelineRouter(
             nativeMode: config.nativeMode,
             power: config.power,
             temperature: config.temperature,
+            variables: config.variables,
             luftatorConfig: config.luftatorConfig,
           },
           endTime,
@@ -593,8 +677,11 @@ export function createTimelineRouter(
         setAppSetting(TIMELINE_OVERRIDE_KEY, JSON.stringify(override));
         logger.info({ durationMinutes, endTime }, "Timeline test mode activated");
 
-        // Trigger immediate execution
-        await timelineScheduler.executeScheduledEvent();
+        try {
+          await timelineScheduler.executeScheduledEventOrThrow();
+        } catch (error) {
+          await rollbackTimelineOverride(currentOverrideRaw, "test_mode", error);
+        }
 
         response.json({ active: override });
       } catch (error) {
