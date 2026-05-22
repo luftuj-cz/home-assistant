@@ -1,8 +1,8 @@
 import { copyFileSync, existsSync, promises as fsp } from "node:fs";
 import type { Logger } from "pino";
 import {
+  closeDatabase,
   db,
-  finalizeStatements,
   getDatabasePath,
   moduleLogger,
   setStopping,
@@ -32,14 +32,7 @@ export async function createDatabaseBackup(): Promise<string | null> {
  * @param logger - Optional logger instance
  */
 export async function replaceDatabaseWithFile(buffer: Buffer, logger?: Logger): Promise<void> {
-  if (statements) {
-    finalizeStatements();
-  }
-  if (db) {
-    db.close();
-    // We can't easily nullify 'db' from here since it's a re-export of a let.
-    // But setupDatabase will handle it.
-  }
+  closeDatabase();
 
   const dbPath = getDatabasePath();
 
@@ -66,13 +59,7 @@ export async function replaceDatabaseWithFile(buffer: Buffer, logger?: Logger): 
  */
 export async function resetDatabase(logger?: Logger): Promise<void> {
   setStopping(true);
-
-  if (statements) {
-    finalizeStatements();
-  }
-  if (db) {
-    db.close();
-  }
+  closeDatabase();
 
   const dbPath = getDatabasePath();
   const walPath = `${dbPath}-wal`;

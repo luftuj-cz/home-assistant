@@ -116,6 +116,16 @@ export function finalizeStatements(): void {
   statements = null;
 }
 
+export function closeDatabase(): void {
+  if (statements) {
+    finalizeStatements();
+  }
+  if (db) {
+    db.close();
+    db = null;
+  }
+}
+
 export function setStopping(val: boolean): void {
   isStopping = val;
 }
