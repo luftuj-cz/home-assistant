@@ -73,6 +73,8 @@ export let moduleLogger: Logger | null = null;
 export let statements: StatementMap | null = null;
 export let isStopping = false;
 
+let isInitializing = false;
+
 export type ValveStateRecord = {
   entity_id: string;
   controller_id: string | null;
@@ -218,20 +220,34 @@ export function setupDatabase(logger?: Logger): void {
   if (isStopping) {
     return;
   }
-  moduleLogger = logger ?? moduleLogger;
-  if (statements) {
-    finalizeStatements();
-  }
-  if (db) {
-    db.close();
-    db = null;
+
+  if (db && statements) {
+    return;
   }
 
-  db = openDatabase(moduleLogger ?? undefined);
-  applyMigrations(db);
-  statements = prepareStatements(db);
+  if (isInitializing) {
+    return;
+  }
 
-  migrateModesToTable(getAppSetting);
+  isInitializing = true;
+  try {
+    moduleLogger = logger ?? moduleLogger;
+    if (statements) {
+      finalizeStatements();
+    }
+    if (db) {
+      db.close();
+      db = null;
+    }
+
+    db = openDatabase(moduleLogger ?? undefined);
+    applyMigrations(db);
+    statements = prepareStatements(db);
+
+    migrateModesToTable(getAppSetting);
+  } finally {
+    isInitializing = false;
+  }
 }
 
 
