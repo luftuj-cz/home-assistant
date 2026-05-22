@@ -1,4 +1,7 @@
-export function resolveModeValue(values: Record<number, string>, mode: number | string) {
+export function resolveModeValue(
+  values: Record<number, string>,
+  mode: number | string,
+): number | undefined {
   if (typeof mode === "number") {
     return mode;
   }
@@ -7,5 +10,5 @@ export function resolveModeValue(values: Record<number, string>, mode: number | 
     return Number(entry[0]);
   }
   const parsed = Number.parseInt(String(mode), 10);
-  return Number.isFinite(parsed) ? parsed : 0;
+  return Number.isFinite(parsed) ? parsed : undefined;
 }
