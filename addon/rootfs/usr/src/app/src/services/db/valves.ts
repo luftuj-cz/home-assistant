@@ -1,0 +1,50 @@
+import { db, moduleLogger, setupDatabase, statements, type ValveSnapshotRecord, type ValveStateRecord } from "../database.js";
+
+function normaliseRecord(record: ValveSnapshotRecord): ValveStateRecord {
+  return {
+    entity_id: record.entityId,
+    controller_id: record.controllerId,
+    name: record.name ?? null,
+    value: record.value ?? null,
+    state: record.state ?? null,
+    attributes: JSON.stringify(record.attributes ?? {}),
+    timestamp: record.timestamp ?? new Date().toISOString(),
+  };
+}
+
+export function storeValveSnapshots(records: ValveSnapshotRecord[]): void {
+  if (records.length === 0) {
+    return;
+  }
+
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!db || !statements) {
+    moduleLogger?.error("Database initialisation failed in storeValveSnapshots");
+    throw new Error("Database init failed");
+  }
+
+  const prepared = statements;
+
+  const transaction = db.transaction((items: ValveSnapshotRecord[]) => {
+    for (const item of items) {
+      const record = normaliseRecord(item);
+      if (record.controller_id) {
+        prepared.upsertController.run(record.controller_id, item.controllerName ?? null);
+      }
+      prepared.upsertValveState.run(
+        record.entity_id,
+        record.controller_id,
+        record.name,
+        record.value,
+        record.state,
+        record.timestamp,
+        record.attributes,
+      );
+    }
+  });
+
+  transaction(records);
+  moduleLogger?.debug({ count: records.length }, "Stored valve snapshots");
+}

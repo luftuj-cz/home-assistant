@@ -1,0 +1,43 @@
+import { db, moduleLogger, setupDatabase, statements } from "../database.js";
+
+export function getAllAppSettings(): Record<string, string> {
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!statements) {
+    moduleLogger?.error("Database not initialised in getAllAppSettings");
+    throw new Error("Database not initialised");
+  }
+
+  const rows = statements.getAllSettings.all() as Array<{ key: string; value: string }>;
+  return rows.reduce<Record<string, string>>((acc, row) => {
+    acc[row.key] = row.value;
+    return acc;
+  }, {});
+}
+
+export function getAppSetting(key: string): string | null {
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!statements) {
+    moduleLogger?.error({ key }, "Database not initialised in getAppSetting");
+    throw new Error("Database not initialised");
+  }
+
+  const row = statements.getSetting.get(key) as { value: string } | undefined;
+  return row?.value ?? null;
+}
+
+export function setAppSetting(key: string, value: string): void {
+  if (!db || !statements) {
+    setupDatabase();
+  }
+  if (!statements) {
+    moduleLogger?.error({ key }, "Database not initialised in setAppSetting");
+    throw new Error("Database not initialised");
+  }
+
+  statements.upsertSetting.run(key, value);
+  moduleLogger?.debug({ key }, "Updated app setting");
+}
