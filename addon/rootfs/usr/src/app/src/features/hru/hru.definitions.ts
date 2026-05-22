@@ -14,7 +14,7 @@ export type AllowedFunction =
   | "round"
   | "multiply"
   | "sum"
-  | "substract"
+  | "subtract"
   | "clamp"
   | "int16"
   | "uint16";
