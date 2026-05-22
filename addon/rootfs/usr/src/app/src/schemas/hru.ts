@@ -6,7 +6,7 @@ const hruWriteValueSchema = z.union([z.number(), z.string(), z.boolean()]);
 export const hruWriteInputSchema = z
   .looseObject({
     power: z.number().optional(),
-    temperature: z.number().optional(),
+    temperature: z.number().min(-50, "Temperature must be at least -50").max(100, "Temperature must be at most 100").optional(),
     mode: z.union([z.number().int(), z.string()]).optional(),
   })
   .catchall(hruWriteValueSchema)

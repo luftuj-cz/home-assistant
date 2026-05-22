@@ -146,7 +146,8 @@ export function getTimelineModes(hruId?: string): TimelineMode[] {
     setupDatabase();
   }
   if (!statements) {
-    return [];
+    moduleLogger?.error("Database not initialised in getTimelineModes");
+    throw new Error("Database not initialised");
   }
 
   const records = statements.getTimelineModes.all(hruId ?? null) as TimelineModeRecord[];
@@ -412,7 +413,11 @@ export function deleteTimelineEventsByMode(modeId: number, modeName?: string): v
     moduleLogger?.error({ modeId }, "Database not initialised in deleteTimelineEventsByMode");
     throw new Error("Database not initialised");
   }
-  statements.deleteEventsByMode.run(modeId, modeName ?? "");
+  if (modeName) {
+    statements.deleteEventsByMode.run(modeId, modeName);
+  } else {
+    statements.deleteEventsByModeIdOnly.run(modeId);
+  }
   moduleLogger?.debug({ modeId, modeName }, "Deleted timeline events by mode");
 }
 

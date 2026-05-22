@@ -389,10 +389,6 @@ export class HruService {
       scriptVars[`$${key}`] = this.normaliseWriteValue(variable, value, settings);
     }
 
-    if (Object.keys(scriptVars).length === 0) {
-      throw new BadRequestError("No valid HRU values to write", "HRU_EMPTY_WRITE");
-    }
-
     return scriptVars;
   }
 

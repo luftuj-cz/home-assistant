@@ -270,7 +270,19 @@ export function createTimelineRouter(
       );
     }
 
-    throw originalError instanceof Error ? originalError : new Error(String(originalError));
+    if (originalError instanceof Error) {
+      throw originalError;
+    }
+    if (
+      typeof originalError === "object" &&
+      originalError !== null &&
+      "statusCode" in originalError &&
+      "message" in originalError
+    ) {
+      const err = originalError as { statusCode: number; message: string; code?: string };
+      throw new ApiError(err.statusCode, String(err.message), err.code);
+    }
+    throw new Error(String(originalError));
   }
 
   router.get("/modes", (request: Request, response: Response) => {

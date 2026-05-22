@@ -63,6 +63,7 @@ export type StatementMap = {
   deleteTimelineEvent: Statement;
   assignLegacyEvents: Statement;
   deleteEventsByMode: Statement;
+  deleteEventsByModeIdOnly: Statement;
   getTimelineModes: Statement;
   upsertTimelineMode: Statement;
   deleteTimelineMode: Statement;
@@ -186,6 +187,11 @@ function prepareStatements(database: DatabaseType): StatementMap {
        WHERE CAST(json_extract(hru_config, '$.mode') AS INTEGER) = ?
           OR json_extract(hru_config, '$.mode') = ?`,
     ),
+    deleteEventsByModeIdOnly: database.prepare(
+      `DELETE
+       FROM timeline_events
+       WHERE CAST(json_extract(hru_config, '$.mode') AS INTEGER) = ?`,
+    ),
     getTimelineModes: database.prepare(
       `SELECT *
        FROM timeline_modes
@@ -227,6 +233,7 @@ export function setupDatabase(logger?: Logger): void {
   }
 
   if (isInitializing) {
+    moduleLogger?.warn("setupDatabase called while already initializing");
     return;
   }
 
