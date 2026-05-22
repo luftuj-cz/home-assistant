@@ -58,6 +58,7 @@ export type TimelineOverride = {
     nativeMode?: number;
     power?: number;
     temperature?: number;
+    variables?: Record<string, number | string | boolean>;
     luftatorConfig?: Record<string, number>;
   };
   endTime: string;
