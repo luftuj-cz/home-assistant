@@ -92,9 +92,7 @@ export class HruLoader {
 
   private validateExpression(expression: CommandExpression, file: string, section: string): void {
     if (!ALLOWED_FUNCTIONS.includes(expression.function)) {
-      throw new Error(
-        `Unsupported HRU function "${expression.function}" in ${file} (${section})`,
-      );
+      throw new Error(`Unsupported HRU function "${expression.function}" in ${file} (${section})`);
     }
 
     for (const arg of expression.args) {

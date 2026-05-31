@@ -1,13 +1,4 @@
-import {
-  Alert,
-  Badge,
-  Button,
-  CopyButton,
-  Fieldset,
-  Group,
-  Stack,
-  Text,
-} from "@mantine/core";
+import { Alert, Badge, Button, CopyButton, Fieldset, Group, Stack, Text } from "@mantine/core";
 import { IconAlertCircle, IconDroplet } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 
@@ -112,9 +103,7 @@ export function ModeValveSelector({
                 min={v.min}
                 max={v.max}
                 step={v.step}
-                onChange={(val) =>
-                  onChange((prev) => ({ ...prev, [storageKey]: val }))
-                }
+                onChange={(val) => onChange((prev) => ({ ...prev, [storageKey]: val }))}
                 color={statusColor}
                 size="lg"
                 label={null}

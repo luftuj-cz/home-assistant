@@ -22,7 +22,12 @@ export {
   upsertTimelineEvent,
   upsertTimelineMode,
 } from "./db/timeline.js";
-export { checkpointDatabase, createDatabaseBackup, replaceDatabaseWithFile, resetDatabase } from "./db/maintenance.js";
+export {
+  checkpointDatabase,
+  createDatabaseBackup,
+  replaceDatabaseWithFile,
+  resetDatabase,
+} from "./db/maintenance.js";
 
 const DEFAULT_DATA_DIR = "/data";
 const IS_HA_ADDON = Boolean(process.env.SUPERVISOR_TOKEN);
@@ -267,7 +272,6 @@ export function setupDatabase(logger?: Logger): void {
     isInitializing = false;
   }
 }
-
 
 export function getDatabasePath(): string {
   return DATABASE_PATH;

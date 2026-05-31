@@ -1,4 +1,11 @@
-import { db, moduleLogger, setupDatabase, statements, type ValveSnapshotRecord, type ValveStateRecord } from "../database.js";
+import {
+  db,
+  moduleLogger,
+  setupDatabase,
+  statements,
+  type ValveSnapshotRecord,
+  type ValveStateRecord,
+} from "../database.js";
 
 function normaliseRecord(record: ValveSnapshotRecord): ValveStateRecord {
   return {

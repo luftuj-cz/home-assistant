@@ -39,7 +39,7 @@ export function normaliseTimelineEvent(
   event: TimelineEvent,
 ): Omit<TimelineEventRecord, "id" | "created_at" | "updated_at"> {
   const enabled = event.enabled ?? true;
-  const priority = Number.isFinite(event.priority) ? (event.priority) : 0;
+  const priority = Number.isFinite(event.priority) ? event.priority : 0;
 
   let hruConfig: string | null = null;
   let luftatorConfig: string | null = null;

@@ -13,9 +13,15 @@ export function DebugPage() {
   const [activeTab, setActiveTab] = useState<string>("backend-values");
 
   const tabs = [
-    { value: "backend-values", label: t("debug.backendValues", { defaultValue: "Backend Debug Values" }) },
+    {
+      value: "backend-values",
+      label: t("debug.backendValues", { defaultValue: "Backend Debug Values" }),
+    },
     { value: "server-logs", label: t("debug.serverLogs", { defaultValue: "Server Logs" }) },
-    { value: "home-assistant-api", label: t("debug.homeAssistantApi", { defaultValue: "Home Assistant API" }) },
+    {
+      value: "home-assistant-api",
+      label: t("debug.homeAssistantApi", { defaultValue: "Home Assistant API" }),
+    },
     { value: "onboarding-tools", label: t("debug.onboardingTools") },
   ];
 

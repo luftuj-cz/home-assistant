@@ -68,11 +68,13 @@ function buildHruPayload(config: {
   return payload;
 }
 
-function buildDirectEventHruPayload(config?: {
-  power?: number;
-  temperature?: number;
-  variables?: Record<string, HruValue>;
-} | null): Record<string, HruValue> {
+function buildDirectEventHruPayload(
+  config?: {
+    power?: number;
+    temperature?: number;
+    variables?: Record<string, HruValue>;
+  } | null,
+): Record<string, HruValue> {
   if (!config) return {};
 
   const payload: Record<string, HruValue> = {};
@@ -178,8 +180,9 @@ export function createTimelineRouter(
       const unitMaxDefault = powerVar?.maxDefault;
 
       const configuredMaxPower = settings?.unit === unitId ? settings?.maxPower : undefined;
-      const maxPower =
-        isConfigurable ? (configuredMaxPower ?? unitMaxDefault ?? unitMaxValue ?? 100) : unitMaxValue || 100;
+      const maxPower = isConfigurable
+        ? (configuredMaxPower ?? unitMaxDefault ?? unitMaxValue ?? 100)
+        : unitMaxValue || 100;
 
       logger.info(
         {

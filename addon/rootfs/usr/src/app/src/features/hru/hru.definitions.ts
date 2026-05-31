@@ -21,8 +21,7 @@ export const ALLOWED_FUNCTIONS = [
   "uint16",
 ] as const;
 
-export type AllowedFunction =
-  (typeof ALLOWED_FUNCTIONS)[number];
+export type AllowedFunction = (typeof ALLOWED_FUNCTIONS)[number];
 
 export type CommandValue = number | string | CommandExpression;
 

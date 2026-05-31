@@ -148,7 +148,7 @@ export function AppLayout() {
       withBorder={true}
       styles={{
         root: {
-          '--app-shell-offset': '0',
+          "--app-shell-offset": "0",
         },
         header: {
           backgroundColor: "var(--mantine-color-body)",

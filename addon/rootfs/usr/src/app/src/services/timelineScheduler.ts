@@ -40,8 +40,7 @@ export class TimelineScheduler {
     private readonly hruService: HruService,
     private readonly settingsRepo: SettingsRepository,
     private readonly logger: Logger,
-  ) {
-  }
+  ) {}
 
   public start(): void {
     if (this.schedulerTimer) return;
@@ -78,7 +77,9 @@ export class TimelineScheduler {
     if (!state) return "?";
 
     const lang = getAppSetting(LANGUAGE_SETTING_KEY) || "en";
-    const translations = TimelineScheduler.TRANSLATIONS[lang as keyof typeof TimelineScheduler.TRANSLATIONS] || TimelineScheduler.TRANSLATIONS.en;
+    const translations =
+      TimelineScheduler.TRANSLATIONS[lang as keyof typeof TimelineScheduler.TRANSLATIONS] ||
+      TimelineScheduler.TRANSLATIONS.en;
 
     if (state.source === "manual") {
       return translations.manual;
@@ -152,7 +153,8 @@ export class TimelineScheduler {
       clearTimeout(this.keepAliveTimer);
     }
 
-    void this.hruService.executeKeepAlive()
+    void this.hruService
+      .executeKeepAlive()
       .then((period) => {
         if (period) {
           this.keepAliveTimer = setTimeout(() => this.runKeepAliveLoop(), period);
@@ -345,14 +347,14 @@ export class TimelineScheduler {
     return {
       hruConfig: event.hruConfig
         ? {
-          ...event.hruConfig,
-          mode: modeToSend,
-          power: effectivePower,
-          temperature: effectiveTemperature,
-          variables: Object.keys(effectiveVariables).length
-            ? effectiveVariables
-            : event.hruConfig.variables,
-        }
+            ...event.hruConfig,
+            mode: modeToSend,
+            power: effectivePower,
+            temperature: effectiveTemperature,
+            variables: Object.keys(effectiveVariables).length
+              ? effectiveVariables
+              : event.hruConfig.variables,
+          }
         : event.hruConfig,
       luftatorConfig: effectiveLuftatorConfig,
       source: "schedule",
@@ -361,18 +363,21 @@ export class TimelineScheduler {
     };
   }
 
-  private async applyEventValues(activePayload: {
-    hruConfig?: {
-      mode?: string | number;
-      power?: number;
-      temperature?: number;
-      variables?: HruWritePayload;
-    } | null;
-    luftatorConfig?: Record<string, number> | null;
-    source: TimelineSource;
-    id?: number;
-    friendlyModeName?: string;
-  }, throwOnApplyError = false): Promise<void> {
+  private async applyEventValues(
+    activePayload: {
+      hruConfig?: {
+        mode?: string | number;
+        power?: number;
+        temperature?: number;
+        variables?: HruWritePayload;
+      } | null;
+      luftatorConfig?: Record<string, number> | null;
+      source: TimelineSource;
+      id?: number;
+      friendlyModeName?: string;
+    },
+    throwOnApplyError = false,
+  ): Promise<void> {
     const { hruConfig, luftatorConfig, source, id } = activePayload;
     let firstApplyError: Error | null = null;
 
@@ -394,10 +399,7 @@ export class TimelineScheduler {
     const hasHru = Boolean(hruConfig);
 
     if (!hasValves && !hasHru) {
-      this.logger.debug(
-        { source, id },
-        "TimelineScheduler: active state has no HRU/valve payload",
-      );
+      this.logger.debug({ source, id }, "TimelineScheduler: active state has no HRU/valve payload");
       return;
     }
 

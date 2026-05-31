@@ -4,7 +4,11 @@ import type { SettingsRepository } from "../settings/settings.repository.js";
 import type { Logger } from "pino";
 import { HruLoader } from "./hru.loader.js";
 import { type HeatRecoveryUnit, type HruVariable } from "./hru.definitions.js";
-import { BadRequestError, HruConnectionError, HruNotConfiguredError } from "../../shared/errors/apiErrors.js";
+import {
+  BadRequestError,
+  HruConnectionError,
+  HruNotConfiguredError,
+} from "../../shared/errors/apiErrors.js";
 import { resolveModeValue } from "../../utils/hruWrite.js";
 import { getDemoState, setDemoState } from "../../services/demoState.js";
 
@@ -221,14 +225,15 @@ export class HruService {
       throw new HruNotConfiguredError();
     }
 
-    const settings = storedSettings?.unit === unit.code
-      ? storedSettings
-      : {
-        unit: unit.code,
-        host: "",
-        port: 502,
-        unitId: 1,
-      };
+    const settings =
+      storedSettings?.unit === unit.code
+        ? storedSettings
+        : {
+            unit: unit.code,
+            host: "",
+            port: 502,
+            unitId: 1,
+          };
 
     return { settings, unit };
   }
@@ -366,7 +371,9 @@ export class HruService {
     data: Record<string, DisplayValue>,
   ): Record<string, number> {
     const editableVariables = new Map(
-      unit.variables.filter((variable) => variable.editable).map((variable) => [variable.name, variable]),
+      unit.variables
+        .filter((variable) => variable.editable)
+        .map((variable) => [variable.name, variable]),
     );
     const payloadKeys = Object.keys(data);
 
@@ -421,10 +428,7 @@ export class HruService {
     );
   }
 
-  private normaliseSelectValue(
-    variable: HruVariable,
-    value: number | string,
-  ): number | undefined {
+  private normaliseSelectValue(variable: HruVariable, value: number | string): number | undefined {
     const optionMap = Object.fromEntries(
       (variable.options ?? []).map((option) => [
         option.value,

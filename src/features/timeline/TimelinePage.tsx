@@ -33,7 +33,12 @@ export function TimelinePage() {
 
   const { valves, hruVariables, powerUnit, maxPower, activeUnitId, loading } = useHruContext();
 
-  const { modes, saveMode, deleteMode, isMutating: isModesMutating } = useTimelineModesQuery(activeUnitId);
+  const {
+    modes,
+    saveMode,
+    deleteMode,
+    isMutating: isModesMutating,
+  } = useTimelineModesQuery(activeUnitId);
   const {
     eventsByDay,
     saveEvent,
@@ -147,26 +152,26 @@ export function TimelinePage() {
               contentVisibility: "auto",
             }}
           >
-              {DAY_ORDER.map((dayIdx: number) => (
-                <TimelineDayCard
-                  key={dayIdx}
-                  dayIdx={dayIdx}
-                  label={dayLabels[dayIdx]}
-                  events={eventsByDay.get(dayIdx) ?? []}
-                  modes={modes}
-                  copyDay={copyDay}
-                  loading={loading}
-                  onCopy={setCopyDay}
-                  onPaste={handlePasteDay}
-                  onCancelCopy={handleCancelCopy}
-                  onAdd={handleAddEvent}
-                  onEdit={handleEditEvent}
-                  onDelete={deleteEvent}
-                  onToggle={handleToggleEvent}
-                  onDropMode={handleDropAndEdit}
-                  t={t}
-                />
-              ))}
+            {DAY_ORDER.map((dayIdx: number) => (
+              <TimelineDayCard
+                key={dayIdx}
+                dayIdx={dayIdx}
+                label={dayLabels[dayIdx]}
+                events={eventsByDay.get(dayIdx) ?? []}
+                modes={modes}
+                copyDay={copyDay}
+                loading={loading}
+                onCopy={setCopyDay}
+                onPaste={handlePasteDay}
+                onCancelCopy={handleCancelCopy}
+                onAdd={handleAddEvent}
+                onEdit={handleEditEvent}
+                onDelete={deleteEvent}
+                onToggle={handleToggleEvent}
+                onDropMode={handleDropAndEdit}
+                t={t}
+              />
+            ))}
           </div>
         </Stack>
 

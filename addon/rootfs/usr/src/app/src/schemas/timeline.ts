@@ -5,7 +5,11 @@ export const timelineModeInputSchema = z.object({
   name: z.string().trim().min(1, "Mode name is required"),
   color: z.string().optional(),
   power: z.number().min(0, "Power must be at least 0").optional(),
-  temperature: z.number().min(0, "Temperature must be at least 0").max(50, "Temperature must be at most 50").optional(),
+  temperature: z
+    .number()
+    .min(0, "Temperature must be at least 0")
+    .max(50, "Temperature must be at most 50")
+    .optional(),
   variables: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).optional(),
   luftatorConfig: z
     .record(z.string(), z.number().min(0, "Valve opening must be at least 0"))
@@ -25,7 +29,11 @@ export const timelineEventInputSchema = z.object({
     .object({
       mode: z.string().optional(),
       power: z.number().min(0, "Power must be at least 0").optional(),
-      temperature: z.number().min(0, "Temperature must be at least 0").max(50, "Temperature must be at most 50").optional(),
+      temperature: z
+        .number()
+        .min(0, "Temperature must be at least 0")
+        .max(50, "Temperature must be at most 50")
+        .optional(),
       variables: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).optional(),
     })
     .nullable()

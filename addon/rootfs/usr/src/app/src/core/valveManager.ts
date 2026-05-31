@@ -55,18 +55,18 @@ export class ValveManager implements ValveController {
     // Examples: number.luftator_master_bedroom, number.luftator_ground_floor_office
     // HRU variables follow pattern: number.luftator_<hru>_<variable>
     // Examples: number.luftator_zehnder_duration, number.luftator_atrea_power
-    
+
     // Must start with number.luftator_ or luftator_
     const hasValidPrefix = /^(?:number\.)?luftator_/i.test(entityId);
     if (!hasValidPrefix) return false;
-    
+
     // Exclude app-internal entities
     const isAppInternal = /^(?:number\.)?luftator_app_/i.test(entityId);
     if (isAppInternal) return false;
-    
+
     // Exclude demonstration entities
     if (entityId.includes("_demonstration_")) return false;
-    
+
     // Exclude known non-valve suffixes (HRU variables, timeline entities)
     // This list covers all HRU unit definitions: Zehnder, Atrea, Meltem, Korado, Xvent
     const isNonValveEntity = [
@@ -99,7 +99,7 @@ export class ValveManager implements ValveController {
       "_temperature_profile",
       "_unit_sn",
     ].some((suffix) => entityId.toLowerCase().endsWith(suffix));
-    
+
     return !isNonValveEntity;
   }
 
