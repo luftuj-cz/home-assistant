@@ -141,18 +141,12 @@ export function TimelinePage() {
           <div
             ref={dragScroll.ref}
             style={{
-              overflow: "auto",
-              maxHeight: "calc(100vh - 400px)",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+              gap: "var(--mantine-spacing-lg)",
+              contentVisibility: "auto",
             }}
           >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-                gap: "var(--mantine-spacing-lg)",
-                contentVisibility: "auto",
-              }}
-            >
               {DAY_ORDER.map((dayIdx: number) => (
                 <TimelineDayCard
                   key={dayIdx}
@@ -173,7 +167,6 @@ export function TimelinePage() {
                   t={t}
                 />
               ))}
-            </div>
           </div>
         </Stack>
 
