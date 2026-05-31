@@ -4,13 +4,13 @@ import "dotenv/config";
 
 import cors from "cors";
 import express from "express";
-import { createServer } from "http";
-import fs from "fs";
-import path from "path";
+import { createServer } from "node:http";
+import fs from "node:fs";
+import path from "node:path";
 import WebSocket, { WebSocketServer } from "ws";
 
 import { createLogger } from "./logger.js";
-import { loadConfig, getConfig } from "./config/options.js";
+import { getConfig, loadConfig } from "./config/options.js";
 import { HomeAssistantClient } from "./services/homeAssistantClient.js";
 import type { ValveController } from "./core/valveManager.js";
 import { ValveManager } from "./core/valveManager.js";
@@ -36,6 +36,8 @@ import { createSettingsRouter } from "./routes/settings.js";
 import { createDatabaseRouter } from "./routes/database.js";
 import { createValvesRouter } from "./routes/valves.js";
 import { createStatusRouter } from "./routes/status.js";
+import { createCommissioningRouter } from "./routes/commissioning.js";
+import { CommissioningRunner } from "./services/commissioningRunner.js";
 import { closeAllSharedClients } from "./shared/modbus/client.js";
 
 loadConfig();
@@ -104,6 +106,7 @@ const timelineScheduler = new TimelineScheduler(valveManager, hruService, settin
 
 const mqttService = new MqttService(config.mqtt, settingsRepo, timelineScheduler, logger);
 const hruMonitor = new HruMonitor(hruService, mqttService, timelineScheduler, logger);
+const commissioningRunner = new CommissioningRunner(settingsRepo, timelineScheduler, logger);
 
 function broadcastSystemStatus() {
   const haStatus = haClient ? haClient.getConnectionState() : "offline";
@@ -121,6 +124,7 @@ const hruController = new HruController(hruService, logger);
 
 // Routes
 app.use("/api/hru", createHruRouter(hruController));
+app.use("/api/commissioning", createCommissioningRouter(commissioningRunner, hruService, logger));
 app.use("/api/timeline", createTimelineRouter(logger, timelineScheduler, hruService, mqttService));
 app.use("/api/settings", createSettingsRouter(hruService, mqttService, haClient, logger));
 app.use(
@@ -306,7 +310,7 @@ async function shutdown(signal: string) {
 
   // Force exit if graceful shutdown takes too long
   setTimeout(() => {
-    const restarting = !!(global as any).isRestarting;
+    const restarting = !!(globalThis as any).isRestarting;
     logger.error({ restarting }, "Shutdown timed out, forcing exit");
     process.exit(restarting ? 1 : 0);
   }, 3000);
@@ -351,7 +355,7 @@ async function shutdown(signal: string) {
 
   // Final definitive exit after a short delay for logs to flush
   setTimeout(() => {
-    const restarting = !!(global as any).isRestarting;
+    const restarting = !!(globalThis as any).isRestarting;
     logger.info({ restarting }, "Exiting process now");
     // Use exit code 1 for restarts to ensure Supervisor/Docker restarts the container
     process.exit(restarting ? 1 : 0);
@@ -366,7 +370,9 @@ process.on("SIGTERM", (signal) => {
   void shutdown(signal.toString());
 });
 
-void start().catch((error) => {
+try {
+  await start();
+} catch (error) {
   logger.fatal({ error }, "Failed to start backend");
   process.exit(1);
-});
+}

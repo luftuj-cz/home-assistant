@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { BackendValuesPanel } from "@luftuj/features/debug/panels/BackendValuesPanel";
 import { HomeAssistantApiPanel } from "@luftuj/features/debug/panels/HomeAssistantApiPanel";
 import { OnboardingToolsPanel } from "@luftuj/features/debug/panels/OnboardingToolsPanel";
+import { CommissioningPanel } from "@luftuj/features/debug/panels/CommissioningPanel";
 import { ServerLogsPanel } from "@luftuj/features/debug/panels/ServerLogsPanel";
 
 export function DebugPage() {
@@ -23,6 +24,7 @@ export function DebugPage() {
       label: t("debug.homeAssistantApi", { defaultValue: "Home Assistant API" }),
     },
     { value: "onboarding-tools", label: t("debug.onboardingTools") },
+    { value: "commissioning", label: t("debug.commissioning.tabLabel") },
   ];
 
   return (
@@ -66,6 +68,10 @@ export function DebugPage() {
 
           <Tabs.Panel value="onboarding-tools" pt="md">
             <OnboardingToolsPanel />
+          </Tabs.Panel>
+
+          <Tabs.Panel value="commissioning" pt="md">
+            <CommissioningPanel />
           </Tabs.Panel>
         </Tabs>
       </Stack>

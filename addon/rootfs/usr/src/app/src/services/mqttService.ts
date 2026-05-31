@@ -213,11 +213,11 @@ export class MqttService extends EventEmitter {
       const lastUnitId = savedUnitIdForId;
       const will = lastUnitId
         ? {
-          topic: `${BASE_TOPIC}/${lastUnitId}/status`,
-          payload: "offline",
-          qos: 1,
-          retain: true,
-        }
+            topic: `${BASE_TOPIC}/${lastUnitId}/status`,
+            payload: "offline",
+            qos: 1,
+            retain: true,
+          }
         : undefined;
 
       this.client = mqtt.connect({

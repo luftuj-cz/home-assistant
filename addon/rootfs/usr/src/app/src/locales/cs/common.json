@@ -374,7 +374,24 @@
     "resetDatabase": "Resetovat databázi",
     "resetDatabaseConfirm": "Opravdu chcete resetovat databázi? Veškerá nastavení, režimy a události časové osy budou smazány. Backend se restartuje.",
     "databaseResetSuccess": "Reset databáze",
-    "databaseResetSuccessMessage": "Databáze byla resetována a backend se restartuje. Stránka se znovu načte za 15 sekund."
+    "databaseResetSuccessMessage": "Databáze byla resetována a backend se restartuje. Stránka se znovu načte za 15 sekund.",
+    "commissioning": {
+      "tabLabel": "Zaregulování",
+      "title": "Zaregulování",
+      "description": "Postupně přepíná vybrané režimy a každý drží po nastavenou dobu.",
+      "start": "Spustit test",
+      "stop": "Zastavit",
+      "intervalLabel": "Interval na režim",
+      "intervalDescription": "Jak dlouho se drží každý režim (10–300 s)",
+      "modesLabel": "Režimy k otestování",
+      "selectAll": "Vybrat vše",
+      "deselectAll": "Zrušit výběr",
+      "loadingModes": "Načítání režimů…",
+      "noModes": "Žádné režimy nejsou nastaveny.",
+      "currentMode": "Aktivní režim",
+      "step": "Krok {{current}} / {{total}}",
+      "secondsRemaining": "zbývá {{seconds}} s"
+    }
   },
   "schedule": {
     "title": "Týdenní plán",
