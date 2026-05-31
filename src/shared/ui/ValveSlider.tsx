@@ -17,20 +17,20 @@ export interface ValveSliderProps {
 }
 
 export function ValveSlider({
-                              value,
-                              min,
-                              max,
-                              step,
-                              disabled = false,
-                              color,
-                              inverted = false,
-                              label,
-                              marks,
-                              size = "xl",
-                              thumbSize = 28,
-                              onChange,
-                              onChangeEnd,
-                            }: Readonly<ValveSliderProps>) {
+  value,
+  min,
+  max,
+  step,
+  disabled = false,
+  color,
+  inverted = false,
+  label,
+  marks,
+  size = "xl",
+  thumbSize = 28,
+  onChange,
+  onChangeEnd,
+}: Readonly<ValveSliderProps>) {
   return (
     <Slider
       value={value}
