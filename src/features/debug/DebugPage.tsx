@@ -1,4 +1,6 @@
-import { Container, Stack, Tabs, Text, Title } from "@mantine/core";
+import { useState } from "react";
+import { Container, Select, Stack, Tabs, Text, Title } from "@mantine/core";
+import { useMediaQuery } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
 import { BackendValuesPanel } from "@luftuj/features/debug/panels/BackendValuesPanel";
 import { HomeAssistantApiPanel } from "@luftuj/features/debug/panels/HomeAssistantApiPanel";
@@ -7,6 +9,15 @@ import { ServerLogsPanel } from "@luftuj/features/debug/panels/ServerLogsPanel";
 
 export function DebugPage() {
   const { t } = useTranslation();
+  const isMobile = useMediaQuery("(max-width: 48em)");
+  const [activeTab, setActiveTab] = useState<string>("backend-values");
+
+  const tabs = [
+    { value: "backend-values", label: t("debug.backendValues", { defaultValue: "Backend Debug Values" }) },
+    { value: "server-logs", label: t("debug.serverLogs", { defaultValue: "Server Logs" }) },
+    { value: "home-assistant-api", label: t("debug.homeAssistantApi", { defaultValue: "Home Assistant API" }) },
+    { value: "onboarding-tools", label: t("debug.onboardingTools") },
+  ];
 
   return (
     <Container size="xl">
@@ -16,19 +27,24 @@ export function DebugPage() {
           <Text c="dimmed">{t("debug.description")}</Text>
         </Stack>
 
-        <Tabs defaultValue="backend-values">
-          <Tabs.List>
-            <Tabs.Tab value="backend-values">
-              {t("debug.backendValues", { defaultValue: "Backend Debug Values" })}
-            </Tabs.Tab>
-            <Tabs.Tab value="server-logs">
-              {t("debug.serverLogs", { defaultValue: "Server Logs" })}
-            </Tabs.Tab>
-            <Tabs.Tab value="home-assistant-api">
-              {t("debug.homeAssistantApi", { defaultValue: "Home Assistant API" })}
-            </Tabs.Tab>
-            <Tabs.Tab value="onboarding-tools">{t("debug.onboardingTools")}</Tabs.Tab>
-          </Tabs.List>
+        <Tabs value={activeTab} onChange={(v) => setActiveTab(v ?? "backend-values")}>
+          {isMobile ? (
+            <Select
+              data={tabs}
+              value={activeTab}
+              onChange={(v) => setActiveTab(v ?? "backend-values")}
+              mb="md"
+              allowDeselect={false}
+            />
+          ) : (
+            <Tabs.List>
+              {tabs.map((tab) => (
+                <Tabs.Tab key={tab.value} value={tab.value}>
+                  {tab.label}
+                </Tabs.Tab>
+              ))}
+            </Tabs.List>
+          )}
 
           <Tabs.Panel value="backend-values" pt="md">
             <BackendValuesPanel />
