@@ -44,3 +44,5 @@ addon/rootfs/usr/src/app/src/**/*.js
 /.junie/
 /.windsurf/
 /.agents/
+# CocoIndex Code (ccc)
+/.cocoindex_code/
