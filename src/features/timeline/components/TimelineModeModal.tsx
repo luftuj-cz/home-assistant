@@ -32,19 +32,19 @@ interface TimelineModeModalProps {
 }
 
 export function TimelineModeModal({
-                                    opened,
-                                    mode,
-                                    valves,
-                                    saving,
-                                    onClose,
-                                    onSave,
-                                    t,
-                                    hruVariables = [],
-                                    maxPower,
-                                    existingModes = [],
-                                    nameError,
-                                    onNameChange,
-                                  }: Readonly<TimelineModeModalProps>) {
+  opened,
+  mode,
+  valves,
+  saving,
+  onClose,
+  onSave,
+  t,
+  hruVariables = [],
+  maxPower,
+  existingModes = [],
+  nameError,
+  onNameChange,
+}: Readonly<TimelineModeModalProps>) {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const form = useModeForm(opened, mode, valves);
   const [testRemainingSeconds, setTestRemainingSeconds] = useState<number | null>(null);
@@ -154,8 +154,7 @@ export function TimelineModeModal({
     if (!validateForm()) return;
     const payload = form.getPayload();
     const isDuplicate = existingModes.some(
-      (m) =>
-        m.name.toLowerCase() === (payload.name ?? "").toLowerCase() && mode?.id !== m.id,
+      (m) => m.name.toLowerCase() === (payload.name ?? "").toLowerCase() && mode?.id !== m.id,
     );
     if (isDuplicate) {
       notifications.show({
