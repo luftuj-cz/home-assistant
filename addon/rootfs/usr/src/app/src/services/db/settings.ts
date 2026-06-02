@@ -1,15 +1,16 @@
-import { db, moduleLogger, setupDatabase, statements } from "../database.js";
+import { getDatabase, getModuleLogger, getStatements, setupDatabase } from "../database.js";
 
 /**
  * Retrieves all app settings
  * @returns Record of all app settings as key-value pairs
  */
 export function getAllAppSettings(): Record<string, string> {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
-    moduleLogger?.error("Database not initialised in getAllAppSettings");
+    getModuleLogger()?.error("Database not initialised in getAllAppSettings");
     throw new Error("Database not initialised");
   }
 
@@ -26,11 +27,12 @@ export function getAllAppSettings(): Record<string, string> {
  * @returns Setting value or null if not found
  */
 export function getAppSetting(key: string): string | null {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
-    moduleLogger?.error({ key }, "Database not initialised in getAppSetting");
+    getModuleLogger()?.error({ key }, "Database not initialised in getAppSetting");
     throw new Error("Database not initialised");
   }
 
@@ -44,14 +46,15 @@ export function getAppSetting(key: string): string | null {
  * @param value - Setting value
  */
 export function setAppSetting(key: string, value: string): void {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
-    moduleLogger?.error({ key }, "Database not initialised in setAppSetting");
+    getModuleLogger()?.error({ key }, "Database not initialised in setAppSetting");
     throw new Error("Database not initialised");
   }
 
   statements.upsertSetting.run(key, value);
-  moduleLogger?.debug({ key }, "Updated app setting");
+  getModuleLogger()?.debug({ key }, "Updated app setting");
 }

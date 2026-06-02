@@ -4,6 +4,6 @@ interface TextInputFieldProps extends Omit<TextInputProps, "error"> {
   error?: string | null;
 }
 
-export function TextInputField({ error, ...rest }: TextInputFieldProps) {
+export function TextInputField({ error, ...rest }: Readonly<TextInputFieldProps>) {
   return <TextInput error={error ?? undefined} {...rest} />;
 }

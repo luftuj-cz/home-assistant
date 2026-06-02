@@ -5,6 +5,13 @@ import { useTranslation } from "react-i18next";
 import { IconPlayerStop, IconRefresh, IconTrash } from "@tabler/icons-react";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
 
+async function loadDebugSnapshot(): Promise<void> {
+  const response = await fetch(resolveApiUrl("/api/debug"), { cache: "no-cache" });
+  if (!response.ok) {
+    console.error("Failed to reload debug snapshot");
+  }
+}
+
 export function OnboardingToolsPanel() {
   const { t } = useTranslation();
   const [discoveryRefreshing, setDiscoveryRefreshing] = useState(false);
@@ -12,13 +19,6 @@ export function OnboardingToolsPanel() {
   const [overrideStopping, setOverrideStopping] = useState(false);
   const [schedulerRestarting, setSchedulerRestarting] = useState(false);
   const [databaseResetting, setDatabaseResetting] = useState(false);
-
-  async function loadDebugSnapshot(): Promise<void> {
-    const response = await fetch(resolveApiUrl("/api/debug"), { cache: "no-cache" });
-    if (!response.ok) {
-      console.error("Failed to reload debug snapshot");
-    }
-  }
 
   async function refreshMqttDiscovery(): Promise<void> {
     setDiscoveryRefreshing(true);
@@ -102,7 +102,7 @@ export function OnboardingToolsPanel() {
   }
 
   async function resetDatabase(): Promise<void> {
-    if (!window.confirm(t("debug.resetDatabaseConfirm"))) {
+    if (!globalThis.confirm(t("debug.resetDatabaseConfirm"))) {
       return;
     }
 
@@ -120,7 +120,7 @@ export function OnboardingToolsPanel() {
         });
 
         setTimeout(() => {
-          window.location.reload();
+          globalThis.location.reload();
         }, 15000);
       } else {
         const detail = (await response.text()).trim();
@@ -198,7 +198,7 @@ export function OnboardingToolsPanel() {
             await fetch(resolveApiUrl("/api/settings/onboarding-reset"), {
               method: "POST",
             });
-            window.location.reload();
+            globalThis.location.reload();
           }}
         >
           {t("debug.resetOnboarding")}

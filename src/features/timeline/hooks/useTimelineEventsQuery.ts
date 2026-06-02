@@ -1,8 +1,8 @@
 import { useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
-import type { TimelineEvent, Mode } from "@luftuj/shared/types/timeline";
+import type { Mode, TimelineEvent } from "@luftuj/shared/types/timeline";
 import * as api from "@luftuj/features/timeline/api";
 import { createLogger } from "@luftuj/shared/utils/logger";
 import { translateApiError } from "@luftuj/shared/utils/apiError";
@@ -30,10 +30,10 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string) {
         modes.find((m) => m.id?.toString() === event.hruConfig?.mode?.toString()) ?? null;
       const mergedHruConfig = {
         ...event.hruConfig,
-        ...(selectedMode?.power !== undefined ? { power: selectedMode.power } : {}),
-        ...(selectedMode?.temperature !== undefined
-          ? { temperature: selectedMode.temperature }
-          : {}),
+        ...(selectedMode?.power === undefined ? {} : { power: selectedMode.power }),
+        ...(selectedMode?.temperature === undefined
+          ? {}
+          : { temperature: selectedMode.temperature }),
       };
       const mergedLuftatorConfig = selectedMode?.luftatorConfig ?? event.luftatorConfig ?? null;
 

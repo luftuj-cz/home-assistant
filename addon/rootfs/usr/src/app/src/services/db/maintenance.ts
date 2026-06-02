@@ -2,12 +2,12 @@ import { copyFileSync, existsSync, promises as fsp } from "node:fs";
 import type { Logger } from "pino";
 import {
   closeDatabase,
-  db,
+  getDatabase,
   getDatabasePath,
-  moduleLogger,
+  getModuleLogger,
+  getStatements,
   setStopping,
   setupDatabase,
-  statements,
 } from "../database.js";
 
 /**
@@ -22,7 +22,7 @@ export async function createDatabaseBackup(): Promise<string | null> {
 
   const backupPath = `${sourcePath}.${Date.now()}.bak`;
   copyFileSync(sourcePath, backupPath);
-  moduleLogger?.info({ backupPath }, "Created database backup");
+  getModuleLogger()?.info({ backupPath }, "Created database backup");
   return backupPath;
 }
 
@@ -85,14 +85,14 @@ export async function resetDatabase(logger?: Logger): Promise<void> {
  * @param logger - Optional logger instance
  */
 export function checkpointDatabase(logger?: Logger): void {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase(logger);
   }
-  if (!db) {
+  if (!getDatabase()) {
     logger?.error("Database not initialised");
     throw new Error("Database not initialised");
   }
 
-  db.exec("PRAGMA wal_checkpoint(TRUNCATE);");
+  getDatabase()!.exec("PRAGMA wal_checkpoint(TRUNCATE);");
   logger?.debug("Database WAL checkpoint completed");
 }

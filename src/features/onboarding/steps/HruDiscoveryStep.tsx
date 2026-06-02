@@ -71,25 +71,32 @@ export function HruDiscoveryStep() {
     nextStep();
   }
 
+  let unitSelectContent;
+  if (unitsQuery.isLoading) {
+    unitSelectContent = (
+      <Center p="xl">
+        <Loader />
+      </Center>
+    );
+  } else if (unitsQuery.isError) {
+    unitSelectContent = <Alert color="red">{t("onboarding.unit.loadFailed")}</Alert>;
+  } else {
+    unitSelectContent = (
+      <Select
+        label={t("onboarding.unit.modelLabel")}
+        placeholder={t("onboarding.unit.modelPlaceholder")}
+        data={unitsQuery.data?.map((u) => ({ value: u.id, label: u.name })) || []}
+        value={selectedUnit}
+        onChange={setSelectedUnit}
+        searchable
+      />
+    );
+  }
+
   return (
     <Stack gap="md" py="lg">
       <Text fw={500}>{t("onboarding.unit.title")}</Text>
-      {unitsQuery.isLoading ? (
-        <Center p="xl">
-          <Loader />
-        </Center>
-      ) : unitsQuery.isError ? (
-        <Alert color="red">{t("onboarding.unit.loadFailed")}</Alert>
-      ) : (
-        <Select
-          label={t("onboarding.unit.modelLabel")}
-          placeholder={t("onboarding.unit.modelPlaceholder")}
-          data={unitsQuery.data?.map((u) => ({ value: u.id, label: u.name })) || []}
-          value={selectedUnit}
-          onChange={setSelectedUnit}
-          searchable
-        />
-      )}
+      {unitSelectContent}
       <Text size="sm" c="dimmed">
         {t("onboarding.unit.hint")}
       </Text>

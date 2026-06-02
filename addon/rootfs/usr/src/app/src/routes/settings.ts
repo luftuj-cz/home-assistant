@@ -1,44 +1,44 @@
+import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
-import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
 import { getAppSetting, setAppSetting } from "../services/database.js";
 import type { HomeAssistantClient } from "../services/homeAssistantClient.js";
 import type { MqttService } from "../services/mqttService.js";
 import {
-  HRU_SETTINGS_KEY,
   ADDON_MODE_KEY,
   ADDON_MODES,
   type AddonMode,
-  THEME_SETTING_KEY,
-  LANGUAGE_SETTING_KEY,
   DEBUG_MODE_KEY,
-  LOG_LEVEL_KEY,
-  ONBOARDING_DONE_KEY,
+  HRU_SETTINGS_KEY,
   type HruSettings,
+  LANGUAGE_SETTING_KEY,
+  LOG_LEVEL_KEY,
+  type LogLevel,
   MQTT_SETTINGS_KEY,
   type MqttSettings,
+  ONBOARDING_DONE_KEY,
+  THEME_SETTING_KEY,
   VALID_LOG_LEVELS,
-  type LogLevel,
 } from "../types/index.js";
 import {
-  addonModeInputSchema,
-  hruSettingsInputSchema,
-  languageSettingInputSchema,
-  mqttSettingsInputSchema,
-  mqttTestInputSchema,
-  themeSettingInputSchema,
-  debugModeInputSchema,
-  logLevelInputSchema,
-  type HruSettingsInput,
-  type MqttSettingsInput,
-  type MqttTestInput,
   type AddonModeInput,
-  type ThemeSettingInput,
-  type LanguageSettingInput,
+  addonModeInputSchema,
   type DebugModeInput,
+  debugModeInputSchema,
+  type HruSettingsInput,
+  hruSettingsInputSchema,
+  type LanguageSettingInput,
+  languageSettingInputSchema,
   type LogLevelInput,
+  logLevelInputSchema,
+  type MqttSettingsInput,
+  mqttSettingsInputSchema,
+  type MqttTestInput,
+  mqttTestInputSchema,
+  type ThemeSettingInput,
+  themeSettingInputSchema,
 } from "../schemas/settings.js";
-import type { HruService } from "../features/hru/hru.service.js";
+import type { HruService, HruUnitDefinition } from "../features/hru/hru.service.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import {
   ApiError,
@@ -46,6 +46,44 @@ import {
   BadRequestError,
   ServiceUnavailableError,
 } from "../shared/errors/apiErrors.js";
+
+function validateHruMaxPower(
+  selectedUnit: HruUnitDefinition,
+  maxPower: number | undefined,
+  requestBody: HruSettingsInput,
+  logger: Logger,
+): BadRequestError | null {
+  const powerVar = selectedUnit.variables.find((v) => v.class === "power");
+  const isConfigurable = powerVar?.maxConfigurable ?? false;
+  const unitMaxValue = powerVar?.max;
+  const defaultValue = powerVar?.maxDefault ?? unitMaxValue;
+  const controlUnit =
+    typeof powerVar?.unit === "string" ? powerVar.unit : (powerVar?.unit?.text ?? "");
+
+  if (isConfigurable && maxPower === undefined) {
+    logger.warn({ unit: selectedUnit.id }, "Attempted to set configurable HRU without maxPower");
+    return new BadRequestError("Max power is required for the selected unit", "MAX_POWER_REQUIRED");
+  }
+
+  if (maxPower !== undefined && unitMaxValue !== undefined && maxPower > unitMaxValue) {
+    logger.warn({ maxPower, unitMaxValue }, "Attempted to set maxPower higher than unit allows");
+    return new BadRequestError(
+      `Maximum power cannot exceed ${unitMaxValue} ${controlUnit}. The selected unit supports a maximum of ${unitMaxValue}.`,
+      "MAX_POWER_EXCEEDED",
+    );
+  }
+
+  // Normalize undefined to default when unit provides one
+  if (isConfigurable && maxPower === undefined && defaultValue !== undefined) {
+    requestBody.maxPower = defaultValue;
+  }
+
+  return null;
+}
+
+function isTruthy(val: string | null): boolean {
+  return val === "true" || val === "1" || val === "yes";
+}
 
 export function createSettingsRouter(
   hruService: HruService,
@@ -56,10 +94,6 @@ export function createSettingsRouter(
   const router = Router();
 
   router.get("/onboarding-status", async (_request: Request, response: Response) => {
-    function isTruthy(val: string | null) {
-      return val === "true" || val === "1" || val === "yes";
-    }
-
     const hruSettings = getAppSetting(HRU_SETTINGS_KEY);
     const hruConfigured = !!(hruSettings && JSON.parse(String(hruSettings)).unit);
 
@@ -280,47 +314,19 @@ export function createSettingsRouter(
 
         // Validate maxPower against unit's actual maximum
         const selectedUnit =
-          resolvedUnit !== null
-            ? hruService.getAllUnits().find((u) => u.id === resolvedUnit)
-            : undefined;
+          resolvedUnit === null
+            ? undefined
+            : hruService.getAllUnits().find((u) => u.id === resolvedUnit);
 
         if (selectedUnit) {
-          const powerVar = selectedUnit.variables.find((v) => v.class === "power");
-          const isConfigurable = powerVar?.maxConfigurable ?? false;
-          const unitMaxValue = powerVar?.max;
-          const defaultValue = powerVar?.maxDefault ?? unitMaxValue;
-          const controlUnit =
-            typeof powerVar?.unit === "string" ? powerVar.unit : (powerVar?.unit?.text ?? "");
-
-          if (isConfigurable && maxPower === undefined) {
-            logger.warn(
-              { unit: resolvedUnit },
-              "Attempted to set configurable HRU without maxPower",
-            );
-            return next(
-              new BadRequestError(
-                "Max power is required for the selected unit",
-                "MAX_POWER_REQUIRED",
-              ),
-            );
-          }
-
-          if (maxPower !== undefined && unitMaxValue !== undefined && maxPower > unitMaxValue) {
-            logger.warn(
-              { maxPower, unitMaxValue },
-              "Attempted to set maxPower higher than unit allows",
-            );
-            return next(
-              new BadRequestError(
-                `Maximum power cannot exceed ${unitMaxValue} ${controlUnit}. The selected unit supports a maximum of ${unitMaxValue}.`,
-                "MAX_POWER_EXCEEDED",
-              ),
-            );
-          }
-
-          // Normalize undefined to default when unit provides one
-          if (isConfigurable && maxPower === undefined && defaultValue !== undefined) {
-            request.body.maxPower = defaultValue;
+          const powerValidationError = validateHruMaxPower(
+            selectedUnit,
+            maxPower,
+            request.body,
+            logger,
+          );
+          if (powerValidationError) {
+            return next(powerValidationError);
           }
         }
 

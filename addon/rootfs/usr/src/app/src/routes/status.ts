@@ -1,8 +1,8 @@
+import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
-import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
-import fs from "fs";
-import net from "net";
+import fs from "node:fs";
+import net from "node:net";
 import type { ValveController } from "../core/valveManager.js";
 import { isValveAvailable } from "../core/valveAvailability.js";
 import type { HomeAssistantClient } from "../services/homeAssistantClient.js";
@@ -36,6 +36,15 @@ function formatDuration(totalSeconds: number): string {
   parts.push(`${seconds}s`);
 
   return parts.join(" ");
+}
+
+function loadSavedHruSettings(): HruSettings | null {
+  try {
+    const raw = getAppSetting(HRU_SETTINGS_KEY);
+    return raw ? (JSON.parse(String(raw)) as HruSettings) : null;
+  } catch {
+    return null;
+  }
 }
 
 function parseSettings(settings: Record<string, string>): Record<string, unknown> {
@@ -118,6 +127,7 @@ export function createStatusRouter(
     await new Promise<void>((resolve, reject) => {
       const socket = new net.Socket();
       let done = false;
+
       function finalize(error?: Error) {
         if (done) return;
         done = true;
@@ -131,6 +141,7 @@ export function createStatusRouter(
         if (error) reject(error);
         else resolve();
       }
+
       socket.setTimeout(timeoutMs);
       socket.once("error", (error) => finalize(error));
       socket.once("timeout", () => finalize(new Error("timeout")));
@@ -156,13 +167,7 @@ export function createStatusRouter(
         const hostQ = query.host;
         const portQ = query.port;
 
-        let savedSettings: HruSettings | null;
-        try {
-          const raw = getAppSetting(HRU_SETTINGS_KEY);
-          savedSettings = raw ? (JSON.parse(String(raw)) as HruSettings) : null;
-        } catch {
-          savedSettings = null;
-        }
+        const savedSettings = loadSavedHruSettings();
 
         const host = hostQ || savedSettings?.host || "localhost";
         const port = portQ ? Number(portQ) : (savedSettings?.port ?? 502);
@@ -265,7 +270,7 @@ export function createStatusRouter(
             lastDiscovery: mqttService.getLastDiscoveryTime(),
             lastSuccessAtMs: mqttLastSuccessAtMs,
             lastSuccessAt:
-              mqttLastSuccessAtMs !== null ? new Date(mqttLastSuccessAtMs).toISOString() : null,
+              mqttLastSuccessAtMs === null ? null : new Date(mqttLastSuccessAtMs).toISOString(),
           },
           timeline: {
             activeState: timelineState,

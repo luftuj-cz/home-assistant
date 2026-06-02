@@ -1,30 +1,30 @@
 import {
   Badge,
+  Box,
   Card,
+  Center,
+  ColorSwatch,
   Group,
   RingProgress,
   SimpleGrid,
   Stack,
   Text,
-  Title,
   ThemeIcon,
-  Center,
-  Box,
-  ColorSwatch,
+  Title,
 } from "@mantine/core";
 import {
-  IconFlame,
-  IconThermometer,
-  IconCheck,
-  IconSettings,
-  IconRefresh,
   IconAlertCircle,
-  IconWind,
+  IconCheck,
   IconEye,
+  IconFlame,
+  IconRefresh,
+  IconSettings,
+  IconThermometer,
+  IconWind,
 } from "@tabler/icons-react";
 import type {
-  HruState,
   ActiveMode,
+  HruState,
   HruVariable,
   LocalizedText,
 } from "@luftuj/features/dashboard/types";
@@ -44,7 +44,7 @@ export function HruStatusCard({
   t,
   activeMode,
   configuredMaxPower,
-}: HruStatusCardProps) {
+}: Readonly<HruStatusCardProps>) {
   const title = t("dashboard.hruStatusTitle", { defaultValue: "HRU live values" });
   const displayTitle = hruName ? `${hruName}` : title;
 
@@ -151,12 +151,14 @@ export function HruStatusCard({
       variable.class === "power" && variable.maxConfigurable && configuredMaxPower != null
         ? configuredMaxPower
         : undefined;
-    const max =
-      typeof maxFromConfig === "number"
-        ? maxFromConfig
-        : typeof variable.max === "number"
-          ? variable.max
-          : 100;
+    let max: number;
+    if (typeof maxFromConfig === "number") {
+      max = maxFromConfig;
+    } else if (typeof variable.max === "number") {
+      max = variable.max;
+    } else {
+      max = 100;
+    }
     const percentage = Math.min(100, Math.max(0, (val / max) * 100));
     const unit = variable.unit ? getLocalizedText(variable.unit) : "%";
 
@@ -243,6 +245,17 @@ export function HruStatusCard({
     const modeRaw = modeVar ? values[modeVar.name] : undefined;
     const modeValue = resolveDisplayValue(modeVar, modeDisplay, modeRaw);
 
+    let activeModeLabel = t("dashboard.activeMode.schedule", {
+      name: getModeText(activeMode?.modeName || modeValue),
+    });
+    if (activeMode?.source === "manual") {
+      activeModeLabel = t("dashboard.activeMode.manual");
+    } else if (activeMode?.source === "boost") {
+      activeModeLabel = t("dashboard.activeMode.boost", {
+        name: getModeText(activeMode.modeName || modeValue),
+      });
+    }
+
     return (
       <Card shadow="none" withBorder radius="md" p="md" variant="light" style={{ height: "100%" }}>
         <Center h="100%" mih={160}>
@@ -266,15 +279,7 @@ export function HruStatusCard({
                       whiteSpace: "nowrap",
                     }}
                   >
-                    {activeMode.source === "manual"
-                      ? t("dashboard.activeMode.manual")
-                      : activeMode.source === "boost"
-                        ? t("dashboard.activeMode.boost", {
-                            name: getModeText(activeMode.modeName || modeValue),
-                          })
-                        : t("dashboard.activeMode.schedule", {
-                            name: getModeText(activeMode.modeName || modeValue),
-                          })}
+                    {activeModeLabel}
                   </Box>
                 </Title>
                 {modeVar && (

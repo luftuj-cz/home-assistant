@@ -1,13 +1,13 @@
 import {
   createContext,
+  type ReactNode,
+  type RefObject,
+  useCallback,
   useContext,
-  useState,
-  useRef,
   useEffect,
   useMemo,
-  useCallback,
-  type RefObject,
-  type ReactNode,
+  useRef,
+  useState,
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -126,7 +126,7 @@ interface OnboardingWizardProps {
   children: ReactNode;
 }
 
-export function OnboardingWizard({ children }: OnboardingWizardProps) {
+export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) {
   const { t, i18n } = useTranslation();
   const { colorScheme } = useMantineColorScheme();
   const navigate = useNavigate();
@@ -135,7 +135,7 @@ export function OnboardingWizard({ children }: OnboardingWizardProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedLanguage, setSelectedLanguage] = useState(i18n.language);
   const [selectedTheme, setSelectedTheme] = useState<"light" | "dark">(
-    colorScheme === "auto" ? "dark" : (colorScheme as "light" | "dark"),
+    colorScheme === "auto" ? "dark" : colorScheme,
   );
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [maxPower, setMaxPower] = useState<number | undefined>(undefined);
@@ -428,46 +428,82 @@ export function OnboardingWizard({ children }: OnboardingWizardProps) {
     setCurrentStep(prev);
   }, [currentStep]);
 
-  const ctx: StepsContextValue = {
-    currentStep,
-    totalSteps,
-    nextStep,
-    prevStep,
-    setStep: setCurrentStep,
-    selectedUnit,
-    setSelectedUnit,
-    maxPower,
-    setMaxPower,
-    fullUnits,
-    selectedUnitDef,
-    requiresMaxPower,
-    defaultMaxPower,
-    powerVariable,
-    isDemoUnit,
-    modbusForm,
-    mqttForm,
-    selectedLanguage,
-    setSelectedLanguage,
-    selectedTheme,
-    setSelectedTheme,
-    modbusSchema,
-    mqttSchema,
-    modbusMutation: saveHruMutation as ReturnType<typeof useMutation<unknown, Error, ModbusForm>>,
-    mqttMutation: saveMqttMutation as ReturnType<typeof useMutation<unknown, Error, MqttForm>>,
-    testMqttMutation: testMqttMutation as ReturnType<typeof useMutation<unknown, Error, MqttForm>>,
-    testModbusMutation: testModbusMutation as ReturnType<
-      typeof useMutation<unknown, Error, ModbusForm>
-    >,
-    saveHruMutation,
-    saveLanguageMutation,
-    saveThemeMutation,
-    finishMutation,
-    importDbMutation,
-    unitsQuery,
-    systemInfoQuery,
-    statusQuery,
-    importInputRef,
-  };
+  const ctx = useMemo<StepsContextValue>(
+    () => ({
+      currentStep,
+      totalSteps,
+      nextStep,
+      prevStep,
+      setStep: setCurrentStep,
+      selectedUnit,
+      setSelectedUnit,
+      maxPower,
+      setMaxPower,
+      fullUnits,
+      selectedUnitDef,
+      requiresMaxPower,
+      defaultMaxPower,
+      powerVariable,
+      isDemoUnit,
+      modbusForm,
+      mqttForm,
+      selectedLanguage,
+      setSelectedLanguage,
+      selectedTheme,
+      setSelectedTheme,
+      modbusSchema,
+      mqttSchema,
+      modbusMutation: saveHruMutation as ReturnType<typeof useMutation<unknown, Error, ModbusForm>>,
+      mqttMutation: saveMqttMutation,
+      testMqttMutation: testMqttMutation as ReturnType<
+        typeof useMutation<unknown, Error, MqttForm>
+      >,
+      testModbusMutation: testModbusMutation as ReturnType<
+        typeof useMutation<unknown, Error, ModbusForm>
+      >,
+      saveHruMutation,
+      saveLanguageMutation,
+      saveThemeMutation,
+      finishMutation,
+      importDbMutation,
+      unitsQuery,
+      systemInfoQuery,
+      statusQuery,
+      importInputRef,
+    }),
+    [
+      currentStep,
+      totalSteps,
+      nextStep,
+      prevStep,
+      selectedUnit,
+      maxPower,
+      fullUnits,
+      selectedUnitDef,
+      requiresMaxPower,
+      defaultMaxPower,
+      powerVariable,
+      isDemoUnit,
+      modbusForm,
+      mqttForm,
+      selectedLanguage,
+      selectedTheme,
+      modbusSchema,
+      mqttSchema,
+      saveHruMutation,
+      saveMqttMutation,
+      testMqttMutation,
+      testModbusMutation,
+      saveLanguageMutation,
+      saveThemeMutation,
+      finishMutation,
+      importDbMutation,
+      unitsQuery,
+      systemInfoQuery,
+      statusQuery,
+      importInputRef,
+    ],
+  );
 
   return <StepsContext.Provider value={ctx}>{children}</StepsContext.Provider>;
 }

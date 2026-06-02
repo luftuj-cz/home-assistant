@@ -1,6 +1,6 @@
-import { readFileSync, writeFileSync } from "fs";
-import { join, dirname } from "path";
-import { fileURLToPath } from "url";
+import { readFileSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const args = process.argv.slice(2);
 
@@ -8,13 +8,13 @@ const args = process.argv.slice(2);
 let releaseType = "stable"; // default
 let newVersion = null;
 
-for (let i = 0; i < args.length; i++) {
-  if (args[i] === "--dev") {
+for (const element of args) {
+  if (element === "--dev") {
     releaseType = "dev";
-  } else if (args[i] === "--stable") {
+  } else if (element === "--stable") {
     releaseType = "stable";
-  } else if (!args[i].startsWith("--")) {
-    newVersion = args[i];
+  } else if (!element.startsWith("--")) {
+    newVersion = element;
   }
 }
 

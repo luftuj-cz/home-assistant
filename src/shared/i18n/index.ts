@@ -30,33 +30,32 @@ export function isSupportedLanguage(language: string): language is SupportedLang
   return Object.prototype.hasOwnProperty.call(resources, language);
 }
 
-void i18n
-  .use(initReactI18next)
-  .init({
+try {
+  await i18n.use(initReactI18next).init({
     resources,
     fallbackLng: "cs",
     defaultNS: "common",
     interpolation: {
       escapeValue: false,
     },
-  })
-  .catch((error) => {
-    logger.error("Failed to initialize i18n", { error });
-    if (typeof window !== "undefined") {
-      notifications.show({
-        title: i18n.t("errors.i18n.title"),
-        message: i18n.t("errors.i18n.message"),
-        color: "red",
-      });
-    }
   });
+} catch (error) {
+  logger.error("Failed to initialize i18n", { error });
+  if (globalThis.window !== undefined) {
+    notifications.show({
+      title: i18n.t("errors.i18n.title"),
+      message: i18n.t("errors.i18n.message"),
+      color: "red",
+    });
+  }
+}
 
 export async function setLanguage(language: string) {
   const target = isSupportedLanguage(language) ? language : "en";
   await i18n.changeLanguage(target);
   try {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("luftujha-language", target);
+    if (globalThis.window !== undefined) {
+      globalThis.localStorage.setItem("luftujha-language", target);
     }
   } catch (error) {
     logger.error("Failed to set language in localStorage:", { error });
@@ -64,10 +63,10 @@ export async function setLanguage(language: string) {
 }
 
 export function getInitialLanguage() {
-  if (typeof window === "undefined") {
+  if (globalThis.window === undefined) {
     return "cs";
   }
-  const stored = window.localStorage.getItem("luftujha-language");
+  const stored = globalThis.localStorage.getItem("luftujha-language");
   if (stored && isSupportedLanguage(stored)) {
     return stored;
   }

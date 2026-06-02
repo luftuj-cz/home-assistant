@@ -1,5 +1,5 @@
-import pino from "pino";
 import type { Logger } from "pino";
+import pino from "pino";
 
 export type ServerLogEntry = {
   timestamp: string;
@@ -49,10 +49,10 @@ function bufferServerLog(level: number | string, args: unknown[]): void {
 
   for (const arg of args) {
     if (typeof arg === "string") {
-      if (!message) {
-        message = arg;
-      } else {
+      if (message) {
         contextParts.push(arg);
+      } else {
+        message = arg;
       }
       continue;
     }
@@ -65,7 +65,8 @@ function bufferServerLog(level: number | string, args: unknown[]): void {
   }
 
   const context = contextParts.join(" ");
-  const line = `[${timestamp}] ${levelLabel.toUpperCase()} ${message}${context ? ` ${context}` : ""}`;
+  const contextSuffix = context ? ` ${context}` : "";
+  const line = `[${timestamp}] ${levelLabel.toUpperCase()} ${message}${contextSuffix}`;
   bufferedServerLogs.push({
     timestamp,
     level: levelLabel,

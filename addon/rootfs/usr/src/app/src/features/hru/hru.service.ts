@@ -4,11 +4,7 @@ import type { SettingsRepository } from "../settings/settings.repository.js";
 import type { Logger } from "pino";
 import { HruLoader } from "./hru.loader.js";
 import { type HeatRecoveryUnit, type HruVariable } from "./hru.definitions.js";
-import {
-  BadRequestError,
-  HruConnectionError,
-  HruNotConfiguredError,
-} from "../../shared/errors/apiErrors.js";
+import { BadRequestError, HruConnectionError, HruNotConfiguredError } from "../../shared/errors/apiErrors.js";
 import { resolveModeValue } from "../../utils/hruWrite.js";
 import { getDemoState, setDemoState } from "../../services/demoState.js";
 
@@ -229,11 +225,11 @@ export class HruService {
       storedSettings?.unit === unit.code
         ? storedSettings
         : {
-            unit: unit.code,
-            host: "",
-            port: 502,
-            unitId: 1,
-          };
+          unit: unit.code,
+          host: "",
+          port: 502,
+          unitId: 1,
+        };
 
     return { settings, unit };
   }

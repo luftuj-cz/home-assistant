@@ -103,7 +103,7 @@ function StepIndicator() {
         const isCompleted = currentStep > idx;
         const Icon = step.icon;
         return (
-          <Group key={idx} gap="sm">
+          <Group key={step.labelKey} gap="sm">
             <ThemeIcon
               size={42}
               radius="xl"

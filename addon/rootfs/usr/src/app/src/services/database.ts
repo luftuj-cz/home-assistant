@@ -55,7 +55,11 @@ export interface Migration {
   statements: string[];
 }
 
-export let db: DatabaseType | null = null;
+let db: DatabaseType | null = null;
+
+export function getDatabase(): DatabaseType | null {
+  return db;
+}
 
 export type StatementMap = {
   upsertController: Statement;
@@ -75,9 +79,17 @@ export type StatementMap = {
   getTimelineMode: Statement;
 };
 
-export let moduleLogger: Logger | null = null;
-export let statements: StatementMap | null = null;
-export let isStopping = false;
+let moduleLogger: Logger | null = null;
+let statements: StatementMap | null = null;
+let isStopping = false;
+
+export function getModuleLogger(): Logger | null {
+  return moduleLogger;
+}
+
+export function getStatements(): StatementMap | null {
+  return statements;
+}
 
 let isInitializing = false;
 

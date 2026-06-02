@@ -1,6 +1,6 @@
 import { Group, Stack, Text, ThemeIcon, Title } from "@mantine/core";
 import type { ReactNode } from "react";
-import { statusToColor, type StatusKind } from "@luftuj/shared/ui/types";
+import { type StatusKind, statusToColor } from "@luftuj/shared/ui/types";
 
 interface CardHeaderProps {
   icon?: ReactNode;
@@ -18,7 +18,7 @@ export function CardHeader({
   status = "neutral",
   rightSection,
   titleOrder = 4,
-}: CardHeaderProps) {
+}: Readonly<CardHeaderProps>) {
   const color = statusToColor(status);
   return (
     <Group justify="space-between" align="flex-start" wrap="nowrap">

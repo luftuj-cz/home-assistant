@@ -14,7 +14,9 @@ function buildUrl(path: string, query?: RequestOptions["query"]): string {
     if (value !== undefined) params.set(key, String(value));
   }
   const qs = params.toString();
-  return qs ? `${url}${url.includes("?") ? "&" : "?"}${qs}` : url;
+  if (!qs) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}${qs}`;
 }
 
 async function request<T>(method: string, path: string, options: RequestOptions = {}): Promise<T> {
@@ -22,7 +24,7 @@ async function request<T>(method: string, path: string, options: RequestOptions 
   const init: RequestInit = {
     method,
     headers: {
-      ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       ...headers,
     },
     ...rest,

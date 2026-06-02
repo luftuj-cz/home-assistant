@@ -24,7 +24,7 @@ export function FormModal({
   size = "lg",
   centered = true,
   ...rest
-}: FormModalProps) {
+}: Readonly<FormModalProps>) {
   const body = (
     <Stack gap="md">
       {children}

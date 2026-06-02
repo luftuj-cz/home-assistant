@@ -64,6 +64,7 @@ export function useSystemStatus(): SystemStatus {
         setHaLoading(false);
       }
     }
+
     void load();
     const id = setInterval(load, 5000);
     return () => {
@@ -90,11 +91,12 @@ export function useSystemStatus(): SystemStatus {
             ws.removeEventListener("open", closer);
             ws.close(1000, "cleanup");
           }
+
           ws.addEventListener("open", closer);
         }
       }
       if (reconnectRef.current !== null) {
-        window.clearTimeout(reconnectRef.current);
+        globalThis.clearTimeout(reconnectRef.current);
         reconnectRef.current = null;
       }
     }
@@ -134,7 +136,7 @@ export function useSystemStatus(): SystemStatus {
 
     function onClose() {
       if (stopped || reconnectRef.current !== null) return;
-      reconnectRef.current = window.setTimeout(() => {
+      reconnectRef.current = globalThis.setTimeout(() => {
         reconnectRef.current = null;
         connect();
       }, 2000);

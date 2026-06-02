@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { notifications } from "@mantine/notifications";
-import { Stack, Text, Button } from "@mantine/core";
+import { Button, Stack, Text } from "@mantine/core";
 import type { TFunction } from "i18next";
 import { IconCopy } from "@tabler/icons-react";
 import type { TimelineEvent } from "@luftuj/shared/types/timeline";
@@ -18,7 +18,9 @@ export function useDayCopyPaste(
   const [copyDay, setCopyDay] = useState<number | null>(null);
 
   useEffect(() => {
-    if (copyDay !== null) {
+    if (copyDay === null) {
+      notifications.hide("copy-hint");
+    } else {
       const message = (
         <Stack gap="xs">
           <Text size="xs">{t("settings.timeline.copyHint")}</Text>
@@ -46,8 +48,6 @@ export function useDayCopyPaste(
         color: "blue",
         loading: true,
       });
-    } else {
-      notifications.hide("copy-hint");
     }
   }, [copyDay, dayLabels, t]);
 

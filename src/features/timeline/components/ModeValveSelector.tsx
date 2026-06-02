@@ -22,7 +22,7 @@ export function ModeValveSelector({
   onChange,
   showCopyButton,
   t,
-}: ModeValveSelectorProps) {
+}: Readonly<ModeValveSelectorProps>) {
   if (valves.length === 0) return null;
 
   const allClosed = valves.every((v) => {

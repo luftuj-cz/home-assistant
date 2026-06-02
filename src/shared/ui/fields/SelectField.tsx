@@ -4,6 +4,6 @@ interface SelectFieldProps extends Omit<SelectProps, "error"> {
   error?: string | null;
 }
 
-export function SelectField({ error, ...rest }: SelectFieldProps) {
+export function SelectField({ error, ...rest }: Readonly<SelectFieldProps>) {
   return <Select error={error ?? undefined} {...rest} />;
 }

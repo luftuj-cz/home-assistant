@@ -1,15 +1,15 @@
-import { getAppSetting, setAppSetting, getTimelineModes } from "../../services/database.js";
+import { getAppSetting, getTimelineModes, setAppSetting } from "../../services/database.js";
 import {
-  HRU_SETTINGS_KEY,
-  LANGUAGE_SETTING_KEY,
-  MQTT_SETTINGS_KEY,
-  MQTT_LAST_DISCOVERY_KEY,
-  MQTT_DISCOVERED_BOOSTS_KEY,
-  MQTT_LAST_UNIT_ID_KEY,
-  TIMELINE_OVERRIDE_KEY,
   BOOST_DURATION_KEY,
+  HRU_SETTINGS_KEY,
   type HruSettings,
+  LANGUAGE_SETTING_KEY,
+  MQTT_DISCOVERED_BOOSTS_KEY,
+  MQTT_LAST_DISCOVERY_KEY,
+  MQTT_LAST_UNIT_ID_KEY,
+  MQTT_SETTINGS_KEY,
   type MqttSettings,
+  TIMELINE_OVERRIDE_KEY,
   type TimelineMode,
   type TimelineOverride,
 } from "../../types/index.js";
@@ -51,7 +51,7 @@ export class SettingsRepository {
   getBoostDuration(): number {
     try {
       const raw = getAppSetting(BOOST_DURATION_KEY);
-      return raw ? parseInt(String(raw), 10) : 30;
+      return raw ? Number.parseInt(String(raw), 10) : 30;
     } catch (err) {
       this.logger.error({ err }, "Failed to get boost duration");
       return 30;

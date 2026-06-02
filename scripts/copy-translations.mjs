@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.resolve(scriptDir, "..");
 const srcLocalesDir = path.join(rootDir, "src", "shared", "i18n", "locales");
@@ -41,4 +42,4 @@ async function main() {
   }
 }
 
-void main();
+await main();

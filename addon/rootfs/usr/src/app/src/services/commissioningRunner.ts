@@ -66,7 +66,11 @@ export class CommissioningRunner {
     this.runId++;
     this.clearTimer();
     this.running = false;
-    await this.restoreScheduledStateOrThrow();
+    try {
+      await this.restoreScheduledStateOrThrow();
+    } catch (err) {
+      this.logger.error({ err }, "CommissioningRunner: failed to restore scheduled state");
+    }
     this.logger.info("CommissioningRunner: Commissioning run stopped");
   }
 

@@ -7,7 +7,7 @@ interface LoadingStateProps {
   size?: "xs" | "sm" | "md" | "lg" | "xl";
 }
 
-export function LoadingState({ label, minHeight = 180, size = "md" }: LoadingStateProps) {
+export function LoadingState({ label, minHeight = 180, size = "md" }: Readonly<LoadingStateProps>) {
   return (
     <Center mih={minHeight}>
       <Stack align="center" gap="xs">

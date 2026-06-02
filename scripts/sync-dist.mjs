@@ -1,7 +1,7 @@
-import { access, cp, mkdir, rm } from "fs/promises";
-import { constants } from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
+import { access, cp, mkdir, rm } from "node:fs/promises";
+import { constants } from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -29,7 +29,9 @@ async function syncDist() {
   console.log(`Synced ${distDir} -> ${targetDir}`);
 }
 
-syncDist().catch((error) => {
+try {
+  await syncDist();
+} catch (error) {
   console.error("Failed to sync dist:", error);
   process.exit(1);
-});
+}

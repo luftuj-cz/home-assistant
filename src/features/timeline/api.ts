@@ -1,6 +1,6 @@
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import { parseApiError } from "@luftuj/shared/utils/apiError";
-import type { Mode, TimelineEvent, ApiTimelineEvent } from "@luftuj/shared/types/timeline";
+import type { ApiTimelineEvent, Mode, TimelineEvent } from "@luftuj/shared/types/timeline";
 
 export async function fetchTimelineModes(unitId?: string): Promise<Mode[]> {
   const url = unitId
@@ -63,7 +63,7 @@ export async function fetchTimelineEvents(unitId?: string): Promise<TimelineEven
     .map((e) => ({
       id: e.id,
       startTime: e.startTime ?? e.start_time ?? "08:00",
-      dayOfWeek: (e.dayOfWeek ?? e.day_of_week ?? 0) as number,
+      dayOfWeek: e.dayOfWeek ?? e.day_of_week ?? 0,
       hruConfig: e.hruConfig ?? e.hru_config ?? null,
       luftatorConfig: e.luftatorConfig ?? e.luftator_config ?? null,
       enabled: e.enabled ?? true,

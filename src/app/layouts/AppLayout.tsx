@@ -1,43 +1,43 @@
 import {
   Anchor,
   AppShell,
+  Badge,
   Box,
+  Burger,
   Button,
+  Center,
+  Container,
+  Divider,
   Drawer,
+  Grid,
   Group,
   Image,
+  Loader,
+  NavLink,
+  Paper,
+  rem,
   Stack,
   Text,
-  Title,
-  Burger,
-  UnstyledButton,
-  rem,
-  Paper,
-  Container,
-  Grid,
-  Divider,
-  Badge,
   ThemeIcon,
-  NavLink,
-  Loader,
-  Center,
+  Title,
+  UnstyledButton,
   useComputedColorScheme,
 } from "@mantine/core";
 import { APP_VERSION } from "@luftuj/config";
 import {
   IconAt,
-  IconPhone,
-  IconLayoutDashboard,
-  IconDeviceFloppy,
-  IconTimeline,
-  IconSettings,
   IconBug,
+  IconDeviceFloppy,
+  IconLayoutDashboard,
+  IconPhone,
+  IconSettings,
+  IconTimeline,
 } from "@tabler/icons-react";
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useDisclosure } from "@mantine/hooks";
 import { useTranslation } from "react-i18next";
 import { useQuery } from "@tanstack/react-query";
-import { useMemo, useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import logoFullLight from "@luftuj/assets/logo-full-light.svg";
 import logoFullDark from "@luftuj/assets/logo-full-dark.svg";
 import logoMarkLight from "@luftuj/assets/logo-mark-light.svg";
@@ -127,7 +127,7 @@ export function AppLayout() {
     }
 
     const activeButton = buttonRefs.current.get(activeRoute.to);
-    if (!activeButton || !activeButton.parentElement) {
+    if (!activeButton?.parentElement) {
       setButtonOffset(0);
       setButtonWidth(0);
       return;
@@ -391,20 +391,26 @@ export function AppLayout() {
 
       <AppShell.Main>
         <Box p={{ base: "sm", sm: "md" }} style={{ flex: 1 }}>
-          {isLoadingStatus && !isOnboarding ? (
-            <Center style={{ height: "60vh" }}>
-              <Loader size="xl" />
-            </Center>
-          ) : !showNav && !isOnboarding ? (
-            <Center style={{ height: "60vh" }}>
-              <Stack align="center">
-                <Loader size="lg" />
-                <Text c="dimmed">{t("onboarding.status.waitingTitle")}</Text>
-              </Stack>
-            </Center>
-          ) : (
-            <Outlet />
-          )}
+          {(() => {
+            if (isLoadingStatus && !isOnboarding) {
+              return (
+                <Center style={{ height: "60vh" }}>
+                  <Loader size="xl" />
+                </Center>
+              );
+            }
+            if (!showNav && !isOnboarding) {
+              return (
+                <Center style={{ height: "60vh" }}>
+                  <Stack align="center">
+                    <Loader size="lg" />
+                    <Text c="dimmed">{t("onboarding.status.waitingTitle")}</Text>
+                  </Stack>
+                </Center>
+              );
+            }
+            return <Outlet />;
+          })()}
         </Box>
 
         <Box

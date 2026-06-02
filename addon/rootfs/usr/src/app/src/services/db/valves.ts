@@ -1,8 +1,8 @@
 import {
-  db,
-  moduleLogger,
+  getDatabase,
+  getModuleLogger,
+  getStatements,
   setupDatabase,
-  statements,
   type ValveSnapshotRecord,
   type ValveStateRecord,
 } from "../database.js";
@@ -28,17 +28,18 @@ export function storeValveSnapshots(records: ValveSnapshotRecord[]): void {
     return;
   }
 
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
-  if (!db || !statements) {
-    moduleLogger?.error("Database initialisation failed in storeValveSnapshots");
+  const statements = getStatements();
+  if (!getDatabase() || !statements) {
+    getModuleLogger()?.error("Database initialisation failed in storeValveSnapshots");
     throw new Error("Database init failed");
   }
 
   const prepared = statements;
 
-  const transaction = db.transaction((items: ValveSnapshotRecord[]) => {
+  const transaction = getDatabase()!.transaction((items: ValveSnapshotRecord[]) => {
     for (const item of items) {
       const record = normaliseRecord(item);
       if (record.controller_id) {
@@ -57,5 +58,5 @@ export function storeValveSnapshots(records: ValveSnapshotRecord[]): void {
   });
 
   transaction(records);
-  moduleLogger?.debug({ count: records.length }, "Stored valve snapshots");
+  getModuleLogger()?.debug({ count: records.length }, "Stored valve snapshots");
 }

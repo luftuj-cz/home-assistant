@@ -1,5 +1,5 @@
 import type { Database as DatabaseType } from "better-sqlite3";
-import { moduleLogger, type Migration } from "../database.js";
+import { getModuleLogger, type Migration } from "../database.js";
 
 const migrations: Migration[] = [
   {
@@ -114,7 +114,7 @@ const migrations: Migration[] = [
 ];
 
 export function applyMigrations(database: DatabaseType): void {
-  const activeLogger = moduleLogger;
+  const activeLogger = getModuleLogger();
   try {
     database.exec("PRAGMA journal_mode = WAL;");
   } catch (err) {
@@ -131,49 +131,62 @@ export function applyMigrations(database: DatabaseType): void {
   const migrationRows = database.prepare("SELECT id FROM migrations").all() as { id: string }[];
   const existing = new Set(migrationRows.map((row) => row.id));
 
-  const insertMigration = database.prepare("INSERT INTO migrations (id) VALUES (?)");
-
   for (const migration of migrations) {
-    if (existing.has(migration.id)) {
-      continue;
+    if (!existing.has(migration.id)) {
+      applySingleMigration(database, migration, activeLogger);
     }
-    const isVacuum =
-      migration.statements.length === 1 &&
-      migration.statements[0]?.trim().toUpperCase() === "VACUUM;";
+  }
+}
 
-    if (isVacuum) {
-      // VACUUM cannot run inside a transaction; run separately
-      try {
-        database.exec("VACUUM;");
-        insertMigration.run(migration.id);
-        activeLogger?.info({ migrationId: migration.id }, "Applied database migration");
-      } catch (error) {
-        activeLogger?.error({ error, migrationId: migration.id }, "Migration failed");
-        throw error;
-      }
-      continue;
+function isVacuumMigration(migration: Migration): boolean {
+  return (
+    migration.statements.length === 1 && migration.statements[0]?.trim().toUpperCase() === "VACUUM;"
+  );
+}
+
+function applySingleMigration(
+  database: DatabaseType,
+  migration: Migration,
+  activeLogger: ReturnType<typeof getModuleLogger>,
+): void {
+  if (isVacuumMigration(migration)) {
+    applyVacuumMigration(database, migration, activeLogger);
+    return;
+  }
+
+  const insertMigration = database.prepare("INSERT INTO migrations (id) VALUES (?)");
+  const runMigration = database.transaction(() => {
+    for (const sql of migration.statements) {
+      database.exec(sql);
     }
+    insertMigration.run(migration.id);
+  });
 
-    const runMigration = database.transaction(() => {
-      for (const sql of migration.statements) {
-        database.exec(sql);
-      }
-      insertMigration.run(migration.id);
-    });
-
-    try {
-      runMigration();
-      activeLogger?.info({ migrationId: migration.id }, "Applied database migration");
-    } catch (error) {
-      if (
-        migration.id === "004_remove_legacy_end_time" &&
-        String(error).includes("no such column")
-      ) {
-        activeLogger?.info("Migration 004: end_time column already removed, skipping.");
-      } else {
-        activeLogger?.error({ error, migrationId: migration.id }, "Migration failed");
-        throw error;
-      }
+  try {
+    runMigration();
+    activeLogger?.info({ migrationId: migration.id }, "Applied database migration");
+  } catch (error) {
+    if (migration.id === "004_remove_legacy_end_time" && String(error).includes("no such column")) {
+      activeLogger?.info("Migration 004: end_time column already removed, skipping.");
+    } else {
+      activeLogger?.error({ error, migrationId: migration.id }, "Migration failed");
+      throw error;
     }
+  }
+}
+
+function applyVacuumMigration(
+  database: DatabaseType,
+  migration: Migration,
+  activeLogger: ReturnType<typeof getModuleLogger>,
+): void {
+  const insertMigration = database.prepare("INSERT INTO migrations (id) VALUES (?)");
+  try {
+    database.exec("VACUUM;");
+    insertMigration.run(migration.id);
+    activeLogger?.info({ migrationId: migration.id }, "Applied database migration");
+  } catch (error) {
+    activeLogger?.error({ error, migrationId: migration.id }, "Migration failed");
+    throw error;
   }
 }

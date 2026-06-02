@@ -3,8 +3,8 @@ import { createLogger } from "@luftuj/shared/utils/logger";
 const logger = createLogger("API");
 
 function computeBaseUrl(): URL {
-  const url = new URL(window.location.origin);
-  let path = window.location.pathname;
+  const url = new URL(globalThis.location.origin);
+  let path = globalThis.location.pathname;
 
   // If the path looks like a file (e.g., ends with index.html), get the directory
   if (!path.endsWith("/") && path.split("/").pop()?.includes(".")) {

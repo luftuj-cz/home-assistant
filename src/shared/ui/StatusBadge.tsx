@@ -1,7 +1,7 @@
 import { Badge, type BadgeProps } from "@mantine/core";
 import { IconAlertTriangle, IconCheck, IconRefresh, IconX } from "@tabler/icons-react";
 import type { ReactNode } from "react";
-import { statusToColor, type StatusKind } from "@luftuj/shared/ui/types";
+import { type StatusKind, statusToColor } from "@luftuj/shared/ui/types";
 
 interface StatusBadgeProps extends Omit<BadgeProps, "color" | "leftSection" | "children"> {
   status: StatusKind;
@@ -32,7 +32,7 @@ export function StatusBadge({
   size = "lg",
   radius = "sm",
   ...rest
-}: StatusBadgeProps) {
+}: Readonly<StatusBadgeProps>) {
   const leftSection = showIcon ? (icon ?? defaultIconFor(status)) : undefined;
   return (
     <Badge

@@ -38,7 +38,7 @@ const RESOURCES: Record<string, LocaleResource> = {
 
 function normalizeLang(lang: string | null | undefined): keyof typeof RESOURCES {
   const base = typeof lang === "string" && lang ? lang.split("-")[0] : "en";
-  return (base === "cs" ? "cs" : "en") as keyof typeof RESOURCES;
+  return base === "cs" ? "cs" : "en";
 }
 
 const FALLBACK_STRINGS: LocalizedStrings = {

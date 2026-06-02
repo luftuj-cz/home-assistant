@@ -1,26 +1,26 @@
 import {
+  ActionIcon,
+  Box,
   Button,
   Card,
+  Center,
+  Divider,
+  Flex,
   Group,
+  Slider,
   Stack,
   Text,
   Title,
-  ActionIcon,
-  Slider,
-  Box,
-  Divider,
-  Center,
-  Flex,
 } from "@mantine/core";
 import {
   IconBolt,
   IconClock,
-  IconPlayerPlay,
-  IconX,
   IconMinus,
+  IconPlayerPlay,
   IconPlus,
+  IconX,
 } from "@tabler/icons-react";
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { TFunction } from "i18next";
 import type { Mode } from "@luftuj/shared/types/timeline";
 import { activateBoost, cancelBoost, fetchActiveBoost } from "@luftuj/features/timeline/api";
@@ -38,7 +38,55 @@ interface BoostButtonsProps {
 
 const INFINITE_DURATION = 999999;
 
-export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
+function formatDurationLabel(minutes: number): string {
+  if (minutes === INFINITE_DURATION) return "∞";
+  if (minutes >= 60) {
+    return `${minutes / 60}h`;
+  }
+  return String(minutes);
+}
+
+function getDisplayMinutes(isActiveBoost: boolean, boostDuration: number, display: number): string {
+  if (isActiveBoost) {
+    return boostDuration === INFINITE_DURATION ? "∞" : String(display);
+  }
+  return boostDuration === INFINITE_DURATION ? "∞" : String(display);
+}
+
+function getSliderValue(
+  isActiveBoost: boolean,
+  remaining: number,
+  currentDuration: number,
+): number {
+  if (!isActiveBoost) {
+    return currentDuration === INFINITE_DURATION ? 481 : currentDuration;
+  }
+  return remaining === INFINITE_DURATION ? 481 : remaining;
+}
+
+function isModeButtonDisabled(
+  hasActiveBoost: boolean,
+  isCurrentMode: boolean,
+  isLoading: boolean,
+  cancelling: boolean,
+): boolean {
+  return (hasActiveBoost && !isCurrentMode) || isLoading || cancelling;
+}
+
+function getModeButtonOpacity(
+  hasActiveBoost: boolean,
+  isCurrentMode: boolean,
+  isLoading: boolean,
+  loadingId: number | null,
+  modeId: number,
+): number {
+  if ((hasActiveBoost && !isCurrentMode) || (isLoading && loadingId !== modeId)) {
+    return 0.3;
+  }
+  return 1;
+}
+
+export function BoostButtons({ modes, t, activeUnitId }: Readonly<BoostButtonsProps>) {
   const boostModes = modes.filter((m) => m.isBoost);
   const [duration, setDuration] = useState<number>(15);
   const [activeBoost, setActiveBoost] = useState<{
@@ -242,13 +290,7 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                           transition: "all 0.2s ease",
                         }}
                       >
-                        {v === INFINITE_DURATION
-                          ? "∞"
-                          : v >= 60
-                            ? v % 60 === 0
-                              ? `${v / 60}h`
-                              : `${v / 60}h`
-                            : v}
+                        {formatDurationLabel(v)}
                       </Button>
                     ))}
                   </Group>
@@ -280,13 +322,11 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                         color: activeBoost ? "var(--mantine-color-orange-6)" : "inherit",
                       }}
                     >
-                      {activeBoost
-                        ? activeBoost.durationMinutes === INFINITE_DURATION
-                          ? "∞"
-                          : displayMinutes
-                        : duration === INFINITE_DURATION
-                          ? "∞"
-                          : displayMinutes}
+                      {getDisplayMinutes(
+                        !!activeBoost,
+                        activeBoost?.durationMinutes ?? duration,
+                        displayMinutes,
+                      )}
                     </Text>
                     <Text size="xs" fw={700} c="dimmed" tt="uppercase" mt={10}>
                       {t("dashboard.boostMinutes", { defaultValue: "minutes" })}
@@ -307,15 +347,9 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                 </Group>
               </Center>
 
-              {(!activeBoost || activeBoost.durationMinutes !== INFINITE_DURATION) && (
+              {activeBoost?.durationMinutes !== INFINITE_DURATION && (
                 <Slider
-                  value={
-                    (activeBoost ? remainingMinutes : duration) === INFINITE_DURATION
-                      ? 481
-                      : activeBoost
-                        ? remainingMinutes
-                        : duration
-                  }
+                  value={getSliderValue(!!activeBoost, remainingMinutes, duration)}
                   onChange={(val) => {
                     if (activeBoost) return;
                     setDuration(val === 481 ? INFINITE_DURATION : val);
@@ -365,9 +399,12 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                     variant={isActive || loadingModeId === m.id ? "filled" : "light"}
                     color={isActive || loadingModeId === m.id ? "orange" : "blue"}
                     radius="24px"
-                    disabled={
-                      (activeBoost !== null && !isActive) || loadingModeId !== null || isCancelling
-                    }
+                    disabled={isModeButtonDisabled(
+                      !!activeBoost,
+                      isActive,
+                      loadingModeId !== null,
+                      isCancelling,
+                    )}
                     loading={loadingModeId === m.id}
                     loaderProps={{ type: "bars", size: "md" }}
                     onClick={() => (isActive ? handleCancel() : handleActivate(m.id))}
@@ -376,11 +413,13 @@ export function BoostButtons({ modes, t, activeUnitId }: BoostButtonsProps) {
                       height: 130,
                       transition: "all 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
                       padding: 16,
-                      opacity:
-                        (activeBoost !== null && !isActive) ||
-                        (loadingModeId !== null && loadingModeId !== m.id)
-                          ? 0.3
-                          : 1,
+                      opacity: getModeButtonOpacity(
+                        !!activeBoost,
+                        isActive,
+                        loadingModeId !== null,
+                        loadingModeId,
+                        m.id,
+                      ),
                       transform: isActive || loadingModeId === m.id ? "scale(1.05)" : "scale(1)",
                       boxShadow:
                         isActive || loadingModeId === m.id

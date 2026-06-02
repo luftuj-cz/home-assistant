@@ -51,10 +51,7 @@ type HassWebSocketMessage =
 
 function hasTypeProperty(value: unknown): value is { type: string } {
   return (
-    typeof value === "object" &&
-    value !== null &&
-    "type" in value &&
-    typeof (value as { type: unknown }).type === "string"
+    typeof value === "object" && value !== null && "type" in value && typeof value.type === "string"
   );
 }
 
@@ -70,11 +67,13 @@ const LUFTATOR_ENTITY_PREFIX = "number.luftator_";
 const STATE_CHANGED_EVENT = "state_changed";
 const RECONNECT_DELAY_MS = 5_000;
 
+type ConnectionState = "disconnected" | "connecting" | "connected";
+
 export class HomeAssistantClient {
   private readonly baseUrl: string;
   private readonly headers: Record<string, string>;
-  private connectionState: "disconnected" | "connecting" | "connected" = "disconnected";
-  private statusListeners: Array<(state: "disconnected" | "connecting" | "connected") => void> = [];
+  private connectionState: ConnectionState = "disconnected";
+  private statusListeners: Array<(state: ConnectionState) => void> = [];
 
   constructor(
     baseUrl: string,
@@ -123,23 +122,6 @@ export class HomeAssistantClient {
     this.logger.info({ entityId, value }, "Successfully set valve value in Home Assistant");
   }
 
-  private async fetchJson<T>(pathname: string): Promise<T> {
-    const response = await fetch(`${this.baseUrl}${pathname}`, {
-      headers: this.headers,
-    });
-
-    if (!response.ok) {
-      const body = await response.text();
-      this.logger.error(
-        { pathname, status: response.status, body },
-        "Failed to fetch Home Assistant API payload",
-      );
-      throw new Error(`Failed to fetch Home Assistant API payload: ${response.status} ${body}`);
-    }
-
-    return (await response.json()) as T;
-  }
-
   subscribeLuftatorEvents(handler: HassEventHandler): () => void {
     let active = true;
     let socket: WebSocket | null = null;
@@ -148,7 +130,7 @@ export class HomeAssistantClient {
     const websocketUrl = this.toWebSocketUrl("/api/websocket");
     const { logger, headers } = this;
     const boundHandleMessage = this.handleWebSocketMessage.bind(this);
-    const setState = (state: "disconnected" | "connecting" | "connected") => {
+    const setState = (state: ConnectionState) => {
       this.connectionState = state;
       for (const listener of this.statusListeners) {
         try {
@@ -239,17 +221,32 @@ export class HomeAssistantClient {
     };
   }
 
-  getConnectionState(): "disconnected" | "connecting" | "connected" {
+  getConnectionState(): ConnectionState {
     return this.connectionState;
   }
 
-  addStatusListener(
-    listener: (state: "disconnected" | "connecting" | "connected") => void,
-  ): () => void {
+  addStatusListener(listener: (state: ConnectionState) => void): () => void {
     this.statusListeners.push(listener);
     return () => {
       this.statusListeners = this.statusListeners.filter((l) => l !== listener);
     };
+  }
+
+  private async fetchJson<T>(pathname: string): Promise<T> {
+    const response = await fetch(`${this.baseUrl}${pathname}`, {
+      headers: this.headers,
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      this.logger.error(
+        { pathname, status: response.status, body },
+        "Failed to fetch Home Assistant API payload",
+      );
+      throw new Error(`Failed to fetch Home Assistant API payload: ${response.status} ${body}`);
+    }
+
+    return (await response.json()) as T;
   }
 
   private handleWebSocketMessage(
@@ -296,9 +293,9 @@ export class HomeAssistantClient {
     }
 
     const { data } = eventPayload;
-    const entityId = data?.entity_id as string | undefined;
-    const newState = data?.new_state as HassState | undefined | null;
-    const oldState = data?.old_state as HassState | undefined | null;
+    const entityId = data?.entity_id;
+    const newState = data?.new_state;
+    const oldState = data?.old_state;
 
     if (!entityId || !newState || !entityId.startsWith(LUFTATOR_ENTITY_PREFIX)) {
       return;

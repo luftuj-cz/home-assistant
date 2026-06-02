@@ -1,5 +1,5 @@
 import { TIMELINE_MODES_KEY, type TimelineMode } from "../../types/index.js";
-import { db, moduleLogger, setupDatabase, statements } from "../database.js";
+import { getDatabase, getModuleLogger, getStatements, setupDatabase } from "../database.js";
 
 export interface TimelineEvent {
   id?: number;
@@ -47,13 +47,13 @@ export function normaliseTimelineEvent(
   try {
     hruConfig = event.hruConfig ? JSON.stringify(event.hruConfig) : null;
   } catch (err) {
-    moduleLogger?.error(err as Error, "Failed to serialise hruConfig for timeline event");
+    getModuleLogger()?.error(err as Error, "Failed to serialise hruConfig for timeline event");
   }
 
   try {
     luftatorConfig = event.luftatorConfig ? JSON.stringify(event.luftatorConfig) : null;
   } catch (err) {
-    moduleLogger?.error(err as Error, "Failed to serialise luftatorConfig for timeline event");
+    getModuleLogger()?.error(err as Error, "Failed to serialise luftatorConfig for timeline event");
   }
 
   return {
@@ -78,7 +78,7 @@ export function denormaliseTimelineEvent(record: TimelineEventRecord): TimelineE
     try {
       hruConfig = JSON.parse(record.hru_config);
     } catch (err) {
-      moduleLogger?.error({ err, recordId: record.id }, "Failed to parse hru_config JSON");
+      getModuleLogger()?.error({ err, recordId: record.id }, "Failed to parse hru_config JSON");
     }
   }
 
@@ -87,7 +87,10 @@ export function denormaliseTimelineEvent(record: TimelineEventRecord): TimelineE
     try {
       luftatorConfig = JSON.parse(record.luftator_config);
     } catch (err) {
-      moduleLogger?.error({ err, recordId: record.id }, "Failed to parse luftator_config JSON");
+      getModuleLogger()?.error(
+        { err, recordId: record.id },
+        "Failed to parse luftator_config JSON",
+      );
     }
   }
 
@@ -109,11 +112,12 @@ export function denormaliseTimelineEvent(record: TimelineEventRecord): TimelineE
  * @returns Array of timeline events
  */
 export function getTimelineEvents(hruId?: string | null): TimelineEvent[] {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
-    moduleLogger?.error("Database not initialised in getTimelineEvents");
+    getModuleLogger()?.error("Database not initialised in getTimelineEvents");
     throw new Error("Database not initialised");
   }
 
@@ -142,11 +146,12 @@ export interface TimelineModeRecord {
  * @returns Array of timeline modes sorted by name
  */
 export function getTimelineModes(hruId?: string): TimelineMode[] {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
-    moduleLogger?.error("Database not initialised in getTimelineModes");
+    getModuleLogger()?.error("Database not initialised in getTimelineModes");
     throw new Error("Database not initialised");
   }
 
@@ -159,7 +164,7 @@ export function getTimelineModes(hruId?: string): TimelineMode[] {
         try {
           luftatorConfig = JSON.parse(r.luftator_config);
         } catch (err) {
-          moduleLogger?.error({ err, modeId: r.id }, "Failed to parse luftator_config JSON");
+          getModuleLogger()?.error({ err, modeId: r.id }, "Failed to parse luftator_config JSON");
         }
       }
 
@@ -168,7 +173,7 @@ export function getTimelineModes(hruId?: string): TimelineMode[] {
         try {
           variables = JSON.parse(r.variables);
         } catch (err) {
-          moduleLogger?.error({ err, modeId: r.id }, "Failed to parse variables JSON");
+          getModuleLogger()?.error({ err, modeId: r.id }, "Failed to parse variables JSON");
         }
       }
 
@@ -194,9 +199,10 @@ export function getTimelineModes(hruId?: string): TimelineMode[] {
  * @returns Timeline mode or null if not found
  */
 export function getTimelineMode(id: number): TimelineMode | null {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
     return null;
   }
@@ -209,7 +215,7 @@ export function getTimelineMode(id: number): TimelineMode | null {
     try {
       luftatorConfig = JSON.parse(record.luftator_config);
     } catch (err) {
-      moduleLogger?.error({ err, modeId: record.id }, "Failed to parse luftator_config JSON");
+      getModuleLogger()?.error({ err, modeId: record.id }, "Failed to parse luftator_config JSON");
     }
   }
 
@@ -218,7 +224,7 @@ export function getTimelineMode(id: number): TimelineMode | null {
     try {
       variables = JSON.parse(record.variables);
     } catch (err) {
-      moduleLogger?.error({ err, modeId: record.id }, "Failed to parse variables JSON");
+      getModuleLogger()?.error({ err, modeId: record.id }, "Failed to parse variables JSON");
     }
   }
 
@@ -242,9 +248,10 @@ export function getTimelineMode(id: number): TimelineMode | null {
  * @returns Timeline mode with assigned ID
  */
 export function upsertTimelineMode(mode: TimelineMode): TimelineMode {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
     throw new Error("Database not initialised");
   }
@@ -263,7 +270,7 @@ export function upsertTimelineMode(mode: TimelineMode): TimelineMode {
   ) as { lastInsertRowid: number | bigint };
 
   const id = mode.id ?? Number(result.lastInsertRowid);
-  moduleLogger?.debug({ id, name: mode.name }, "Upserted timeline mode");
+  getModuleLogger()?.debug({ id, name: mode.name }, "Upserted timeline mode");
 
   return {
     ...mode,
@@ -276,14 +283,15 @@ export function upsertTimelineMode(mode: TimelineMode): TimelineMode {
  * @param id - Timeline mode ID
  */
 export function deleteTimelineMode(id: number): void {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
     throw new Error("Database not initialised");
   }
   statements.deleteTimelineMode.run(id);
-  moduleLogger?.debug({ id }, "Deleted timeline mode");
+  getModuleLogger()?.debug({ id }, "Deleted timeline mode");
 }
 
 /**
@@ -291,16 +299,17 @@ export function deleteTimelineMode(id: number): void {
  * @param hruId - HRU unit ID to assign events to
  */
 export function assignLegacyEventsToUnit(hruId: string): void {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
-    moduleLogger?.error("Database not initialised in assignLegacyEventsToUnit");
+    getModuleLogger()?.error("Database not initialised in assignLegacyEventsToUnit");
     throw new Error("Database not initialised");
   }
 
   statements.assignLegacyEvents.run(hruId);
-  moduleLogger?.debug({ hruId }, "Assigned legacy events to unit");
+  getModuleLogger()?.debug({ hruId }, "Assigned legacy events to unit");
 }
 
 /**
@@ -328,7 +337,7 @@ export function migrateLegacyEventsForUnit(hruId: string): void {
         };
         upsertTimelineEvent(updatedEvent);
         migratedCount++;
-        moduleLogger?.info(
+        getModuleLogger()?.info(
           { eventId: event.id, oldMode: rawMode, newModeId: foundMode.id },
           "Migrated legacy event mode name to ID",
         );
@@ -337,7 +346,7 @@ export function migrateLegacyEventsForUnit(hruId: string): void {
   }
 
   if (migratedCount > 0) {
-    moduleLogger?.info({ count: migratedCount }, "Finished migrating legacy events for unit");
+    getModuleLogger()?.info({ count: migratedCount }, "Finished migrating legacy events for unit");
   }
 }
 
@@ -347,11 +356,15 @@ export function migrateLegacyEventsForUnit(hruId: string): void {
  * @returns Timeline event with assigned ID
  */
 export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
-    moduleLogger?.error({ eventId: event.id }, "Database not initialised in upsertTimelineEvent");
+    getModuleLogger()?.error(
+      { eventId: event.id },
+      "Database not initialised in upsertTimelineEvent",
+    );
     throw new Error("Database not initialised");
   }
 
@@ -368,14 +381,14 @@ export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
       normalised.enabled,
       normalised.priority,
       normalised.hru_id,
-    ) as { lastInsertRowid: number | bigint; changes: number };
+    );
   } catch (err) {
-    moduleLogger?.error(err as Error, "Failed to upsert timeline event");
+    getModuleLogger()?.error(err as Error, "Failed to upsert timeline event");
     throw err;
   }
 
   const persistedId = event.id ?? Number(result.lastInsertRowid);
-  moduleLogger?.debug({ id: persistedId }, "Upserted timeline event");
+  getModuleLogger()?.debug({ id: persistedId }, "Upserted timeline event");
 
   return {
     ...event,
@@ -388,16 +401,17 @@ export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
  * @param id - Timeline event ID
  */
 export function deleteTimelineEvent(id: number): void {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
-    moduleLogger?.error({ id }, "Database not initialised in deleteTimelineEvent");
+    getModuleLogger()?.error({ id }, "Database not initialised in deleteTimelineEvent");
     throw new Error("Database not initialised");
   }
 
   statements.deleteTimelineEvent.run(id);
-  moduleLogger?.debug({ id }, "Deleted timeline event");
+  getModuleLogger()?.debug({ id }, "Deleted timeline event");
 }
 
 /**
@@ -406,11 +420,12 @@ export function deleteTimelineEvent(id: number): void {
  * @param modeName - Optional timeline mode name reference
  */
 export function deleteTimelineEventsByMode(modeId: number, modeName?: string): void {
-  if (!db || !statements) {
+  if (!getDatabase() || !getStatements()) {
     setupDatabase();
   }
+  const statements = getStatements();
   if (!statements) {
-    moduleLogger?.error({ modeId }, "Database not initialised in deleteTimelineEventsByMode");
+    getModuleLogger()?.error({ modeId }, "Database not initialised in deleteTimelineEventsByMode");
     throw new Error("Database not initialised");
   }
   if (modeName) {
@@ -418,7 +433,7 @@ export function deleteTimelineEventsByMode(modeId: number, modeName?: string): v
   } else {
     statements.deleteEventsByModeIdOnly.run(modeId);
   }
-  moduleLogger?.debug({ modeId, modeName }, "Deleted timeline events by mode");
+  getModuleLogger()?.debug({ modeId, modeName }, "Deleted timeline events by mode");
 }
 
 /**
@@ -426,7 +441,7 @@ export function deleteTimelineEventsByMode(modeId: number, modeName?: string): v
  * @param getAppSetting - Function to retrieve app settings
  */
 export function migrateModesToTable(getAppSetting: (key: string) => string | null): void {
-  if (!db || !statements) return;
+  if (!getDatabase() || !getStatements()) return;
 
   const raw = getAppSetting(TIMELINE_MODES_KEY);
   if (!raw) return;
@@ -434,13 +449,13 @@ export function migrateModesToTable(getAppSetting: (key: string) => string | nul
   try {
     const oldModes = JSON.parse(raw) as TimelineMode[];
     if (Array.isArray(oldModes) && oldModes.length > 0) {
-      moduleLogger?.info(
+      getModuleLogger()?.info(
         { count: oldModes.length },
         "Migrating modes from JSON settings to SQL table",
       );
 
-      const stmt = statements;
-      db.transaction(() => {
+      const stmt = getStatements()!;
+      getDatabase()!.transaction(() => {
         for (const mode of oldModes) {
           try {
             stmt.upsertTimelineMode.run(
@@ -457,7 +472,7 @@ export function migrateModesToTable(getAppSetting: (key: string) => string | nul
             );
           } catch (err) {
             if (String(err).includes("UNIQUE constraint failed")) {
-              moduleLogger?.warn(
+              getModuleLogger()?.warn(
                 { name: mode.name, err },
                 "Skipping duplicate mode during migration",
               );
@@ -470,6 +485,6 @@ export function migrateModesToTable(getAppSetting: (key: string) => string | nul
       })();
     }
   } catch (err) {
-    moduleLogger?.error({ err }, "Failed to migrate modes to table");
+    getModuleLogger()?.error({ err }, "Failed to migrate modes to table");
   }
 }

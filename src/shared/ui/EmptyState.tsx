@@ -9,7 +9,13 @@ interface EmptyStateProps {
   minHeight?: number | string;
 }
 
-export function EmptyState({ icon, title, description, action, minHeight = 180 }: EmptyStateProps) {
+export function EmptyState({
+  icon,
+  title,
+  description,
+  action,
+  minHeight = 180,
+}: Readonly<EmptyStateProps>) {
   return (
     <Center mih={minHeight}>
       <Stack align="center" gap="sm">
