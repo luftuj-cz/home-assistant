@@ -44,7 +44,7 @@ export function TimelineModeModal({
   existingModes = [],
   nameError,
   onNameChange,
-}: TimelineModeModalProps) {
+}: Readonly<TimelineModeModalProps>) {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const form = useModeForm(opened, mode, valves);
   const [testRemainingSeconds, setTestRemainingSeconds] = useState<number | null>(null);
@@ -154,8 +154,7 @@ export function TimelineModeModal({
     if (!validateForm()) return;
     const payload = form.getPayload();
     const isDuplicate = existingModes.some(
-      (m) =>
-        m.name.toLowerCase() === (payload.name ?? "").toLowerCase() && (!mode || m.id !== mode.id),
+      (m) => m.name.toLowerCase() === (payload.name ?? "").toLowerCase() && mode?.id !== m.id,
     );
     if (isDuplicate) {
       notifications.show({
@@ -245,12 +244,12 @@ export function TimelineModeModal({
             variant="outline"
             leftSection={<IconTestPipe size={16} />}
             onClick={handleTest}
-            color={testRemainingSeconds !== null ? "red" : "blue"}
+            color={testRemainingSeconds === null ? "blue" : "red"}
             fullWidth={isMobile}
           >
-            {testRemainingSeconds !== null
-              ? `${t("settings.timeline.modal.cancel")} (${testRemainingSeconds}s)`
-              : t("settings.timeline.modal.test")}
+            {testRemainingSeconds === null
+              ? t("settings.timeline.modal.test")
+              : `${t("settings.timeline.modal.cancel")} (${testRemainingSeconds}s)`}
           </Button>
           <Button onClick={handleSave} loading={saving} radius="md" fullWidth={isMobile}>
             {t(mode ? "settings.timeline.modeUpdateAction" : "settings.timeline.modeCreateAction")}

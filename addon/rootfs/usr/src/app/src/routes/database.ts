@@ -1,12 +1,12 @@
+import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
-import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
-import fs from "fs";
+import fs from "node:fs";
 import {
+  checkpointDatabase,
+  createDatabaseBackup,
   getDatabasePath,
   replaceDatabaseWithFile,
-  createDatabaseBackup,
-  checkpointDatabase,
   resetDatabase,
 } from "../services/database.js";
 import { closeAllSharedClients } from "../shared/modbus/client.js";

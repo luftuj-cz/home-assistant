@@ -51,6 +51,7 @@ export function HruSection() {
 
   useEffect(() => {
     let canceled = false;
+
     async function load() {
       setLoading(true);
       try {
@@ -67,6 +68,7 @@ export function HruSection() {
         if (!canceled) setLoading(false);
       }
     }
+
     void load();
     return () => {
       canceled = true;
@@ -140,11 +142,11 @@ export function HruSection() {
         body: JSON.stringify(settings),
       });
       startTransition(() => {
-        if (!res.ok) {
+        if (res.ok) {
+          setProbeStatus("success");
+        } else {
           setProbeStatus("error");
           setProbeError(t("settings.hru.notifications.connectionFailed"));
-        } else {
-          setProbeStatus("success");
         }
       });
     } catch (error) {

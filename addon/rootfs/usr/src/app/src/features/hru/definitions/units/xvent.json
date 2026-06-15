@@ -115,7 +115,7 @@
               "function": "multiply",
               "args": [
                 {
-                  "function": "substract",
+                  "function": "subtract",
                   "args": [
                     { "function": "modbus_read_holding", "args": ["0x9C57"] },
                     { "function": "modbus_read_input", "args": ["0x754C"] }

@@ -1,6 +1,6 @@
-import { Modal, Stack, Select, Group, Button, Text } from "@mantine/core";
+import { Button, Group, Modal, Select, Stack, Text } from "@mantine/core";
 import { TimeInput } from "@mantine/dates";
-import { IconClock, IconAdjustments, IconCalendar } from "@tabler/icons-react";
+import { IconAdjustments, IconCalendar, IconClock } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { TimelineEvent } from "@luftuj/shared/types/timeline";
 import type { HruVariable } from "@luftuj/shared/api/hru";
@@ -26,7 +26,14 @@ export function TimelineEventModal({
   onSave,
   onChange,
   t,
-}: TimelineEventModalProps) {
+}: Readonly<TimelineEventModalProps>) {
+  let modeError: string | null = null;
+  if (modeOptions.length === 0) {
+    modeError = t("settings.timeline.noModesCreatedDescription");
+  } else if (!event?.hruConfig?.mode) {
+    modeError = t("validation.modeRequired");
+  }
+
   return (
     <Modal
       opened={opened}
@@ -69,13 +76,7 @@ export function TimelineEventModal({
             }
             leftSection={<IconAdjustments size={16} stroke={1.5} />}
             required
-            error={
-              modeOptions.length === 0
-                ? t("settings.timeline.noModesCreatedDescription")
-                : !event.hruConfig?.mode
-                  ? t("validation.modeRequired")
-                  : null
-            }
+            error={modeError}
           />
 
           <Group justify="flex-end" gap="sm">

@@ -17,6 +17,9 @@ addon/rootfs/usr/src/app/.venv
 # Home Assistant add-on data store
 addon/rootfs/usr/src/app/data
 
+# build .js files
+addon/rootfs/usr/src/app/src/**/*.js
+
 # Editor directories and files
 .codacy
 .vscode/settings.json
@@ -41,3 +44,5 @@ addon/rootfs/usr/src/app/data
 /.junie/
 /.windsurf/
 /.agents/
+# CocoIndex Code (ccc)
+/.cocoindex_code/

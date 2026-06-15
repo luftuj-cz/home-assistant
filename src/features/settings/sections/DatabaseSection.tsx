@@ -71,7 +71,7 @@ export function DatabaseSection() {
         message: t("settings.database.notifications.importSuccessMessage"),
         color: "green",
       });
-      setTimeout(() => window.location.reload(), 1500);
+      setTimeout(() => globalThis.location.reload(), 1500);
     } catch (err) {
       logger.error("Database import failed", { error: err });
       notifications.show({

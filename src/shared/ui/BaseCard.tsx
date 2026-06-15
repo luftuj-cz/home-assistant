@@ -5,7 +5,7 @@ interface BaseCardProps extends Omit<CardProps, "children"> {
   children: ReactNode;
 }
 
-export function BaseCard({ children, ...rest }: BaseCardProps) {
+export function BaseCard({ children, ...rest }: Readonly<BaseCardProps>) {
   return (
     <Card shadow="sm" p="lg" withBorder radius="md" {...rest}>
       {children}

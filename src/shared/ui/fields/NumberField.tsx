@@ -4,6 +4,6 @@ interface NumberFieldProps extends Omit<NumberInputProps, "error"> {
   error?: string | null;
 }
 
-export function NumberField({ error, ...rest }: NumberFieldProps) {
+export function NumberField({ error, ...rest }: Readonly<NumberFieldProps>) {
   return <NumberInput error={error ?? undefined} {...rest} />;
 }

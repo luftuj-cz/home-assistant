@@ -37,6 +37,12 @@ export function DashboardPage() {
     return "error";
   }
 
+  function getModbusStatusLabel() {
+    if (modbusStatus === "loading") return t("dashboard.haStatus.loading");
+    if (modbusStatus === "reachable") return t("dashboard.modbusStatus.reachable");
+    return t("dashboard.modbusStatus.unreachable");
+  }
+
   function getMqttStatusType() {
     if (mqttStatus === "loading") return "neutral";
     if (mqttStatus === "connected") return "success";
@@ -93,13 +99,7 @@ export function DashboardPage() {
             defaultValue: "Reachability of the configured Modbus TCP server",
           })}
           status={getModbusStatusType()}
-          statusLabel={
-            modbusStatus === "loading"
-              ? t("dashboard.haStatus.loading")
-              : modbusStatus === "reachable"
-                ? t("dashboard.modbusStatus.reachable")
-                : t("dashboard.modbusStatus.unreachable")
-          }
+          statusLabel={getModbusStatusLabel()}
         />
 
         <StatusCard

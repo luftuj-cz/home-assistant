@@ -26,10 +26,7 @@ interface HruConfigState {
 export function useHruConfig(): HruConfigState {
   const envHost = (import.meta.env.VITE_MODBUS_HOST as string | undefined) ?? undefined;
   const envPortRaw = import.meta.env.VITE_MODBUS_PORT as string | number | undefined;
-  const envPort =
-    typeof envPortRaw === "string"
-      ? Number.parseInt(envPortRaw, 10)
-      : (envPortRaw as number | undefined);
+  const envPort = typeof envPortRaw === "string" ? Number.parseInt(envPortRaw, 10) : envPortRaw;
 
   const query = useQuery({
     queryKey: ["hru-config"],
@@ -40,12 +37,14 @@ export function useHruConfig(): HruConfigState {
       ]);
 
       const resolvedHost = settings.host ?? envHost ?? null;
-      const resolvedPort =
-        settings.port !== undefined && Number.isFinite(settings.port)
-          ? settings.port
-          : Number.isFinite(envPort)
-            ? (envPort as number)
-            : null;
+
+      let resolvedPort: number | null = null;
+      if (settings.port !== undefined && Number.isFinite(settings.port)) {
+        resolvedPort = settings.port;
+      } else if (Number.isFinite(envPort)) {
+        resolvedPort = envPort as number;
+      }
+
       const activeUnit = allUnits.find((u) => u.id === settings.unit) || allUnits[0];
 
       logger.info("Dashboard HRU configuration loaded", {
@@ -62,7 +61,7 @@ export function useHruConfig(): HruConfigState {
           settings.maxPower !== undefined && Number.isFinite(settings.maxPower)
             ? settings.maxPower
             : undefined,
-        variables: (activeUnit?.variables ?? []) as HruVariable[],
+        variables: activeUnit?.variables ?? [],
         unitId: activeUnit?.id,
       };
     },

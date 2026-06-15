@@ -1,18 +1,22 @@
 import { z } from "zod";
 
+const hruWriteValueSchema = z.union([z.number(), z.string(), z.boolean()]);
+
 // HRU Write Schema
 export const hruWriteInputSchema = z
-  .object({
-    power: z.number().min(0).max(100).optional(),
-    temperature: z.number().min(-50).max(100).optional(),
+  .looseObject({
+    power: z.number().optional(),
+    temperature: z
+      .number()
+      .min(0, "Temperature must be at least 0")
+      .max(50, "Temperature must be at most 50")
+      .optional(),
     mode: z.union([z.number().int(), z.string()]).optional(),
   })
-  .refine(
-    (data) => data.power !== undefined || data.temperature !== undefined || data.mode !== undefined,
-    {
-      message: "At least one of power, temperature, or mode must be provided",
-    },
-  );
+  .catchall(hruWriteValueSchema)
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "At least one HRU value must be provided",
+  });
 
 // Type exports
 export type HruWriteInput = z.infer<typeof hruWriteInputSchema>;

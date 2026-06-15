@@ -33,7 +33,16 @@ export function formatByteSize(bytes: number): string {
   }
 
   const signedValue = bytes < 0 ? -value : value;
-  const precision = unitIndex === 0 ? 0 : signedValue >= 10 ? 1 : 2;
+
+  let precision: number;
+  if (unitIndex === 0) {
+    precision = 0;
+  } else if (signedValue >= 10) {
+    precision = 1;
+  } else {
+    precision = 2;
+  }
+
   const human = `${signedValue.toFixed(precision)} ${units[unitIndex]}`;
   return `${human} (${Math.round(bytes).toLocaleString()} B)`;
 }

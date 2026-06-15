@@ -1,16 +1,16 @@
 import {
+  ActionIcon,
+  Badge,
   Button,
   Card,
+  ColorSwatch,
   Group,
+  SimpleGrid,
   Stack,
   Text,
   Title,
-  ActionIcon,
-  Badge,
-  ColorSwatch,
-  SimpleGrid,
 } from "@mantine/core";
-import { IconPlus, IconEdit, IconTrash } from "@tabler/icons-react";
+import { IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { Mode } from "@luftuj/shared/types/timeline";
 import { formatTemperature, getTemperatureLabel } from "@luftuj/shared/utils/temperature";
@@ -31,7 +31,7 @@ export function TimelineModeList({
   onDelete,
   t,
   powerUnit = "%",
-}: TimelineModeListProps) {
+}: Readonly<TimelineModeListProps>) {
   return (
     <Card withBorder radius="md" p="md">
       <Stack gap="md">

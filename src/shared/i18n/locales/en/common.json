@@ -391,7 +391,24 @@
     "resetDatabase": "Reset Database",
     "resetDatabaseConfirm": "Are you sure you want to reset the database? All settings, modes and timeline events will be deleted. The backend will restart.",
     "databaseResetSuccess": "Database Reset",
-    "databaseResetSuccessMessage": "The database has been reset and the backend is restarting. The page will reload in 15 seconds."
+    "databaseResetSuccessMessage": "The database has been reset and the backend is restarting. The page will reload in 15 seconds.",
+    "commissioning": {
+      "tabLabel": "Commissioning",
+      "title": "Commissioning",
+      "description": "Cycles through selected modes automatically, holding each for the configured interval.",
+      "start": "Start Test Run",
+      "stop": "Stop",
+      "intervalLabel": "Interval per mode",
+      "intervalDescription": "Time each mode is held (10–300 s)",
+      "modesLabel": "Modes to cycle through",
+      "selectAll": "Select all",
+      "deselectAll": "Deselect all",
+      "loadingModes": "Loading modes…",
+      "noModes": "No modes configured.",
+      "currentMode": "Active mode",
+      "step": "Step {{current}} / {{total}}",
+      "secondsRemaining": "{{seconds}} s remaining"
+    }
   },
   "schedule": {
     "title": "Weekly schedule",

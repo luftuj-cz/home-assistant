@@ -19,7 +19,7 @@ export function StatusCard({
   statusLabel,
   icon,
   children,
-}: StatusCardProps) {
+}: Readonly<StatusCardProps>) {
   const defaultIcon =
     icon ??
     (title.toLowerCase().includes("modbus") ? <IconNetwork size={18} /> : <IconServer size={18} />);

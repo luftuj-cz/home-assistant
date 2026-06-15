@@ -29,9 +29,13 @@ export type BroadcastFn = (message: BroadcastMessage) => Promise<void>;
 
 export interface ValveController {
   start(): Promise<void>;
+
   stop(): Promise<void>;
+
   refresh(): Promise<void>;
+
   getSnapshot(): Promise<ValveSnapshot[]>;
+
   setValue(entityId: string, value: number): Promise<ValveSnapshot>;
 }
 
@@ -45,63 +49,6 @@ export class ValveManager implements ValveController {
   private readonly mutex = new Mutex();
   private readonly valves = new Map<string, ValveSnapshot>();
   private disconnect: (() => void) | null = null;
-
-  private isDemoValve(entityId: string): boolean {
-    return entityId.includes("_demonstration_");
-  }
-
-  private isValveEntity(entityId: string): boolean {
-    // Valve entities follow pattern: number.luftator_<controller>_<zone>[_<extra>]
-    // Examples: number.luftator_master_bedroom, number.luftator_ground_floor_office
-    // HRU variables follow pattern: number.luftator_<hru>_<variable>
-    // Examples: number.luftator_zehnder_duration, number.luftator_atrea_power
-    
-    // Must start with number.luftator_ or luftator_
-    const hasValidPrefix = /^(?:number\.)?luftator_/i.test(entityId);
-    if (!hasValidPrefix) return false;
-    
-    // Exclude app-internal entities
-    const isAppInternal = /^(?:number\.)?luftator_app_/i.test(entityId);
-    if (isAppInternal) return false;
-    
-    // Exclude demonstration entities
-    if (entityId.includes("_demonstration_")) return false;
-    
-    // Exclude known non-valve suffixes (HRU variables, timeline entities)
-    // This list covers all HRU unit definitions: Zehnder, Atrea, Meltem, Korado, Xvent
-    const isNonValveEntity = [
-      // Timeline / manual mode entities
-      "_doba_manualniho_rezimu",
-      "_manual_mode_duration",
-      "_manual_duration",
-      "_duration",
-      // HRU control variables
-      "_power",
-      "_power_target",
-      "_temperature",
-      "_temperature_target",
-      "_mode",
-      "_mode_target",
-      "_bypass",
-      "_boost",
-      "_offset",
-      "_comfo_clime",
-      // HRU status variables
-      "_error",
-      "_change_filter",
-      "_replace_filter_days",
-      "_flow_in",
-      "_flow_out",
-      "_outside_temperature",
-      "_room_temperature",
-      "_room_humidity",
-      "_supply_temperature",
-      "_temperature_profile",
-      "_unit_sn",
-    ].some((suffix) => entityId.toLowerCase().endsWith(suffix));
-    
-    return !isNonValveEntity;
-  }
 
   constructor(
     private readonly client: HomeAssistantClient,
@@ -178,7 +125,7 @@ export class ValveManager implements ValveController {
     await this.client.setValveValue(entityId, value);
 
     const updated: ValveSnapshot = HassStateSchema.parse({
-      ...(valve as ValveSnapshot),
+      ...valve,
       state: value.toString(),
     });
 
@@ -206,6 +153,63 @@ export class ValveManager implements ValveController {
 
   async getSnapshot(): Promise<ValveSnapshot[]> {
     return this.mutex.runExclusive(async () => Array.from(this.valves.values()));
+  }
+
+  private isDemoValve(entityId: string): boolean {
+    return entityId.includes("_demonstration_");
+  }
+
+  private isValveEntity(entityId: string): boolean {
+    // Valve entities follow pattern: number.luftator_<controller>_<zone>[_<extra>]
+    // Examples: number.luftator_master_bedroom, number.luftator_ground_floor_office
+    // HRU variables follow pattern: number.luftator_<hru>_<variable>
+    // Examples: number.luftator_zehnder_duration, number.luftator_atrea_power
+
+    // Must start with number.luftator_ or luftator_
+    const hasValidPrefix = /^(?:number\.)?luftator_/i.test(entityId);
+    if (!hasValidPrefix) return false;
+
+    // Exclude app-internal entities
+    const isAppInternal = /^(?:number\.)?luftator_app_/i.test(entityId);
+    if (isAppInternal) return false;
+
+    // Exclude demonstration entities
+    if (entityId.includes("_demonstration_")) return false;
+
+    // Exclude known non-valve suffixes (HRU variables, timeline entities)
+    // This list covers all HRU unit definitions: Zehnder, Atrea, Meltem, Korado, Xvent
+    const isNonValveEntity = [
+      // Timeline / manual mode entities
+      "_doba_manualniho_rezimu",
+      "_manual_mode_duration",
+      "_manual_duration",
+      "_duration",
+      // HRU control variables
+      "_power",
+      "_power_target",
+      "_temperature",
+      "_temperature_target",
+      "_mode",
+      "_mode_target",
+      "_bypass",
+      "_boost",
+      "_offset",
+      "_comfo_clime",
+      // HRU status variables
+      "_error",
+      "_change_filter",
+      "_replace_filter_days",
+      "_flow_in",
+      "_flow_out",
+      "_outside_temperature",
+      "_room_temperature",
+      "_room_humidity",
+      "_supply_temperature",
+      "_temperature_profile",
+      "_unit_sn",
+    ].some((suffix) => entityId.toLowerCase().endsWith(suffix));
+
+    return !isNonValveEntity;
   }
 
   private async handleEvent(event: HassStateChangedEvent): Promise<void> {
@@ -257,8 +261,7 @@ export class ValveManager implements ValveController {
       return null;
     }
     // Expect pattern number.luftator_<controller>_<zone>
-    const baseSegments =
-      segments.length >= 3 ? segments.slice(0, segments.length - 1) : segments.slice(0, 1);
+    const baseSegments = segments.length >= 3 ? segments.slice(0, -1) : segments.slice(0, 1);
     const controller = baseSegments.join("_");
     return controller || null;
   }

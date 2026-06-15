@@ -3,11 +3,13 @@ import type { Dispatch, SetStateAction } from "react";
 import type { Mode } from "@luftuj/shared/types/timeline";
 import type { Valve } from "@luftuj/shared/types/valve";
 
+type VariableValue = number | string | boolean;
+
 export interface ModeFormState {
   name: string;
   setName: (v: string) => void;
-  variableValues: Record<string, number | string | boolean>;
-  setVariableValues: Dispatch<SetStateAction<Record<string, number | string | boolean>>>;
+  variableValues: Record<string, VariableValue>;
+  setVariableValues: Dispatch<SetStateAction<Record<string, VariableValue>>>;
   color: string;
   setColor: (v: string) => void;
   isBoost: boolean;
@@ -21,9 +23,7 @@ export interface ModeFormState {
 
 export function useModeForm(opened: boolean, mode: Mode | null, valves: Valve[]): ModeFormState {
   const [name, setName] = useState("");
-  const [variableValues, setVariableValues] = useState<Record<string, number | string | boolean>>(
-    {},
-  );
+  const [variableValues, setVariableValues] = useState<Record<string, VariableValue>>({});
   const [color, setColor] = useState("");
   const [isBoost, setIsBoost] = useState(false);
   const [valveOpenings, setValveOpenings] = useState<Record<string, number | undefined>>({});

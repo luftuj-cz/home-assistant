@@ -18,13 +18,15 @@
     <script>
       (function () {
         try {
-          const saved = window.localStorage.getItem("luftujha-color-scheme");
+          const saved = globalThis.localStorage.getItem("luftujha-color-scheme");
           if (saved === "dark" || saved === "light") {
-            document.documentElement.setAttribute("data-mantine-color-scheme", saved);
+            document.documentElement.dataset.mantineColorScheme = saved;
           } else {
-            document.documentElement.setAttribute("data-mantine-color-scheme", "dark");
+            document.documentElement.dataset.mantineColorScheme = "dark";
           }
-        } catch (e) {}
+        } catch {
+          document.documentElement.dataset.mantineColorScheme = "dark";
+        }
       })();
     </script>
     <script type="module" crossorigin src="./assets/js/index-BEsWvpC3.js"></script>

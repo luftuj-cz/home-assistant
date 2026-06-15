@@ -1,23 +1,27 @@
-export type AllowedFunction =
-  | "bit_and"
-  | "bit_or"
-  | "bit_lshift"
-  | "bit_rshift"
-  | "non_zero"
-  | "delay"
-  | "modbus_write_holding"
-  | "modbus_write_holding_multi"
-  | "modbus_read_holding"
-  | "modbus_read_input"
-  | "modbus_write_coil"
-  | "modbus_read_discrete"
-  | "round"
-  | "multiply"
-  | "sum"
-  | "substract"
-  | "clamp"
-  | "int16"
-  | "uint16";
+export const ALLOWED_FUNCTIONS = [
+  "bit_and",
+  "bit_or",
+  "bit_lshift",
+  "bit_rshift",
+  "non_zero",
+  "delay",
+  "modbus_write_holding",
+  "modbus_write_holding_multi",
+  "modbus_read_holding",
+  "modbus_read_input",
+  "modbus_write_coil",
+  "modbus_read_discrete",
+  "modbus_read_coil",
+  "round",
+  "multiply",
+  "sum",
+  "subtract",
+  "clamp",
+  "int16",
+  "uint16",
+] as const;
+
+export type AllowedFunction = (typeof ALLOWED_FUNCTIONS)[number];
 
 export type CommandValue = number | string | CommandExpression;
 

@@ -4,9 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import {
+  type DebugPayload,
   flattenDebugRows,
   formatTimestamp,
-  type DebugPayload,
 } from "@luftuj/features/debug/panels/utils";
 
 export function BackendValuesPanel() {
@@ -86,12 +86,12 @@ export function BackendValuesPanel() {
 
   useEffect(() => {
     void loadDebugSnapshot(true);
-    const intervalId = window.setInterval(() => {
+    const intervalId = globalThis.setInterval(() => {
       void loadDebugSnapshot(false);
     }, 5000);
 
     return () => {
-      window.clearInterval(intervalId);
+      globalThis.clearInterval(intervalId);
     };
   }, [loadDebugSnapshot]);
 

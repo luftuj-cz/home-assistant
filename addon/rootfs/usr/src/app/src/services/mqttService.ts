@@ -1,5 +1,5 @@
 import mqtt from "mqtt";
-import { EventEmitter } from "events";
+import { EventEmitter } from "node:events";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/options.js";
 import type { HeatRecoveryUnit, LocalizedText } from "../features/hru/hru.definitions.js";
@@ -38,7 +38,7 @@ const RESOURCES: Record<string, LocaleResource> = {
 
 function normalizeLang(lang: string | null | undefined): keyof typeof RESOURCES {
   const base = typeof lang === "string" && lang ? lang.split("-")[0] : "en";
-  return (base === "cs" ? "cs" : "en") as keyof typeof RESOURCES;
+  return base === "cs" ? "cs" : "en";
 }
 
 const FALLBACK_STRINGS: LocalizedStrings = {
@@ -114,6 +114,64 @@ export class MqttService extends EventEmitter {
     private readonly logger: Logger,
   ) {
     super();
+  }
+
+  public static async testConnection(
+    settings: MqttSettings,
+    logger: Logger,
+  ): Promise<{ success: boolean; message?: string }> {
+    const clientId = `luftuj-test-${Math.random().toString(16).slice(2, 8)}`;
+
+    logger.info(
+      { host: settings.host, port: settings.port, clientId },
+      "MQTT: Testing connection (v5)",
+    );
+
+    return new Promise((resolve) => {
+      const client = mqtt.connect({
+        host: settings.host,
+        port: settings.port,
+        protocol: "mqtt",
+        username: settings.user ?? undefined,
+        password: settings.password ?? undefined,
+        clientId,
+        clean: true,
+        protocolVersion: 5,
+        connectTimeout: 5000,
+        reconnectPeriod: 0,
+        family: 4,
+      } as mqtt.IClientOptions & { family?: 4 | 6 });
+
+      let finished = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      let errorMessage: string | undefined;
+
+      function finish(ok: boolean, msg?: string) {
+        if (finished) return;
+        finished = true;
+        if (timer) clearTimeout(timer);
+        client.end(true);
+        resolve({ success: ok, message: msg });
+      }
+
+      client.on("connect", () => finish(true));
+
+      client.on("error", (e) => {
+        errorMessage = e.message;
+      });
+
+      client.on("close", () => {
+        if (!finished) {
+          finish(false, errorMessage || "Connection closed");
+        }
+      });
+
+      timer = setTimeout(() => {
+        if (!finished) {
+          finish(false, errorMessage || "Connection timeout");
+        }
+      }, 6000);
+    });
   }
 
   public isConnected(): boolean {
@@ -233,20 +291,6 @@ export class MqttService extends EventEmitter {
     return true;
   }
 
-  private async unsubscribeFromCommands(unitId: string) {
-    if (!this.client) return;
-    const unitBaseTopic = `${BASE_TOPIC}/${unitId}`;
-    try {
-      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost_duration/set`);
-      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/cancel`);
-      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/+/start`);
-      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/+/start_infinite`);
-      this.logger.info({ unitId }, "MQTT: Unsubscribed from old unit commands successfully");
-    } catch (err) {
-      this.logger.error({ err, unitId }, "MQTT: Failed to unsubscribe from commands");
-    }
-  }
-
   /**
    * Manually trigger a discovery refresh (e.g. after mode changes)
    */
@@ -337,6 +381,38 @@ export class MqttService extends EventEmitter {
     }
   }
 
+  public async reloadConfig(): Promise<void> {
+    this.logger.info("MQTT: reloadConfig() called, reconnecting...");
+    await this.disconnect();
+    await this.connect();
+  }
+
+  public getLastDiscoveryTime(): string | null {
+    return this.settingsRepo.getLastDiscoveryTime();
+  }
+
+  public setLastDiscoveryTime(time: string): void {
+    this.settingsRepo.setLastDiscoveryTime(time);
+  }
+
+  public getLastSuccessAt(): number | null {
+    return this.lastSuccessAt > 0 ? this.lastSuccessAt : null;
+  }
+
+  private async unsubscribeFromCommands(unitId: string) {
+    if (!this.client) return;
+    const unitBaseTopic = `${BASE_TOPIC}/${unitId}`;
+    try {
+      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost_duration/set`);
+      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/cancel`);
+      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/+/start`);
+      await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/+/start_infinite`);
+      this.logger.info({ unitId }, "MQTT: Unsubscribed from old unit commands successfully");
+    } catch (err) {
+      this.logger.error({ err, unitId }, "MQTT: Failed to unsubscribe from commands");
+    }
+  }
+
   private async throttledPublish(
     topic: string,
     payload: string | Buffer,
@@ -363,82 +439,6 @@ export class MqttService extends EventEmitter {
     });
 
     await this.publishQueue;
-  }
-
-  public async reloadConfig(): Promise<void> {
-    this.logger.info("MQTT: reloadConfig() called, reconnecting...");
-    await this.disconnect();
-    await this.connect();
-  }
-
-  public getLastDiscoveryTime(): string | null {
-    return this.settingsRepo.getLastDiscoveryTime();
-  }
-
-  public setLastDiscoveryTime(time: string): void {
-    this.settingsRepo.setLastDiscoveryTime(time);
-  }
-
-  public getLastSuccessAt(): number | null {
-    return this.lastSuccessAt > 0 ? this.lastSuccessAt : null;
-  }
-
-  public static async testConnection(
-    settings: MqttSettings,
-    logger: Logger,
-  ): Promise<{ success: boolean; message?: string }> {
-    const clientId = `luftuj-test-${Math.random().toString(16).slice(2, 8)}`;
-
-    logger.info(
-      { host: settings.host, port: settings.port, clientId },
-      "MQTT: Testing connection (v5)",
-    );
-
-    return new Promise((resolve) => {
-      const client = mqtt.connect({
-        host: settings.host,
-        port: settings.port,
-        protocol: "mqtt",
-        username: settings.user ?? undefined,
-        password: settings.password ?? undefined,
-        clientId,
-        clean: true,
-        protocolVersion: 5,
-        connectTimeout: 5000,
-        reconnectPeriod: 0,
-        family: 4,
-      } as mqtt.IClientOptions & { family?: 4 | 6 });
-
-      let finished = false;
-      let timer: ReturnType<typeof setTimeout> | null = null;
-      let errorMessage: string | undefined;
-
-      function finish(ok: boolean, msg?: string) {
-        if (finished) return;
-        finished = true;
-        if (timer) clearTimeout(timer);
-        client.end(true);
-        resolve({ success: ok, message: msg });
-      }
-
-      client.on("connect", () => finish(true));
-
-      client.on("error", (e) => {
-        errorMessage = e.message;
-      });
-
-      client.on("close", () => {
-        if (!finished) {
-          finish(false, errorMessage || "Connection closed");
-        }
-      });
-
-      timer = setTimeout(() => {
-        if (!finished) {
-          finish(false, errorMessage || "Connection timeout");
-        }
-      }, 6000);
-    });
   }
 
   private resolveConfig(): AppConfig["mqtt"] {
@@ -604,9 +604,9 @@ export class MqttService extends EventEmitter {
 
       // 1. Duration Set
       if (topic === `${unitBaseTopic}/boost_duration/set`) {
-        const duration = parseInt(payload, 10);
+        const duration = Number.parseInt(payload, 10);
         // Validate payload (5-480)
-        if (!isNaN(duration) && duration >= 5 && duration <= 480) {
+        if (!Number.isNaN(duration) && duration >= 5 && duration <= 480) {
           this.logger.info({ duration }, "MQTT: Execute Boost Duration Set");
           this.settingsRepo.setBoostDuration(duration);
           await this.client?.publishAsync(
@@ -633,9 +633,9 @@ export class MqttService extends EventEmitter {
       }
 
       // 3. Start Boost
-      const startBoostMatch = topic.match(
-        new RegExp(`^${this.escapeRegExp(unitBaseTopic)}/boost/(\\d+)/start$`),
-      );
+      const startBoostMatch = new RegExp(
+        String.raw`^${this.escapeRegExp(unitBaseTopic)}/boost/(\d+)/start$`,
+      ).exec(topic);
       if (startBoostMatch && payload === "START") {
         const modeIdStr = startBoostMatch[1];
         if (!modeIdStr) {
@@ -643,7 +643,7 @@ export class MqttService extends EventEmitter {
           return;
         }
 
-        const modeId = parseInt(modeIdStr, 10);
+        const modeId = Number.parseInt(modeIdStr, 10);
         const duration = this.settingsRepo.getBoostDuration();
 
         const durationMinutes = duration;
@@ -661,9 +661,9 @@ export class MqttService extends EventEmitter {
       }
 
       // 4. Start Infinite Boost
-      const startInfiniteBoostMatch = topic.match(
-        new RegExp(`^${this.escapeRegExp(unitBaseTopic)}/boost/(\\d+)/start_infinite$`),
-      );
+      const startInfiniteBoostMatch = new RegExp(
+        String.raw`^${this.escapeRegExp(unitBaseTopic)}/boost/(\d+)/start_infinite$`,
+      ).exec(topic);
       if (startInfiniteBoostMatch && payload === "START") {
         const modeIdStr = startInfiniteBoostMatch[1];
         if (!modeIdStr) {
@@ -671,7 +671,7 @@ export class MqttService extends EventEmitter {
           return;
         }
 
-        const modeId = parseInt(modeIdStr, 10);
+        const modeId = Number.parseInt(modeIdStr, 10);
         const durationMinutes = 999999;
         const endTime = new Date("9999-12-31T23:59:59.999Z").toISOString();
 
@@ -693,16 +693,16 @@ export class MqttService extends EventEmitter {
   private slugify(text: string): string {
     return text
       .normalize("NFD") // Split accented chars
-      .replace(/[\u0300-\u036f]/g, "") // Remove accents
+      .replaceAll(/[\u0300-\u036f]/g, "") // Remove accents
       .toLowerCase()
       .trim()
-      .replace(/luftator/g, "") // Avoid valve-like prefixes in MQTT entities
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/(^_|_$)/g, ""); // Remove leading/trailing underscores
+      .replaceAll("luftator", "") // Avoid valve-like prefixes in MQTT entities
+      .replaceAll(/[^a-z0-9]+/g, "_")
+      .replaceAll(/(^_|_$)/g, ""); // Remove leading/trailing underscores
   }
 
   private escapeRegExp(str: string): string {
-    return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return str.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
   }
 
   private async runDiscoveryCycle() {
@@ -759,9 +759,9 @@ export class MqttService extends EventEmitter {
 
     const device = {
       identifiers: [`luftuj_hru_device_${stableId}`],
-      name: `LUFTaTOR (${unit.name})`,
+      name: "LUFTaTOR",
       manufacturer: "Luftuj s.r.o.",
-      model: unit.code || "HRU",
+      model: unit.name || unit.code || "HRU",
     };
 
     const unitBaseTopic = `${BASE_TOPIC}/${unitId}`;
@@ -886,7 +886,7 @@ export class MqttService extends EventEmitter {
     );
     entityCount++;
 
-    const boostCount = await this.updateBoostDiscovery(unitId, unit, strings, device, availability);
+    const boostCount = await this.updateBoostDiscovery(unitId, unit, device, availability);
     entityCount += boostCount;
 
     await this.publishAvailability(unitId, "online");
@@ -1012,7 +1012,6 @@ export class MqttService extends EventEmitter {
   private async updateBoostDiscovery(
     unitId: string,
     unit: HeatRecoveryUnit,
-    strings: LocalizedStrings,
     device: object,
     availability: object[],
   ): Promise<number> {
@@ -1071,11 +1070,10 @@ export class MqttService extends EventEmitter {
           await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}`);
         }
 
-        const boostBtnName = (strings.boost_label || "Boost: {{name}}").replace("{{name}}", m.name);
         await this.publishButton(
           unitId,
           `boost_${slug}`,
-          boostBtnName,
+          m.name,
           `${BASE_TOPIC}/${unitId}/boost/${m.id}/start`,
           "START",
           device,
@@ -1087,7 +1085,7 @@ export class MqttService extends EventEmitter {
         await this.publishButton(
           unitId,
           `boost_${slug}_infinite`,
-          `${boostBtnName} ∞`,
+          `${m.name} ∞`,
           `${BASE_TOPIC}/${unitId}/boost/${m.id}/start_infinite`,
           "START",
           device,
@@ -1119,7 +1117,7 @@ export class MqttService extends EventEmitter {
     // Cleanup modes that were deleted from DB entirely (present in prevBoostMap but not in modes)
     const modeIds = new Set(modes.map((m) => m.id));
     for (const modeIdStr of Object.keys(prevBoostMap)) {
-      const modeId = parseInt(modeIdStr, 10);
+      const modeId = Number.parseInt(modeIdStr, 10);
       if (!modeIds.has(modeId)) {
         const oldSlug = prevBoostMap[modeId];
         this.logger.info(

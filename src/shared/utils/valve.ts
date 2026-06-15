@@ -1,6 +1,11 @@
 import type { TFunction } from "i18next";
 
-export function getValveStatusColor(value: number, min: number, max: number, unavailable?: boolean): string {
+export function getValveStatusColor(
+  value: number,
+  min: number,
+  max: number,
+  unavailable?: boolean,
+): string {
   if (unavailable) return "gray";
   if (value >= max) return "red";
   if (value <= min) return "green";

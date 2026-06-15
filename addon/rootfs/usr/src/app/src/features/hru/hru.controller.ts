@@ -1,7 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
 import type { HruService } from "./hru.service.js";
-import { ApiError } from "../../shared/errors/apiErrors.js";
 import type { HruWriteInput } from "../../schemas/hru.js";
 
 export class HruController {
@@ -56,21 +55,10 @@ export class HruController {
     res: Response,
     next: NextFunction,
   ): Promise<void> => {
-    const { power, temperature, mode } = req.body;
-
-    if (power === undefined && temperature === undefined && mode === undefined) {
-      this.logger.warn("HRU write attempt with no fields");
-      throw new ApiError(400, "No fields to write");
-    }
-
     try {
-      const values: Record<string, number | string | boolean> = {};
-      if (power !== undefined) values.power = power;
-      if (temperature !== undefined) values.temperature = temperature;
-      if (mode !== undefined) values.mode = mode;
-      await this.service.writeValues(values);
+      await this.service.writeValues(req.body);
       res.status(204).end();
-      this.logger.info({ power, temperature, mode }, "HRU values written successfully");
+      this.logger.info(req.body, "HRU values written successfully");
     } catch (error) {
       this.logger.error({ error, body: req.body }, "Failed to write HRU values");
       next(error);

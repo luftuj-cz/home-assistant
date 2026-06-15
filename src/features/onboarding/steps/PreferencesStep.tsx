@@ -1,5 +1,4 @@
-import { Button, Group, Select, Stack } from "@mantine/core";
-import { useMantineColorScheme } from "@mantine/core";
+import { Button, Group, Select, Stack, useMantineColorScheme } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
 import { IconLanguage, IconPalette, IconArrowRight } from "@tabler/icons-react";

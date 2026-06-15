@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import {
   Button,
   Card,
@@ -20,7 +20,6 @@ import {
 } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { TimelineEvent, Mode } from "@luftuj/shared/types/timeline";
-import { ActionIcon as MantineActionIcon } from "@mantine/core";
 import { MotionSwitch } from "@luftuj/shared/ui";
 import { createLogger } from "@luftuj/shared/utils/logger";
 
@@ -44,27 +43,27 @@ interface TimelineDayCardProps {
   t: TFunction;
 }
 
+function toMins(time: string) {
+  const [h, m] = time.split(":").map(Number);
+  return h * 60 + m;
+}
+
 function isEventActive(ev: TimelineEvent, allDayEvents: TimelineEvent[], dayIdx: number): boolean {
   const now = new Date();
   const jsDay = now.getDay();
   const currentDayIdx = jsDay === 0 ? 6 : jsDay - 1;
   const nowMinutes = now.getHours() * 60 + now.getMinutes();
 
-  function toMins(time: string) {
-    const [h, m] = time.split(":").map(Number);
-    return h * 60 + m;
-  }
-
   if (dayIdx === currentDayIdx) {
     const startedEvents = allDayEvents.filter((e) => toMins(e.startTime) <= nowMinutes);
     if (startedEvents.length === 0) return false;
-    const latest = startedEvents[startedEvents.length - 1];
+    const latest = startedEvents.at(-1)!;
     return ev.id === latest.id && ev.startTime === latest.startTime;
   }
 
   const yesterdayIdx = (currentDayIdx - 1 + 7) % 7;
   if (dayIdx === yesterdayIdx) {
-    const isLastOfItsDay = ev === allDayEvents[allDayEvents.length - 1];
+    const isLastOfItsDay = ev === allDayEvents.at(-1);
     if (!isLastOfItsDay) return false;
     return false;
   }
@@ -88,9 +87,49 @@ export function TimelineDayCard({
   onToggle,
   onDropMode,
   t,
-}: TimelineDayCardProps) {
+}: Readonly<TimelineDayCardProps>) {
   const sortedEvents = events.toSorted((a, b) => a.startTime.localeCompare(b.startTime));
   const [isDragOver, setIsDragOver] = useState(false);
+
+  let copyAction: ReactNode;
+  if (copyDay === null) {
+    copyAction = (
+      <Tooltip label={t("settings.timeline.copyDay")} withArrow>
+        <ActionIcon
+          variant="light"
+          aria-label={t("settings.timeline.copyDay")}
+          onClick={() => onCopy(dayIdx)}
+        >
+          <IconCopy size={16} />
+        </ActionIcon>
+      </Tooltip>
+    );
+  } else if (copyDay === dayIdx) {
+    copyAction = (
+      <Tooltip label={t("settings.timeline.modal.cancel")} withArrow>
+        <ActionIcon
+          variant="light"
+          color="red"
+          aria-label={t("settings.timeline.modal.cancel")}
+          onClick={onCancelCopy}
+        >
+          <IconClipboardCheck size={16} />
+        </ActionIcon>
+      </Tooltip>
+    );
+  } else {
+    copyAction = (
+      <Tooltip label={t("settings.timeline.pasteDay")} withArrow>
+        <ActionIcon
+          variant="light"
+          aria-label={t("settings.timeline.pasteDay")}
+          onClick={() => onPaste(dayIdx)}
+        >
+          <IconClipboardCheck size={16} />
+        </ActionIcon>
+      </Tooltip>
+    );
+  }
 
   return (
     <Card
@@ -128,38 +167,7 @@ export function TimelineDayCard({
           {label}
         </Title>
         <Group gap="xs">
-          {copyDay === null ? (
-            <Tooltip label={t("settings.timeline.copyDay")} withArrow>
-              <ActionIcon
-                variant="light"
-                aria-label={t("settings.timeline.copyDay")}
-                onClick={() => onCopy(dayIdx)}
-              >
-                <IconCopy size={16} />
-              </ActionIcon>
-            </Tooltip>
-          ) : copyDay === dayIdx ? (
-            <Tooltip label={t("settings.timeline.modal.cancel")} withArrow>
-              <ActionIcon
-                variant="light"
-                color="red"
-                aria-label={t("settings.timeline.modal.cancel")}
-                onClick={onCancelCopy}
-              >
-                <IconClipboardCheck size={16} />
-              </ActionIcon>
-            </Tooltip>
-          ) : (
-            <Tooltip label={t("settings.timeline.pasteDay")} withArrow>
-              <ActionIcon
-                variant="light"
-                aria-label={t("settings.timeline.pasteDay")}
-                onClick={() => onPaste(dayIdx)}
-              >
-                <IconClipboardCheck size={16} />
-              </ActionIcon>
-            </Tooltip>
-          )}
+          {copyAction}
           <Button
             size="compact-xs"
             variant="filled"
@@ -226,15 +234,15 @@ export function TimelineDayCard({
                         checked={ev.enabled}
                         onChange={(e) => onToggle(ev, e.currentTarget.checked)}
                       />
-                      <MantineActionIcon
+                      <ActionIcon
                         variant="subtle"
                         size="sm"
                         aria-label={t("settings.timeline.edit")}
                         onClick={() => onEdit(ev)}
                       >
                         <IconEdit size={14} />
-                      </MantineActionIcon>
-                      <MantineActionIcon
+                      </ActionIcon>
+                      <ActionIcon
                         variant="subtle"
                         size="sm"
                         color="red"
@@ -242,7 +250,7 @@ export function TimelineDayCard({
                         onClick={() => ev.id && onDelete(ev.id)}
                       >
                         <IconTrash size={14} />
-                      </MantineActionIcon>
+                      </ActionIcon>
                     </Group>
                   </Group>
                 }

@@ -30,24 +30,24 @@ export class HruRepository {
 
       // noinspection JSUnusedGlobalSymbols
       const handlers: Record<string, (args: number[]) => Promise<number> | number> = {
-        bit_and: async ([a = 0, b = 0]) => a & b,
-        bit_or: async ([a = 0, b = 0]) => a | b,
-        bit_lshift: async ([a = 0, b = 0]) => {
+        bit_and: ([a = 0, b = 0]) => a & b,
+        bit_or: ([a = 0, b = 0]) => a | b,
+        bit_lshift: ([a = 0, b = 0]) => {
           return a << b;
         },
-        bit_rshift: async ([a = 0, b = 0]) => a >> b,
-        non_zero: async ([a = 0]) => (a === 0 ? 0 : 1),
-        round: async ([a = 0]) => Math.round(a),
-        sum: async (args) => args.reduce((a, b) => a + b, 0),
-        multiply: async (args) => args.reduce((a, b) => a * b, 1),
-        substract: async ([a = 0, b = 0]) => a - b,
-        clamp: async ([a = 0, min = 0, max = 100]) => Math.min(Math.max(a, min), max),
+        bit_rshift: ([a = 0, b = 0]) => a >> b,
+        non_zero: ([a = 0]) => (a === 0 ? 0 : 1),
+        round: ([a = 0]) => Math.round(a),
+        sum: (args) => args.reduce((a, b) => a + b, 0),
+        multiply: (args) => args.reduce((a, b) => a * b, 1),
+        subtract: ([a = 0, b = 0]) => a - b,
+        clamp: ([a = 0, min = 0, max = 100]) => Math.min(Math.max(a, min), max),
         delay: async ([ms = 0]) => {
           await new Promise((resolve) => setTimeout(resolve, ms));
           return 0;
         },
-        int16: async ([a = 0]) => new Int16Array([a])[0] ?? 0,
-        uint16: async ([a = 0]) => new Uint16Array([a])[0] ?? 0,
+        int16: ([a = 0]) => new Int16Array([a])[0] ?? 0,
+        uint16: ([a = 0]) => new Uint16Array([a])[0] ?? 0,
         modbus_read_holding: async ([addr = 0, count = 1]) => {
           const data = await mb.readHolding(addr, count);
           return data[0] ?? 0;

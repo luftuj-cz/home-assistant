@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActionIcon,
   Alert,
@@ -11,7 +11,7 @@ import {
   Title,
   Tooltip,
 } from "@mantine/core";
-import { IconRefresh, IconAdjustments, IconAlertCircle } from "@tabler/icons-react";
+import { IconAdjustments, IconAlertCircle, IconRefresh } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
 import { ValveCard } from "@luftuj/features/valves/components/ValveCard";
@@ -206,6 +206,7 @@ export function ValvesPage() {
           existing.removeEventListener("open", closeOnOpen);
           existing.close(1000, "reconnect");
         }
+
         existing.addEventListener("open", closeOnOpen);
       } else {
         existing.close();
@@ -229,9 +230,9 @@ export function ValvesPage() {
           replaceValves(message.payload);
           logger.debug("Received websocket snapshot", { count: message.payload.length });
         } else if (message.type === "update" && !Array.isArray(message.payload)) {
-          updateValve(message.payload as HaState);
+          updateValve(message.payload);
           logger.debug("Received websocket valve update", {
-            entityId: (message.payload as HaState).entity_id,
+            entityId: message.payload.entity_id,
           });
         }
       } catch (wsError) {
@@ -243,10 +244,10 @@ export function ValvesPage() {
 
     function scheduleReconnect() {
       if (reconnectTimeoutRef.current !== null) {
-        window.clearTimeout(reconnectTimeoutRef.current);
+        globalThis.clearTimeout(reconnectTimeoutRef.current);
       }
       logger.debug("Scheduling WebSocket reconnection", { delayMs: 3000 });
-      reconnectTimeoutRef.current = window.setTimeout(() => {
+      reconnectTimeoutRef.current = globalThis.setTimeout(() => {
         logger.info("Reconnecting valves WebSocket");
         connectWebSocket();
       }, 3000);
@@ -294,7 +295,7 @@ export function ValvesPage() {
     return () => {
       logger.debug("Cleaning up valves WebSocket connection");
       if (reconnectTimeoutRef.current !== null) {
-        window.clearTimeout(reconnectTimeoutRef.current);
+        globalThis.clearTimeout(reconnectTimeoutRef.current);
       }
       if (wsHandlersRef.current) {
         const { socket, closeHandler, errorHandler } = wsHandlersRef.current;
@@ -308,6 +309,7 @@ export function ValvesPage() {
             socket.removeEventListener("open", closeOnOpen);
             socket.close(1000, "unmount");
           }
+
           socket.addEventListener("open", closeOnOpen);
         } else {
           socket.close();
@@ -369,6 +371,36 @@ export function ValvesPage() {
   );
 
   const handleCloseError = useCallback(() => setError(null), []);
+
+  let valveGrid: ReactNode;
+  if (loading || (valves.length === 0 && !gracePeriodExpired)) {
+    valveGrid = (
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+        <Skeleton height={200} radius="md" />
+        <Skeleton height={200} radius="md" />
+        <Skeleton height={200} radius="md" />
+      </SimpleGrid>
+    );
+  } else if (valves.length === 0) {
+    valveGrid = (
+      <Alert color="yellow" title={t("valves.warningTitle")}>
+        {t("valves.empty")}
+      </Alert>
+    );
+  } else {
+    valveGrid = (
+      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
+        {valves.map((valve) => (
+          <ValveCard
+            key={valve.entityId}
+            valve={valve}
+            onPreview={previewValveValue}
+            onCommit={commitValveValue}
+          />
+        ))}
+      </SimpleGrid>
+    );
+  }
 
   return (
     <Container size="xl">
@@ -444,28 +476,7 @@ export function ValvesPage() {
           </Alert>
         )}
 
-        {loading || (valves.length === 0 && !gracePeriodExpired) ? (
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-            <Skeleton height={200} radius="md" />
-            <Skeleton height={200} radius="md" />
-            <Skeleton height={200} radius="md" />
-          </SimpleGrid>
-        ) : valves.length === 0 ? (
-          <Alert color="yellow" title={t("valves.warningTitle")}>
-            {t("valves.empty")}
-          </Alert>
-        ) : (
-          <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-            {valves.map((valve) => (
-              <ValveCard
-                key={valve.entityId}
-                valve={valve}
-                onPreview={previewValveValue}
-                onCommit={commitValveValue}
-              />
-            ))}
-          </SimpleGrid>
-        )}
+        {valveGrid}
       </Stack>
     </Container>
   );

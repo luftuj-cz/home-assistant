@@ -1,4 +1,4 @@
-import { Badge, Group, Stack, Text, ThemeIcon, rem, Tooltip } from "@mantine/core";
+import { Badge, Group, rem, Stack, Text, ThemeIcon, Tooltip } from "@mantine/core";
 import { IconAdjustments } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
@@ -12,7 +12,7 @@ export interface ValveCardProps {
   onCommit: (entityId: string, value: number) => void | Promise<void>;
 }
 
-export function ValveCard({ valve, onPreview, onCommit }: ValveCardProps) {
+export function ValveCard({ valve, onPreview, onCommit }: Readonly<ValveCardProps>) {
   const { t } = useTranslation();
   const isUnavailable = !valve.isAvailable;
   const statusColor = getValveStatusColor(valve.value, valve.min, valve.max, isUnavailable);

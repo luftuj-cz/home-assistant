@@ -5,7 +5,11 @@ export const timelineModeInputSchema = z.object({
   name: z.string().trim().min(1, "Mode name is required"),
   color: z.string().optional(),
   power: z.number().min(0, "Power must be at least 0").optional(),
-  temperature: z.number().min(-50).max(100).optional(),
+  temperature: z
+    .number()
+    .min(0, "Temperature must be at least 0")
+    .max(50, "Temperature must be at most 50")
+    .optional(),
   variables: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).optional(),
   luftatorConfig: z
     .record(z.string(), z.number().min(0, "Valve opening must be at least 0"))
@@ -15,7 +19,7 @@ export const timelineModeInputSchema = z.object({
 });
 
 // Timeline Event Schemas
-const timeRegex = /^([01]?[0-9]|2[0-3]):[0-5][0-9]$/;
+const timeRegex = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
 export const timelineEventInputSchema = z.object({
   id: z.number().int().positive().optional(),
@@ -25,7 +29,11 @@ export const timelineEventInputSchema = z.object({
     .object({
       mode: z.string().optional(),
       power: z.number().min(0, "Power must be at least 0").optional(),
-      temperature: z.number().min(-50).max(100).optional(),
+      temperature: z
+        .number()
+        .min(0, "Temperature must be at least 0")
+        .max(50, "Temperature must be at most 50")
+        .optional(),
       variables: z.record(z.string(), z.union([z.number(), z.string(), z.boolean()])).optional(),
     })
     .nullable()

@@ -8,7 +8,12 @@ interface FormSectionProps {
   gap?: number | string;
 }
 
-export function FormSection({ title, description, children, gap = "md" }: FormSectionProps) {
+export function FormSection({
+  title,
+  description,
+  children,
+  gap = "md",
+}: Readonly<FormSectionProps>) {
   return (
     <Stack gap={gap}>
       {title && <Title order={5}>{title}</Title>}

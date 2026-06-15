@@ -83,12 +83,12 @@ export function ServerLogsPanel() {
 
   useEffect(() => {
     void loadServerLogs(true);
-    const intervalId = window.setInterval(() => {
+    const intervalId = globalThis.setInterval(() => {
       void loadServerLogs(false);
     }, 5000);
 
     return () => {
-      window.clearInterval(intervalId);
+      globalThis.clearInterval(intervalId);
     };
   }, [t]);
 

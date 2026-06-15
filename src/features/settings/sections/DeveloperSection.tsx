@@ -9,9 +9,9 @@ import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import {
   createLogger,
   getLogLevel,
+  type LogLevel,
   setLogLevel,
   VALID_LOG_LEVELS,
-  type LogLevel,
 } from "@luftuj/shared/utils/logger";
 
 const logger = createLogger("DeveloperSection");
@@ -19,10 +19,11 @@ const logger = createLogger("DeveloperSection");
 export function DeveloperSection() {
   const { t } = useTranslation();
   const [debugMode, setDebugMode] = useState(false);
-  const [logLevel, setLogLevelState] = useState<LogLevel>(() => getLogLevel());
+  const [currentLogLevel, setCurrentLogLevel] = useState<LogLevel>(() => getLogLevel());
 
   useEffect(() => {
     let canceled = false;
+
     async function load() {
       try {
         const [debugRes, logRes] = await Promise.all([
@@ -37,12 +38,13 @@ export function DeveloperSection() {
         if (logRes.ok) {
           const { level } = await logRes.json();
           setLogLevel(level as LogLevel);
-          setLogLevelState(level as LogLevel);
+          setCurrentLogLevel(level as LogLevel);
         }
       } catch (err) {
         logger.error("Failed to load developer settings", { error: err });
       }
     }
+
     void load();
     return () => {
       canceled = true;
@@ -56,7 +58,7 @@ export function DeveloperSection() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ enabled: checked }),
     }).then(() => {
-      setTimeout(() => window.location.reload(), 800);
+      setTimeout(() => globalThis.location.reload(), 800);
     });
     notifications.show({
       title: t("settings.developer.debugMode"),
@@ -71,7 +73,7 @@ export function DeveloperSection() {
   async function handleLogLevelChange(value: string | null) {
     if (!value || !VALID_LOG_LEVELS.includes(value as LogLevel)) return;
     setLogLevel(value as LogLevel);
-    setLogLevelState(value as LogLevel);
+    setCurrentLogLevel(value as LogLevel);
     try {
       const res = await fetch(resolveApiUrl("/api/settings/log-level"), {
         method: "POST",
@@ -122,7 +124,7 @@ export function DeveloperSection() {
                 </Text>
               </Stack>
               <Select
-                value={logLevel}
+                value={currentLogLevel}
                 onChange={(v) => void handleLogLevelChange(v)}
                 data={VALID_LOG_LEVELS.map((level) => ({
                   value: level,

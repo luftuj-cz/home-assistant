@@ -30,7 +30,7 @@ export function ValveSlider({
   thumbSize = 28,
   onChange,
   onChangeEnd,
-}: ValveSliderProps) {
+}: Readonly<ValveSliderProps>) {
   return (
     <Slider
       value={value}
@@ -49,19 +49,13 @@ export function ValveSlider({
       styles={{
         root: { width: "100%" },
         track: {
-          backgroundColor: disabled
-            ? "var(--mantine-color-gray-3)"
-            : "var(--mantine-color-blue-1)",
+          backgroundColor: disabled ? "var(--mantine-color-gray-3)" : "var(--mantine-color-blue-1)",
           opacity: disabled ? 0.6 : 1,
         },
         thumb: {
-          backgroundColor: disabled
-            ? "var(--mantine-color-gray-2)"
-            : "var(--mantine-color-white)",
+          backgroundColor: disabled ? "var(--mantine-color-gray-2)" : "var(--mantine-color-white)",
           borderWidth: 2,
-          borderColor: disabled
-            ? "var(--mantine-color-gray-5)"
-            : "var(--mantine-color-blue-6)",
+          borderColor: disabled ? "var(--mantine-color-gray-5)" : "var(--mantine-color-blue-6)",
           boxShadow: "var(--mantine-shadow-sm)",
           transition: "border-color 0.2s ease, transform 0.1s ease",
         },

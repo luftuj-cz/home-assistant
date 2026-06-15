@@ -18,33 +18,25 @@ export function useDragAutoScroll(options: UseDragAutoScrollOptions = {}) {
     if (!el) return;
 
     function handleDragOver(e: DragEvent) {
-      const container = containerRef.current;
-      if (!container) return;
-
-      const rect = container.getBoundingClientRect();
       const y = e.clientY;
+      const viewportHeight = window.innerHeight;
 
       let scrollDelta = 0;
-      if (y < rect.top + edgeSize) {
-        // Near top edge → scroll up
-        const proximity = 1 - (y - rect.top) / edgeSize;
+      if (y < edgeSize) {
+        // Near top of viewport → scroll up
+        const proximity = 1 - y / edgeSize;
         scrollDelta = -scrollSpeed * Math.max(0, Math.min(1, proximity));
-      } else if (y > rect.bottom - edgeSize) {
-        // Near bottom edge → scroll down
-        const proximity = 1 - (rect.bottom - y) / edgeSize;
+      } else if (y > viewportHeight - edgeSize) {
+        // Near bottom of viewport → scroll down
+        const proximity = 1 - (viewportHeight - y) / edgeSize;
         scrollDelta = scrollSpeed * Math.max(0, Math.min(1, proximity));
       }
 
       if (scrollDelta !== 0) {
-        if (rafId.current === null) {
-          rafId.current = requestAnimationFrame(function tick() {
-            const c = containerRef.current;
-            if (c) {
-              c.scrollTop += scrollDelta;
-            }
-            rafId.current = requestAnimationFrame(tick);
-          });
-        }
+        rafId.current ??= requestAnimationFrame(function tick() {
+          window.scrollBy(0, scrollDelta);
+          rafId.current = requestAnimationFrame(tick);
+        });
       } else if (rafId.current !== null) {
         cancelAnimationFrame(rafId.current);
         rafId.current = null;

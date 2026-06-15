@@ -11,10 +11,12 @@ import { TimelineDayCard } from "@luftuj/features/timeline/components/TimelineDa
 import { TimelineEventModal } from "@luftuj/features/timeline/components/TimelineEventModal";
 import { TimelineModeModal } from "@luftuj/features/timeline/components/TimelineModeModal";
 
-import { useEventWorkflow } from "@luftuj/features/timeline/hooks";
-import { useModeWorkflow } from "@luftuj/features/timeline/hooks";
-import { useDayCopyPaste } from "@luftuj/features/timeline/hooks";
-import { useHruContext } from "@luftuj/features/timeline/hooks";
+import {
+  useEventWorkflow,
+  useModeWorkflow,
+  useDayCopyPaste,
+  useHruContext,
+} from "@luftuj/features/timeline/hooks";
 
 import {
   DAY_ORDER,
@@ -33,7 +35,12 @@ export function TimelinePage() {
 
   const { valves, hruVariables, powerUnit, maxPower, activeUnitId, loading } = useHruContext();
 
-  const { modes, saveMode, deleteMode, isMutating: isModesMutating } = useTimelineModesQuery(activeUnitId);
+  const {
+    modes,
+    saveMode,
+    deleteMode,
+    isMutating: isModesMutating,
+  } = useTimelineModesQuery(activeUnitId);
   const {
     eventsByDay,
     saveEvent,
@@ -141,39 +148,32 @@ export function TimelinePage() {
           <div
             ref={dragScroll.ref}
             style={{
-              overflow: "auto",
-              maxHeight: "calc(100vh - 400px)",
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+              gap: "var(--mantine-spacing-lg)",
+              contentVisibility: "auto",
             }}
           >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-                gap: "var(--mantine-spacing-lg)",
-                contentVisibility: "auto",
-              }}
-            >
-              {DAY_ORDER.map((dayIdx: number) => (
-                <TimelineDayCard
-                  key={dayIdx}
-                  dayIdx={dayIdx}
-                  label={dayLabels[dayIdx]}
-                  events={eventsByDay.get(dayIdx) ?? []}
-                  modes={modes}
-                  copyDay={copyDay}
-                  loading={loading}
-                  onCopy={setCopyDay}
-                  onPaste={handlePasteDay}
-                  onCancelCopy={handleCancelCopy}
-                  onAdd={handleAddEvent}
-                  onEdit={handleEditEvent}
-                  onDelete={deleteEvent}
-                  onToggle={handleToggleEvent}
-                  onDropMode={handleDropAndEdit}
-                  t={t}
-                />
-              ))}
-            </div>
+            {DAY_ORDER.map((dayIdx: number) => (
+              <TimelineDayCard
+                key={dayIdx}
+                dayIdx={dayIdx}
+                label={dayLabels[dayIdx]}
+                events={eventsByDay.get(dayIdx) ?? []}
+                modes={modes}
+                copyDay={copyDay}
+                loading={loading}
+                onCopy={setCopyDay}
+                onPaste={handlePasteDay}
+                onCancelCopy={handleCancelCopy}
+                onAdd={handleAddEvent}
+                onEdit={handleEditEvent}
+                onDelete={deleteEvent}
+                onToggle={handleToggleEvent}
+                onDropMode={handleDropAndEdit}
+                t={t}
+              />
+            ))}
           </div>
         </Stack>
 

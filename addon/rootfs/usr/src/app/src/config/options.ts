@@ -1,4 +1,4 @@
-import { existsSync, readFileSync } from "fs";
+import { existsSync, readFileSync } from "node:fs";
 import { z } from "zod";
 
 const OPTIONS_PATH = "/data/options.json";

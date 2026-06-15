@@ -1,7 +1,7 @@
 ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.19
 FROM ${BUILD_FROM}
 
-RUN apk add --no-cache bash curl ca-certificates libc6-compat gcompat nodejs npm \
+RUN apk add --no-cache bash ca-certificates curl gcompat libc6-compat nodejs npm \
   && rm -rf /var/cache/apk/*
 
 COPY rootfs /
