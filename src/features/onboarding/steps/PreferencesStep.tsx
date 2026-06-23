@@ -1,13 +1,18 @@
-import { Button, Group, Select, Stack, useMantineColorScheme } from "@mantine/core";
+import { Alert, Button, Group, Select, Stack, useMantineColorScheme } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
-import { IconLanguage, IconPalette, IconArrowRight } from "@tabler/icons-react";
+import { IconArrowRight, IconLanguage, IconLeaf, IconPalette } from "@tabler/icons-react";
+import { useEffect, useState } from "react";
 import { useOnboardingWizard } from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
+import { useSeasonHemisphere } from "@luftuj/features/timeline/hooks/useSeasonHemisphere";
 import { setLanguage } from "@luftuj/shared/i18n";
+import type { Hemisphere } from "@luftuj/shared/types/timeline";
 
 export function PreferencesStep() {
   const { t } = useTranslation();
   const { setColorScheme } = useMantineColorScheme();
+  const { data: seasonHemisphere, save: saveSeasonHemisphere } = useSeasonHemisphere();
+  const [selectedHemisphere, setSelectedHemisphere] = useState<Hemisphere>("northern");
   const {
     nextStep,
     prevStep,
@@ -19,11 +24,18 @@ export function PreferencesStep() {
     saveThemeMutation,
   } = useOnboardingWizard();
 
+  useEffect(() => {
+    if (seasonHemisphere?.hemisphere) {
+      setSelectedHemisphere(seasonHemisphere.hemisphere);
+    }
+  }, [seasonHemisphere?.hemisphere]);
+
   async function handleSubmit() {
     try {
       await Promise.all([
         saveLanguageMutation.mutateAsync(selectedLanguage),
         saveThemeMutation.mutateAsync(selectedTheme),
+        saveSeasonHemisphere.mutateAsync(selectedHemisphere),
       ]);
       nextStep();
     } catch {
@@ -69,13 +81,35 @@ export function PreferencesStep() {
           }
         }}
       />
+      <Select
+        label={t("onboarding.preferences.seasonHemisphereLabel")}
+        placeholder={t("onboarding.preferences.seasonHemispherePlaceholder")}
+        leftSection={<IconLeaf size={16} />}
+        data={[
+          { value: "northern", label: t("settings.timeline.seasons.hemisphereNorthern") },
+          { value: "southern", label: t("settings.timeline.seasons.hemisphereSouthern") },
+        ]}
+        value={selectedHemisphere}
+        onChange={(val) => {
+          if (val === "northern" || val === "southern") {
+            setSelectedHemisphere(val);
+          }
+        }}
+      />
+      <Alert color="blue" variant="light" icon={<IconLeaf size={16} />}>
+        {t("onboarding.preferences.seasonInfo")}
+      </Alert>
       <Group justify="flex-end" mt="md">
         <Button variant="default" onClick={prevStep}>
           {t("onboarding.back")}
         </Button>
         <Button
           onClick={handleSubmit}
-          loading={saveLanguageMutation.isPending || saveThemeMutation.isPending}
+          loading={
+            saveLanguageMutation.isPending ||
+            saveThemeMutation.isPending ||
+            saveSeasonHemisphere.isPending
+          }
           rightSection={<IconArrowRight size={16} />}
         >
           {t("onboarding.next")}

@@ -57,6 +57,12 @@ export const logLevelInputSchema = z.object({
   level: z.enum(VALID_LOG_LEVELS),
 });
 
+// Season Hemisphere Schema
+export const seasonHemisphereInputSchema = z.object({
+  hemisphere: z.enum(["northern", "southern"]),
+});
+export type SeasonHemisphereInput = z.infer<typeof seasonHemisphereInputSchema>;
+
 // Type exports
 export type HruSettingsInput = z.infer<typeof hruSettingsInputSchema>;
 export type MqttSettingsInput = z.infer<typeof mqttSettingsInputSchema>;

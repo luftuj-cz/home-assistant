@@ -35,6 +35,7 @@ export const TIMELINE_OVERRIDE_KEY = "timeline.override";
 export const BOOST_DURATION_KEY = "boost.duration";
 export const DEBUG_MODE_KEY = "developer.debug_mode";
 export const LOG_LEVEL_KEY = "frontend.log_level";
+export const SEASON_HEMISPHERE_KEY = "seasons.hemisphere";
 
 export const VALID_LOG_LEVELS = ["trace", "debug", "info", "warn", "error", "fatal"] as const;
 export type LogLevel = (typeof VALID_LOG_LEVELS)[number];

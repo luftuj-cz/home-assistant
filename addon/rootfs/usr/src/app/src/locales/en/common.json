@@ -244,7 +244,35 @@
       "copying": "Copying {{day}}…",
       "copyHint": "Select a day to paste events.",
       "pasteSuccess": "Events pasted",
-      "priorityDescription": "Higher priority wins when events overlap"
+      "priorityDescription": "Higher priority wins when events overlap",
+      "seasons": {
+        "title": "Seasonal Modes",
+        "description": "Override mode settings per astronomical season.",
+        "settingsInfo": "Season detection uses astronomical boundary dates and the selected hemisphere. Seasonal modes are optional: if no season is configured, the normal timeline schedule is used unchanged.",
+        "currentSeason": "Current season",
+        "hemisphere": "Hemisphere",
+        "hemisphereNorthern": "Northern",
+        "hemisphereSouthern": "Southern",
+        "spring": "Spring",
+        "summer": "Summer",
+        "autumn": "Autumn",
+        "winter": "Winter",
+        "notConfigured": "Not configured",
+        "configured": "Configured",
+        "editTitle": "Edit {{season}} mode",
+        "createTitle": "Configure {{season}} mode",
+        "baseModeLabel": "Base mode",
+        "overridePower": "Override power",
+        "overrideTemperature": "Override temperature",
+        "overrideVariables": "Override variables",
+        "overrideValves": "Override valves",
+        "remove": "Remove seasonal override",
+        "removeConfirm": "Remove the {{season}} seasonal override?",
+        "loadFailed": "Failed to load seasonal modes",
+        "saveSuccess": "{{season}} mode saved",
+        "saveFailed": "Failed to save {{season}} mode",
+        "removeSuccess": "{{season}} mode removed"
+      }
     },
     "hru": {
       "title": "Heat Recovery Unit",
@@ -544,6 +572,9 @@
       "languagePlaceholder": "Select language",
       "themeLabel": "Appearance",
       "themePlaceholder": "Select theme",
+      "seasonHemisphereLabel": "Season hemisphere",
+      "seasonHemispherePlaceholder": "Select hemisphere",
+      "seasonInfo": "Seasonal timeline modes use this hemisphere to decide whether the current date is spring, summer, autumn, or winter. You can change it later in Settings.",
       "themes": {
         "light": "Light",
         "dark": "Dark"

@@ -23,6 +23,14 @@ export {
   upsertTimelineMode,
 } from "./db/timeline.js";
 export {
+  deleteSeasonalMode,
+  getSeasonalMode,
+  listSeasonalModes,
+  type Season,
+  type SeasonalModeRecord,
+  upsertSeasonalMode,
+} from "./db/seasonalModes.js";
+export {
   checkpointDatabase,
   createDatabaseBackup,
   replaceDatabaseWithFile,
@@ -77,6 +85,10 @@ export type StatementMap = {
   upsertTimelineMode: Statement;
   deleteTimelineMode: Statement;
   getTimelineMode: Statement;
+  getSeasonalModes: Statement;
+  getSeasonalMode: Statement;
+  upsertSeasonalMode: Statement;
+  deleteSeasonalMode: Statement;
 };
 
 let moduleLogger: Logger | null = null;
@@ -245,8 +257,38 @@ function prepareStatements(database: DatabaseType): StatementMap {
                                           FROM timeline_modes
                                           WHERE id = ?`),
     getTimelineMode: database.prepare(`SELECT *
-                                       FROM timeline_modes
-                                       WHERE id = ?`),
+                                        FROM timeline_modes
+                                        WHERE id = ?`),
+    getSeasonalModes: database.prepare(
+      `SELECT *
+       FROM timeline_seasons
+       WHERE hru_id = ?
+          OR hru_id = ?
+       ORDER BY season, CASE WHEN hru_id = ? THEN 0 ELSE 1 END`,
+    ),
+    getSeasonalMode: database.prepare(
+      `SELECT *
+       FROM timeline_seasons
+       WHERE season = ?
+         AND (hru_id = ? OR hru_id = ?)
+       ORDER BY CASE WHEN hru_id = ? THEN 0 ELSE 1 END
+       LIMIT 1`,
+    ),
+    upsertSeasonalMode: database.prepare(
+      `INSERT INTO timeline_seasons (season, hru_id, base_mode_id, power, temperature, variables, luftator_config, enabled, updated_at)
+       VALUES (@season, @hruId, @baseModeId, @power, @temperature, @variables, @luftatorConfig, @enabled, datetime('now'))
+       ON CONFLICT(season, hru_id) DO UPDATE SET
+         base_mode_id = excluded.base_mode_id,
+         power = excluded.power,
+         temperature = excluded.temperature,
+         variables = excluded.variables,
+         luftator_config = excluded.luftator_config,
+         enabled = excluded.enabled,
+         updated_at = datetime('now')`,
+    ),
+    deleteSeasonalMode: database.prepare(
+      `DELETE FROM timeline_seasons WHERE season = ? AND hru_id = ?`,
+    ),
   };
 }
 

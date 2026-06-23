@@ -32,3 +32,17 @@ export interface Mode {
   power?: number;
   temperature?: number;
 }
+
+export type Season = "spring" | "summer" | "autumn" | "winter";
+export type Hemisphere = "northern" | "southern";
+
+export interface SeasonalMode {
+  season: Season;
+  hruId: string | null;
+  baseModeId: number;
+  power: number | null;
+  temperature: number | null;
+  variables: Record<string, number | string | boolean> | null;
+  luftatorConfig: Record<string, number> | null;
+  enabled: boolean;
+}

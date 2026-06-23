@@ -17,6 +17,7 @@ import {
   MQTT_SETTINGS_KEY,
   type MqttSettings,
   ONBOARDING_DONE_KEY,
+  SEASON_HEMISPHERE_KEY,
   THEME_SETTING_KEY,
   VALID_LOG_LEVELS,
 } from "../types/index.js";
@@ -35,6 +36,8 @@ import {
   mqttSettingsInputSchema,
   type MqttTestInput,
   mqttTestInputSchema,
+  type SeasonHemisphereInput,
+  seasonHemisphereInputSchema,
   type ThemeSettingInput,
   themeSettingInputSchema,
 } from "../schemas/settings.js";
@@ -489,6 +492,32 @@ export function createSettingsRouter(
         response.status(204).end();
       } catch (error) {
         logger.error({ error }, "Failed to update log level");
+        next(error);
+      }
+    },
+  );
+
+  router.get("/season-hemisphere", (_request: Request, response: Response) => {
+    const hemisphere =
+      getAppSetting(SEASON_HEMISPHERE_KEY) === "southern" ? "southern" : "northern";
+    response.json({ hemisphere });
+  });
+
+  router.post(
+    "/season-hemisphere",
+    validateRequest(seasonHemisphereInputSchema),
+    (
+      request: Request<Record<string, unknown>, Record<string, unknown>, SeasonHemisphereInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const { hemisphere } = request.body;
+        setAppSetting(SEASON_HEMISPHERE_KEY, hemisphere);
+        logger.info({ hemisphere }, "Season hemisphere updated");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to update season hemisphere");
         next(error);
       }
     },

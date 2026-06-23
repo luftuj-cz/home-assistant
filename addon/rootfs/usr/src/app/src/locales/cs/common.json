@@ -218,7 +218,35 @@
       "copying": "Kopíruji {{day}}…",
       "copyHint": "Vyberte den pro vložení událostí.",
       "pasteSuccess": "Události vloženy",
-      "priorityDescription": "Vyšší priorita vyhrává při překrývajících se událostech"
+      "priorityDescription": "Vyšší priorita vyhrává při překrývajících se událostech",
+      "seasons": {
+        "title": "Sezónní režimy",
+        "description": "Přepis nastavení režimu podle astronomického ročního období.",
+        "settingsInfo": "Určení období používá astronomické hranice a vybranou polokouli. Sezónní režimy jsou volitelné: pokud není žádné období nastavené, běžný časový plán zůstane beze změny.",
+        "currentSeason": "Aktuální období",
+        "hemisphere": "Polokoule",
+        "hemisphereNorthern": "Severní",
+        "hemisphereSouthern": "Jižní",
+        "spring": "Jaro",
+        "summer": "Léto",
+        "autumn": "Podzim",
+        "winter": "Zima",
+        "notConfigured": "Nenakonfigurováno",
+        "configured": "Nakonfigurováno",
+        "editTitle": "Upravit režim pro {{season}}",
+        "createTitle": "Nastavit režim pro {{season}}",
+        "baseModeLabel": "Základní režim",
+        "overridePower": "Přepsat výkon",
+        "overrideTemperature": "Přepsat teplotu",
+        "overrideVariables": "Přepsat proměnné",
+        "overrideValves": "Přepsat ventily",
+        "remove": "Odstranit sezónní přepis",
+        "removeConfirm": "Odstranit sezónní přepis pro {{season}}?",
+        "loadFailed": "Nepodařilo se načíst sezónní režimy",
+        "saveSuccess": "Režim pro {{season}} uložen",
+        "saveFailed": "Nepodařilo se uložit režim pro {{season}}",
+        "removeSuccess": "Režim pro {{season}} odstraněn"
+      }
     },
     "hru": {
       "title": "Rekuperační jednotka",
@@ -544,6 +572,9 @@
       "languagePlaceholder": "Vyberte jazyk",
       "themeLabel": "Vzhled",
       "themePlaceholder": "Vyberte vzhled",
+      "seasonHemisphereLabel": "Polokoule pro období",
+      "seasonHemispherePlaceholder": "Vyberte polokouli",
+      "seasonInfo": "Sezónní režimy časového plánu používají tuto polokouli k určení, zda je aktuální datum jaro, léto, podzim nebo zima. Později ji můžete změnit v Nastavení.",
       "themes": {
         "light": "Světlý",
         "dark": "Tmavý"

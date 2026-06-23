@@ -17,6 +17,7 @@ import {
   useDayCopyPaste,
   useHruContext,
 } from "@luftuj/features/timeline/hooks";
+import { SeasonalModeList } from "@luftuj/features/timeline/components/SeasonalModeList";
 
 import {
   DAY_ORDER,
@@ -122,6 +123,13 @@ export function TimelinePage() {
             {t("settings.timeline.description")}
           </Text>
         </Stack>
+
+        <SeasonalModeList
+          unitId={activeUnitId ?? null}
+          valves={valves}
+          hruVariables={hruVariables}
+          maxPower={maxPower}
+        />
 
         <TimelineModeList
           modes={modes}

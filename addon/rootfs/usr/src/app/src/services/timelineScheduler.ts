@@ -13,19 +13,20 @@ import {
   type TimelineOverride,
 } from "../types/index.js";
 import type { SettingsRepository } from "../features/settings/settings.repository.js";
+import type { SeasonalModesService } from "../features/seasonalModes/seasonalModes.service.js";
 
 export type TimelineSource = "manual" | "schedule" | "boost";
 
 export type HruWritePayload = Record<string, number | string | boolean>;
 
-type ModeValue = string | number | undefined;
+export type ModeValue = string | number | undefined;
 
 export interface ActiveState {
   source: TimelineSource;
   modeName?: ModeValue;
 }
 
-type ActivePayload = {
+export type ActivePayload = {
   hruConfig?: {
     mode?: string | number;
     power?: number;
@@ -37,6 +38,123 @@ type ActivePayload = {
   id?: number;
   friendlyModeName?: string;
 };
+
+type ResolvedTimelineValues = {
+  modeToSend: ModeValue;
+  effectivePower: number | undefined;
+  effectiveTemperature: number | undefined;
+  effectiveLuftatorConfig: Record<string, number> | null | undefined;
+  effectiveVariables: Record<string, number | string | boolean>;
+};
+
+export function resolveTimelineModeValues(
+  foundMode: TimelineMode,
+  current: ResolvedTimelineValues,
+): ResolvedTimelineValues {
+  const v = foundMode.variables ?? {};
+  let modeToSend = current.modeToSend;
+  let effectivePower = current.effectivePower;
+  let effectiveTemperature = current.effectiveTemperature;
+  const effectiveVariables = { ...current.effectiveVariables };
+
+  if (typeof v.power === "number") effectivePower = v.power;
+  if (typeof v.temperature === "number") effectiveTemperature = v.temperature;
+  if (typeof v.mode === "number" || typeof v.mode === "string") modeToSend = v.mode;
+
+  if (modeToSend === undefined && foundMode.nativeMode !== undefined) {
+    modeToSend = foundMode.nativeMode;
+  }
+  if (effectivePower === undefined && foundMode.power !== undefined) {
+    effectivePower = foundMode.power;
+  }
+  if (effectiveTemperature === undefined && foundMode.temperature !== undefined) {
+    effectiveTemperature = foundMode.temperature;
+  }
+
+  for (const [key, value] of Object.entries(v)) {
+    if (value !== undefined) effectiveVariables[key] = value;
+  }
+
+  return {
+    modeToSend,
+    effectivePower,
+    effectiveTemperature,
+    effectiveLuftatorConfig: foundMode.luftatorConfig ?? current.effectiveLuftatorConfig,
+    effectiveVariables,
+  };
+}
+
+export function buildTimelineModePayload(
+  mode: TimelineMode,
+  source: TimelineSource,
+): ActivePayload {
+  const resolved = resolveTimelineModeValues(mode, {
+    modeToSend: undefined,
+    effectivePower: undefined,
+    effectiveTemperature: undefined,
+    effectiveLuftatorConfig: undefined,
+    effectiveVariables: {},
+  });
+
+  const hruConfig: NonNullable<ActivePayload["hruConfig"]> = {};
+  if (resolved.modeToSend !== undefined) hruConfig.mode = resolved.modeToSend;
+  if (resolved.effectivePower !== undefined) hruConfig.power = resolved.effectivePower;
+  if (resolved.effectiveTemperature !== undefined) {
+    hruConfig.temperature = resolved.effectiveTemperature;
+  }
+  if (Object.keys(resolved.effectiveVariables).length > 0) {
+    hruConfig.variables = resolved.effectiveVariables;
+  }
+
+  return {
+    hruConfig: Object.keys(hruConfig).length > 0 ? hruConfig : undefined,
+    luftatorConfig: resolved.effectiveLuftatorConfig,
+    source,
+    friendlyModeName: mode.name,
+  };
+}
+
+function mergeHruConfigs(
+  base: ActivePayload["hruConfig"],
+  override: ActivePayload["hruConfig"],
+): ActivePayload["hruConfig"] {
+  if (!base && !override) return base;
+  const result: NonNullable<ActivePayload["hruConfig"]> = { ...base };
+  if (override?.mode !== undefined) result.mode = override.mode;
+  if (override?.power !== undefined) result.power = override.power;
+  if (override?.temperature !== undefined) result.temperature = override.temperature;
+  const variables = { ...base?.variables, ...override?.variables };
+  if (Object.keys(variables).length > 0) result.variables = variables;
+  return result;
+}
+
+export function applySeasonalOverrideToPayload(
+  payload: ActivePayload,
+  override: NonNullable<ReturnType<SeasonalModesService["getActiveOverride"]>>,
+): ActivePayload {
+  const seasonalPayload = buildTimelineModePayload(override.baseMode, payload.source);
+  const seasonalHruConfig = mergeHruConfigs(seasonalPayload.hruConfig, {
+    power: override.power,
+    temperature: override.temperature,
+    variables: override.variables,
+  });
+  const hruConfig = mergeHruConfigs(payload.hruConfig, seasonalHruConfig);
+  const seasonalLuftatorConfig = {
+    ...seasonalPayload.luftatorConfig,
+    ...override.luftatorConfig,
+  };
+  const luftatorConfig =
+    Object.keys(seasonalLuftatorConfig).length > 0
+      ? { ...payload.luftatorConfig, ...seasonalLuftatorConfig }
+      : payload.luftatorConfig;
+
+  return {
+    ...payload,
+    hruConfig,
+    luftatorConfig,
+    friendlyModeName: override.modeName,
+  };
+}
 
 export class TimelineScheduler {
   private static readonly INFINITE_BOOST_DURATION = 999999;
@@ -61,6 +179,7 @@ export class TimelineScheduler {
     private readonly hruService: HruService,
     private readonly settingsRepo: SettingsRepository,
     private readonly logger: Logger,
+    private readonly seasonalModesService?: SeasonalModesService,
   ) {}
 
   public start(): void {
@@ -246,6 +365,23 @@ export class TimelineScheduler {
     }
   }
 
+  private applySeasonalOverride(
+    payload: ActivePayload,
+    currentUnitId: string | undefined,
+  ): ActivePayload {
+    if (!this.seasonalModesService) return payload;
+
+    const override = this.seasonalModesService.getActiveOverride(new Date(), currentUnitId ?? null);
+    if (!override) return payload;
+
+    this.logger.debug(
+      { season: override.season, baseModeId: override.baseModeId },
+      "TimelineScheduler: applying seasonal override",
+    );
+
+    return applySeasonalOverrideToPayload(payload, override);
+  }
+
   private async resolveActiveEvent(): Promise<ActivePayload | null> {
     const override = this.settingsRepo.getTimelineOverride();
     const currentUnitId = this.getCurrentUnitId();
@@ -262,7 +398,8 @@ export class TimelineScheduler {
     const event = pickActiveEvent(currentUnitId, nowMinutes, today);
     if (!event) return null;
 
-    return this.buildScheduledEventPayload(event, currentUnitId);
+    const payload = this.buildScheduledEventPayload(event, currentUnitId);
+    return this.applySeasonalOverride(payload, currentUnitId);
   }
 
   private resolveBoostPayload(
@@ -286,22 +423,7 @@ export class TimelineScheduler {
         this.settingsRepo.setTimelineOverride(null);
         return undefined;
       }
-      const modeVariables = mode.variables ?? {};
-      const nativeMode =
-        typeof modeVariables.mode === "number" || typeof modeVariables.mode === "string"
-          ? modeVariables.mode
-          : mode.nativeMode;
-      return {
-        hruConfig: {
-          mode: nativeMode,
-          power: mode.power,
-          temperature: mode.temperature,
-          variables: mode.variables,
-        },
-        luftatorConfig: mode.luftatorConfig,
-        source: "boost",
-        friendlyModeName: mode.name,
-      };
+      return buildTimelineModePayload(mode, "boost");
     }
 
     if (override.customConfig) {
@@ -331,40 +453,7 @@ export class TimelineScheduler {
       effectiveVariables: Record<string, number | string | boolean>;
     },
   ) {
-    // New schema: prefer variables map first
-    const v = foundMode.variables ?? {};
-    let modeToSend = current.modeToSend;
-    let effectivePower = current.effectivePower;
-    let effectiveTemperature = current.effectiveTemperature;
-    const effectiveVariables = { ...current.effectiveVariables };
-
-    if (typeof v.power === "number") effectivePower = v.power;
-    if (typeof v.temperature === "number") effectiveTemperature = v.temperature;
-    if (typeof v.mode === "number" || typeof v.mode === "string") modeToSend = v.mode;
-
-    // Fallbacks: use explicit nativeMode/power/temperature fields if variables map doesn't carry them
-    if (modeToSend === undefined && foundMode.nativeMode !== undefined) {
-      modeToSend = foundMode.nativeMode;
-    }
-    if (effectivePower === undefined && foundMode.power !== undefined) {
-      effectivePower = foundMode.power;
-    }
-    if (effectiveTemperature === undefined && foundMode.temperature !== undefined) {
-      effectiveTemperature = foundMode.temperature;
-    }
-
-    // Merge any additional variables from mode
-    for (const [key, value] of Object.entries(v)) {
-      if (value !== undefined) effectiveVariables[key] = value;
-    }
-
-    return {
-      modeToSend,
-      effectivePower,
-      effectiveTemperature,
-      effectiveLuftatorConfig: foundMode.luftatorConfig ?? current.effectiveLuftatorConfig,
-      effectiveVariables,
-    };
+    return resolveTimelineModeValues(foundMode, current);
   }
 
   private buildScheduledEventPayload(

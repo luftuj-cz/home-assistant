@@ -111,6 +111,68 @@ const migrations: Migration[] = [
     id: "010_vacuum_after_history_drop",
     statements: [`VACUUM;`],
   },
+  {
+    id: "011_timeline_seasons",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS timeline_seasons (
+        season TEXT NOT NULL CHECK (season IN ('spring','summer','autumn','winter')),
+        hru_id TEXT,
+        base_mode_id INTEGER NOT NULL,
+        power REAL,
+        temperature REAL,
+        variables TEXT,
+        luftator_config TEXT,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (season, hru_id),
+        FOREIGN KEY (base_mode_id) REFERENCES timeline_modes(id) ON DELETE CASCADE
+      );`,
+    ],
+  },
+  {
+    id: "012_fix_timeline_seasons_global_key",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS timeline_seasons_v2 (
+        season TEXT NOT NULL CHECK (season IN ('spring','summer','autumn','winter')),
+        hru_id TEXT NOT NULL,
+        base_mode_id INTEGER NOT NULL,
+        power REAL,
+        temperature REAL,
+        variables TEXT,
+        luftator_config TEXT,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+        updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+        PRIMARY KEY (season, hru_id),
+        FOREIGN KEY (base_mode_id) REFERENCES timeline_modes(id) ON DELETE CASCADE
+      );`,
+      `INSERT OR REPLACE INTO timeline_seasons_v2
+        (season, hru_id, base_mode_id, power, temperature, variables, luftator_config, enabled, created_at, updated_at)
+       SELECT season,
+              COALESCE(NULLIF(hru_id, ''), '__global__') AS hru_id,
+              base_mode_id,
+              power,
+              temperature,
+              variables,
+              luftator_config,
+              enabled,
+              created_at,
+              updated_at
+       FROM (
+         SELECT ts.*,
+                ROW_NUMBER() OVER (
+                  PARTITION BY season, COALESCE(NULLIF(hru_id, ''), '__global__')
+                  ORDER BY datetime(updated_at) DESC, rowid DESC
+                ) AS row_num
+         FROM timeline_seasons ts
+         WHERE EXISTS (SELECT 1 FROM timeline_modes tm WHERE tm.id = ts.base_mode_id)
+       )
+       WHERE row_num = 1;`,
+      `DROP TABLE timeline_seasons;`,
+      `ALTER TABLE timeline_seasons_v2 RENAME TO timeline_seasons;`,
+    ],
+  },
 ];
 
 export function applyMigrations(database: DatabaseType): void {

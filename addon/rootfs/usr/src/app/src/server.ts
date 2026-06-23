@@ -39,6 +39,10 @@ import { createStatusRouter } from "./routes/status.js";
 import { createCommissioningRouter } from "./routes/commissioning.js";
 import { CommissioningRunner } from "./services/commissioningRunner.js";
 import { closeAllSharedClients } from "./shared/modbus/client.js";
+import { createSeasonalModesRouter } from "./features/seasonalModes/seasonalModes.routes.js";
+import { SeasonalModesRepository } from "./features/seasonalModes/seasonalModes.repository.js";
+import { SeasonalModesService } from "./features/seasonalModes/seasonalModes.service.js";
+import { getTimelineMode } from "./services/database.js";
 
 loadConfig();
 const config = getConfig();
@@ -102,7 +106,13 @@ const hruRepo = new HruRepository(logger);
 const hruService = new HruService(hruRepo, settingsRepo, logger);
 const appStartedAt = new Date();
 
-const timelineScheduler = new TimelineScheduler(valveManager, hruService, settingsRepo, logger);
+const timelineScheduler = new TimelineScheduler(
+  valveManager,
+  hruService,
+  settingsRepo,
+  logger,
+  new SeasonalModesService(new SeasonalModesRepository(), settingsRepo, { getTimelineMode }),
+);
 
 const mqttService = new MqttService(config.mqtt, settingsRepo, timelineScheduler, logger);
 const hruMonitor = new HruMonitor(hruService, mqttService, timelineScheduler, logger);
@@ -126,6 +136,7 @@ const hruController = new HruController(hruService, logger);
 app.use("/api/hru", createHruRouter(hruController));
 app.use("/api/commissioning", createCommissioningRouter(commissioningRunner, hruService, logger));
 app.use("/api/timeline", createTimelineRouter(logger, timelineScheduler, hruService, mqttService));
+app.use("/api/timeline/seasonal-modes", createSeasonalModesRouter(settingsRepo));
 app.use("/api/settings", createSettingsRouter(hruService, mqttService, haClient, logger));
 app.use(
   "/api/database",

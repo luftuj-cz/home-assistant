@@ -9,6 +9,7 @@ import {
   MQTT_LAST_UNIT_ID_KEY,
   MQTT_SETTINGS_KEY,
   type MqttSettings,
+  SEASON_HEMISPHERE_KEY,
   TIMELINE_OVERRIDE_KEY,
   type TimelineMode,
   type TimelineOverride,
@@ -143,6 +144,24 @@ export class SettingsRepository {
       setAppSetting(MQTT_LAST_UNIT_ID_KEY, id);
     } catch (err) {
       this.logger.error({ err, id }, "Failed to set last unit ID");
+    }
+  }
+
+  getSeasonHemisphere(): "northern" | "southern" {
+    try {
+      const raw = getAppSetting(SEASON_HEMISPHERE_KEY);
+      return raw === "southern" ? "southern" : "northern";
+    } catch (err) {
+      this.logger.error({ err }, "Failed to get season hemisphere");
+      return "northern";
+    }
+  }
+
+  setSeasonHemisphere(value: "northern" | "southern"): void {
+    try {
+      setAppSetting(SEASON_HEMISPHERE_KEY, value);
+    } catch (err) {
+      this.logger.error({ err, value }, "Failed to set season hemisphere");
     }
   }
 }

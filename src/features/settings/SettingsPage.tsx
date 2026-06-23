@@ -7,6 +7,7 @@ import { HruSection } from "@luftuj/features/settings/sections/HruSection";
 import { MqttSection } from "@luftuj/features/settings/sections/MqttSection";
 import { DatabaseSection } from "@luftuj/features/settings/sections/DatabaseSection";
 import { DeveloperSection } from "@luftuj/features/settings/sections/DeveloperSection";
+import { SeasonsSection } from "@luftuj/features/settings/sections/SeasonsSection";
 
 export function SettingsPage() {
   const { t } = useTranslation();
@@ -29,6 +30,7 @@ export function SettingsPage() {
           <HruSection />
           <MqttSection />
           <DatabaseSection />
+          <SeasonsSection />
           <DeveloperSection />
         </Accordion>
       </Stack>

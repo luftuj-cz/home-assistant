@@ -1,6 +1,6 @@
 {
   "name": "luftujha",
-  "version": "1.0.9-stable",
+  "version": "1.1.0-dev",
   "private": true,
   "type": "module",
   "scripts": {
@@ -13,6 +13,8 @@
     "format:check": "vp check",
     "preview": "vp preview",
     "test": "npm --prefix addon/rootfs/usr/src/app test",
+    "test:frontend": "vitest run --config vitest.frontend.config.ts",
+    "test:frontend:watch": "vitest --config vitest.frontend.config.ts",
     "docs:dev": "npm --prefix docs run dev",
     "docs:build": "npm --prefix docs run build",
     "docs:start": "npm --prefix docs run start"
@@ -36,12 +38,17 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^25.7.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "baseline-browser-mapping": "^2.10.29",
+    "jsdom": "^29.1.1",
     "typescript": "^6.0.3",
-    "vite-plus": "^0.1.24"
+    "vite-plus": "^0.1.24",
+    "vitest": "^4.1.9"
   },
   "devEngines": {
     "packageManager": {
