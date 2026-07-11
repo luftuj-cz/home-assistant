@@ -471,7 +471,9 @@
     "modbusStatus": {
       "notConfigured": "Not configured",
       "reachable": "Reachable",
-      "unreachable": "Unreachable"
+      "unreachable": "Unreachable",
+      "reconnecting": "Reconnecting (attempt {{count}})",
+      "reconnectingDetail": "Failed attempts: {{count}} — last error: {{error}}"
     },
     "hruStatusTitle": "HRU live values",
     "hruStatusDescription": "Reads HRU registers every 10 seconds",

@@ -7,21 +7,88 @@ export interface ModbusTcpConfig {
   unitId: number;
   timeoutMs?: number;
   reconnectMs?: number;
+  /** Minimum spacing (ms) enforced between requests. Unit-specific, defaults to 0 (no gap). */
+  minGapMs?: number;
 }
 
+export interface ModbusConnectionStatus {
+  connected: boolean;
+  reconnecting: boolean;
+  consecutiveFailures: number;
+  lastErrorMessage: string | null;
+  lastErrorAt: number | null;
+}
+
+type ConnectionStatusListener = (status: ModbusConnectionStatus) => void;
+
 export class ModbusTcpClient {
+  private static readonly BASE_RECONNECT_MS = 3000;
+  private static readonly MAX_RECONNECT_MS = 60_000;
+  private static readonly RETRY_DELAY_MS = 1000;
+
   private client: any;
   private connected = false;
+  private hasConnectedOnce = false;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
   private connectInFlight: Promise<void> | null = null;
   private opLock: Promise<void> = Promise.resolve();
+  private lastBatchEndedAt = 0;
+  private consecutiveFailures = 0;
+  private lastErrorMessage: string | null = null;
+  private lastErrorAt: number | null = null;
+  private readonly statusListeners = new Set<ConnectionStatusListener>();
 
   constructor(
     private readonly cfg: ModbusTcpConfig,
     private readonly logger: Logger,
   ) {
     this.client = this.createClient();
+  }
+
+  onStatusChange(listener: ConnectionStatusListener): () => void {
+    this.statusListeners.add(listener);
+    return () => this.statusListeners.delete(listener);
+  }
+
+  getStatus(): ModbusConnectionStatus {
+    return {
+      connected: this.connected,
+      // Only report "reconnecting" once we've connected at least once - the
+      // very first connect() attempt on startup also sets connectInFlight,
+      // and that's a normal first connection, not a recovery from failure.
+      reconnecting:
+        this.hasConnectedOnce && (this.reconnectTimer !== null || this.connectInFlight !== null),
+      consecutiveFailures: this.consecutiveFailures,
+      lastErrorMessage: this.lastErrorMessage,
+      lastErrorAt: this.lastErrorAt,
+    };
+  }
+
+  /**
+   * Update the minimum inter-batch gap on an already-constructed (and possibly
+   * cached/shared) client. Needed because getSharedModbusClient() only applies
+   * the config a caller passes the FIRST time it creates a client for a given
+   * host:port:unitId - without this, an early caller that omits minGapMs (e.g.
+   * a status probe) would otherwise permanently cache a gap-less client for a
+   * unit that needs one.
+   */
+  setMinGapMs(minGapMs: number | undefined): void {
+    this.cfg.minGapMs = minGapMs;
+  }
+
+  private notifyStatus() {
+    const status = this.getStatus();
+    for (const listener of this.statusListeners) {
+      try {
+        listener(status);
+      } catch (err) {
+        this.logger.warn(
+          { err, host: this.cfg.host, port: this.cfg.port, unitId: this.cfg.unitId },
+          "Modbus TCP: status listener threw",
+        );
+      }
+    }
   }
 
   private createClient(): any {
@@ -56,10 +123,24 @@ export class ModbusTcpClient {
   }
 
   /**
-   * Serialize Modbus operations to avoid overlapping requests on the same socket,
-   * which can lead to "Port Not Open" errors when the server closes between calls.
+   * Serialize a whole batch (one HRU read or write cycle - typically several
+   * register operations) against the same socket, and enforce the vendor-recommended
+   * minimum spacing BETWEEN batches, not between every register op inside one -
+   * the doc's "5s between sessions" means one script execution is one session.
+   * Also discards the underlying client on ANY failure (not just socket-level
+   * errors) - a frozen Atrea aM unit times out instead of closing the socket, so
+   * the modbus-serial transaction state must be reset explicitly or every
+   * subsequent request keeps failing the same way until the process restarts.
+   *
+   * `retries` defaults to 0 - the transport layer doesn't know whether a
+   * dropped batch matters to the caller. Callers with periodic natural
+   * retries (HruMonitor's poll, TimelineScheduler's tick) should stay at 0 so
+   * a transient failure doesn't hold the shared lock/socket any longer than
+   * necessary. Callers where a failure would silently discard something the
+   * user asked to send (a write) should pass retries explicitly.
    */
-  private async runExclusive<T>(fn: () => Promise<T>): Promise<T> {
+  async runBatch<T>(fn: () => Promise<T>, opts?: { retries?: number }): Promise<T> {
+    const maxAttempts = 1 + Math.max(0, opts?.retries ?? 0);
     const previous = this.opLock;
     let release: () => void;
     this.opLock = new Promise<void>((resolve) => {
@@ -67,11 +148,51 @@ export class ModbusTcpClient {
     });
 
     await previous;
+
     try {
-      return await fn();
+      const minGapMs = this.cfg.minGapMs ?? 0;
+      const wait = minGapMs - (Date.now() - this.lastBatchEndedAt);
+      if (wait > 0) {
+        await new Promise((r) => setTimeout(r, wait));
+      }
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        try {
+          await this.ensureConnected();
+          const result = await fn();
+          this.consecutiveFailures = 0;
+          this.lastErrorMessage = null;
+          this.lastErrorAt = null;
+          return result;
+        } catch (err) {
+          this.lastErrorMessage = err instanceof Error ? err.message : String(err);
+          this.lastErrorAt = Date.now();
+          this.resetClient();
+
+          const attemptsLeft = maxAttempts - attempt;
+          if (attemptsLeft <= 0) {
+            // Only count this as a real connection failure once every retry
+            // within this batch is exhausted - in-batch retries are one
+            // caller's own retry budget, not independent disconnects, and
+            // shouldn't inflate scheduleReconnect's backoff exponent below.
+            this.consecutiveFailures++;
+            this.handleDisconnect();
+            this.logger.error({ err, attempt }, "Modbus TCP: batch failed, giving up");
+            throw err;
+          }
+          this.notifyStatus();
+          this.logger.warn({ err, attempt, attemptsLeft }, "Modbus TCP: batch failed, retrying");
+          // Retrying reconnects and starts a new Modbus session, so it must
+          // respect the same vendor-mandated inter-session spacing as the
+          // gap between whole batches, not just the retry backoff.
+          const retryDelay = Math.max(ModbusTcpClient.RETRY_DELAY_MS * attempt, minGapMs);
+          await new Promise((r) => setTimeout(r, retryDelay));
+        }
+      }
+      // Unreachable: the loop above always returns or throws.
+      throw new Error("Modbus TCP: batch retry loop exited unexpectedly");
     } finally {
-      // release is always defined because promise executor runs synchronously
-      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+      this.lastBatchEndedAt = Date.now();
       release!();
     }
   }
@@ -80,14 +201,7 @@ export class ModbusTcpClient {
     if (this.destroyed) return;
     this.connected = false;
     this.scheduleReconnect();
-  }
-
-  private isPortClosedError(err: unknown) {
-    const e = err as { message?: string; errno?: string };
-    const msg = e?.message?.toLowerCase() ?? "";
-    return (
-      msg.includes("port not open") || e?.errno === "ECONNRESET" || e?.errno === "ECONNREFUSED"
-    );
+    this.notifyStatus();
   }
 
   private async ensureConnected() {
@@ -123,10 +237,12 @@ export class ModbusTcpClient {
         try {
           this.client.setID(this.cfg.unitId);
           this.connected = true;
+          this.hasConnectedOnce = true;
           this.logger.info(
             { host: this.cfg.host, port: this.cfg.port, unitId: this.cfg.unitId },
             "Modbus TCP connected successfully",
           );
+          this.notifyStatus();
           resolve();
         } catch (e) {
           this.logger.error(
@@ -153,13 +269,16 @@ export class ModbusTcpClient {
 
   private scheduleReconnect() {
     if (this.destroyed || this.reconnectTimer) return;
-    const wait = this.cfg.reconnectMs ?? 3000;
+    const base = this.cfg.reconnectMs ?? ModbusTcpClient.BASE_RECONNECT_MS;
+    const wait = Math.min(base * 2 ** this.consecutiveFailures, ModbusTcpClient.MAX_RECONNECT_MS);
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
+      this.notifyStatus();
       void this.connect().catch(() => {
         this.logger.debug("Modbus TCP reconnection failed");
       });
     }, wait);
+    this.notifyStatus();
   }
 
   async destroy(): Promise<void> {
@@ -202,177 +321,106 @@ export class ModbusTcpClient {
     return this.connected;
   }
 
+  // These are only ever called from inside an active runBatch() callback,
+  // which already holds the lock, applied the inter-batch gap, and ensured
+  // the connection - so no locking/gap/connect logic is needed here.
+
   async readHolding(start: number, length: number): Promise<number[]> {
-    return this.runExclusive(async () => {
-      await this.ensureConnected();
-      try {
-        const res = await this.client.readHoldingRegisters(start, length);
-        this.logger.debug({ start, length }, "Modbus TCP: readHolding success");
-        return Array.from(res.data);
-      } catch (err) {
-        this.logger.error({ err, start, length }, "Modbus TCP: readHolding failed");
-        if (this.isPortClosedError(err)) {
-          this.resetClient();
-          this.handleDisconnect();
-          await this.ensureConnected();
-          const res = await this.client.readHoldingRegisters(start, length);
-          this.logger.debug({ start, length }, "Modbus TCP: readHolding retry success");
-          return Array.from(res.data);
-        }
-        this.handleDisconnect();
-        throw err;
-      }
-    });
+    const res = await this.client.readHoldingRegisters(start, length);
+    this.logger.debug({ start, length }, "Modbus TCP: readHolding success");
+    return Array.from(res.data);
   }
 
   async readInput(start: number, length: number): Promise<number[]> {
-    return this.runExclusive(async () => {
-      await this.ensureConnected();
-      try {
-        const res = await this.client.readInputRegisters(start, length);
-        this.logger.debug({ start, length }, "Modbus TCP: readInput success");
-        return Array.from(res.data);
-      } catch (err) {
-        this.logger.error({ err, start, length }, "Modbus TCP: readInput failed");
-        if (this.isPortClosedError(err)) {
-          this.resetClient();
-          this.handleDisconnect();
-          await this.ensureConnected();
-          const res = await this.client.readInputRegisters(start, length);
-          this.logger.debug({ start, length }, "Modbus TCP: readInput retry success");
-          return Array.from(res.data);
-        }
-        this.handleDisconnect();
-        throw err;
-      }
-    });
+    const res = await this.client.readInputRegisters(start, length);
+    this.logger.debug({ start, length }, "Modbus TCP: readInput success");
+    return Array.from(res.data);
   }
 
   async readDiscrete(start: number, length: number): Promise<boolean[]> {
-    return this.runExclusive(async () => {
-      await this.ensureConnected();
-      try {
-        const res = await this.client.readDiscreteInputs(start, length);
-        this.logger.debug({ start, length }, "Modbus TCP: readDiscrete success");
-        return Array.from(res.data);
-      } catch (err) {
-        this.logger.error({ err, start, length }, "Modbus TCP: readDiscrete failed");
-        if (this.isPortClosedError(err)) {
-          this.resetClient();
-          this.handleDisconnect();
-          await this.ensureConnected();
-          const res = await this.client.readDiscreteInputs(start, length);
-          this.logger.debug({ start, length }, "Modbus TCP: readDiscrete retry success");
-          return Array.from(res.data);
-        }
-        this.handleDisconnect();
-        throw err;
-      }
-    });
+    const res = await this.client.readDiscreteInputs(start, length);
+    this.logger.debug({ start, length }, "Modbus TCP: readDiscrete success");
+    return Array.from(res.data);
   }
 
   async readCoil(start: number, length: number): Promise<boolean[]> {
-    return this.runExclusive(async () => {
-      await this.ensureConnected();
-      try {
-        const res = await this.client.readCoils(start, length);
-        this.logger.debug({ start, length }, "Modbus TCP: readCoil success");
-        return Array.from(res.data);
-      } catch (err) {
-        this.logger.error({ err, start, length }, "Modbus TCP: readCoil failed");
-        if (this.isPortClosedError(err)) {
-          this.resetClient();
-          this.handleDisconnect();
-          await this.ensureConnected();
-          const res = await this.client.readCoils(start, length);
-          this.logger.debug({ start, length }, "Modbus TCP: readCoil retry success");
-          return Array.from(res.data);
-        }
-        this.handleDisconnect();
-        throw err;
-      }
-    });
+    const res = await this.client.readCoils(start, length);
+    this.logger.debug({ start, length }, "Modbus TCP: readCoil success");
+    return Array.from(res.data);
   }
 
   async writeHolding(start: number, values: number | number[]): Promise<void> {
-    return this.runExclusive(async () => {
-      await this.ensureConnected();
-      try {
-        if (Array.isArray(values)) {
-          await this.client.writeRegisters(start, values);
-        } else {
-          await this.client.writeRegister(start, values);
-        }
-        this.logger.info({ start, values }, "Modbus TCP: writeHolding success");
-      } catch (err) {
-        this.logger.error({ err, start }, "Modbus TCP: writeHolding failed");
-        if (this.isPortClosedError(err)) {
-          this.resetClient();
-          this.handleDisconnect();
-          await this.ensureConnected();
-          if (Array.isArray(values)) {
-            await this.client.writeRegisters(start, values);
-          } else {
-            await this.client.writeRegister(start, values);
-          }
-          this.logger.info({ start, values }, "Modbus TCP: writeHolding retry success");
-          return;
-        }
-        this.handleDisconnect();
-        throw err;
-      }
-    });
+    if (Array.isArray(values)) {
+      await this.client.writeRegisters(start, values);
+    } else {
+      await this.client.writeRegister(start, values);
+    }
+    this.logger.info({ start, values }, "Modbus TCP: writeHolding success");
   }
 
   async writeCoil(start: number, values: boolean | number | (boolean | number)[]): Promise<void> {
-    return this.runExclusive(async () => {
-      await this.ensureConnected();
-      try {
-        if (Array.isArray(values)) {
-          const bools = values.map((v) => !!v);
-          await this.client.writeCoils(start, bools);
-        } else {
-          await this.client.writeCoil(start, !!values);
-        }
-        this.logger.info({ start, values }, "Modbus TCP: writeCoil success");
-      } catch (err) {
-        this.logger.error({ err, start }, "Modbus TCP: writeCoil failed");
-        if (this.isPortClosedError(err)) {
-          this.resetClient();
-          this.handleDisconnect();
-          await this.ensureConnected();
-          if (Array.isArray(values)) {
-            const bools = values.map((v) => !!v);
-            await this.client.writeCoils(start, bools);
-          } else {
-            await this.client.writeCoil(start, !!values);
-          }
-          this.logger.info({ start, values }, "Modbus TCP: writeCoil retry success");
-          return;
-        }
-        this.handleDisconnect();
-        throw err;
-      }
-    });
+    if (Array.isArray(values)) {
+      const bools = values.map((v) => !!v);
+      await this.client.writeCoils(start, bools);
+    } else {
+      await this.client.writeCoil(start, !!values);
+    }
+    this.logger.info({ start, values }, "Modbus TCP: writeCoil success");
   }
 }
 
 const clientCache = new Map<string, ModbusTcpClient>();
 
+type GlobalStatusListener = (key: string, status: ModbusConnectionStatus) => void;
+const globalStatusListeners = new Set<GlobalStatusListener>();
+
+export function onAnyModbusStatusChange(listener: GlobalStatusListener): () => void {
+  globalStatusListeners.add(listener);
+  return () => globalStatusListeners.delete(listener);
+}
+
+function toKey(cfg: { host: string; port: number; unitId: number }): string {
+  return `${cfg.host}:${cfg.port}:${cfg.unitId}`;
+}
+
 export function getSharedModbusClient(
-  cfg: { host: string; port: number; unitId: number },
+  cfg: { host: string; port: number; unitId: number; minGapMs?: number },
   logger: Logger,
 ): ModbusTcpClient {
-  const key = `${cfg.host}:${cfg.port}:${cfg.unitId}`;
+  const key = toKey(cfg);
   let client = clientCache.get(key);
   if (!client) {
     client = new ModbusTcpClient(
-      { host: cfg.host, port: cfg.port, unitId: cfg.unitId, timeoutMs: 5000 },
+      {
+        host: cfg.host,
+        port: cfg.port,
+        unitId: cfg.unitId,
+        timeoutMs: 5000,
+        minGapMs: cfg.minGapMs,
+      },
       logger,
     );
+    client.onStatusChange((status) => {
+      for (const listener of globalStatusListeners) listener(key, status);
+    });
     clientCache.set(key, client);
+  } else if (cfg.minGapMs !== undefined) {
+    // A cached client only got its minGapMs from whichever caller first
+    // created it for this host:port:unitId - a later caller that knows the
+    // correct per-unit value (e.g. hru.service.ts) must be able to correct
+    // it, or a caller that created it without one (e.g. a status probe)
+    // would silently and permanently defeat the unit's required gap.
+    client.setMinGapMs(cfg.minGapMs);
   }
   return client;
+}
+
+export function getModbusStatusFor(cfg: {
+  host: string;
+  port: number;
+  unitId: number;
+}): ModbusConnectionStatus | null {
+  return clientCache.get(toKey(cfg))?.getStatus() ?? null;
 }
 
 export async function closeAllSharedClients(): Promise<void> {
@@ -388,18 +436,15 @@ export async function closeAllSharedClients(): Promise<void> {
 }
 
 export async function withTempModbusClient<T>(
-  cfg: { host: string; port: number; unitId: number },
+  cfg: { host: string; port: number; unitId: number; minGapMs?: number },
   logger: Logger,
   fn: (client: ModbusTcpClient) => Promise<T>,
+  opts?: { retries?: number },
 ): Promise<T> {
   const client = getSharedModbusClient(cfg, logger);
 
-  if (!client.isConnected()) {
-    await client.connect();
-  }
-
   try {
-    return await fn(client);
+    return await client.runBatch(() => fn(client), opts);
   } catch (err) {
     logger.debug({ err }, "Operation failed in withTempModbusClient");
     throw err;

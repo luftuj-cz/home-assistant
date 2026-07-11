@@ -13,6 +13,7 @@ export function DashboardPage() {
     haStatus,
     haLoading,
     modbusStatus,
+    modbusLive,
     hruStatus,
     hruName,
     mqttStatus,
@@ -32,12 +33,19 @@ export function DashboardPage() {
   }
 
   function getModbusStatusType() {
+    if (modbusLive?.reconnecting) return "warning";
     if (modbusStatus === "loading") return "neutral";
     if (modbusStatus === "reachable") return "success";
     return "error";
   }
 
   function getModbusStatusLabel() {
+    if (modbusLive?.reconnecting) {
+      return t("dashboard.modbusStatus.reconnecting", {
+        count: modbusLive.consecutiveFailures,
+        defaultValue: "Reconnecting (attempt {{count}})",
+      });
+    }
     if (modbusStatus === "loading") return t("dashboard.haStatus.loading");
     if (modbusStatus === "reachable") return t("dashboard.modbusStatus.reachable");
     return t("dashboard.modbusStatus.unreachable");
@@ -100,7 +108,17 @@ export function DashboardPage() {
           })}
           status={getModbusStatusType()}
           statusLabel={getModbusStatusLabel()}
-        />
+        >
+          {modbusLive?.reconnecting && (
+            <Text size="sm" c="dimmed">
+              {t("dashboard.modbusStatus.reconnectingDetail", {
+                count: modbusLive.consecutiveFailures,
+                error: modbusLive.lastErrorMessage ?? "",
+                defaultValue: "Failed attempts: {{count}} — last error: {{error}}",
+              })}
+            </Text>
+          )}
+        </StatusCard>
 
         <StatusCard
           title={t("dashboard.mqttStatusTitle", { defaultValue: "MQTT Discovery" })}

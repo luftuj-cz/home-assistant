@@ -101,6 +101,7 @@ export class MqttService extends EventEmitter {
   private connected = false;
   private isProcessingSequence = false;
   private isProcessingDiscovery = false;
+  private reloadInProgress = false;
   private lastSuccessAt = 0;
   private publishQueue: Promise<void> = Promise.resolve();
 
@@ -264,26 +265,35 @@ export class MqttService extends EventEmitter {
       "MQTT: publishDiscovery called",
     );
 
-    const oldUnitId = this.cachedDiscoveryUnit
-      ? this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name)
-      : null;
+    const previousUnit = this.cachedDiscoveryUnit;
+    const oldUnitId = previousUnit ? this.slugify(previousUnit.code || previousUnit.name) : null;
 
+    // runDiscoveryCycle() below reads this.cachedDiscoveryUnit internally, so it
+    // must be set before calling it - but roll back on failure (see catch below)
+    // so a failed swap doesn't leave publishState()/future discovery calls
+    // treating an unconfirmed unit as if it were already active.
     this.cachedDiscoveryUnit = unit;
 
     if (this.connected) {
-      const newUnitId = this.slugify(unit.code || unit.name);
+      try {
+        const newUnitId = this.slugify(unit.code || unit.name);
 
-      if (oldUnitId && oldUnitId !== newUnitId) {
-        this.logger.info(
-          { oldUnitId, newUnitId },
-          "MQTT: Unit changed, updating command subscriptions",
-        );
-        await this.unsubscribeFromCommands(oldUnitId);
-        await this.subscribeToCommands(newUnitId);
+        if (oldUnitId && oldUnitId !== newUnitId) {
+          this.logger.info(
+            { oldUnitId, newUnitId },
+            "MQTT: Unit changed, updating command subscriptions",
+          );
+          await this.unsubscribeFromCommands(oldUnitId);
+          await this.subscribeToCommands(newUnitId);
+        }
+
+        await this.runDiscoveryCycle();
+        this.logger.info({ unitId: newUnitId }, "MQTT: Discovery published successfully");
+      } catch (err) {
+        this.cachedDiscoveryUnit = previousUnit;
+        this.logger.error({ err }, "MQTT: publishDiscovery failed, rolled back cached unit");
+        throw err;
       }
-
-      await this.runDiscoveryCycle();
-      this.logger.info({ unitId: newUnitId }, "MQTT: Discovery published successfully");
     } else {
       this.logger.info("MQTT: Not connected, discovery cached for later");
     }
@@ -382,9 +392,18 @@ export class MqttService extends EventEmitter {
   }
 
   public async reloadConfig(): Promise<void> {
+    if (this.reloadInProgress) {
+      this.logger.debug("MQTT: reloadConfig() already in progress, ignoring");
+      return;
+    }
+    this.reloadInProgress = true;
     this.logger.info("MQTT: reloadConfig() called, reconnecting...");
-    await this.disconnect();
-    await this.connect();
+    try {
+      await this.disconnect();
+      await this.connect();
+    } finally {
+      this.reloadInProgress = false;
+    }
   }
 
   public getLastDiscoveryTime(): string | null {
