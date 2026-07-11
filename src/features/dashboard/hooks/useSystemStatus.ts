@@ -2,7 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { resolveApiUrl, resolveWebSocketUrl } from "@luftuj/shared/utils/api";
 import { createLogger } from "@luftuj/shared/utils/logger";
-import type { ActiveMode, ConnectionState, MqttState } from "@luftuj/features/dashboard/types";
+import type {
+  ActiveMode,
+  ConnectionState,
+  ModbusLiveStatus,
+  MqttState,
+} from "@luftuj/features/dashboard/types";
 
 const logger = createLogger("useSystemStatus");
 
@@ -12,6 +17,28 @@ interface SystemStatus {
   mqttStatus: MqttState;
   mqttLastDiscovery: string | null;
   activeMode: ActiveMode | null;
+  modbusLive: ModbusLiveStatus | null;
+}
+
+function readModbusPayload(payload: unknown): ModbusLiveStatus | null {
+  const m = payload as
+    | {
+        connected?: boolean;
+        reconnecting?: boolean;
+        consecutiveFailures?: number;
+        lastErrorMessage?: string | null;
+        lastErrorAt?: number | null;
+      }
+    | null
+    | undefined;
+  if (!m) return null;
+  return {
+    connected: Boolean(m.connected),
+    reconnecting: Boolean(m.reconnecting),
+    consecutiveFailures: m.consecutiveFailures ?? 0,
+    lastErrorMessage: m.lastErrorMessage ?? null,
+    lastErrorAt: m.lastErrorAt ?? null,
+  };
 }
 
 export function useSystemStatus(): SystemStatus {
@@ -21,6 +48,7 @@ export function useSystemStatus(): SystemStatus {
   const [mqttStatus, setMqttStatus] = useState<MqttState>("loading");
   const [mqttLastDiscovery, setMqttLastDiscovery] = useState<string | null>(null);
   const [activeMode, setActiveMode] = useState<ActiveMode | null>(null);
+  const [modbusLive, setModbusLive] = useState<ModbusLiveStatus | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectRef = useRef<number | null>(null);
 
@@ -39,6 +67,7 @@ export function useSystemStatus(): SystemStatus {
           ((await res.json().catch(() => null)) as {
             ha?: { connection?: string };
             mqtt?: { connection?: "connected" | "disconnected"; lastDiscovery?: string | null };
+            modbus?: unknown;
             timeline?: ActiveMode | null;
           } | null) ?? {};
         if (!active) return;
@@ -50,6 +79,7 @@ export function useSystemStatus(): SystemStatus {
           setMqttStatus(data.mqtt.connection ?? "disconnected");
           setMqttLastDiscovery(data.mqtt.lastDiscovery ?? null);
         }
+        setModbusLive(readModbusPayload(data.modbus));
         if (data.timeline !== undefined) {
           const translated = data.timeline?.modeName
             ? {
@@ -108,6 +138,7 @@ export function useSystemStatus(): SystemStatus {
           payload?: {
             ha?: { connection?: string };
             mqtt?: { connection?: "connected" | "disconnected" };
+            modbus?: unknown;
             timeline?: ActiveMode | null;
           };
         };
@@ -119,6 +150,9 @@ export function useSystemStatus(): SystemStatus {
           const m = msg?.payload?.mqtt?.connection;
           if (m === "connected" || m === "disconnected") {
             setMqttStatus(m);
+          }
+          if (msg?.payload && "modbus" in msg.payload) {
+            setModbusLive(readModbusPayload(msg.payload.modbus));
           }
           if (msg?.payload?.timeline !== undefined) {
             setActiveMode(msg.payload.timeline);
@@ -161,5 +195,5 @@ export function useSystemStatus(): SystemStatus {
     };
   }, []);
 
-  return { haStatus, haLoading, mqttStatus, mqttLastDiscovery, activeMode };
+  return { haStatus, haLoading, mqttStatus, mqttLastDiscovery, activeMode, modbusLive };
 }

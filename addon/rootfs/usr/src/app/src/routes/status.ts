@@ -13,7 +13,11 @@ import { HRU_SETTINGS_KEY, type HruSettings } from "../types/index.js";
 import { APP_VERSION } from "../constants.js";
 import { validateQuery } from "../middleware/validateRequest.js";
 import { type ModbusStatusQuery, modbusStatusQuerySchema } from "../schemas/status.js";
-import { getSharedModbusClient, isModbusReachable } from "../shared/modbus/client.js";
+import {
+  getModbusStatusFor,
+  getSharedModbusClient,
+  isModbusReachable,
+} from "../shared/modbus/client.js";
 
 type ActiveTimelineState = { source: string; modeName?: string | number } | null;
 
@@ -103,8 +107,16 @@ export function createStatusRouter(
         lastDiscovery: mqttService.getLastDiscoveryTime(),
       };
       const timeline = timelineScheduler.getActiveState();
-      logger.debug({ ha, mqtt, timeline, valves }, "Status check");
-      response.json({ ha, mqtt, timeline, valves, version: APP_VERSION });
+      const savedSettings = loadSavedHruSettings();
+      const modbus = savedSettings?.host
+        ? getModbusStatusFor({
+            host: savedSettings.host,
+            port: savedSettings.port ?? 502,
+            unitId: savedSettings.unitId ?? 1,
+          })
+        : null;
+      logger.debug({ ha, mqtt, timeline, valves, modbus }, "Status check");
+      response.json({ ha, mqtt, modbus, timeline, valves, version: APP_VERSION });
     } catch (error) {
       logger.error({ error }, "Failed to get status");
       next(error);

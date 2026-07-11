@@ -38,7 +38,11 @@ import { createValvesRouter } from "./routes/valves.js";
 import { createStatusRouter } from "./routes/status.js";
 import { createCommissioningRouter } from "./routes/commissioning.js";
 import { CommissioningRunner } from "./services/commissioningRunner.js";
-import { closeAllSharedClients } from "./shared/modbus/client.js";
+import {
+  closeAllSharedClients,
+  type ModbusConnectionStatus,
+  onAnyModbusStatusChange,
+} from "./shared/modbus/client.js";
 
 loadConfig();
 const config = getConfig();
@@ -108,6 +112,13 @@ const mqttService = new MqttService(config.mqtt, settingsRepo, timelineScheduler
 const hruMonitor = new HruMonitor(hruService, mqttService, timelineScheduler, logger);
 const commissioningRunner = new CommissioningRunner(settingsRepo, timelineScheduler, logger);
 
+let lastModbusStatus: ModbusConnectionStatus | null = null;
+
+onAnyModbusStatusChange((_key, status) => {
+  lastModbusStatus = status;
+  broadcastSystemStatus();
+});
+
 function broadcastSystemStatus() {
   const haStatus = haClient ? haClient.getConnectionState() : "offline";
   const mqttStatus = mqttService.isConnected() ? "connected" : "disconnected";
@@ -116,6 +127,7 @@ function broadcastSystemStatus() {
     payload: {
       ha: { connection: haStatus },
       mqtt: { connection: mqttStatus },
+      modbus: lastModbusStatus,
     },
   });
 }
@@ -232,6 +244,7 @@ wss.on("connection", async (socket) => {
         payload: {
           ha: { connection: haStatus },
           mqtt: { connection: mqttStatus },
+          modbus: lastModbusStatus,
         },
       }),
     );

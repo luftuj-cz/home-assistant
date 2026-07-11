@@ -1,6 +1,7 @@
 {
   "code": "atrea-am-cf",
   "name": "Atrea Duplex AM.CF",
+  "modbusMinGapMs": 5000,
   "variables": [
     {
       "name": "power",
