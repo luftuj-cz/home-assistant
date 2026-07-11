@@ -1,6 +1,7 @@
 {
   "code": "meltem",
   "name": "Meltem",
+  "modbusMinGapMs": 100,
   "variables": [
     {
       "name": "power",

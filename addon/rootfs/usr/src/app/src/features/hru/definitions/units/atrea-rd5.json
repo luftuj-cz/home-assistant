@@ -1,6 +1,7 @@
 {
   "code": "atrea-rd5",
   "name": "Atrea Duplex RD5",
+  "modbusMinGapMs": 5000,
   "variables": [
     {
       "name": "power",

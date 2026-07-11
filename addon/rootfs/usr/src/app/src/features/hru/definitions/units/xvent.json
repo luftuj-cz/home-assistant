@@ -1,6 +1,7 @@
 {
   "code": "xvent",
   "name": "Xvent",
+  "modbusMinGapMs": 100,
   "variables": [
     {
       "name": "power",

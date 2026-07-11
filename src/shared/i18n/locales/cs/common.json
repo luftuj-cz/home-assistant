@@ -454,7 +454,9 @@
     "modbusStatus": {
       "notConfigured": "Není nakonfigurováno",
       "reachable": "Dostupný",
-      "unreachable": "Nedostupný"
+      "unreachable": "Nedostupný",
+      "reconnecting": "Znovu se připojuje (pokus {{count}})",
+      "reconnectingDetail": "Neúspěšné pokusy: {{count}} — poslední chyba: {{error}}"
     },
     "hruStatusTitle": "Živé hodnoty rekuperační jednotky",
     "hruStatusDescription": "Čte registry rekuperační jednotky každých 10 sekund",

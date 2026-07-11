@@ -142,6 +142,7 @@ export class HruService {
       host: settings.host,
       port: Number(settings.port) || 502,
       unitId: Number(settings.unitId) || 1,
+      minGapMs: unit.modbusMinGapMs,
     };
 
     this.logger.info(
@@ -153,7 +154,11 @@ export class HruService {
 
     try {
       this.logPlannedWrites(unit, scriptVars);
-      await this.repository.executeScript(config, unit.integration.write, scriptVars);
+      // A write is something the caller explicitly asked to deliver to the unit -
+      // retry once on a transient failure instead of silently dropping it.
+      await this.repository.executeScript(config, unit.integration.write, scriptVars, {
+        retries: 1,
+      });
 
       this.logger.info({ data }, "HRU values written successfully");
     } catch (err) {
@@ -186,6 +191,7 @@ export class HruService {
         host: settings.host,
         port: Number(settings.port) || 502,
         unitId: Number(settings.unitId) || 1,
+        minGapMs: unit.modbusMinGapMs,
       };
 
       await this.repository.executeScript(config, keepAlive.commands);
@@ -281,6 +287,7 @@ export class HruService {
       host: settings.host,
       port: Number(settings.port) || 502,
       unitId: Number(settings.unitId) || 1,
+      minGapMs: unit.modbusMinGapMs,
     };
 
     try {

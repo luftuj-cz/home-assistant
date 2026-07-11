@@ -64,6 +64,14 @@ export interface HeatRecoveryUnit {
   name: string;
   variables: HruVariable[];
   "interface-type": "modbus-tcp" | "demo";
+  /**
+   * Minimum spacing (ms) the unit's Modbus documentation requires between
+   * request batches/sessions. Not every unit needs this - e.g. Atrea aM/RD5
+   * documentation asks for 5000ms between batches, while Xvent XCONT-CENTRAL
+   * only needs frame-end spacing (a few ms) and others specify none at all.
+   * Defaults to 0 (no extra spacing) when omitted.
+   */
+  modbusMinGapMs?: number;
   integration: {
     read: CommandScript;
     write: CommandScript;

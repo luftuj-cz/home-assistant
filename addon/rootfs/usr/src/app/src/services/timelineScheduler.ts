@@ -479,16 +479,12 @@ export class TimelineScheduler {
       );
     }
 
-    this.lastActiveState = {
-      source,
-      modeName,
-    };
-
     const hasValves = luftatorConfig && Object.keys(luftatorConfig).length > 0;
     const hasHru = Boolean(hruConfig);
 
     if (!hasValves && !hasHru) {
       this.logger.debug({ source, id }, "TimelineScheduler: active state has no HRU/valve payload");
+      this.lastActiveState = { source, modeName };
       return;
     }
 
@@ -505,12 +501,27 @@ export class TimelineScheduler {
       "TimelineScheduler: applying active state",
     );
 
+    let valveApplyError: Error | null = null;
+    let hruApplyError: Error | null = null;
+
     if (hasValves && luftatorConfig) {
-      firstApplyError = await this.applyValveUpdates(luftatorConfig, source);
+      valveApplyError = await this.applyValveUpdates(luftatorConfig, source);
     }
 
     if (hasHru && hruConfig) {
-      firstApplyError ??= await this.applyHruUpdate(hruConfig, source, id);
+      hruApplyError = await this.applyHruUpdate(hruConfig, source, id);
+    }
+
+    firstApplyError = valveApplyError ?? hruApplyError;
+
+    // Only report the new mode/boost name once the HRU side is actually confirmed
+    // applied - reporting it optimistically made the dashboard/MQTT claim a mode
+    // change had happened while the physical HRU write kept failing underneath.
+    // A partial valve failure (e.g. one valve out of several) doesn't gate this:
+    // modeName describes the HRU mode/boost, not individual valve positions, so
+    // it shouldn't stay stuck on the old value just because one valve lagged.
+    if (!hasHru || !hruApplyError) {
+      this.lastActiveState = { source, modeName };
     }
 
     if (throwOnApplyError && firstApplyError) {

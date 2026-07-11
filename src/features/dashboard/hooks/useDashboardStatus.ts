@@ -17,6 +17,7 @@ export function useDashboardStatus() {
     haStatus: system.haStatus,
     haLoading: system.haLoading,
     modbusStatus,
+    modbusLive: system.modbusLive,
     hruStatus,
     hruName: config.hruName,
     mqttStatus: system.mqttStatus,

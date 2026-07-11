@@ -1,6 +1,7 @@
 {
   "code": "korado",
   "name": "KORADO VENTBOX",
+  "modbusMinGapMs": 100,
   "variables": [
     {
       "name": "power",
