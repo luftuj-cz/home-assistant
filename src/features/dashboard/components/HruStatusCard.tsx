@@ -29,6 +29,7 @@ import type {
   LocalizedText,
 } from "@luftuj/features/dashboard/types";
 import type { TFunction } from "i18next";
+import { TickingAgeLabel } from "@luftuj/features/dashboard/components/TickingAgeLabel";
 
 interface HruStatusCardProps {
   status: HruState;
@@ -77,6 +78,9 @@ export function HruStatusCard({
     if (typeof displayVal === "string") return t(displayVal, { defaultValue: displayVal });
     return String(displayVal ?? rawVal ?? "?");
   }
+
+  const fetchedAt = status && !("error" in status) ? status.fetchedAt : null;
+  const isRefreshing = status && !("error" in status) ? status.isRefreshing : false;
 
   if (status === null) {
     return (
@@ -404,13 +408,20 @@ export function HruStatusCard({
           </div>
         </Group>
         <Badge
-          color="green"
+          color={isRefreshing ? "blue" : "green"}
           variant="light"
           size="lg"
           radius="sm"
-          leftSection={<IconCheck size={14} />}
+          leftSection={isRefreshing ? <IconRefresh size={14} /> : <IconCheck size={14} />}
         >
-          {t("dashboard.hruStatusOk", { defaultValue: "OK" })}
+          <TickingAgeLabel timestamp={fetchedAt}>
+            {(seconds) =>
+              t("dashboard.hruStatusUpdated", {
+                defaultValue: "Updated {{seconds}}s ago",
+                seconds,
+              })
+            }
+          </TickingAgeLabel>
         </Badge>
       </Group>
 
