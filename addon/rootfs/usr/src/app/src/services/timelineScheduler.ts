@@ -61,8 +61,7 @@ export class TimelineScheduler {
     private readonly hruService: HruService,
     private readonly settingsRepo: SettingsRepository,
     private readonly logger: Logger,
-  ) {
-  }
+  ) {}
 
   public start(): void {
     if (this.schedulerTimer) return;
@@ -403,14 +402,14 @@ export class TimelineScheduler {
     return {
       hruConfig: event.hruConfig
         ? {
-          ...event.hruConfig,
-          mode: resolved.modeToSend,
-          power: resolved.effectivePower,
-          temperature: resolved.effectiveTemperature,
-          variables: Object.keys(resolved.effectiveVariables).length
-            ? resolved.effectiveVariables
-            : event.hruConfig.variables,
-        }
+            ...event.hruConfig,
+            mode: resolved.modeToSend,
+            power: resolved.effectivePower,
+            temperature: resolved.effectiveTemperature,
+            variables: Object.keys(resolved.effectiveVariables).length
+              ? resolved.effectiveVariables
+              : event.hruConfig.variables,
+          }
         : event.hruConfig,
       luftatorConfig: resolved.effectiveLuftatorConfig,
       source: "schedule",
@@ -424,8 +423,18 @@ export class TimelineScheduler {
     source: TimelineSource,
   ): Promise<Error | null> {
     let firstError: Error | null = null;
+    const snapshot = await this.valveManager.getSnapshot();
+    const activeEntityIds = new Set(snapshot.map((valve) => valve.entity_id));
+
     for (const [entityId, opening] of Object.entries(luftatorConfig)) {
       if (opening === undefined || opening === null) continue;
+      if (!activeEntityIds.has(entityId)) {
+        this.logger.warn(
+          { entityId, source },
+          "Skipping valve missing from the current snapshot; keeping its mode configuration",
+        );
+        continue;
+      }
       try {
         const result = await this.valveManager.setValue(entityId, opening);
         this.logger.info(

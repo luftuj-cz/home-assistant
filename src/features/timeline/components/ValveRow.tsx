@@ -30,7 +30,8 @@ export function ValveRow({
   const entityId = v.entityId || "";
   const storageKey = v.entityId || key;
   const backendValue = openings[storageKey] ?? 0;
-  const statusColor = getValveStatusColor(backendValue, v.min, v.max);
+  const isUnavailable = !v.isAvailable;
+  const statusColor = isUnavailable ? "gray" : getValveStatusColor(backendValue, v.min, v.max);
   const badgeText = formatValveValue(backendValue, v.min, v.max, t);
 
   return (
@@ -49,6 +50,11 @@ export function ValveRow({
           )}
         </Stack>
         <Group gap="xs" align="center">
+          {isUnavailable && (
+            <Badge variant="light" color="gray">
+              {t("settings.timeline.deadValve")}
+            </Badge>
+          )}
           <Badge variant="light" color={statusColor}>
             {badgeText}
           </Badge>
@@ -69,6 +75,7 @@ export function ValveRow({
         max={v.max}
         step={v.step}
         onChange={(val) => onChange((prev) => ({ ...prev, [storageKey]: val }))}
+        disabled={isUnavailable}
         color={statusColor}
         size="lg"
         label={null}

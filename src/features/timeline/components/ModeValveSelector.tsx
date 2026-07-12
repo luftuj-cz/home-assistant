@@ -26,16 +26,37 @@ export function ModeValveSelector({
   showCopyButton,
   t,
 }: Readonly<ModeValveSelectorProps>) {
-  if (valves.length === 0) return null;
+  const liveEntityIds = new Set(valves.map((valve) => valve.entityId));
+  const unavailableValves: Valve[] = Object.entries(openings)
+    .filter(([entityId]) => !liveEntityIds.has(entityId))
+    .map(([entityId, value]) => ({
+      entityId,
+      name: entityId,
+      value: value ?? 0,
+      min: 0,
+      max: 100,
+      step: 5,
+      state: "unavailable",
+      isAvailable: false,
+      attributes: {},
+    }));
+  const allValves = [...valves, ...unavailableValves];
+  const unavailableEntityIds = new Set(unavailableValves.map((valve) => valve.entityId));
 
-  const allClosed = valves.every((v) => {
-    const key = v.entityId || v.name;
-    return (openings[key] ?? 0) >= v.max;
-  });
+  if (allValves.length === 0) return null;
+
+  const allClosed =
+    valves.length > 0 &&
+    valves.every((v) => {
+      const key = v.entityId || v.name;
+      return (openings[key] ?? 0) >= v.max;
+    });
 
   const sortedGroups = valveGroups.toSorted((a, b) => a.sortOrder - b.sortOrder);
   const groupedEntityIds = new Set(sortedGroups.flatMap((group) => group.entityIds));
-  const ungroupedValves = valves.filter((v) => !groupedEntityIds.has(v.entityId));
+  const ungroupedValves = allValves.filter(
+    (valve) => !groupedEntityIds.has(valve.entityId) || unavailableEntityIds.has(valve.entityId),
+  );
 
   return (
     <Fieldset

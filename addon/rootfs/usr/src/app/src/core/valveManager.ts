@@ -1,7 +1,4 @@
-import type {
-  HassStateChangedEvent,
-  HomeAssistantClient,
-} from "../services/homeAssistantClient.js";
+import type { HassStateChangedEvent, HomeAssistantClient } from "../services/homeAssistantClient.js";
 import type { Logger } from "pino";
 import { Mutex } from "../utils/mutex.js";
 import { storeValveSnapshots } from "../services/database.js";
@@ -46,15 +43,21 @@ export const HassStateChangedEventSchema = z.object({
 });
 
 export class ValveManager implements ValveController {
+  private static readonly SNAPSHOT_REFRESH_INTERVAL_MS = 60_000;
+  private static readonly MISSING_SNAPSHOTS_BEFORE_REMOVAL = 3;
   private readonly mutex = new Mutex();
   private readonly valves = new Map<string, ValveSnapshot>();
+  private readonly missingSnapshots = new Map<string, number>();
   private disconnect: (() => void) | null = null;
+  private refreshTimer: NodeJS.Timeout | null = null;
+  private refreshInProgress: Promise<void> | null = null;
 
   constructor(
     private readonly client: HomeAssistantClient,
     private readonly logger: Logger,
     private readonly broadcast: BroadcastFn,
-  ) {}
+  ) {
+  }
 
   async start(): Promise<void> {
     this.logger.info("Valve manager starting; refreshing initial snapshot");
@@ -67,6 +70,7 @@ export class ValveManager implements ValveController {
       );
       await this.handleEvent(event);
     });
+    this.startPeriodicRefresh();
   }
 
   async stop(): Promise<void> {
@@ -75,39 +79,26 @@ export class ValveManager implements ValveController {
       this.disconnect();
       this.disconnect = null;
     }
+    if (this.refreshTimer) {
+      clearInterval(this.refreshTimer);
+      this.refreshTimer = null;
+    }
   }
 
   async refresh(): Promise<void> {
-    this.logger.debug("Fetching valve snapshot from Home Assistant");
-    const rawSnapshot = await this.client.fetchLuftatorEntities();
-    const snapshot = z.array(HassStateSchema).parse(rawSnapshot);
+    if (this.refreshInProgress) {
+      return this.refreshInProgress;
+    }
 
-    await this.mutex.runExclusive(async () => {
-      this.valves.clear();
-      for (const valve of snapshot) {
-        if (!this.isValveEntity(valve.entity_id) || this.isDemoValve(valve.entity_id)) continue;
-        this.valves.set(valve.entity_id, valve);
+    const refreshPromise = this.refreshSnapshot();
+    this.refreshInProgress = refreshPromise;
+    try {
+      await refreshPromise;
+    } finally {
+      if (this.refreshInProgress === refreshPromise) {
+        this.refreshInProgress = null;
       }
-    });
-
-    const filteredSnapshot = snapshot.filter(
-      (valve) => this.isValveEntity(valve.entity_id) && !this.isDemoValve(valve.entity_id),
-    );
-
-    await this.broadcast({ type: "snapshot", payload: filteredSnapshot });
-    storeValveSnapshots(
-      filteredSnapshot.map((valve) => ({
-        entityId: valve.entity_id,
-        controllerId: this.resolveControllerId(valve.entity_id),
-        controllerName: this.resolveControllerName(valve.entity_id),
-        name: (valve.attributes?.friendly_name as string | undefined) ?? null,
-        value: Number.isFinite(Number(valve.state)) ? Number(valve.state) : null,
-        state: valve.state,
-        attributes: valve.attributes ?? {},
-        timestamp: valve.last_updated ?? valve.last_changed ?? new Date().toISOString(),
-      })),
-    );
-    this.logger.info({ count: filteredSnapshot.length }, "Valve snapshot synchronised");
+    }
   }
 
   async setValue(entityId: string, value: number): Promise<ValveSnapshot> {
@@ -153,6 +144,84 @@ export class ValveManager implements ValveController {
 
   async getSnapshot(): Promise<ValveSnapshot[]> {
     return this.mutex.runExclusive(async () => Array.from(this.valves.values()));
+  }
+
+  private async refreshSnapshot(): Promise<void> {
+    this.logger.debug("Fetching valve snapshot from Home Assistant");
+    const rawSnapshot = await this.client.fetchLuftatorEntities();
+    const snapshot = z.array(HassStateSchema).parse(rawSnapshot);
+
+    const filteredSnapshot = snapshot.filter(
+      (valve) => this.isValveEntity(valve.entity_id) && !this.isDemoValve(valve.entity_id),
+    );
+    let added = 0;
+    let removed = 0;
+    let reconciledSnapshot: ValveSnapshot[] = [];
+
+    await this.mutex.runExclusive(async () => {
+      const refreshedEntityIds = new Set(filteredSnapshot.map((valve) => valve.entity_id));
+      for (const valve of filteredSnapshot) {
+        const entityId = valve.entity_id;
+        if (!this.valves.has(entityId)) {
+          added++;
+        }
+        this.valves.set(entityId, valve);
+        this.missingSnapshots.delete(entityId);
+      }
+
+      for (const entityId of this.valves.keys()) {
+        if (refreshedEntityIds.has(entityId)) continue;
+
+        const missingCount = (this.missingSnapshots.get(entityId) ?? 0) + 1;
+        if (missingCount < ValveManager.MISSING_SNAPSHOTS_BEFORE_REMOVAL) {
+          this.missingSnapshots.set(entityId, missingCount);
+          continue;
+        }
+
+        this.valves.delete(entityId);
+        this.missingSnapshots.delete(entityId);
+        removed++;
+      }
+      reconciledSnapshot = Array.from(this.valves.values());
+    });
+
+    await this.broadcast({ type: "snapshot", payload: reconciledSnapshot });
+    storeValveSnapshots(
+      reconciledSnapshot.map((valve) => ({
+        entityId: valve.entity_id,
+        controllerId: this.resolveControllerId(valve.entity_id),
+        controllerName: this.resolveControllerName(valve.entity_id),
+        name: (valve.attributes?.friendly_name as string | undefined) ?? null,
+        value: Number.isFinite(Number(valve.state)) ? Number(valve.state) : null,
+        state: valve.state,
+        attributes: valve.attributes ?? {},
+        timestamp: valve.last_updated ?? valve.last_changed ?? new Date().toISOString(),
+      })),
+    );
+    this.logger.info(
+      {
+        count: reconciledSnapshot.length,
+        added,
+        removed,
+        removalConfirmationSnapshots: ValveManager.MISSING_SNAPSHOTS_BEFORE_REMOVAL,
+      },
+      "Valve snapshot synchronised",
+    );
+  }
+
+  private startPeriodicRefresh(): void {
+    if (this.refreshTimer) return;
+
+    this.refreshTimer = setInterval(() => {
+      void this.refresh().catch((error: unknown) => {
+        this.logger.error({ error }, "Periodic valve snapshot refresh failed");
+      });
+    }, ValveManager.SNAPSHOT_REFRESH_INTERVAL_MS);
+    this.refreshTimer.unref();
+    this.logger.info(
+      { intervalMs: ValveManager.SNAPSHOT_REFRESH_INTERVAL_MS },
+      "Periodic valve snapshot refresh started",
+    );
   }
 
   private isDemoValve(entityId: string): boolean {
@@ -226,6 +295,7 @@ export class ValveManager implements ValveController {
 
       await this.mutex.runExclusive(async () => {
         this.valves.set(entityId, newState);
+        this.missingSnapshots.delete(entityId);
       });
 
       await this.broadcast({ type: "update", payload: newState });
