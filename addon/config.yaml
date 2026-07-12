@@ -1,6 +1,7 @@
 name: LUFTaTOR (Development)
 version: 1.1.0-dev
 slug: luftator-dev
+stage: experimental
 description: LUFTaTOR Home Assistant Add-on (Development Version)
 url: https://github.com/luftuj-cz/home-assistant
 arch:
