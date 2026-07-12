@@ -53,15 +53,13 @@ export class HruMonitor {
     this.logger.info("Stopped HRU Monitor");
   }
 
-  private isRefreshing = false;
-
   private async runCycle(sendDiscovery: boolean): Promise<void> {
     this.logger.info(
-      { sendDiscovery, isRefreshing: this.isRefreshing },
+      { sendDiscovery, isRefreshing: this.hruService.isRefreshing() },
       "HRU Monitor: runCycle called",
     );
 
-    if (this.isRefreshing) {
+    if (this.hruService.isRefreshing()) {
       if (sendDiscovery) {
         this.logger.debug(
           "HRU Monitor: Cycle skipped (already running), but discovery was requested. Will retry next cycle.",
@@ -69,7 +67,7 @@ export class HruMonitor {
       }
       return;
     }
-    this.isRefreshing = true;
+    this.hruService.setRefreshing(true);
 
     try {
       const config = this.hruService.getResolvedConfiguration();
@@ -91,6 +89,7 @@ export class HruMonitor {
 
       try {
         const result = await this.hruService.readValues();
+        this.hruService.setCachedResult(result);
         const addonMode = this.timelineScheduler.getFormattedActiveMode();
         const boostRemaining = this.timelineScheduler.getBoostRemainingMinutes();
         const boostActiveName = this.timelineScheduler.getActiveBoostName();
@@ -111,7 +110,7 @@ export class HruMonitor {
         this.logger.error({ err }, "HRU Monitor: Failed to read from HRU or publish to MQTT");
       }
     } finally {
-      this.isRefreshing = false;
+      this.hruService.setRefreshing(false);
     }
   }
 }

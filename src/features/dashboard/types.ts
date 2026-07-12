@@ -45,6 +45,8 @@ export type HruState =
       values: Record<string, number | string | boolean>;
       displayValues: Record<string, string | number | boolean>;
       variables: HruVariable[];
+      fetchedAt: number;
+      isRefreshing: boolean;
       registers?: {
         power?: { unit?: string; scale?: number; precision?: number };
         temperature?: { unit?: string; scale?: number; precision?: number };

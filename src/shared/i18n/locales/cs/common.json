@@ -493,6 +493,7 @@
     "hruStatusTitle": "Živé hodnoty rekuperační jednotky",
     "hruStatusDescription": "Čte registry rekuperační jednotky každých 10 sekund",
     "hruStatusOk": "OK",
+    "hruStatusUpdated": "Aktualizováno před {{seconds}} s",
     "hruStatusError": "Chyba",
     "hruMode": "Režim",
     "mqttStatusTitle": "MQTT Discovery",

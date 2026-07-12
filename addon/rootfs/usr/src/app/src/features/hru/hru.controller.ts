@@ -2,6 +2,7 @@ import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
 import type { HruService } from "./hru.service.js";
 import type { HruWriteInput } from "../../schemas/hru.js";
+import { HruNotConfiguredError } from "../../shared/errors/apiErrors.js";
 
 export class HruController {
   constructor(
@@ -27,15 +28,18 @@ export class HruController {
     }
   };
 
-  read = async (_req: Request, res: Response, next: NextFunction): Promise<void> => {
-    try {
-      const result = await this.service.readValues();
-      res.json(result);
-      this.logger.info("HRU values read successfully");
-    } catch (error) {
-      this.logger.error({ error }, "Failed to read HRU values");
-      next(error);
+  read = (_req: Request, res: Response): void => {
+    if (!this.service.getResolvedConfiguration()) {
+      throw new HruNotConfiguredError();
     }
+    const cached = this.service.getCachedRead();
+    const emptyResult = { values: null, displayValues: null, variables: null };
+    res.json({
+      ...(cached?.result ?? emptyResult),
+      fetchedAt: cached?.fetchedAt ?? null,
+      isRefreshing: this.service.isRefreshing(),
+    });
+    this.logger.info({ hasCache: cached !== null }, "HRU cached values served");
   };
 
   test = async (req: Request, res: Response, next: NextFunction): Promise<void> => {

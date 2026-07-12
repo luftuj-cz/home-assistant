@@ -28,9 +28,16 @@ export interface HruReadResult {
   variables: HruVariable[];
 }
 
+export interface CachedHruRead {
+  result: HruReadResult;
+  fetchedAt: number;
+}
+
 export class HruService {
   private readonly units: HeatRecoveryUnit[];
   private readValuesInFlight: Promise<HruReadResult> | null = null;
+  private cachedRead: CachedHruRead | null = null;
+  private refreshing = false;
 
   constructor(
     private readonly repository: HruRepository,
@@ -39,6 +46,22 @@ export class HruService {
   ) {
     const loader = new HruLoader(this.logger);
     this.units = loader.loadUnits();
+  }
+
+  setCachedResult(result: HruReadResult): void {
+    this.cachedRead = { result, fetchedAt: Date.now() };
+  }
+
+  getCachedRead(): CachedHruRead | null {
+    return this.cachedRead;
+  }
+
+  setRefreshing(value: boolean): void {
+    this.refreshing = value;
+  }
+
+  isRefreshing(): boolean {
+    return this.refreshing;
   }
 
   getAllUnits(): HruUnitDefinition[] {
