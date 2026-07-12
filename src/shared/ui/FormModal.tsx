@@ -3,7 +3,7 @@ import type { ComponentPropsWithoutRef, ReactNode } from "react";
 
 interface FormModalProps extends Omit<ModalProps, "children" | "onSubmit"> {
   children: ReactNode;
-  onSubmit?: ComponentPropsWithoutRef<"form">["onSubmit"];
+  onSubmit: ComponentPropsWithoutRef<"form">["onSubmit"];
   submitLabel?: ReactNode;
   cancelLabel?: ReactNode;
   onCancel?: () => void;
@@ -13,18 +13,18 @@ interface FormModalProps extends Omit<ModalProps, "children" | "onSubmit"> {
 }
 
 export function FormModal({
-  children,
-  onSubmit,
-  submitLabel = "Save",
-  cancelLabel = "Cancel",
-  onCancel,
-  submitDisabled,
-  submitting,
-  footer,
-  size = "lg",
-  centered = true,
-  ...rest
-}: Readonly<FormModalProps>) {
+                            children,
+                            onSubmit,
+                            submitLabel = "Save",
+                            cancelLabel = "Cancel",
+                            onCancel,
+                            submitDisabled,
+                            submitting,
+                            footer,
+                            size = "lg",
+                            centered = true,
+                            ...rest
+                          }: Readonly<FormModalProps>) {
   const body = (
     <Stack gap="md">
       {children}

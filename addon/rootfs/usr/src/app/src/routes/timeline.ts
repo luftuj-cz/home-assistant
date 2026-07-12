@@ -587,8 +587,8 @@ export function createTimelineRouter(
         const hruId = getCurrentUnitId(unitId);
 
         const modes = getTimelineModes(hruId || undefined);
-        const mode = modes.find((m) => m.id === modeId);
-        if (!mode) return next(new NotFoundError("Mode not found", "MODE_NOT_FOUND"));
+        const modeExists = modes.some((m) => m.id === modeId);
+        if (!modeExists) return next(new NotFoundError("Mode not found", "MODE_NOT_FOUND"));
 
         const endTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
         const override: TimelineOverride = { modeId, endTime, durationMinutes };

@@ -37,7 +37,7 @@ jobs:
 
       - name: Prepare build matrix
         id: matrix
-        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@master
+        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@91a3a46c1c8b6c7397a5ee722ee4f63931f82aeb # master
         with:
           architectures: '["amd64", "aarch64"]'
           image-name: addon-luftuj
@@ -69,7 +69,7 @@ jobs:
           path: addon/
 
       - name: Build and push
-        uses: home-assistant/builder/actions/build-image@master
+        uses: home-assistant/builder/actions/build-image@91a3a46c1c8b6c7397a5ee722ee4f63931f82aeb # master
         with:
           arch: ${{ matrix.arch }}
           image: ${{ matrix.image }}
@@ -93,7 +93,7 @@ jobs:
       packages: write
     steps:
       - name: Publish multi-arch manifest
-        uses: home-assistant/builder/actions/publish-multi-arch-manifest@master
+        uses: home-assistant/builder/actions/publish-multi-arch-manifest@91a3a46c1c8b6c7397a5ee722ee4f63931f82aeb # master
         with:
           architectures: '["amd64", "aarch64"]'
           image-name: addon-luftuj

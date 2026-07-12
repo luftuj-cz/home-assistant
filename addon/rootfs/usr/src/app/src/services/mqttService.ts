@@ -1,9 +1,10 @@
 import mqtt from "mqtt";
 import { EventEmitter } from "node:events";
+import { randomUUID } from "node:crypto";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/options.js";
 import type { HeatRecoveryUnit, LocalizedText } from "../features/hru/hru.definitions.js";
-import type { MqttSettings, TimelineOverride } from "../types/index.js";
+import type { MqttSettings, TimelineMode, TimelineOverride } from "../types/index.js";
 import { LANGUAGE_SETTING_KEY } from "../types/index.js";
 import { getAppSetting } from "./database.js";
 import type { SettingsRepository } from "../features/settings/settings.repository.js";
@@ -121,7 +122,7 @@ export class MqttService extends EventEmitter {
     settings: MqttSettings,
     logger: Logger,
   ): Promise<{ success: boolean; message?: string }> {
-    const clientId = `luftuj-test-${Math.random().toString(16).slice(2, 8)}`;
+    const clientId = `luftuj-test-${randomUUID()}`;
 
     logger.info(
       { host: settings.host, port: settings.port, clientId },
@@ -193,9 +194,7 @@ export class MqttService extends EventEmitter {
 
     const brokerUrl = `mqtt://${config.host}:${config.port}`;
     const savedUnitIdForId = this.settingsRepo.getLastUnitId();
-    const instanceId = savedUnitIdForId
-      ? String(savedUnitIdForId)
-      : Math.random().toString(16).slice(2, 6);
+    const instanceId = savedUnitIdForId ? String(savedUnitIdForId) : randomUUID();
     const clientId = `${STATIC_CLIENT_ID_PREFIX}-${instanceId}`;
 
     this.logger.info(
@@ -214,11 +213,11 @@ export class MqttService extends EventEmitter {
       const lastUnitId = savedUnitIdForId;
       const will = lastUnitId
         ? {
-            topic: `${BASE_TOPIC}/${lastUnitId}/status`,
-            payload: "offline",
-            qos: 1,
-            retain: true,
-          }
+          topic: `${BASE_TOPIC}/${lastUnitId}/status`,
+          payload: "offline",
+          qos: 1,
+          retain: true,
+        }
         : undefined;
 
       this.client = mqtt.connect({
@@ -1075,64 +1074,92 @@ export class MqttService extends EventEmitter {
       // Modes are stored with the raw settings unit ID, not slugified
       const isRelevantUnit = !m.hruId || m.hruId === settingsUnitId;
 
-      if (!isRelevantUnit && m.isBoost) {
-        // skip silent or debug log
-      }
-
       if (m.isBoost && isRelevantUnit) {
         currentBoostMap[m.id] = slug;
         activeBoostCount++;
-
-        // Delete old slug topic if renamed
-        if (prevBoostMap[m.id] && prevBoostMap[m.id] !== slug) {
-          const oldSlug = prevBoostMap[m.id];
-          await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}`);
-        }
-
-        await this.publishButton(
-          unitId,
-          `boost_${slug}`,
-          m.name,
-          `${BASE_TOPIC}/${unitId}/boost/${m.id}/start`,
-          "START",
-          device,
-          availability,
-          "mdi:rocket-launch",
-        );
-
-        // Publish Infinite Boost Button
-        await this.publishButton(
-          unitId,
-          `boost_${slug}_infinite`,
-          `${m.name} ∞`,
-          `${BASE_TOPIC}/${unitId}/boost/${m.id}/start_infinite`,
-          "START",
-          device,
-          availability,
-          "mdi:all-inclusive",
-        );
+        await this.publishBoostButtons(unitId, m.id, m.name, slug, prevBoostMap, device, availability);
       } else {
-        // Mode is NOT a boost anymore (or not relevant unit)
-
-        // 1. Check if it was previously published as a boost (using tracked slug) and remove it
-        if (prevBoostMap[m.id]) {
-          const oldSlug = prevBoostMap[m.id];
-          this.logger.info(
-            { modeId: m.id, modeName: m.name, slug: oldSlug },
-            "MQTT: Removing boost button (tracked)",
-          );
-          await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}`);
-          await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}_infinite`);
-          delete currentBoostMap[m.id];
-        }
-
-        // 2. FALLBACK: Always try to remove using the CURRENT name slug too
-        // This handles cases where we lost track (prevBoostMap empty) but the button exists.
-        await this.removeDiscoveryEntity(unitId, "button", `boost_${slug}`);
-        await this.removeDiscoveryEntity(unitId, "button", `boost_${slug}_infinite`);
+        await this.removeBoostButtons(unitId, m.id, m.name, slug, prevBoostMap, currentBoostMap);
       }
     }
 
+    await this.cleanupDeletedBoostModes(unitId, modes, prevBoostMap, currentBoostMap);
+
+    this.settingsRepo.setDiscoveredBoosts(currentBoostMap);
+    this.logger.info({ count: activeBoostCount }, "MQTT: Boost discovery updated");
+    return activeBoostCount * 2; // Each boost has 2 buttons (normal + infinite)
+  }
+
+  private async publishBoostButtons(
+    unitId: string,
+    modeId: number,
+    modeName: string,
+    slug: string,
+    prevBoostMap: Record<number, string>,
+    device: object,
+    availability: object[],
+  ) {
+    // Delete old slug topic if renamed
+    if (prevBoostMap[modeId] && prevBoostMap[modeId] !== slug) {
+      const oldSlug = prevBoostMap[modeId];
+      await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}`);
+    }
+
+    await this.publishButton(
+      unitId,
+      `boost_${slug}`,
+      modeName,
+      `${BASE_TOPIC}/${unitId}/boost/${modeId}/start`,
+      "START",
+      device,
+      availability,
+      "mdi:rocket-launch",
+    );
+
+    await this.publishButton(
+      unitId,
+      `boost_${slug}_infinite`,
+      `${modeName} ∞`,
+      `${BASE_TOPIC}/${unitId}/boost/${modeId}/start_infinite`,
+      "START",
+      device,
+      availability,
+      "mdi:all-inclusive",
+    );
+  }
+
+  private async removeBoostButtons(
+    unitId: string,
+    modeId: number,
+    modeName: string,
+    slug: string,
+    prevBoostMap: Record<number, string>,
+    currentBoostMap: Record<number, string>,
+  ) {
+    // 1. Check if it was previously published as a boost (using tracked slug) and remove it
+    if (prevBoostMap[modeId]) {
+      const oldSlug = prevBoostMap[modeId];
+      this.logger.info(
+        { modeId, modeName, slug: oldSlug },
+        "MQTT: Removing boost button (tracked)",
+      );
+      await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}`);
+      await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}_infinite`);
+      delete currentBoostMap[modeId];
+    }
+
+    // 2. FALLBACK: Always try to remove using the CURRENT name slug too
+    // This handles cases where we lost track (prevBoostMap empty) but the button exists.
+    await this.removeDiscoveryEntity(unitId, "button", `boost_${slug}`);
+    await this.removeDiscoveryEntity(unitId, "button", `boost_${slug}_infinite`);
+  }
+
+  private async cleanupDeletedBoostModes(
+    unitId: string,
+    modes: TimelineMode[],
+    prevBoostMap: Record<number, string>,
+    currentBoostMap: Record<number, string>,
+  ) {
     // Cleanup modes that were deleted from DB entirely (present in prevBoostMap but not in modes)
     const modeIds = new Set(modes.map((m) => m.id));
     for (const modeIdStr of Object.keys(prevBoostMap)) {
@@ -1148,10 +1175,6 @@ export class MqttService extends EventEmitter {
         delete currentBoostMap[modeId];
       }
     }
-
-    this.settingsRepo.setDiscoveredBoosts(currentBoostMap);
-    this.logger.info({ count: activeBoostCount }, "MQTT: Boost discovery updated");
-    return activeBoostCount * 2; // Each boost has 2 buttons (normal + infinite)
   }
 
   private async publishAvailability(unitId: string, status: "online" | "offline") {
