@@ -151,6 +151,7 @@
       "nativeMode": "Režim jednotky",
       "nativeModePlaceholder": "Vyberte režim...",
       "modeValves": "Otevření ventilů",
+      "deadValve": "Nedostupná",
       "noModesCreated": "Nejdříve vytvořte režim",
       "noModesCreatedDescription": "Před plánováním událostí v časové ose musíte vytvořit alespoň jeden režim větrání.",
       "noModes": "Zatím žádné režimy.",
