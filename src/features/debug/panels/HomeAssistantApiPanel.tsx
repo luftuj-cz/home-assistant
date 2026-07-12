@@ -22,11 +22,7 @@ export function HomeAssistantApiPanel() {
   const [haApiLoading, setHaApiLoading] = useState(true);
   const [haApiRefreshing, setHaApiRefreshing] = useState(false);
   const [haApiErrorMessage, setHaApiErrorMessage] = useState<string | null>(null);
-  const {
-    copying: copyingValues,
-    status: copyStatus,
-    copy: copyValues,
-  } = useCopyJsonToClipboard(logger);
+  const { copying: copyingValues, copy: copyValues } = useCopyJsonToClipboard(logger, t);
   const { downloading: downloadingValues, download: downloadValues } = useDownloadDebugJson(
     logger,
     t,
@@ -139,18 +135,6 @@ export function HomeAssistantApiPanel() {
             defaultValue: "Last updated: {{time}}",
             time: formatTimestamp(haApiCapturedAt),
           })}
-        </Text>
-      ) : null}
-
-      {copyStatus === "copied" ? (
-        <Text size="xs" c="teal">
-          {t("debug.copySuccess", { defaultValue: "Debug values copied to clipboard." })}
-        </Text>
-      ) : null}
-
-      {copyStatus === "failed" ? (
-        <Text size="xs" c="red">
-          {t("debug.copyFailed", { defaultValue: "Failed to copy debug values." })}
         </Text>
       ) : null}
 
