@@ -24,20 +24,34 @@ export function useHruPoll(onModbusStatus?: (s: ModbusState) => void): HruState 
           return;
         }
         const data = (await res.json().catch(() => null)) as {
-          values?: Record<string, number | string | boolean>;
-          displayValues?: Record<string, string | number | boolean>;
-          variables?: HruVariable[];
+          values?: Record<string, number | string | boolean> | null;
+          displayValues?: Record<string, string | number | boolean> | null;
+          variables?: HruVariable[] | null;
+          fetchedAt?: number | null;
+          isRefreshing?: boolean;
           registers?: {
             power?: { unit?: string; scale?: number; precision?: number };
             temperature?: { unit?: string; scale?: number; precision?: number };
           };
         } | null;
 
-        if (data?.values && data.displayValues && data.variables) {
+        if (data?.fetchedAt == null) {
+          // No cached read yet (backend just started, or the cache was lost
+          // on a restart) — revert to the loading state rather than leaving
+          // stale values on screen or reporting an error. HRU's own refresh
+          // flag says nothing about Modbus reachability, so don't use it here.
+          setHruStatus(null);
+          onModbusStatusRef.current?.("loading");
+          return;
+        }
+
+        if (data.values && data.displayValues && data.variables) {
           setHruStatus({
             values: data.values,
             displayValues: data.displayValues,
             variables: data.variables,
+            fetchedAt: data.fetchedAt,
+            isRefreshing: data.isRefreshing ?? false,
             registers: data.registers,
           });
           onModbusStatusRef.current?.("reachable");

@@ -530,6 +530,7 @@
     "hruStatusTitle": "HRU live values",
     "hruStatusDescription": "Reads HRU registers every 10 seconds",
     "hruStatusOk": "OK",
+    "hruStatusUpdated": "Updated {{seconds}}s ago",
     "hruStatusError": "Error",
     "hruMode": "Mode",
     "mqttStatusTitle": "MQTT Discovery",

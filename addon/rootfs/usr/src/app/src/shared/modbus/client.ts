@@ -165,18 +165,27 @@ export class ModbusTcpClient {
           this.lastErrorAt = null;
           return result;
         } catch (err) {
+          // Capture this before resetClient()/handleDisconnect() below can
+          // flip it to false - if the failure was a connect failure,
+          // connectInternal()'s own error path already called
+          // handleDisconnect() (and counted it) before this catch ran, so
+          // `connected` will already be false here.
+          const alreadyCountedByConnect = !this.connected;
           this.lastErrorMessage = err instanceof Error ? err.message : String(err);
           this.lastErrorAt = Date.now();
           this.resetClient();
 
           const attemptsLeft = maxAttempts - attempt;
           if (attemptsLeft <= 0) {
-            // Only count this as a real connection failure once every retry
-            // within this batch is exhausted - in-batch retries are one
-            // caller's own retry budget, not independent disconnects, and
-            // shouldn't inflate scheduleReconnect's backoff exponent below.
-            this.consecutiveFailures++;
-            this.handleDisconnect();
+            // Only call handleDisconnect() (which counts the failure) once
+            // every retry within this batch is exhausted - in-batch retries
+            // are one caller's own retry budget, not independent disconnects,
+            // and shouldn't inflate scheduleReconnect's backoff exponent.
+            // Skip it here if a connect failure already ran it, or this batch
+            // failure would be double-counted for one real disconnect.
+            if (!alreadyCountedByConnect) {
+              this.handleDisconnect();
+            }
             this.logger.error({ err, attempt }, "Modbus TCP: batch failed, giving up");
             throw err;
           }
@@ -200,6 +209,12 @@ export class ModbusTcpClient {
   private handleDisconnect() {
     if (this.destroyed) return;
     this.connected = false;
+    // Single point of truth for counting failures: covers socket-level
+    // error/close events and connectInternal()'s own failure path, not just
+    // runBatch()'s exhausted-retries path, so the reconnect backoff below
+    // and the UI's attempt counter advance even when nothing is calling
+    // runBatch() during an outage.
+    this.consecutiveFailures++;
     this.scheduleReconnect();
     this.notifyStatus();
   }

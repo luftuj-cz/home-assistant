@@ -46,3 +46,4 @@ addon/rootfs/usr/src/app/src/**/*.js
 /.agents/
 # CocoIndex Code (ccc)
 /.cocoindex_code/
+docs/superpowers/
