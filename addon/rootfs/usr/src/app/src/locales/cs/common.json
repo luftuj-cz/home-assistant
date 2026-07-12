@@ -306,6 +306,25 @@
         "unknown": "Došlo k neočekávané chybě."
       }
     },
+    "help": {
+      "title": "Nápověda",
+      "website": {
+        "title": "Web LUFTaTOR",
+        "description": "Najdete zde instalační návody, dokumentaci a aktuální informace o systému LUFTaTOR.",
+        "link": "Otevřít luftator.eu"
+      },
+      "commonMistakes": {
+        "title": "Časté chyby",
+        "mqttCredentials": "Pokud se vám nedaří nastavit MQTT, ověřte, že máte v Mosquitto brokeru nastavené uživatelské jméno a heslo.",
+        "modbusConnection": {
+          "prefix": "Pokud se vám nedaří připojit rekuperační jednotku přes Modbus, před kontaktováním podpory nejdříve nahlédněte do dokumentace:",
+          "link": "Rekuperační jednotky"
+        }
+      },
+      "contact": {
+        "prefix": "Pokud v dokumentaci nenajdete odpověď na svou otázku, kontaktujte nás na:"
+      }
+    },
     "developer": {
       "title": "Vývojářské nastavení",
       "debugMode": "Ladicí režim",

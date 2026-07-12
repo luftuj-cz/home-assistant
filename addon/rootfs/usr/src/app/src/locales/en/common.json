@@ -352,6 +352,25 @@
         "unknown": "An unexpected error occurred."
       }
     },
+    "help": {
+      "title": "Help",
+      "website": {
+        "title": "LUFTaTOR website",
+        "description": "Find installation guides, documentation and the latest information about LUFTaTOR.",
+        "link": "Open luftator.eu"
+      },
+      "commonMistakes": {
+        "title": "Common mistakes",
+        "mqttCredentials": "If you cannot configure MQTT, make sure that a username and password have been set up in the Mosquitto broker.",
+        "modbusConnection": {
+          "prefix": "If you cannot connect your heat recovery unit through Modbus, check the documentation before contacting support:",
+          "link": "HRU documentation"
+        }
+      },
+      "contact": {
+        "prefix": "If you cannot find an answer to your question in the documentation, contact us at:"
+      }
+    },
     "developer": {
       "title": "Developer settings",
       "debugMode": "Debug Mode",
