@@ -85,7 +85,7 @@ if (configRegex.test(configContent)) {
   configContent = `version: ${fullVersion}\n${configContent}`;
 }
 
-// Update name, slug, description, and image based on release type
+// Update name, slug, description, stage, and image based on release type
 if (releaseType === "dev") {
   configContent = configContent.replace(/^name: .*$/m, `name: LUFTaTOR (Development)`);
   configContent = configContent.replace(/^slug: .*$/m, `slug: luftator-dev`);
@@ -93,6 +93,9 @@ if (releaseType === "dev") {
     /^description: .*$/m,
     `description: LUFTaTOR Home Assistant Add-on (Development Version)`,
   );
+  configContent = /^stage: .*$/m.test(configContent)
+    ? configContent.replace(/^stage: .*$/m, `stage: experimental`)
+    : configContent.replace(/^slug: .*$/m, `$&\nstage: experimental`);
   configContent = configContent.replace(
     /image: "ghcr\.io\/luftuj-cz\/{arch}-addon-luftuj"$/m,
     `image: "ghcr.io/luftuj-cz/{arch}-addon-luftuj-dev"`,
@@ -104,6 +107,9 @@ if (releaseType === "dev") {
     /^description: .*$/m,
     `description: LUFTaTOR Home Assistant Add-on`,
   );
+  configContent = /^stage: .*$/m.test(configContent)
+    ? configContent.replace(/^stage: .*$/m, `stage: stable`)
+    : configContent.replace(/^slug: .*$/m, `$&\nstage: stable`);
   configContent = configContent.replace(
     /image: "ghcr\.io\/luftuj-cz\/{arch}-addon-luftuj-dev"$/m,
     `image: "ghcr.io/luftuj-cz/{arch}-addon-luftuj"`,
