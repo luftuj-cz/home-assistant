@@ -61,7 +61,6 @@ app.use(
   }),
 );
 app.use(express.json());
-// TODO(kanka@kankaj.cz): Check if 200mb is enough even for exporting large Luftator addon dbs.
 app.use(
   express.raw({
     type: ["application/octet-stream", "application/x-sqlite3", "binary/octet-stream"],
