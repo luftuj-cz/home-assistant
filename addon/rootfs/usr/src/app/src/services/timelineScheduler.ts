@@ -22,7 +22,7 @@ type ModeValue = string | number | undefined;
 
 export interface ActiveState {
   source: TimelineSource;
-  modeName?: ModeValue;
+  modeName: ModeValue;
 }
 
 type ActivePayload = {
@@ -61,7 +61,8 @@ export class TimelineScheduler {
     private readonly hruService: HruService,
     private readonly settingsRepo: SettingsRepository,
     private readonly logger: Logger,
-  ) {}
+  ) {
+  }
 
   public start(): void {
     if (this.schedulerTimer) return;
@@ -151,7 +152,7 @@ export class TimelineScheduler {
 
     if (!activePayload) {
       this.logger.debug("TimelineScheduler: no active event or boost for current time");
-      this.lastActiveState = { source: "manual" };
+      this.lastActiveState = { source: "manual", modeName: undefined };
       return;
     }
 
@@ -402,14 +403,14 @@ export class TimelineScheduler {
     return {
       hruConfig: event.hruConfig
         ? {
-            ...event.hruConfig,
-            mode: resolved.modeToSend,
-            power: resolved.effectivePower,
-            temperature: resolved.effectiveTemperature,
-            variables: Object.keys(resolved.effectiveVariables).length
-              ? resolved.effectiveVariables
-              : event.hruConfig.variables,
-          }
+          ...event.hruConfig,
+          mode: resolved.modeToSend,
+          power: resolved.effectivePower,
+          temperature: resolved.effectiveTemperature,
+          variables: Object.keys(resolved.effectiveVariables).length
+            ? resolved.effectiveVariables
+            : event.hruConfig.variables,
+        }
         : event.hruConfig,
       luftatorConfig: resolved.effectiveLuftatorConfig,
       source: "schedule",
