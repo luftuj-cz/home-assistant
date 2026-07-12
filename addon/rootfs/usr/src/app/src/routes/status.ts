@@ -67,6 +67,14 @@ function parseLogLimit(rawLimit: unknown, defaultLimit: number): number {
   return Number.isFinite(parsedLimit) ? parsedLimit : defaultLimit;
 }
 
+function sendJsonDownload(response: Response, payload: unknown, filenamePrefix: string): void {
+  const filename = `${filenamePrefix}-${new Date().toISOString().replace(/[:.]/g, "-")}.json`;
+
+  response.setHeader("Content-Type", "application/json; charset=utf-8");
+  response.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  response.send(JSON.stringify(payload, null, 2));
+}
+
 function resolveHassHost(baseUrl: string): string {
   if (baseUrl && baseUrl !== "http://supervisor/core") {
     const url = new URL(baseUrl);
@@ -230,105 +238,110 @@ export function createStatusRouter(
     },
   );
 
+  async function buildDebugSnapshot() {
+    const snapshot = await valveManager.getSnapshot();
+    const unavailableEntities = snapshot
+      .filter((item) => !isValveAvailable(item))
+      .map((item) => item.entity_id);
+    const timelineState = timelineScheduler.getActiveState();
+    const allSettings = getAllAppSettings();
+    const parsedSettings = parseSettings(allSettings);
+
+    const now = new Date();
+    const appUptimeSeconds = Math.max(
+      0,
+      Math.floor((now.getTime() - appStartedAt.getTime()) / 1000),
+    );
+    const processUptimeSeconds = Math.max(0, Math.floor(process.uptime()));
+
+    const dbPath = getDatabasePath();
+    const dbExists = fs.existsSync(dbPath);
+    const dbStat = dbExists ? fs.statSync(dbPath) : null;
+    const walPath = `${dbPath}-wal`;
+    const shmPath = `${dbPath}-shm`;
+    const mqttLastSuccessAtMs = mqttService.getLastSuccessAt();
+    const logBufferSize = getServerLogBufferSize();
+
+    const payload = {
+      capturedAt: now.toISOString(),
+      app: {
+        version: APP_VERSION,
+        startedAt: appStartedAt.toISOString(),
+        uptimeSeconds: appUptimeSeconds,
+        uptimeHuman: formatDuration(appUptimeSeconds),
+        processUptimeSeconds,
+        processUptimeHuman: formatDuration(processUptimeSeconds),
+        pid: process.pid,
+        ppid: process.ppid,
+        nodeVersion: process.version,
+        platform: process.platform,
+        arch: process.arch,
+        cwd: process.cwd(),
+        memory: process.memoryUsage(),
+      },
+      system: {
+        hassBaseUrl: baseUrl,
+        hassHost: resolveHassHost(baseUrl),
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      },
+      services: {
+        homeAssistant: {
+          configured: haClient !== null,
+          connection: haClient ? haClient.getConnectionState() : "offline",
+        },
+        mqtt: {
+          connection: mqttService.isConnected() ? "connected" : "disconnected",
+          lastDiscovery: mqttService.getLastDiscoveryTime(),
+          lastSuccessAtMs: mqttLastSuccessAtMs,
+          lastSuccessAt:
+            mqttLastSuccessAtMs === null ? null : new Date(mqttLastSuccessAtMs).toISOString(),
+        },
+        timeline: {
+          activeState: timelineState,
+          formattedActiveMode: timelineScheduler.getFormattedActiveMode?.() ?? null,
+          boostRemainingMinutes: timelineScheduler.getBoostRemainingMinutes?.() ?? null,
+          activeBoostName: timelineScheduler.getActiveBoostName?.() ?? null,
+        },
+        valves: {
+          total: snapshot.length,
+          unavailableCount: unavailableEntities.length,
+          unavailableEntities,
+        },
+      },
+      database: {
+        path: dbPath,
+        exists: dbExists,
+        sizeBytes: dbStat?.size ?? null,
+        modifiedAt: dbStat?.mtime.toISOString() ?? null,
+        walExists: fs.existsSync(walPath),
+        shmExists: fs.existsSync(shmPath),
+      },
+      logs: {
+        bufferedCount: logBufferSize,
+        maxBufferedCount: 1_000,
+      },
+      settings: {
+        raw: allSettings,
+        parsed: parsedSettings,
+      },
+    };
+
+    logger.debug(
+      {
+        appUptimeSeconds,
+        settingsCount: Object.keys(allSettings).length,
+        valvesTotal: snapshot.length,
+        logBufferSize,
+      },
+      "Debug snapshot generated",
+    );
+
+    return payload;
+  }
+
   router.get("/debug", async (_request: Request, response: Response, next: NextFunction) => {
     try {
-      const snapshot = await valveManager.getSnapshot();
-      const unavailableEntities = snapshot
-        .filter((item) => !isValveAvailable(item))
-        .map((item) => item.entity_id);
-      const timelineState = timelineScheduler.getActiveState();
-      const allSettings = getAllAppSettings();
-      const parsedSettings = parseSettings(allSettings);
-
-      const now = new Date();
-      const appUptimeSeconds = Math.max(
-        0,
-        Math.floor((now.getTime() - appStartedAt.getTime()) / 1000),
-      );
-      const processUptimeSeconds = Math.max(0, Math.floor(process.uptime()));
-
-      const dbPath = getDatabasePath();
-      const dbExists = fs.existsSync(dbPath);
-      const dbStat = dbExists ? fs.statSync(dbPath) : null;
-      const walPath = `${dbPath}-wal`;
-      const shmPath = `${dbPath}-shm`;
-      const mqttLastSuccessAtMs = mqttService.getLastSuccessAt();
-      const logBufferSize = getServerLogBufferSize();
-
-      const payload = {
-        capturedAt: now.toISOString(),
-        app: {
-          version: APP_VERSION,
-          startedAt: appStartedAt.toISOString(),
-          uptimeSeconds: appUptimeSeconds,
-          uptimeHuman: formatDuration(appUptimeSeconds),
-          processUptimeSeconds,
-          processUptimeHuman: formatDuration(processUptimeSeconds),
-          pid: process.pid,
-          ppid: process.ppid,
-          nodeVersion: process.version,
-          platform: process.platform,
-          arch: process.arch,
-          cwd: process.cwd(),
-          memory: process.memoryUsage(),
-        },
-        system: {
-          hassBaseUrl: baseUrl,
-          hassHost: resolveHassHost(baseUrl),
-          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        },
-        services: {
-          homeAssistant: {
-            configured: haClient !== null,
-            connection: haClient ? haClient.getConnectionState() : "offline",
-          },
-          mqtt: {
-            connection: mqttService.isConnected() ? "connected" : "disconnected",
-            lastDiscovery: mqttService.getLastDiscoveryTime(),
-            lastSuccessAtMs: mqttLastSuccessAtMs,
-            lastSuccessAt:
-              mqttLastSuccessAtMs === null ? null : new Date(mqttLastSuccessAtMs).toISOString(),
-          },
-          timeline: {
-            activeState: timelineState,
-            formattedActiveMode: timelineScheduler.getFormattedActiveMode?.() ?? null,
-            boostRemainingMinutes: timelineScheduler.getBoostRemainingMinutes?.() ?? null,
-            activeBoostName: timelineScheduler.getActiveBoostName?.() ?? null,
-          },
-          valves: {
-            total: snapshot.length,
-            unavailableCount: unavailableEntities.length,
-            unavailableEntities,
-          },
-        },
-        database: {
-          path: dbPath,
-          exists: dbExists,
-          sizeBytes: dbStat?.size ?? null,
-          modifiedAt: dbStat?.mtime.toISOString() ?? null,
-          walExists: fs.existsSync(walPath),
-          shmExists: fs.existsSync(shmPath),
-        },
-        logs: {
-          bufferedCount: logBufferSize,
-          maxBufferedCount: 1_000,
-        },
-        settings: {
-          raw: allSettings,
-          parsed: parsedSettings,
-        },
-      };
-
-      logger.debug(
-        {
-          appUptimeSeconds,
-          settingsCount: Object.keys(allSettings).length,
-          valvesTotal: snapshot.length,
-          logBufferSize,
-        },
-        "Debug snapshot generated",
-      );
-
+      const payload = await buildDebugSnapshot();
       response.json(payload);
     } catch (error) {
       logger.error({ error }, "Failed to get debug snapshot");
@@ -337,36 +350,66 @@ export function createStatusRouter(
   });
 
   router.get(
+    "/debug/download",
+    async (_request: Request, response: Response, next: NextFunction) => {
+      try {
+        const payload = await buildDebugSnapshot();
+        sendJsonDownload(response, payload, "luftator-debug");
+      } catch (error) {
+        logger.error({ error }, "Failed to download debug snapshot");
+        next(error);
+      }
+    },
+  );
+
+  async function buildHomeAssistantApiSnapshot() {
+    const capturedAt = new Date().toISOString();
+
+    if (!haClient) {
+      return {
+        capturedAt,
+        available: false,
+        connection: "offline",
+        detail: "Home Assistant client is not configured",
+      };
+    }
+
+    const [config, luftatorEntities] = await Promise.all([
+      haClient.fetchConfig(),
+      haClient.fetchLuftatorEntities(),
+    ]);
+
+    return {
+      capturedAt,
+      available: true,
+      connection: haClient.getConnectionState(),
+      config,
+      luftatorEntityCount: luftatorEntities.length,
+      luftatorEntities,
+    };
+  }
+
+  router.get(
     "/debug/home-assistant",
     async (_request: Request, response: Response, next: NextFunction) => {
       try {
-        const capturedAt = new Date().toISOString();
-
-        if (!haClient) {
-          response.json({
-            capturedAt,
-            available: false,
-            connection: "offline",
-            detail: "Home Assistant client is not configured",
-          });
-          return;
-        }
-
-        const [config, luftatorEntities] = await Promise.all([
-          haClient.fetchConfig(),
-          haClient.fetchLuftatorEntities(),
-        ]);
-
-        response.json({
-          capturedAt,
-          available: true,
-          connection: haClient.getConnectionState(),
-          config,
-          luftatorEntityCount: luftatorEntities.length,
-          luftatorEntities,
-        });
+        const payload = await buildHomeAssistantApiSnapshot();
+        response.json(payload);
       } catch (error) {
         logger.error({ error }, "Failed to fetch Home Assistant debug API data");
+        next(error);
+      }
+    },
+  );
+
+  router.get(
+    "/debug/home-assistant/download",
+    async (_request: Request, response: Response, next: NextFunction) => {
+      try {
+        const payload = await buildHomeAssistantApiSnapshot();
+        sendJsonDownload(response, payload, "luftator-ha-api");
+      } catch (error) {
+        logger.error({ error }, "Failed to download Home Assistant debug API data");
         next(error);
       }
     },

@@ -1,13 +1,19 @@
 import { Alert, Button, Group, Loader, ScrollArea, Stack, Table, Text, Title } from "@mantine/core";
-import { IconAlertCircle, IconRefresh } from "@tabler/icons-react";
+import { IconAlertCircle, IconCopy, IconDownload, IconRefresh } from "@tabler/icons-react";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import { createLogger } from "@luftuj/shared/utils/logger";
+import { CopyableValueCell } from "@luftuj/features/debug/panels/CopyableValueCell";
+import { useCopyJsonToClipboard } from "@luftuj/features/debug/panels/useCopyJsonToClipboard";
+import { useDownloadDebugJson } from "@luftuj/features/debug/panels/useDownloadDebugJson";
 import {
   type DebugPayload,
   flattenDebugRows,
   formatTimestamp,
 } from "@luftuj/features/debug/panels/utils";
+
+const logger = createLogger("HomeAssistantApiPanel");
 
 export function HomeAssistantApiPanel() {
   const { t } = useTranslation();
@@ -16,6 +22,15 @@ export function HomeAssistantApiPanel() {
   const [haApiLoading, setHaApiLoading] = useState(true);
   const [haApiRefreshing, setHaApiRefreshing] = useState(false);
   const [haApiErrorMessage, setHaApiErrorMessage] = useState<string | null>(null);
+  const {
+    copying: copyingValues,
+    status: copyStatus,
+    copy: copyValues,
+  } = useCopyJsonToClipboard(logger);
+  const { downloading: downloadingValues, download: downloadValues } = useDownloadDebugJson(
+    logger,
+    t,
+  );
 
   async function loadHomeAssistantApiSnapshot(initialLoad: boolean): Promise<void> {
     if (initialLoad) {
@@ -83,16 +98,39 @@ export function HomeAssistantApiPanel() {
         <Title order={3}>
           {t("debug.homeAssistantApi", { defaultValue: "Home Assistant API" })}
         </Title>
-        <Button
-          variant="light"
-          leftSection={<IconRefresh size={16} />}
-          loading={haApiRefreshing}
-          onClick={() => {
-            void loadHomeAssistantApiSnapshot(false);
-          }}
-        >
-          {t("debug.refresh", { defaultValue: "Refresh" })}
-        </Button>
+        <Group gap="xs">
+          <Button
+            variant="light"
+            leftSection={<IconCopy size={16} />}
+            loading={copyingValues}
+            disabled={!haApiData}
+            onClick={() => {
+              void copyValues(haApiData);
+            }}
+          >
+            {t("debug.copyValues", { defaultValue: "Copy values" })}
+          </Button>
+          <Button
+            variant="light"
+            leftSection={<IconDownload size={16} />}
+            loading={downloadingValues}
+            onClick={() => {
+              void downloadValues("/api/debug/home-assistant/download", "luftator-ha-api");
+            }}
+          >
+            {t("debug.downloadValues", { defaultValue: "Download values" })}
+          </Button>
+          <Button
+            variant="light"
+            leftSection={<IconRefresh size={16} />}
+            loading={haApiRefreshing}
+            onClick={() => {
+              void loadHomeAssistantApiSnapshot(false);
+            }}
+          >
+            {t("debug.refresh", { defaultValue: "Refresh" })}
+          </Button>
+        </Group>
       </Group>
 
       {haApiCapturedAt ? (
@@ -101,6 +139,18 @@ export function HomeAssistantApiPanel() {
             defaultValue: "Last updated: {{time}}",
             time: formatTimestamp(haApiCapturedAt),
           })}
+        </Text>
+      ) : null}
+
+      {copyStatus === "copied" ? (
+        <Text size="xs" c="teal">
+          {t("debug.copySuccess", { defaultValue: "Debug values copied to clipboard." })}
+        </Text>
+      ) : null}
+
+      {copyStatus === "failed" ? (
+        <Text size="xs" c="red">
+          {t("debug.copyFailed", { defaultValue: "Failed to copy debug values." })}
         </Text>
       ) : null}
 
@@ -139,9 +189,7 @@ export function HomeAssistantApiPanel() {
                     </Text>
                   </td>
                   <td>
-                    <Text size="sm" ff="monospace" style={{ whiteSpace: "pre-wrap" }}>
-                      {row.value}
-                    </Text>
+                    <CopyableValueCell value={row.value} />
                   </td>
                 </tr>
               ))}
