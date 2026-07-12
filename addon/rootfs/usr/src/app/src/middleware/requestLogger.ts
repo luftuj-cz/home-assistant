@@ -6,7 +6,7 @@ export function createRequestLogger(logger: Logger) {
     const requestStart = Date.now();
     response.on("finish", () => {
       const durationMs = Date.now() - requestStart;
-      logger.info(
+      logger.debug(
         {
           method: request.method,
           url: request.originalUrl,
