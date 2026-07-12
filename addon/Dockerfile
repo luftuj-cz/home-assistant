@@ -1,4 +1,4 @@
-ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.19
+ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.24
 FROM ${BUILD_FROM}
 
 RUN apk add --no-cache bash ca-certificates curl gcompat libc6-compat nodejs npm \
@@ -12,11 +12,12 @@ RUN chmod +x /etc/services.d/luftujha/run
 
 WORKDIR /usr/src/app
 
-USER luftujuser
-
-RUN apk add --no-cache --virtual .build-deps build-base python3 \
+RUN apk add --no-cache --virtual .build-deps build-base python3 linux-headers \
   && npm ci --omit=dev \
-  && apk del .build-deps
+  && apk del .build-deps \
+  && chown -R luftujuser:luftujuser /usr/src/app
+
+USER luftujuser
 
 LABEL \
   io.hass.version="VERSION" \
