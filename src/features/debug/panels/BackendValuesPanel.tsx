@@ -22,11 +22,7 @@ export function BackendValuesPanel() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const {
-    copying: copyingValues,
-    status: copyStatus,
-    copy: copyValues,
-  } = useCopyJsonToClipboard(logger);
+  const { copying: copyingValues, copy: copyValues } = useCopyJsonToClipboard(logger, t);
   const { downloading: downloadingValues, download: downloadValues } = useDownloadDebugJson(
     logger,
     t,
@@ -138,18 +134,6 @@ export function BackendValuesPanel() {
             defaultValue: "Last updated: {{time}}",
             time: formatTimestamp(capturedAt),
           })}
-        </Text>
-      ) : null}
-
-      {copyStatus === "copied" ? (
-        <Text size="xs" c="teal">
-          {t("debug.copySuccess", { defaultValue: "Debug values copied to clipboard." })}
-        </Text>
-      ) : null}
-
-      {copyStatus === "failed" ? (
-        <Text size="xs" c="red">
-          {t("debug.copyFailed", { defaultValue: "Failed to copy debug values." })}
         </Text>
       ) : null}
 
