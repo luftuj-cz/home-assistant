@@ -351,6 +351,10 @@
       "noData": "Zatím nebyly zachyceny žádné serverové logy.",
       "loadFailed": "Nepodařilo se načíst serverové logy: {{message}}",
       "loadFailedUnknown": "Nepodařilo se načíst serverové logy.",
+      "download": "Stáhnout log",
+      "downloadFailedTitle": "Stažení selhalo",
+      "downloadFailed": "Nepodařilo se stáhnout serverové logy: HTTP {{status}}",
+      "downloadFailedUnknown": "Nepodařilo se stáhnout serverové logy.",
       "table": {
         "time": "Čas",
         "level": "Úroveň",

@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import { parseApiError, translateApiError } from "@luftuj/shared/utils/apiError";
 import { createLogger } from "@luftuj/shared/utils/logger";
+import { triggerBlobDownload } from "@luftuj/shared/utils/download";
 
 const logger = createLogger("DatabaseSection");
 
@@ -26,12 +27,7 @@ export function DatabaseSection() {
         return;
       }
       const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = "luftator.db";
-      link.click();
-      URL.revokeObjectURL(url);
+      triggerBlobDownload(blob, "luftator.db");
       notifications.show({
         title: t("settings.database.notifications.exportSuccessTitle"),
         message: t("settings.database.notifications.exportSuccessMessage"),

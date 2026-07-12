@@ -388,6 +388,10 @@
       "noData": "No server logs captured yet.",
       "loadFailed": "Failed to load server logs: {{message}}",
       "loadFailedUnknown": "Failed to load server logs.",
+      "download": "Download log",
+      "downloadFailedTitle": "Download failed",
+      "downloadFailed": "Failed to download server logs: HTTP {{status}}",
+      "downloadFailedUnknown": "Failed to download server logs.",
       "table": {
         "time": "Time",
         "level": "Level",
