@@ -49,18 +49,24 @@ export function useModeForm(opened: boolean, mode: Mode | null, valves: Valve[])
 
   function getPayload(): Omit<Partial<Mode>, "id"> {
     const trimmedName = name.trim();
-    const cleanedValveOpenings = valves.reduce(
+    // Keep entries for valves that no longer appear in the latest snapshot. They are
+    // rendered as unavailable in the editor and must survive saving unrelated changes.
+    const cleanedValveOpenings = Object.entries(valveOpenings).reduce(
       (acc, valve) => {
-        const key = valve.entityId || valve.name;
-        if (!key) return acc;
-        const value = valveOpenings[key] ?? 0;
-        if (!Number.isNaN(value) && value >= 0 && value <= 100) {
+        const [key, value] = valve;
+        if (typeof value === "number" && Number.isFinite(value) && value >= 0 && value <= 100) {
           acc[key] = value;
         }
         return acc;
       },
       {} as Record<string, number>,
     );
+    for (const valve of valves) {
+      const key = valve.entityId || valve.name;
+      if (key && !(key in cleanedValveOpenings)) {
+        cleanedValveOpenings[key] = 0;
+      }
+    }
     return {
       name: trimmedName,
       variables: variableValues,
