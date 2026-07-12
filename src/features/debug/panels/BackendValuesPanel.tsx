@@ -1,13 +1,19 @@
 import { Alert, Button, Group, Loader, ScrollArea, Stack, Table, Text, Title } from "@mantine/core";
-import { IconAlertCircle, IconCopy, IconRefresh } from "@tabler/icons-react";
+import { IconAlertCircle, IconCopy, IconDownload, IconRefresh } from "@tabler/icons-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import { createLogger } from "@luftuj/shared/utils/logger";
+import { CopyableValueCell } from "@luftuj/features/debug/panels/CopyableValueCell";
+import { useCopyJsonToClipboard } from "@luftuj/features/debug/panels/useCopyJsonToClipboard";
+import { useDownloadDebugJson } from "@luftuj/features/debug/panels/useDownloadDebugJson";
 import {
   type DebugPayload,
   flattenDebugRows,
   formatTimestamp,
 } from "@luftuj/features/debug/panels/utils";
+
+const logger = createLogger("BackendValuesPanel");
 
 export function BackendValuesPanel() {
   const { t } = useTranslation();
@@ -16,8 +22,15 @@ export function BackendValuesPanel() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [copyingValues, setCopyingValues] = useState(false);
-  const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">("idle");
+  const {
+    copying: copyingValues,
+    status: copyStatus,
+    copy: copyValues,
+  } = useCopyJsonToClipboard(logger);
+  const { downloading: downloadingValues, download: downloadValues } = useDownloadDebugJson(
+    logger,
+    t,
+  );
 
   const loadDebugSnapshot = useCallback(
     async (initialLoad: boolean): Promise<void> => {
@@ -65,25 +78,6 @@ export function BackendValuesPanel() {
     [t],
   );
 
-  async function copyBackendValues(): Promise<void> {
-    if (!debugData) {
-      setCopyStatus("failed");
-      return;
-    }
-
-    setCopyingValues(true);
-    try {
-      const text = JSON.stringify(debugData, null, 2);
-      await navigator.clipboard.writeText(text);
-      setCopyStatus("copied");
-    } catch (error) {
-      console.error("Clipboard copy failed", error);
-      setCopyStatus("failed");
-    } finally {
-      setCopyingValues(false);
-    }
-  }
-
   useEffect(() => {
     void loadDebugSnapshot(true);
     const intervalId = globalThis.setInterval(() => {
@@ -110,10 +104,20 @@ export function BackendValuesPanel() {
             loading={copyingValues}
             disabled={!debugData}
             onClick={() => {
-              void copyBackendValues();
+              void copyValues(debugData);
             }}
           >
             {t("debug.copyValues", { defaultValue: "Copy values" })}
+          </Button>
+          <Button
+            variant="light"
+            leftSection={<IconDownload size={16} />}
+            loading={downloadingValues}
+            onClick={() => {
+              void downloadValues("/api/debug/download", "luftator-debug");
+            }}
+          >
+            {t("debug.downloadValues", { defaultValue: "Download values" })}
           </Button>
           <Button
             variant="light"
@@ -180,9 +184,7 @@ export function BackendValuesPanel() {
                     </Text>
                   </td>
                   <td>
-                    <Text size="sm" ff="monospace" style={{ whiteSpace: "pre-wrap" }}>
-                      {row.value}
-                    </Text>
+                    <CopyableValueCell value={row.value} />
                   </td>
                 </tr>
               ))}
