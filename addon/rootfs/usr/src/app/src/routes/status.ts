@@ -62,6 +62,11 @@ function parseSettings(settings: Record<string, string>): Record<string, unknown
   }, {});
 }
 
+function parseLogLimit(rawLimit: unknown, defaultLimit: number): number {
+  const parsedLimit = Number.parseInt(String(rawLimit ?? defaultLimit), 10);
+  return Number.isFinite(parsedLimit) ? parsedLimit : defaultLimit;
+}
+
 function resolveHassHost(baseUrl: string): string {
   if (baseUrl && baseUrl !== "http://supervisor/core") {
     const url = new URL(baseUrl);
@@ -369,19 +374,33 @@ export function createStatusRouter(
 
   router.get("/debug/logs", (request: Request, response: Response, next: NextFunction) => {
     try {
-      const rawLimit = String(request.query.limit ?? "300");
-      const parsedLimit = Number.parseInt(rawLimit, 10);
-      const limit = Number.isFinite(parsedLimit) ? parsedLimit : 300;
+      const limit = parseLogLimit(request.query.limit, 300);
       const logs = getRecentServerLogs(limit);
 
       response.json({
         logs,
         count: logs.length,
         bufferedCount: getServerLogBufferSize(),
-        limit: Number.isFinite(parsedLimit) ? parsedLimit : 300,
+        limit,
       });
     } catch (error) {
       logger.error({ error }, "Failed to get server logs");
+      next(error);
+    }
+  });
+
+  router.get("/debug/logs/download", (request: Request, response: Response, next: NextFunction) => {
+    try {
+      const limit = parseLogLimit(request.query.limit, 1000);
+      const logs = getRecentServerLogs(limit);
+      const text = logs.map((entry) => entry.line).join("\n");
+      const filename = `luftator-logs-${new Date().toISOString().replace(/[:.]/g, "-")}.log`;
+
+      response.setHeader("Content-Type", "text/plain; charset=utf-8");
+      response.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+      response.send(text);
+    } catch (error) {
+      logger.error({ error }, "Failed to download server logs");
       next(error);
     }
   });

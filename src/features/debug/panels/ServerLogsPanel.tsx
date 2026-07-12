@@ -10,10 +10,13 @@ import {
   Text,
   Title,
 } from "@mantine/core";
-import { IconAlertCircle, IconRefresh } from "@tabler/icons-react";
+import { IconAlertCircle, IconDownload, IconRefresh } from "@tabler/icons-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { notifications } from "@mantine/notifications";
+import { createLogger } from "@luftuj/shared/utils/logger";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
+import { triggerBlobDownload } from "@luftuj/shared/utils/download";
 import {
   formatLogContext,
   formatTimestamp,
@@ -21,8 +24,11 @@ import {
   type ServerLogEntry,
 } from "@luftuj/features/debug/panels/utils";
 
+const logger = createLogger("ServerLogsPanel");
+
 export function ServerLogsPanel() {
   const { t } = useTranslation();
+  const [logsDownloading, setLogsDownloading] = useState(false);
   const [serverLogs, setServerLogs] = useState<ServerLogEntry[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [logsRefreshing, setLogsRefreshing] = useState(false);
@@ -81,6 +87,38 @@ export function ServerLogsPanel() {
     }
   }
 
+  async function handleDownloadLogs(): Promise<void> {
+    setLogsDownloading(true);
+    try {
+      const response = await fetch(resolveApiUrl("/api/debug/logs/download?limit=1000"));
+      if (!response.ok) {
+        notifications.show({
+          title: t("debug.logs.downloadFailedTitle", { defaultValue: "Download failed" }),
+          message: t("debug.logs.downloadFailed", {
+            defaultValue: "Failed to download server logs: HTTP {{status}}",
+            status: response.status,
+          }),
+          color: "red",
+        });
+        return;
+      }
+
+      const blob = await response.blob();
+      triggerBlobDownload(blob, `luftator-logs-${Date.now()}.log`);
+    } catch (error) {
+      logger.error("Server log download failed", { error });
+      notifications.show({
+        title: t("debug.logs.downloadFailedTitle", { defaultValue: "Download failed" }),
+        message: t("debug.logs.downloadFailedUnknown", {
+          defaultValue: "Failed to download server logs.",
+        }),
+        color: "red",
+      });
+    } finally {
+      setLogsDownloading(false);
+    }
+  }
+
   useEffect(() => {
     void loadServerLogs(true);
     const intervalId = globalThis.setInterval(() => {
@@ -108,16 +146,28 @@ export function ServerLogsPanel() {
     <Stack gap="sm">
       <Group justify="space-between" align="center">
         <Title order={3}>{t("debug.serverLogs", { defaultValue: "Server Logs" })}</Title>
-        <Button
-          variant="light"
-          leftSection={<IconRefresh size={16} />}
-          loading={logsRefreshing}
-          onClick={() => {
-            void loadServerLogs(false);
-          }}
-        >
-          {t("debug.refresh", { defaultValue: "Refresh" })}
-        </Button>
+        <Group gap="xs">
+          <Button
+            variant="light"
+            leftSection={<IconDownload size={16} />}
+            loading={logsDownloading}
+            onClick={() => {
+              void handleDownloadLogs();
+            }}
+          >
+            {t("debug.logs.download", { defaultValue: "Download log" })}
+          </Button>
+          <Button
+            variant="light"
+            leftSection={<IconRefresh size={16} />}
+            loading={logsRefreshing}
+            onClick={() => {
+              void loadServerLogs(false);
+            }}
+          >
+            {t("debug.refresh", { defaultValue: "Refresh" })}
+          </Button>
+        </Group>
       </Group>
 
       <Text size="xs" c="dimmed">
