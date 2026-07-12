@@ -6,7 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { notifications } from "@mantine/notifications";
 import type { TFunction } from "i18next";
 import type { Mode } from "@luftuj/shared/types/timeline";
-import type { Valve } from "@luftuj/shared/types/valve";
+import type { Valve, ValveGroup } from "@luftuj/shared/types/valve";
 import type { HruVariable } from "@luftuj/shared/api/hru";
 import { cancelBoost, testTimelineMode } from "@luftuj/features/timeline/api";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
@@ -19,6 +19,7 @@ interface TimelineModeModalProps {
   opened: boolean;
   mode: Mode | null;
   valves: Valve[];
+  valveGroups?: ValveGroup[];
   saving: boolean;
   onClose: () => void;
   onSave: (mode: Partial<Mode>) => void;
@@ -35,6 +36,7 @@ export function TimelineModeModal({
   opened,
   mode,
   valves,
+  valveGroups = [],
   saving,
   onClose,
   onSave,
@@ -114,17 +116,25 @@ export function TimelineModeModal({
 
   function handleTest() {
     if (testRemainingSeconds !== null) {
-      void cancelBoost().then(() => {
-        setTestRemainingSeconds(null);
-        if (testTimerRef.current) {
-          clearInterval(testTimerRef.current);
-          testTimerRef.current = null;
-        }
-        notifications.show({
-          title: t("settings.timeline.notifications.testStoppedTitle"),
-          message: t("settings.timeline.notifications.testStoppedMessage"),
+      void cancelBoost()
+        .then(() => {
+          setTestRemainingSeconds(null);
+          if (testTimerRef.current) {
+            clearInterval(testTimerRef.current);
+            testTimerRef.current = null;
+          }
+          notifications.show({
+            title: t("settings.timeline.notifications.testStoppedTitle"),
+            message: t("settings.timeline.notifications.testStoppedMessage"),
+          });
+        })
+        .catch((err) => {
+          notifications.show({
+            title: t("valves.alertTitle"),
+            message: translateApiError(err, t),
+            color: "red",
+          });
         });
-      });
       return;
     }
 
@@ -214,6 +224,7 @@ export function TimelineModeModal({
 
         <ModeValveSelector
           valves={valves}
+          valveGroups={valveGroups}
           openings={form.valveOpenings}
           onChange={form.setValveOpenings}
           showCopyButton={showCopyButton}

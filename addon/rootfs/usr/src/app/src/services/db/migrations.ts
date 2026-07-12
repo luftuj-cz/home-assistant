@@ -111,6 +111,24 @@ const migrations: Migration[] = [
     id: "010_vacuum_after_history_drop",
     statements: [`VACUUM;`],
   },
+  {
+    id: "011_valve_groups",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS valve_groups (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE TABLE IF NOT EXISTS valve_group_members (
+        entity_id TEXT PRIMARY KEY,
+        group_id INTEGER NOT NULL,
+        FOREIGN KEY (group_id) REFERENCES valve_groups(id) ON DELETE CASCADE
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_valve_group_members_group_id ON valve_group_members(group_id)`,
+    ],
+  },
 ];
 
 export function applyMigrations(database: DatabaseType): void {

@@ -2,6 +2,7 @@ import { type ReactNode, useCallback, useEffect, useMemo, useRef, useState } fro
 import {
   ActionIcon,
   Alert,
+  Button,
   Container,
   Group,
   SimpleGrid,
@@ -11,14 +12,16 @@ import {
   Title,
   Tooltip,
 } from "@mantine/core";
-import { IconAdjustments, IconAlertCircle, IconRefresh } from "@tabler/icons-react";
+import { IconAdjustments, IconAlertCircle, IconFolders, IconRefresh } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
-import { ValveCard } from "@luftuj/features/valves/components/ValveCard";
+import { ValveGroupSection } from "@luftuj/features/valves/components/ValveGroupSection";
+import { GroupManagerModal } from "@luftuj/features/valves/components/GroupManagerModal";
+import { bulkSetValveGroupValue, fetchValveGroups } from "@luftuj/features/valves/api";
 import { resolveApiUrl, resolveWebSocketUrl } from "@luftuj/shared/utils/api";
 import { createLogger } from "@luftuj/shared/utils/logger";
 import type { HaState } from "@luftuj/shared/types/homeAssistant";
-import type { Valve } from "@luftuj/shared/types/valve";
+import type { Valve, ValveGroup } from "@luftuj/shared/types/valve";
 
 const logger = createLogger("ValvesPage");
 
@@ -82,6 +85,8 @@ export function ValvesPage() {
     "connected" | "connecting" | "disconnected" | "offline" | null
   >(null);
   const [hasUnavailableValves, setHasUnavailableValves] = useState(false);
+  const [valveGroups, setValveGroups] = useState<ValveGroup[]>([]);
+  const [groupManagerOpen, setGroupManagerOpen] = useState(false);
   const wsRef = useRef<ManagedWebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
   const wsHandlersRef = useRef<{
@@ -187,11 +192,21 @@ export function ValvesPage() {
     }
   }, [replaceValves, t]);
 
+  const fetchGroups = useCallback(async () => {
+    try {
+      const groups = await fetchValveGroups();
+      setValveGroups(groups);
+    } catch (groupsError) {
+      logger.error("Failed to fetch valve groups", { error: groupsError });
+    }
+  }, []);
+
   useEffect(() => {
     logger.info("ValvesPage mounted, loading initial data");
     void fetchStatus();
     void fetchSnapshot();
-  }, [fetchSnapshot, fetchStatus]);
+    void fetchGroups();
+  }, [fetchSnapshot, fetchStatus, fetchGroups]);
 
   const connectWebSocket = useCallback(() => {
     if (wsHandlersRef.current) {
@@ -372,6 +387,26 @@ export function ValvesPage() {
 
   const handleCloseError = useCallback(() => setError(null), []);
 
+  const handleBulkCommit = useCallback(
+    async (groupId: number, value: number) => {
+      try {
+        await bulkSetValveGroupValue(groupId, value);
+      } catch (bulkError) {
+        logger.error("Bulk group value update failed", { groupId, value, error: bulkError });
+        await fetchSnapshot();
+      }
+    },
+    [fetchSnapshot],
+  );
+
+  const groupedEntityIds = useMemo(() => {
+    return new Set(valveGroups.flatMap((group) => group.entityIds));
+  }, [valveGroups]);
+
+  const ungroupedValves = useMemo(() => {
+    return valves.filter((valve) => !groupedEntityIds.has(valve.entityId));
+  }, [valves, groupedEntityIds]);
+
   let valveGrid: ReactNode;
   if (loading || (valves.length === 0 && !gracePeriodExpired)) {
     valveGrid = (
@@ -388,17 +423,30 @@ export function ValvesPage() {
       </Alert>
     );
   } else {
+    const sortedGroups = valveGroups.toSorted((a, b) => a.sortOrder - b.sortOrder);
     valveGrid = (
-      <SimpleGrid cols={{ base: 1, sm: 2, lg: 3 }} spacing="lg">
-        {valves.map((valve) => (
-          <ValveCard
-            key={valve.entityId}
-            valve={valve}
+      <Stack gap="xl">
+        {sortedGroups.map((group) => (
+          <ValveGroupSection
+            key={group.id}
+            title={group.name}
+            valves={valves.filter((valve) => group.entityIds.includes(valve.entityId))}
             onPreview={previewValveValue}
             onCommit={commitValveValue}
+            onBulkCommit={(value) => handleBulkCommit(group.id, value)}
           />
         ))}
-      </SimpleGrid>
+        <ValveGroupSection
+          title={
+            sortedGroups.length > 0
+              ? t("valves.groups.ungrouped", { defaultValue: "Ungrouped" })
+              : undefined
+          }
+          valves={ungroupedValves}
+          onPreview={previewValveValue}
+          onCommit={commitValveValue}
+        />
+      </Stack>
     );
   }
 
@@ -411,17 +459,40 @@ export function ValvesPage() {
               <IconAdjustments size={32} color="var(--mantine-color-luftBlue-5)" />
               <Title order={1}>{t("valves.title")}</Title>
             </Group>
-            <Tooltip label={t("valves.refreshAria")}>
-              <ActionIcon
+            <Group gap="xs">
+              <Button
                 variant="light"
                 color="blue"
-                onClick={fetchSnapshot}
-                aria-label={t("valves.refreshAria")}
-                size="lg"
+                onClick={() => setGroupManagerOpen(true)}
+                leftSection={<IconFolders size={20} stroke={1.8} />}
+                visibleFrom="sm"
               >
-                <IconRefresh size={20} stroke={1.8} />
-              </ActionIcon>
-            </Tooltip>
+                {t("valves.groups.manage", { defaultValue: "Manage groups" })}
+              </Button>
+              <Tooltip label={t("valves.groups.manage", { defaultValue: "Manage groups" })}>
+                <ActionIcon
+                  variant="light"
+                  color="blue"
+                  onClick={() => setGroupManagerOpen(true)}
+                  aria-label={t("valves.groups.manage", { defaultValue: "Manage groups" })}
+                  size="lg"
+                  hiddenFrom="sm"
+                >
+                  <IconFolders size={20} stroke={1.8} />
+                </ActionIcon>
+              </Tooltip>
+              <Tooltip label={t("valves.refreshAria")}>
+                <ActionIcon
+                  variant="light"
+                  color="blue"
+                  onClick={fetchSnapshot}
+                  aria-label={t("valves.refreshAria")}
+                  size="lg"
+                >
+                  <IconRefresh size={20} stroke={1.8} />
+                </ActionIcon>
+              </Tooltip>
+            </Group>
           </Group>
           <Text size="lg" c="dimmed" mt="xs">
             {t("valves.description")}
@@ -478,6 +549,14 @@ export function ValvesPage() {
 
         {valveGrid}
       </Stack>
+
+      <GroupManagerModal
+        opened={groupManagerOpen}
+        onClose={() => setGroupManagerOpen(false)}
+        valves={valves}
+        groups={valveGroups}
+        onGroupsChanged={fetchGroups}
+      />
     </Container>
   );
 }
