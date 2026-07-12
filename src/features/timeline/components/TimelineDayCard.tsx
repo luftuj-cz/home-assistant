@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import {
   Button,
   Card,
@@ -10,6 +10,7 @@ import {
   Timeline,
   Box,
 } from "@mantine/core";
+import { useDroppable } from "@dnd-kit/core";
 import {
   IconPlus,
   IconEdit,
@@ -21,9 +22,8 @@ import {
 import type { TFunction } from "i18next";
 import type { TimelineEvent, Mode } from "@luftuj/shared/types/timeline";
 import { MotionSwitch } from "@luftuj/shared/ui";
-import { createLogger } from "@luftuj/shared/utils/logger";
 
-const logger = createLogger("TimelineDayCard");
+export const DAY_DROP_PREFIX = "day:";
 
 interface TimelineDayCardProps {
   dayIdx: number;
@@ -39,7 +39,6 @@ interface TimelineDayCardProps {
   onEdit: (event: TimelineEvent) => void;
   onDelete: (id: number) => void;
   onToggle: (event: TimelineEvent, enabled: boolean) => void;
-  onDropMode: (day: number, mode: Mode) => void;
   t: TFunction;
 }
 
@@ -85,11 +84,10 @@ export function TimelineDayCard({
   onEdit,
   onDelete,
   onToggle,
-  onDropMode,
   t,
 }: Readonly<TimelineDayCardProps>) {
   const sortedEvents = events.toSorted((a, b) => a.startTime.localeCompare(b.startTime));
-  const [isDragOver, setIsDragOver] = useState(false);
+  const { setNodeRef, isOver } = useDroppable({ id: `${DAY_DROP_PREFIX}${dayIdx}` });
 
   let copyAction: ReactNode;
   if (copyDay === null) {
@@ -133,31 +131,12 @@ export function TimelineDayCard({
 
   return (
     <Card
+      ref={setNodeRef}
       withBorder
       radius="md"
       p="md"
-      onDragOver={(e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = "copy";
-        setIsDragOver(true);
-      }}
-      onDragLeave={() => setIsDragOver(false)}
-      onDrop={(e) => {
-        e.preventDefault();
-        setIsDragOver(false);
-        try {
-          const data = e.dataTransfer.getData("application/json");
-          if (data) {
-            const mode = JSON.parse(data) as Mode;
-            onDropMode(dayIdx, mode);
-            logger.info("Mode dropped on day", { dayIdx, mode: mode.name });
-          }
-        } catch (err) {
-          logger.error("Failed to parse dropped mode", { error: err });
-        }
-      }}
       style={{
-        borderColor: isDragOver ? "var(--mantine-color-blue-filled)" : undefined,
+        borderColor: isOver ? "var(--mantine-color-blue-filled)" : undefined,
         display: "flex",
         flexDirection: "column",
       }}

@@ -1,23 +1,26 @@
-import { Alert, Badge, Button, CopyButton, Fieldset, Group, Stack, Text } from "@mantine/core";
+import { Alert, Fieldset, Group, Stack, Text } from "@mantine/core";
 import { IconAlertCircle, IconDroplet } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 
-import type { Valve } from "@luftuj/shared/types/valve";
-import { formatValveValue, getValveStatusColor } from "@luftuj/shared/utils/valve";
-import { ValveSlider } from "@luftuj/shared/ui";
+import type { Valve, ValveGroup } from "@luftuj/shared/types/valve";
+
+import type { OpeningsUpdater } from "./ModeValveSelector.types";
+import { valveStorageKey } from "./ModeValveSelector.types";
+import { ModeValveGroupSection } from "./ModeValveGroupSection";
+import { ValveRow } from "./ValveRow";
 
 interface ModeValveSelectorProps {
   valves: Valve[];
+  valveGroups?: ValveGroup[];
   openings: Record<string, number | undefined>;
-  onChange: (
-    updater: (prev: Record<string, number | undefined>) => Record<string, number | undefined>,
-  ) => void;
+  onChange: (updater: OpeningsUpdater) => void;
   showCopyButton: boolean;
   t: TFunction;
 }
 
 export function ModeValveSelector({
   valves,
+  valveGroups = [],
   openings,
   onChange,
   showCopyButton,
@@ -29,6 +32,10 @@ export function ModeValveSelector({
     const key = v.entityId || v.name;
     return (openings[key] ?? 0) >= v.max;
   });
+
+  const sortedGroups = valveGroups.toSorted((a, b) => a.sortOrder - b.sortOrder);
+  const groupedEntityIds = new Set(sortedGroups.flatMap((group) => group.entityIds));
+  const ungroupedValves = valves.filter((v) => !groupedEntityIds.has(v.entityId));
 
   return (
     <Fieldset
@@ -53,64 +60,44 @@ export function ModeValveSelector({
           {t("valves.warnings.allClosed")}
         </Alert>
       )}
-      <Stack gap="xs">
-        {valves.map((v, idx) => {
-          const key = v.entityId || v.name || `valve-${idx}`;
-          const name = v.name || `Valve ${idx + 1}`;
-          const entityId = v.entityId || "";
-          const storageKey = v.entityId || key;
-          const backendValue = openings[storageKey] ?? 0;
-          const statusColor = getValveStatusColor(backendValue, v.min, v.max);
-          const badgeText = formatValveValue(backendValue, v.min, v.max, t);
-
+      <Stack gap="lg">
+        {sortedGroups.map((group) => {
+          const groupValves = valves.filter((v) => group.entityIds.includes(v.entityId));
+          if (groupValves.length === 0) return null;
           return (
-            <Stack key={key} gap={0}>
-              <Group justify="space-between" mb={4}>
-                <Stack gap={0}>
-                  <Text size="sm" fw={500} lh={1.2}>
-                    {name}
-                  </Text>
-                  {entityId && (
-                    <Group gap={6} align="center">
-                      <Text size="xs" c="dimmed">
-                        {entityId}
-                      </Text>
-                    </Group>
-                  )}
-                </Stack>
-                <Group gap="xs" align="center">
-                  <Badge variant="light" color={statusColor}>
-                    {badgeText}
-                  </Badge>
-                  {showCopyButton && entityId && (
-                    <CopyButton value={entityId}>
-                      {({ copied, copy }) => (
-                        <Button
-                          color={copied ? "teal" : "gray"}
-                          size="xs"
-                          variant="subtle"
-                          onClick={copy}
-                        >
-                          {copied ? "Copied" : "Copy"}
-                        </Button>
-                      )}
-                    </CopyButton>
-                  )}
-                </Group>
-              </Group>
-              <ValveSlider
-                value={backendValue}
-                min={v.min}
-                max={v.max}
-                step={v.step}
-                onChange={(val) => onChange((prev) => ({ ...prev, [storageKey]: val }))}
-                color={statusColor}
-                size="lg"
-                label={null}
-              />
-            </Stack>
+            <ModeValveGroupSection
+              key={group.id}
+              group={group}
+              groupValves={groupValves}
+              openings={openings}
+              onChange={onChange}
+              showCopyButton={showCopyButton}
+              t={t}
+            />
           );
         })}
+        {ungroupedValves.length > 0 && (
+          <Stack gap="xs">
+            {sortedGroups.length > 0 && (
+              <Text size="sm" fw={600} c="dimmed">
+                {t("valves.groups.ungrouped", { defaultValue: "Ungrouped" })}
+              </Text>
+            )}
+            <Stack gap="xs">
+              {ungroupedValves.map((v, idx) => (
+                <ValveRow
+                  key={valveStorageKey(v, idx)}
+                  valve={v}
+                  idx={idx}
+                  openings={openings}
+                  onChange={onChange}
+                  showCopyButton={showCopyButton}
+                  t={t}
+                />
+              ))}
+            </Stack>
+          </Stack>
+        )}
       </Stack>
     </Fieldset>
   );

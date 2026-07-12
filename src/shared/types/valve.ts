@@ -9,3 +9,10 @@ export interface Valve {
   isAvailable: boolean;
   attributes: Record<string, unknown>;
 }
+
+export interface ValveGroup {
+  id: number;
+  name: string;
+  sortOrder: number;
+  entityIds: string[];
+}

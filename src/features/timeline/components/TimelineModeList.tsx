@@ -1,3 +1,4 @@
+import type { CSSProperties } from "react";
 import {
   ActionIcon,
   Badge,
@@ -10,10 +11,13 @@ import {
   Text,
   Title,
 } from "@mantine/core";
+import { useDraggable } from "@dnd-kit/core";
 import { IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { Mode } from "@luftuj/shared/types/timeline";
 import { formatTemperature, getTemperatureLabel } from "@luftuj/shared/utils/temperature";
+
+export const MODE_DRAG_PREFIX = "mode:";
 
 interface TimelineModeListProps {
   modes: Mode[];
@@ -22,6 +26,134 @@ interface TimelineModeListProps {
   onDelete: (id: number) => void;
   t: TFunction;
   powerUnit?: string;
+}
+
+interface ModeCardProps {
+  mode: Mode;
+  onEdit: (mode: Mode) => void;
+  onDelete: (id: number) => void;
+  t: TFunction;
+  powerUnit: string;
+  dragHandleProps?: Record<string, unknown>;
+  innerRef?: (node: HTMLDivElement | null) => void;
+  style?: CSSProperties;
+}
+
+export function ModeCard({
+  mode: m,
+  onEdit,
+  onDelete,
+  t,
+  powerUnit,
+  dragHandleProps,
+  innerRef,
+  style,
+}: Readonly<ModeCardProps>) {
+  return (
+    <Card
+      ref={innerRef}
+      withBorder
+      p="md"
+      radius="lg"
+      {...dragHandleProps}
+      style={{
+        borderTop: `6px solid ${m.color || "var(--mantine-color-blue-6)"}`,
+        backgroundColor: "rgba(255, 255, 255, 0.05)",
+        backdropFilter: "blur(10px)",
+        cursor: "grab",
+        touchAction: "none",
+        ...style,
+      }}
+    >
+      <Stack gap="md">
+        <Group justify="space-between" align="flex-start" wrap="nowrap">
+          <Stack gap={4}>
+            <Group gap={8} wrap="nowrap">
+              <ColorSwatch color={m.color || "blue"} size={16} />
+              <Title
+                order={5}
+                style={{
+                  maxWidth: 140,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {m.name}
+              </Title>
+            </Group>
+            <Group gap={6}>
+              {m.isBoost && (
+                <Badge size="xs" color="orange" variant="light" radius="sm">
+                  {t("settings.timeline.modeIsBoostBadge")}
+                </Badge>
+              )}
+              {m.power !== undefined && (
+                <Badge size="md" variant="outline" color="blue" radius="sm" fw={700}>
+                  {m.power}
+                  {t(`app.units.${powerUnit}`, { defaultValue: powerUnit })}
+                </Badge>
+              )}
+              {m.temperature !== undefined && (
+                <Badge size="md" variant="outline" color="red" radius="sm" fw={700}>
+                  {formatTemperature(m.temperature).toFixed(1)}
+                  {getTemperatureLabel()}
+                </Badge>
+              )}
+            </Group>
+          </Stack>
+
+          <Group gap={4} wrap="nowrap">
+            <ActionIcon
+              size="lg"
+              variant="subtle"
+              aria-label={t("settings.timeline.edit")}
+              onClick={() => onEdit(m)}
+              radius="md"
+            >
+              <IconEdit size={20} />
+            </ActionIcon>
+            <ActionIcon
+              size="lg"
+              variant="subtle"
+              color="red"
+              aria-label={t("settings.timeline.delete")}
+              onClick={() => onDelete(m.id)}
+              radius="md"
+            >
+              <IconTrash size={20} />
+            </ActionIcon>
+          </Group>
+        </Group>
+      </Stack>
+    </Card>
+  );
+}
+
+function DraggableModeCard({
+  mode,
+  onEdit,
+  onDelete,
+  t,
+  powerUnit,
+}: Readonly<Omit<ModeCardProps, "dragHandleProps" | "innerRef" | "style">>) {
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
+    id: `${MODE_DRAG_PREFIX}${mode.id}`,
+    data: { mode },
+  });
+
+  return (
+    <ModeCard
+      mode={mode}
+      onEdit={onEdit}
+      onDelete={onDelete}
+      t={t}
+      powerUnit={powerUnit}
+      innerRef={setNodeRef}
+      dragHandleProps={{ ...attributes, ...listeners }}
+      style={{ visibility: isDragging ? "hidden" : "visible" }}
+    />
+  );
 }
 
 export function TimelineModeList({
@@ -76,85 +208,14 @@ export function TimelineModeList({
         ) : (
           <SimpleGrid cols={{ base: 1, sm: 2, md: 3, lg: 4 }} spacing="md">
             {modes.map((m) => (
-              <Card
+              <DraggableModeCard
                 key={m.id}
-                withBorder
-                p="md"
-                radius="lg"
-                draggable
-                onDragStart={(e) => {
-                  e.dataTransfer.setData("application/json", JSON.stringify(m));
-                  e.dataTransfer.effectAllowed = "copy";
-                }}
-                style={{
-                  borderTop: `6px solid ${m.color || "var(--mantine-color-blue-6)"}`,
-                  backgroundColor: "rgba(255, 255, 255, 0.05)",
-                  backdropFilter: "blur(10px)",
-                  cursor: "grab",
-                }}
-              >
-                <Stack gap="md">
-                  <Group justify="space-between" align="flex-start" wrap="nowrap">
-                    <Stack gap={4}>
-                      <Group gap={8} wrap="nowrap">
-                        <ColorSwatch color={m.color || "blue"} size={16} />
-                        <Title
-                          order={5}
-                          style={{
-                            maxWidth: 140,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {m.name}
-                        </Title>
-                      </Group>
-                      <Group gap={6}>
-                        {m.isBoost && (
-                          <Badge size="xs" color="orange" variant="light" radius="sm">
-                            {t("settings.timeline.modeIsBoostBadge")}
-                          </Badge>
-                        )}
-                        {m.power !== undefined && (
-                          <Badge size="md" variant="outline" color="blue" radius="sm" fw={700}>
-                            {m.power}
-                            {t(`app.units.${powerUnit}`, { defaultValue: powerUnit })}
-                          </Badge>
-                        )}
-                        {m.temperature !== undefined && (
-                          <Badge size="md" variant="outline" color="red" radius="sm" fw={700}>
-                            {formatTemperature(m.temperature).toFixed(1)}
-                            {getTemperatureLabel()}
-                          </Badge>
-                        )}
-                      </Group>
-                    </Stack>
-
-                    <Group gap={4} wrap="nowrap">
-                      <ActionIcon
-                        size="lg"
-                        variant="subtle"
-                        aria-label={t("settings.timeline.edit")}
-                        onClick={() => onEdit(m)}
-                        radius="md"
-                      >
-                        <IconEdit size={20} />
-                      </ActionIcon>
-                      <ActionIcon
-                        size="lg"
-                        variant="subtle"
-                        color="red"
-                        aria-label={t("settings.timeline.delete")}
-                        onClick={() => onDelete(m.id)}
-                        radius="md"
-                      >
-                        <IconTrash size={20} />
-                      </ActionIcon>
-                    </Group>
-                  </Group>
-                </Stack>
-              </Card>
+                mode={m}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                t={t}
+                powerUnit={powerUnit}
+              />
             ))}
           </SimpleGrid>
         )}

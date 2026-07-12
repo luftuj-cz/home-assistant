@@ -28,6 +28,15 @@ export {
   replaceDatabaseWithFile,
   resetDatabase,
 } from "./db/maintenance.js";
+export {
+  deleteValveGroup,
+  getValveGroup,
+  getValveGroups,
+  removeValveFromGroup,
+  setGroupMembers,
+  type ValveGroup,
+  upsertValveGroup,
+} from "./db/valveGroups.js";
 
 const DEFAULT_DATA_DIR = "/data";
 const IS_HA_ADDON = Boolean(process.env.SUPERVISOR_TOKEN);
@@ -77,6 +86,15 @@ export type StatementMap = {
   upsertTimelineMode: Statement;
   deleteTimelineMode: Statement;
   getTimelineMode: Statement;
+  getValveGroups: Statement;
+  getValveGroup: Statement;
+  upsertValveGroup: Statement;
+  deleteValveGroup: Statement;
+  getValveGroupMembers: Statement;
+  getAllValveGroupMembers: Statement;
+  insertValveGroupMember: Statement;
+  deleteValveGroupMembersByGroup: Statement;
+  deleteValveGroupMemberByEntity: Statement;
 };
 
 let moduleLogger: Logger | null = null;
@@ -247,6 +265,41 @@ function prepareStatements(database: DatabaseType): StatementMap {
     getTimelineMode: database.prepare(`SELECT *
                                        FROM timeline_modes
                                        WHERE id = ?`),
+    getValveGroups: database.prepare(
+      `SELECT id, name, sort_order, created_at, updated_at
+       FROM valve_groups
+       ORDER BY sort_order, name`,
+    ),
+    getValveGroup: database.prepare(
+      `SELECT id, name, sort_order, created_at, updated_at
+       FROM valve_groups
+       WHERE id = ?`,
+    ),
+    upsertValveGroup: database.prepare(
+      `INSERT INTO valve_groups (id, name, sort_order)
+       VALUES (?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET name       = excluded.name,
+                                     sort_order = excluded.sort_order,
+                                     updated_at = CURRENT_TIMESTAMP`,
+    ),
+    deleteValveGroup: database.prepare(`DELETE
+                                        FROM valve_groups
+                                        WHERE id = ?`),
+    getValveGroupMembers: database.prepare(
+      `SELECT entity_id FROM valve_group_members WHERE group_id = ?`,
+    ),
+    getAllValveGroupMembers: database.prepare(
+      `SELECT entity_id, group_id FROM valve_group_members`,
+    ),
+    insertValveGroupMember: database.prepare(
+      `INSERT INTO valve_group_members (entity_id, group_id) VALUES (?, ?)`,
+    ),
+    deleteValveGroupMembersByGroup: database.prepare(
+      `DELETE FROM valve_group_members WHERE group_id = ?`,
+    ),
+    deleteValveGroupMemberByEntity: database.prepare(
+      `DELETE FROM valve_group_members WHERE entity_id = ?`,
+    ),
   };
 }
 
