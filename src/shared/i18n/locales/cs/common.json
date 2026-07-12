@@ -495,6 +495,27 @@
       "allClosed": "Pozor: Pokud jsou všechny klapky zavřené a rekuperace je zapnutá, hrozí poškození servopohonů LUFTaTORu či samotné rekuperační jednotky!",
       "offlineMode": "Home Assistant je offline. Zobrazuje se pouze poslední známý snímek stavu klapek.",
       "unavailable": "Některé klapky jsou v Home Assistantu nedostupné. Zobrazované hodnoty mohou být zastaralé."
+    },
+    "groups": {
+      "manage": "Spravovat skupiny",
+      "ungrouped": "Bez skupiny",
+      "bulkSetValue": "Nastavit vše",
+      "valveCount": "{{count}} klapka",
+      "valveCount_few": "{{count}} klapky",
+      "valveCount_other": "{{count}} klapek",
+      "create": "Vytvořit",
+      "delete": "Smazat skupinu",
+      "reorder": "Táhněte pro změnu pořadí",
+      "assignValves": "Přiřadit klapky",
+      "newGroupName": "Název nové skupiny",
+      "empty": "Zatím žádné skupiny.",
+      "expand": "Rozbalit",
+      "collapse": "Sbalit",
+      "reorderFailedTitle": "Změna pořadí selhala",
+      "reorderFailedMessage": "Nepodařilo se uložit nové pořadí skupin. Zkuste to prosím znovu.",
+      "actionFailedTitle": "Akce selhala",
+      "actionFailedMessage": "Zkuste to prosím znovu.",
+      "mixedValues": "Různé"
     }
   },
   "apiErrors": {

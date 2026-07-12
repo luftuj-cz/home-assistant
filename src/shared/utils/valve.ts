@@ -1,4 +1,20 @@
 import type { TFunction } from "i18next";
+import type { Valve } from "@luftuj/shared/types/valve";
+
+export interface ValveBounds {
+  min: number;
+  max: number;
+  step: number;
+}
+
+export function getValveGroupBounds(valves: Valve[]): ValveBounds {
+  if (valves.length === 0) return { min: 0, max: 90, step: 5 };
+  return {
+    min: Math.min(...valves.map((v) => v.min)),
+    max: Math.max(...valves.map((v) => v.max)),
+    step: Math.min(...valves.map((v) => v.step)),
+  };
+}
 
 export function getValveStatusColor(
   value: number,

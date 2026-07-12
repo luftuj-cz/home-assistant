@@ -56,7 +56,8 @@ const theme = createTheme({
           height: 40,
           borderRadius: "var(--mantine-radius-lg)",
           fontSize: 22,
-          backgroundColor: "var(--mantine-color-gray-light)",
+          backgroundColor: "var(--notification-color, var(--mantine-color-gray-light))",
+          color: "var(--mantine-color-white)",
         },
         title: {
           fontWeight: 800,

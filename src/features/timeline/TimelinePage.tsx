@@ -1,13 +1,17 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Stack, Text, Title, Divider, Container } from "@mantine/core";
+import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { useTranslation } from "react-i18next";
 import { IconCalendar } from "@tabler/icons-react";
 
 import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimelineModesQuery";
 import { useTimelineEventsQuery } from "@luftuj/features/timeline/hooks/useTimelineEventsQuery";
-import { useDragAutoScroll } from "@luftuj/shared/hooks/useDragScroll";
-import { TimelineModeList } from "@luftuj/features/timeline/components/TimelineModeList";
-import { TimelineDayCard } from "@luftuj/features/timeline/components/TimelineDayCard";
+import { useDndSensors } from "@luftuj/shared/dnd/useDndSensors";
+import { TimelineModeList, ModeCard } from "@luftuj/features/timeline/components/TimelineModeList";
+import {
+  TimelineDayCard,
+  DAY_DROP_PREFIX,
+} from "@luftuj/features/timeline/components/TimelineDayCard";
 import { TimelineEventModal } from "@luftuj/features/timeline/components/TimelineEventModal";
 import { TimelineModeModal } from "@luftuj/features/timeline/components/TimelineModeModal";
 
@@ -31,9 +35,11 @@ const logger = createLogger("TimelinePage");
 
 export function TimelinePage() {
   const { t } = useTranslation();
-  const dragScroll = useDragAutoScroll();
+  const sensors = useDndSensors();
+  const [activeMode, setActiveMode] = useState<Mode | null>(null);
 
-  const { valves, hruVariables, powerUnit, maxPower, activeUnitId, loading } = useHruContext();
+  const { valves, valveGroups, hruVariables, powerUnit, maxPower, activeUnitId, loading } =
+    useHruContext();
 
   const {
     modes,
@@ -110,6 +116,27 @@ export function TimelinePage() {
     setCopyDay(null);
   }, [setCopyDay]);
 
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const mode = event.active.data.current?.mode as Mode | undefined;
+    setActiveMode(mode ?? null);
+  }, []);
+
+  const handleDragEnd = useCallback(
+    (event: DragEndEvent) => {
+      setActiveMode(null);
+      const { active, over } = event;
+      if (!over) return;
+      const mode = active.data.current?.mode as Mode | undefined;
+      if (!mode) return;
+      const overId = String(over.id);
+      if (!overId.startsWith(DAY_DROP_PREFIX)) return;
+      const day = Number(overId.slice(DAY_DROP_PREFIX.length));
+      if (!Number.isFinite(day)) return;
+      handleDropAndEdit(day, mode);
+    },
+    [handleDropAndEdit],
+  );
+
   return (
     <Container size="xl">
       <Stack gap="xl">
@@ -123,59 +150,76 @@ export function TimelinePage() {
           </Text>
         </Stack>
 
-        <TimelineModeList
-          modes={modes}
-          onAdd={handleAddMode}
-          onEdit={handleEditMode}
-          onDelete={handleDeleteMode}
-          t={t}
-          powerUnit={powerUnit}
-        />
-
-        <Stack gap="md">
-          <Divider
-            label={
-              <div
-                style={{ display: "flex", gap: "var(--mantine-spacing-xs)", alignItems: "center" }}
-              >
-                <Text fw={700} size="sm">
-                  {t("schedule.title")}
-                </Text>
-              </div>
-            }
-            labelPosition="left"
+        <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+          <TimelineModeList
+            modes={modes}
+            onAdd={handleAddMode}
+            onEdit={handleEditMode}
+            onDelete={handleDeleteMode}
+            t={t}
+            powerUnit={powerUnit}
           />
-          <div
-            ref={dragScroll.ref}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-              gap: "var(--mantine-spacing-lg)",
-              contentVisibility: "auto",
-            }}
-          >
-            {DAY_ORDER.map((dayIdx: number) => (
-              <TimelineDayCard
-                key={dayIdx}
-                dayIdx={dayIdx}
-                label={dayLabels[dayIdx]}
-                events={eventsByDay.get(dayIdx) ?? []}
-                modes={modes}
-                copyDay={copyDay}
-                loading={loading}
-                onCopy={setCopyDay}
-                onPaste={handlePasteDay}
-                onCancelCopy={handleCancelCopy}
-                onAdd={handleAddEvent}
-                onEdit={handleEditEvent}
-                onDelete={deleteEvent}
-                onToggle={handleToggleEvent}
-                onDropMode={handleDropAndEdit}
+
+          <Stack gap="md" mt="xl">
+            <Divider
+              label={
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "var(--mantine-spacing-xs)",
+                    alignItems: "center",
+                  }}
+                >
+                  <Text fw={700} size="sm">
+                    {t("schedule.title")}
+                  </Text>
+                </div>
+              }
+              labelPosition="left"
+            />
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
+                gap: "var(--mantine-spacing-lg)",
+                contentVisibility: "auto",
+              }}
+            >
+              {DAY_ORDER.map((dayIdx: number) => (
+                <TimelineDayCard
+                  key={dayIdx}
+                  dayIdx={dayIdx}
+                  label={dayLabels[dayIdx]}
+                  events={eventsByDay.get(dayIdx) ?? []}
+                  modes={modes}
+                  copyDay={copyDay}
+                  loading={loading}
+                  onCopy={setCopyDay}
+                  onPaste={handlePasteDay}
+                  onCancelCopy={handleCancelCopy}
+                  onAdd={handleAddEvent}
+                  onEdit={handleEditEvent}
+                  onDelete={deleteEvent}
+                  onToggle={handleToggleEvent}
+                  t={t}
+                />
+              ))}
+            </div>
+          </Stack>
+
+          <DragOverlay>
+            {activeMode ? (
+              <ModeCard
+                mode={activeMode}
+                onEdit={handleEditMode}
+                onDelete={handleDeleteMode}
                 t={t}
+                powerUnit={powerUnit}
+                style={{ cursor: "grabbing", boxShadow: "var(--mantine-shadow-md)" }}
               />
-            ))}
-          </div>
-        </Stack>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
 
         <TimelineEventModal
           opened={eventModalOpen}
@@ -193,6 +237,7 @@ export function TimelinePage() {
           opened={modeModalOpen}
           mode={editingMode}
           valves={valves}
+          valveGroups={valveGroups}
           saving={isModesMutating}
           onClose={handleCloseModeModal}
           onSave={handleSaveMode}

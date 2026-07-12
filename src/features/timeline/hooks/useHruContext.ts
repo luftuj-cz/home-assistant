@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import * as hruApi from "@luftuj/shared/api/hru";
 import * as valveApi from "@luftuj/features/valves/api";
-import type { Valve } from "@luftuj/shared/types/valve";
+import type { Valve, ValveGroup } from "@luftuj/shared/types/valve";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import { createLogger } from "@luftuj/shared/utils/logger";
 import { calculatePowerConfig } from "@luftuj/features/timeline/utils";
@@ -10,6 +10,7 @@ const logger = createLogger("useHruContext");
 
 export function useHruContext() {
   const [valves, setValves] = useState<Valve[]>([]);
+  const [valveGroups, setValveGroups] = useState<ValveGroup[]>([]);
   const [hruVariables, setHruVariables] = useState<hruApi.HruVariable[]>([]);
   const [powerUnit, setPowerUnit] = useState<string>("%");
   const [maxPower, setMaxPower] = useState<number>(100);
@@ -22,6 +23,9 @@ export function useHruContext() {
       try {
         const valves = await valveApi.fetchValves().catch(() => []);
         setValves(valves);
+
+        const valveGroups = await valveApi.fetchValveGroups().catch(() => []);
+        setValveGroups(valveGroups);
 
         const [settingsRes, units] = await Promise.all([
           fetch(resolveApiUrl("/api/settings/hru")),
@@ -57,6 +61,7 @@ export function useHruContext() {
 
   return {
     valves,
+    valveGroups,
     hruVariables,
     powerUnit,
     maxPower,

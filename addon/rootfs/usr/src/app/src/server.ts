@@ -35,6 +35,7 @@ import { createTimelineRouter } from "./routes/timeline.js";
 import { createSettingsRouter } from "./routes/settings.js";
 import { createDatabaseRouter } from "./routes/database.js";
 import { createValvesRouter } from "./routes/valves.js";
+import { createValveGroupsRouter } from "./routes/valveGroups.js";
 import { createStatusRouter } from "./routes/status.js";
 import { createCommissioningRouter } from "./routes/commissioning.js";
 import { CommissioningRunner } from "./services/commissioningRunner.js";
@@ -60,6 +61,7 @@ app.use(
   }),
 );
 app.use(express.json());
+// TODO(kanka@kankaj.cz): Check if 200mb is enough even for exporting large Luftator addon dbs.
 app.use(
   express.raw({
     type: ["application/octet-stream", "application/x-sqlite3", "binary/octet-stream"],
@@ -144,6 +146,7 @@ app.use(
   createDatabaseRouter(valveManager, mqttService, timelineScheduler, hruMonitor, logger),
 );
 app.use("/api/valves", createValvesRouter(valveManager, logger));
+app.use("/api/valve-groups", createValveGroupsRouter(valveManager, logger));
 app.use(
   "/api",
   createStatusRouter(

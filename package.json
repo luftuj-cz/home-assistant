@@ -18,6 +18,9 @@
     "docs:start": "npm --prefix docs run start"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@emotion/is-prop-valid": "^1.4.0",
     "@mantine/core": "9.2.0",
     "@mantine/dates": "9.2.0",

@@ -90,6 +90,26 @@
       "open": "OPEN",
       "closed": "CLOSED",
       "offlineLabel": "OFFLINE"
+    },
+    "groups": {
+      "manage": "Manage groups",
+      "ungrouped": "Ungrouped",
+      "bulkSetValue": "Set all",
+      "valveCount": "{{count}} valve",
+      "valveCount_other": "{{count}} valves",
+      "create": "Create",
+      "delete": "Delete group",
+      "reorder": "Drag to reorder",
+      "assignValves": "Assign valves",
+      "newGroupName": "New group name",
+      "empty": "No groups yet.",
+      "expand": "Expand",
+      "collapse": "Collapse",
+      "reorderFailedTitle": "Reorder failed",
+      "reorderFailedMessage": "Could not save the new group order. Please try again.",
+      "actionFailedTitle": "Action failed",
+      "actionFailedMessage": "Please try again.",
+      "mixedValues": "Mixed"
     }
   },
   "settings": {
