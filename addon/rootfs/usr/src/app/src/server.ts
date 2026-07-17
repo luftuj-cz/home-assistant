@@ -168,15 +168,17 @@ if (fs.existsSync(staticRoot)) {
     app.use("/assets", express.static(assetsPath, { fallthrough: true }));
   }
 
-  app.get("/", (_request, response, next) => {
-    if (!fs.existsSync(indexPath)) {
-      next();
-      return;
-    }
-    response.sendFile(indexPath);
-  });
+  // Serve root-level static files (favicons, apple-touch-icon, etc.) directly.
+  // index:false so "/" is handled by the explicit index.html route below.
+  app.use(express.static(staticRoot, { index: false, fallthrough: true }));
 
-  app.get(/^(?!\/api\/|\/ws\/|\/assets\/).*/, (_request, response, next) => {
+  // The frontend uses hash-based routing, so it only ever loads the app at the
+  // mount root ("/", after ingress-path stripping). Any other pathname is not a
+  // real entry point: serving index.html there would boot the SPA at the wrong
+  // base URL (breaking every API call). Serve index.html for "/" only; all other
+  // unmatched pathnames fall through to a 404. This keeps Home Assistant Ingress
+  // working (its stripped path is always "/") while rejecting junk pathnames.
+  app.get("/", (_request, response, next) => {
     if (!fs.existsSync(indexPath)) {
       next();
       return;
