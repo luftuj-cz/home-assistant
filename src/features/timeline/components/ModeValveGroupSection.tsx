@@ -4,7 +4,11 @@ import { IconChevronDown, IconChevronRight } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 
 import type { Valve, ValveGroup } from "@luftuj/shared/types/valve";
-import { formatValveValue, getValveGroupBounds } from "@luftuj/shared/utils/valve";
+import {
+  formatValveValue,
+  getValveGroupBounds,
+  getValveStatusColor,
+} from "@luftuj/shared/utils/valve";
 import { ValveSlider } from "@luftuj/shared/ui";
 
 import type { OpeningsUpdater } from "./ModeValveSelector.types";
@@ -44,6 +48,10 @@ export function ModeValveGroupSection({
   const [bulkOverridden, setBulkOverridden] = useState(false);
 
   const showMixedLabel = uniformValue === null && !bulkOverridden;
+
+  const sliderColor = showMixedLabel
+    ? "gray"
+    : getValveStatusColor(bulkValue, bounds.min, bounds.max);
 
   function handleBulkChange(value: number) {
     setBulkValue(value);
@@ -102,7 +110,7 @@ export function ModeValveGroupSection({
                 : formatValveValue(val, bounds.min, bounds.max, t)
             }
             onChange={handleBulkChange}
-            color="blue"
+            color={sliderColor}
             size="md"
           />
         </Group>
