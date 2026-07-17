@@ -7,16 +7,21 @@ interface TickingAgeLabelProps {
 }
 
 export function TickingAgeLabel({ timestamp, children }: Readonly<TickingAgeLabelProps>) {
-  const [now, setNow] = useState(() => Date.now());
+  const [seconds, setSeconds] = useState(0);
 
   useEffect(() => {
     if (timestamp == null) return;
-    const id = setInterval(() => setNow(Date.now()), 1000);
+    // Measure age client-side: reset to 0 when a fresh backend read arrives
+    // (new timestamp), then tick up locally. Subtracting the backend's
+    // fetchedAt from the browser's Date.now() mixed two clocks — container
+    // vs. browser skew offset the age by several seconds (never started at 0),
+    // and Math.round on that diff produced the skipped values.
+    setSeconds(0);
+    const id = setInterval(() => setSeconds((s) => s + 1), 1000);
     return () => clearInterval(id);
   }, [timestamp]);
 
   if (timestamp == null) return null;
 
-  const seconds = Math.max(0, Math.round((now - timestamp) / 1000));
   return children(seconds);
 }
