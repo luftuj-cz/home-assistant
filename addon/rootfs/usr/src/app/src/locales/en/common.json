@@ -567,6 +567,18 @@
       "failedToLoadData": "Failed to load data",
       "failedToParseWebSocket": "Failed to parse WebSocket message",
       "webSocketError": "WebSocket error"
+    },
+    "route": {
+      "title": "Something went wrong",
+      "message": "An unexpected error occurred while loading this page.",
+      "details": "Error details",
+      "retry": "Try again",
+      "home": "Back to dashboard"
+    },
+    "notFound": {
+      "title": "Page not found",
+      "message": "The page you are looking for does not exist.",
+      "home": "Back to dashboard"
     }
   },
   "validation": {

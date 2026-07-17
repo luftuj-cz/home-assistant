@@ -577,6 +577,18 @@
       "failedToLoadData": "Nepodařilo se načíst data",
       "failedToParseWebSocket": "Nepodařilo se zpracovat zprávu WebSocketu",
       "webSocketError": "Chyba WebSocketu"
+    },
+    "route": {
+      "title": "Něco se pokazilo",
+      "message": "Při načítání této stránky došlo k neočekávané chybě.",
+      "details": "Detaily chyby",
+      "retry": "Zkusit znovu",
+      "home": "Zpět na přehled"
+    },
+    "notFound": {
+      "title": "Stránka nenalezena",
+      "message": "Hledaná stránka neexistuje.",
+      "home": "Zpět na přehled"
     }
   },
   "onboarding": {

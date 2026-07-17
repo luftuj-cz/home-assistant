@@ -4,6 +4,7 @@ export { StatusBadge } from "./StatusBadge";
 export { FormModal } from "./FormModal";
 export { FormSection } from "./FormSection";
 export { EmptyState } from "./EmptyState";
+export { ErrorState } from "./ErrorState";
 export { LoadingState } from "./LoadingState";
 export { MotionSwitch } from "./MotionSwitch";
 export { TextInputField } from "./fields/TextInputField";
