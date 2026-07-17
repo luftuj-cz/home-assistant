@@ -2,7 +2,7 @@ import { ActionIcon, CopyButton, Group, Text, Tooltip } from "@mantine/core";
 import { IconCheck, IconCopy } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
-export function CopyableValueCell({ value }: { value: string }) {
+export function CopyableValueCell({ value }: Readonly<{ value: string }>) {
   const { t } = useTranslation();
 
   return (

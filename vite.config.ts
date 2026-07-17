@@ -46,6 +46,11 @@ const filteredLogger: Logger = {
 // https://vite.dev/config/
 export default defineConfig({
   base: "./",
+  // MPA mode disables Vite's SPA history fallback. The app uses hash-based
+  // routing, so the dev server only needs to serve index.html at "/". Junk
+  // pathnames (e.g. /wdawd/) then return 404 instead of booting the app at a
+  // wrong base URL — mirroring the narrowed backend static handling.
+  appType: "mpa",
   resolve: {
     alias: {
       "@luftuj/app": path.resolve(rootDir, "src/app"),
