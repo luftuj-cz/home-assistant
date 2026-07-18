@@ -207,10 +207,9 @@ export function createStatusRouter(
           try {
             const unitId = savedSettings?.unitId ?? 1;
             const sharedClient = getSharedModbusClient({ host, port, unitId }, logger);
-            if (!sharedClient.isConnected()) {
-              await sharedClient.connect();
-            }
-            if (sharedClient.isConnected()) {
+            // Serialize under the op lock so this probe can't swap the socket
+            // mid-transaction while a runBatch (HRU poll/write) is in flight.
+            if (await sharedClient.connectSerialized()) {
               logger.debug({ host, port }, "Modbus reachable (shared client)");
               response.json({ reachable: true });
               return;
