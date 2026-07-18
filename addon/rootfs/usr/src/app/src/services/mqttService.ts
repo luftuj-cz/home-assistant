@@ -7,6 +7,7 @@ import type { HeatRecoveryUnit, LocalizedText } from "../features/hru/hru.defini
 import type { MqttSettings, TimelineMode, TimelineOverride } from "../types/index.js";
 import { LANGUAGE_SETTING_KEY } from "../types/index.js";
 import { getAppSetting } from "./database.js";
+import { INFINITE_BOOST_DURATION_MINUTES } from "../constants.js";
 import type { SettingsRepository } from "../features/settings/settings.repository.js";
 import type { TimelineScheduler } from "./timelineScheduler.js";
 import enCommon from "../locales/en/common.json" with { type: "json" };
@@ -694,7 +695,7 @@ export class MqttService extends EventEmitter {
         }
 
         const modeId = Number.parseInt(modeIdStr, 10);
-        const durationMinutes = 999999;
+        const durationMinutes = INFINITE_BOOST_DURATION_MINUTES;
         const endTime = new Date("9999-12-31T23:59:59.999Z").toISOString();
 
         const override: TimelineOverride = { modeId, endTime, durationMinutes };
