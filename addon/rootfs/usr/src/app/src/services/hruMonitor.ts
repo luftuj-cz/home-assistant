@@ -14,16 +14,10 @@ export class HruMonitor {
     private readonly mqttService: MqttService,
     private readonly timelineScheduler: TimelineScheduler,
     private readonly logger: Logger,
-  ) {}
-
-  start(): void {
-    if (this.isRunning) return;
-    this.isRunning = true;
-    this.logger.info("Starting HRU Monitor");
-
-    // Run initial cycle WITH discovery to ensure cache is populated
-    void this.runCycle(true);
-
+  ) {
+    // Register listeners once here, not in start(): stop() can't remove anonymous
+    // listeners, so per-start() registration leaks a pair on every restart. They
+    // gate on isRunning, so they no-op while stopped.
     this.mqttService.on("command-received", () => {
       if (this.isRunning) {
         this.logger.debug("HRU Monitor: Command received, triggering immediate cycle");
@@ -37,6 +31,15 @@ export class HruMonitor {
         void this.runCycle(false);
       }
     });
+  }
+
+  start(): void {
+    if (this.isRunning) return;
+    this.isRunning = true;
+    this.logger.info("Starting HRU Monitor");
+
+    // Run initial cycle WITH discovery to ensure cache is populated
+    void this.runCycle(true);
 
     this.timer = setInterval(() => {
       // Periodic update - state only, no discovery to prevent flooding

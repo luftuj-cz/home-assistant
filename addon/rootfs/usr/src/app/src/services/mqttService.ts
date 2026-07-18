@@ -456,9 +456,8 @@ export class MqttService extends EventEmitter {
       }
     });
 
-    // Keep the chain alive even if this task rejects, otherwise a single publish
-    // failure poisons every subsequent publish with the stale error until restart.
-    // Errors are still propagated to this call's caller via `await task` below.
+    // Recover the chain so one failed publish doesn't poison the rest; the error
+    // still reaches this caller via `await task`.
     this.publishQueue = task.catch(() => {});
 
     await task;

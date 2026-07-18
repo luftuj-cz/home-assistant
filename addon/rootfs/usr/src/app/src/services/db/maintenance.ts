@@ -32,23 +32,32 @@ export async function createDatabaseBackup(): Promise<string | null> {
  * @param logger - Optional logger instance
  */
 export async function replaceDatabaseWithFile(buffer: Buffer, logger?: Logger): Promise<void> {
-  closeDatabase();
-
-  const dbPath = getDatabasePath();
-
-  const walPath = `${dbPath}-wal`;
-  const shmPath = `${dbPath}-shm`;
+  // Guard the swap with isStopping so a concurrent lazy setupDatabase() (from a
+  // background tick) can't reopen the OLD db in the close→rename window and leave
+  // readers pinned to pre-import data. Only our own reopen below wins.
+  setStopping(true);
   try {
-    if (existsSync(walPath)) await fsp.unlink(walPath);
-    if (existsSync(shmPath)) await fsp.unlink(shmPath);
-  } catch {
-    logger?.warn("Failed to delete auxiliary database files during replacement");
+    closeDatabase();
+
+    const dbPath = getDatabasePath();
+
+    const walPath = `${dbPath}-wal`;
+    const shmPath = `${dbPath}-shm`;
+    try {
+      if (existsSync(walPath)) await fsp.unlink(walPath);
+      if (existsSync(shmPath)) await fsp.unlink(shmPath);
+    } catch {
+      logger?.warn("Failed to delete auxiliary database files during replacement");
+    }
+
+    const tempPath = `${dbPath}.tmp`;
+    await fsp.writeFile(tempPath, buffer);
+    await fsp.rename(tempPath, dbPath);
+  } finally {
+    setStopping(false);
   }
 
-  const tempPath = `${dbPath}.tmp`;
-  await fsp.writeFile(tempPath, buffer);
-  await fsp.rename(tempPath, dbPath);
-
+  // isStopping is false again; this opens the freshly imported file.
   setupDatabase(logger);
   logger?.info("Database replaced from backup file");
 }

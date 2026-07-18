@@ -74,18 +74,33 @@ export function createDatabaseRouter(
       }
 
       logger.info({ size: buffer.length }, "Replacing database from uploaded file");
-      await createDatabaseBackup();
-      await replaceDatabaseWithFile(buffer, logger);
 
-      logger.info("Database import completed, restarting valve manager and reloading services");
+      // Quiesce DB-touching services before the swap so no tick races the
+      // close→rename window (see replaceDatabaseWithFile).
+      hruMonitor.stop();
+      timelineScheduler.stop();
+      await mqttService.disconnect();
       await valveManager.stop();
-      await valveManager.start();
+      await closeAllSharedClients();
 
-      // Ensure MQTT picks up new settings
-      await mqttService.reloadConfig();
-
-      // Ensure Timeline Scheduler picks up new events/modes immediately
-      await timelineScheduler.executeScheduledEvent();
+      try {
+        await createDatabaseBackup();
+        await replaceDatabaseWithFile(buffer, logger);
+        logger.info("Database import completed");
+      } finally {
+        // Always restart services, even if replace threw, so a failed import doesn't
+        // leave everything stopped. start() runs executeScheduledEvent() internally.
+        // Swallow restart errors so they don't mask the original replace error.
+        logger.info("Restarting services on the current database");
+        try {
+          await valveManager.start();
+          hruMonitor.start();
+          timelineScheduler.start();
+          await mqttService.reloadConfig();
+        } catch (restartError) {
+          logger.error({ restartError }, "Failed to restart services after database import");
+        }
+      }
 
       logger.info("Database restored successfully");
       response.status(204).end();
