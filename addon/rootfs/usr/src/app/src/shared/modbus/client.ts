@@ -261,7 +261,30 @@ export class ModbusTcpClient {
     this.clearReconnectTimer();
     return new Promise((resolve, reject) => {
       this.logger.info({ host: this.cfg.host, port: this.cfg.port }, "Connecting Modbus TCP");
+
+      // Bound the handshake: connectTCP's callback only fires on connect/OS
+      // failure, so a dropped SYN would hold the op lock for the OS timeout.
+      // `settled` makes timer and callback mutually exclusive.
+      let settled = false;
+      const connectTimeoutMs = this.cfg.timeoutMs ?? 2000;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        this.logger.warn(
+          { host: this.cfg.host, port: this.cfg.port },
+          "Modbus TCP connect timed out",
+        );
+        // Discard the half-open client so the next connect starts fresh.
+        this.resetClient();
+        this.handleDisconnect();
+        reject(new Error("Modbus TCP connect timed out"));
+      }, connectTimeoutMs);
+      timer.unref?.(); // don't keep the process alive at shutdown
+
       this.client.connectTCP(this.cfg.host, { port: this.cfg.port }, (err?: Error) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
         if (this.destroyed) {
           this.logger.debug("Modbus TCP connection finished after destruction, closing");
           try {
@@ -312,6 +335,15 @@ export class ModbusTcpClient {
     });
 
     return this.connectInFlight;
+  }
+
+  /**
+   * connect() under the op lock, so an external caller (e.g. status probe) can't
+   * swap the socket mid-runBatch. No-ops if connected. Returns connected state.
+   */
+  async connectSerialized(): Promise<boolean> {
+    await this.withOpLock(() => this.connect());
+    return this.connected;
   }
 
   private scheduleReconnect() {
