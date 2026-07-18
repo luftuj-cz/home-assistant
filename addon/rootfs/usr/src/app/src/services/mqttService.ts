@@ -441,7 +441,7 @@ export class MqttService extends EventEmitter {
       return;
     }
 
-    this.publishQueue = this.publishQueue.then(async () => {
+    const task = this.publishQueue.then(async () => {
       try {
         await new Promise((resolve) => setTimeout(resolve, PUBLISH_DELAY_MS));
         if (!this.client || !this.connected) {
@@ -456,7 +456,12 @@ export class MqttService extends EventEmitter {
       }
     });
 
-    await this.publishQueue;
+    // Keep the chain alive even if this task rejects, otherwise a single publish
+    // failure poisons every subsequent publish with the stale error until restart.
+    // Errors are still propagated to this call's caller via `await task` below.
+    this.publishQueue = task.catch(() => {});
+
+    await task;
   }
 
   private resolveConfig(): AppConfig["mqtt"] {
