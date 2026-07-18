@@ -201,7 +201,10 @@ httpServer.on("upgrade", (request, socket, head) => {
     pathname = new URL(request.url!, `http://${request.headers.host}`).pathname;
   } catch (error) {
     // Malformed Host header makes new URL() throw; reject instead of crashing.
-    logger.warn({ error, host: request.headers.host }, "Rejected WebSocket upgrade with invalid URL");
+    logger.warn(
+      { error, host: request.headers.host },
+      "Rejected WebSocket upgrade with invalid URL",
+    );
     socket.destroy();
     return;
   }
