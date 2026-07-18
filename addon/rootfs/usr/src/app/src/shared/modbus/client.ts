@@ -35,6 +35,7 @@ export class ModbusTcpClient {
   private opLock: Promise<void> = Promise.resolve();
   private lastBatchEndedAt = 0;
   private consecutiveFailures = 0;
+  private failureCounted = false;
   private lastErrorMessage: string | null = null;
   private lastErrorAt: number | null = null;
   private readonly statusListeners = new Set<ConnectionStatusListener>();
@@ -209,11 +210,16 @@ export class ModbusTcpClient {
   private handleDisconnect() {
     if (this.destroyed) return;
     this.connected = false;
-    // Single point of truth for counting failures: covers socket-level
-    // error/close events and connectInternal()'s own failure path, not just
-    // runBatch()'s exhausted-retries path, so the reconnect backoff below
-    // and the UI's attempt counter advance even when nothing is calling
-    // runBatch() during an outage.
+    // De-dup: one outage fires several events (connect-callback err, socket
+    // "error", socket "close", plus resetClient()'s own close). Count the
+    // failure once per connect attempt so scheduleReconnect's exponent tracks
+    // real outages, not event count. Flag resets when the next attempt starts,
+    // so backoff still grows across repeated failed reconnects.
+    if (this.failureCounted) {
+      this.scheduleReconnect();
+      return;
+    }
+    this.failureCounted = true;
     this.consecutiveFailures++;
     this.scheduleReconnect();
     this.notifyStatus();
@@ -226,6 +232,8 @@ export class ModbusTcpClient {
   private async connectInternal(): Promise<void> {
     if (this.connected || this.destroyed) return;
 
+    // New attempt: allow this outage to be counted once (see handleDisconnect).
+    this.failureCounted = false;
     this.clearReconnectTimer();
     return new Promise((resolve, reject) => {
       this.logger.info({ host: this.cfg.host, port: this.cfg.port }, "Connecting Modbus TCP");
