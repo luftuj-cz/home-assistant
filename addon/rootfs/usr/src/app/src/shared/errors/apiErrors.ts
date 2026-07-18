@@ -69,3 +69,17 @@ export class ServiceUnavailableError extends ApiError {
     super(503, message, code);
   }
 }
+
+// Typed valve errors so callers/routes classify by type instead of regex-matching
+// the message. Status + code + message match the previous string-based mapping.
+export class UnknownValveError extends NotFoundError {
+  constructor(entityId: string) {
+    super(`Unknown valve: ${entityId}`, "UNKNOWN_VALVE");
+  }
+}
+
+export class OfflineModeError extends ServiceUnavailableError {
+  constructor(message = "Offline mode: valve control unavailable") {
+    super(message, "OFFLINE_MODE");
+  }
+}

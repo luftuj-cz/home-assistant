@@ -1,5 +1,6 @@
 import type { Logger } from "pino";
 import type { BroadcastFn, ValveController, ValveSnapshot } from "./valveManager.js";
+import { OfflineModeError } from "../shared/errors/apiErrors.js";
 
 export class OfflineValveManager implements ValveController {
   constructor(
@@ -29,6 +30,6 @@ export class OfflineValveManager implements ValveController {
 
   async setValue(): Promise<ValveSnapshot> {
     this.logger.error("Offline mode: valve control unavailable");
-    throw new Error("Offline mode: valve control unavailable");
+    throw new OfflineModeError();
   }
 }

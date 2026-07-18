@@ -9,7 +9,7 @@ import {
   type ValveUpdateParams,
   valveUpdateParamsSchema,
 } from "../schemas/valves.js";
-import { ApiError, NotFoundError } from "../shared/errors/apiErrors.js";
+import { ApiError } from "../shared/errors/apiErrors.js";
 
 export function createValvesRouter(valveManager: ValveController, logger: Logger) {
   const router = Router();
@@ -51,15 +51,12 @@ export function createValvesRouter(valveManager: ValveController, logger: Logger
         logger.info({ entityId, value: numericValue }, "Valve value updated via API");
         response.json(result);
       } catch (error) {
-        if (error instanceof Error) {
-          if (/Unknown valve/.test(error.message)) {
-            logger.warn({ entityId }, "Valve value update failed: unknown valve");
-            return next(new NotFoundError(error.message, "UNKNOWN_VALVE"));
-          }
-          if (/Offline mode/.test(error.message)) {
-            logger.warn({ entityId }, "Valve value update rejected: offline mode");
-            return next(new ApiError(503, error.message, "OFFLINE_MODE"));
-          }
+        // Typed ApiError (UnknownValveError 404, OfflineModeError 503) carries its
+        // own status + code; let the error handler format it. Only unexpected
+        // errors are logged as errors here.
+        if (error instanceof ApiError) {
+          logger.warn({ entityId, code: error.code }, "Valve value update rejected");
+          return next(error);
         }
         logger.error({ error, entityId, value: numericValue }, "Valve value update failed");
         next(error);
