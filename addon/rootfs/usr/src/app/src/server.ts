@@ -196,7 +196,15 @@ const wss = new WebSocketServer({
 });
 
 httpServer.on("upgrade", (request, socket, head) => {
-  const pathname = new URL(request.url!, `http://${request.headers.host}`).pathname;
+  let pathname: string;
+  try {
+    pathname = new URL(request.url!, `http://${request.headers.host}`).pathname;
+  } catch (error) {
+    // Malformed Host header makes new URL() throw; reject instead of crashing.
+    logger.warn({ error, host: request.headers.host }, "Rejected WebSocket upgrade with invalid URL");
+    socket.destroy();
+    return;
+  }
   const ingressPath = request.headers["x-ingress-path"] as string | undefined;
 
   let normalizedPath = pathname;
@@ -320,16 +328,20 @@ async function start() {
 
 let isShuttingDown = false;
 
-async function shutdown(signal: string) {
+async function shutdown(signal: string, exitCodeOverride?: number) {
   if (isShuttingDown) return;
   isShuttingDown = true;
   logger.info({ signal }, "Shutting down LUFTaTOR backend");
 
+  function resolveExitCode() {
+    if (exitCodeOverride !== undefined) return exitCodeOverride;
+    return (globalThis as any).isRestarting ? 1 : 0;
+  }
+
   // Force exit if graceful shutdown takes too long
   setTimeout(() => {
-    const restarting = !!(globalThis as any).isRestarting;
-    logger.error({ restarting }, "Shutdown timed out, forcing exit");
-    process.exit(restarting ? 1 : 0);
+    logger.error({ signal }, "Shutdown timed out, forcing exit");
+    process.exit(resolveExitCode());
   }, 3000);
   // Do NOT unref this timeout - it must fire to force exit if shutdown hangs
 
@@ -357,10 +369,14 @@ async function shutdown(signal: string) {
     logger.warn({ err }, "WebSocket server close timed out or failed");
   }
 
-  await mqttService.disconnect();
-  await valveManager.stop();
-  await closeAllSharedClients();
-  logger.info("All services stopped successfully");
+  try {
+    await mqttService.disconnect();
+    await valveManager.stop();
+    await closeAllSharedClients();
+    logger.info("All services stopped successfully");
+  } catch (err) {
+    logger.warn({ err }, "Error while stopping services during shutdown");
+  }
 
   // Close all HTTP/WebSocket connections to ensure the server can stop promptly
   if (typeof httpServer.closeAllConnections === "function") {
@@ -372,12 +388,24 @@ async function shutdown(signal: string) {
 
   // Final definitive exit after a short delay for logs to flush
   setTimeout(() => {
-    const restarting = !!(globalThis as any).isRestarting;
-    logger.info({ restarting }, "Exiting process now");
-    // Use exit code 1 for restarts to ensure Supervisor/Docker restarts the container
-    process.exit(restarting ? 1 : 0);
+    const code = resolveExitCode();
+    logger.info({ signal, code }, "Exiting process now");
+    // Non-zero exit ensures Supervisor/Docker restarts the container
+    process.exit(code);
   }, 500);
 }
+
+// Process state is undefined after an uncaught exception, so exit and let the
+// Supervisor restart the container clean rather than resume.
+process.on("uncaughtException", (error) => {
+  logger.fatal({ err: error }, "Uncaught exception, shutting down");
+  void shutdown("uncaughtException", 1);
+});
+
+// Log only; a stray rejection isn't proof the process is corrupted.
+process.on("unhandledRejection", (reason) => {
+  logger.error({ reason }, "Unhandled promise rejection");
+});
 
 process.on("SIGINT", (signal) => {
   void shutdown(signal.toString());
