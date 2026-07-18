@@ -7,7 +7,12 @@ export const hruSettingsInputSchema = z.object({
   port: z.number().int().min(1).max(65535, "Port must be between 1 and 65535"),
   unitId: z.number().int().min(0).max(255, "Unit ID must be between 0 and 255"),
   unit: z.string().trim().min(1, "Unit is required"),
-  maxPower: z.number().int().min(1, "Max power must be at least 1").optional(),
+  maxPower: z
+    .number()
+    .int()
+    .min(1, "Max power must be at least 1")
+    .max(65535, "Max power must be at most 65535")
+    .optional(),
 });
 
 // MQTT Settings Schema
