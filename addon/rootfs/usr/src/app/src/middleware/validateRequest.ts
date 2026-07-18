@@ -74,9 +74,8 @@ export function validateQuery<T extends z.ZodTypeAny>(schema: T) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       const validated = schema.parse(req.query);
-      // Express 5 exposes req.query as a getter-only property, so `req.query = validated`
-      // throws in strict mode (ESM). Redefine it as a writable data property instead so
-      // coerced/defaulted/transformed values from the schema actually reach the handler.
+      // Express 5 req.query is getter-only (assigning throws in ESM strict mode), so
+      // redefine it to pass coerced/defaulted values to the handler.
       Object.defineProperty(req, "query", {
         value: validated,
         writable: true,
