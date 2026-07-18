@@ -95,22 +95,28 @@ export class ModbusTcpClient {
   private createClient(): any {
     // modbus-serial exports a constructor function at runtime
     // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-    const c = new (ModbusRTU as unknown as new () => any)();
+    const modbusClient = new (ModbusRTU as unknown as new () => any)();
     const timeout = this.cfg.timeoutMs ?? 2000;
-    c.setTimeout(timeout);
+    modbusClient.setTimeout(timeout);
 
     // Track connection health via events
-    c.on("error", (err: unknown) => {
+    // Guard on client identity so a discarded socket's late error/close can't
+    // flip connected=false on the fresh instance (recoverable error would
+    // otherwise flicker "unavailable" in the UI). Listeners stay attached, so a
+    // late "error" is still handled and never throws as unhandled.
+    modbusClient.on("error", (err: unknown) => {
+      if (this.client !== modbusClient) return;
       this.logger.warn({ err }, "Modbus TCP connection error");
       this.handleDisconnect();
     });
 
-    c.on("close", () => {
+    modbusClient.on("close", () => {
+      if (this.client !== modbusClient) return;
       this.logger.info("Modbus TCP connection closed");
       this.handleDisconnect();
     });
 
-    return c;
+    return modbusClient;
   }
 
   private resetClient() {
@@ -119,6 +125,8 @@ export class ModbusTcpClient {
     } catch {
       // ignore close errors while force-resetting the client instance
     }
+    // Reassign before the old socket's late error/close events fire; the
+    // identity guard in createClient's listeners then rejects them.
     this.connected = false;
     this.client = this.createClient();
   }
