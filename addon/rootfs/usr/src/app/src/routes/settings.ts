@@ -331,12 +331,9 @@ export function createSettingsRouter(
           }
         }
 
-        // Capture the previous connection tuple before overwriting so we can retire
-        // its shared Modbus client if host/port/unitId changed - otherwise the stale
-        // client leaks its TCP socket / reconnect timer for the old device forever.
-        // When nothing was stored yet, fall back to the same default tuple the GET
-        // handler and status probe assume (localhost:502:1), so a client created for
-        // that default before the first save is retired too.
+        // Capture the previous tuple before overwriting so we can retire its Modbus
+        // client if host/port/unitId changed. Default to localhost:502:1 (same as the
+        // GET handler / status probe) so a client made before the first save is retired too.
         let previousCfg: { host: string; port: number; unitId: number } = {
           host: "localhost",
           port: 502,
@@ -363,9 +360,8 @@ export function createSettingsRouter(
         };
         setAppSetting(HRU_SETTINGS_KEY, JSON.stringify(settings));
 
-        // Retire the old client off the response path; socket teardown must not
-        // block the 204. Only when the tuple actually changed (same tuple keeps
-        // its live, in-use client).
+        // Retire the old client off the response path (don't block the 204), and only
+        // when the tuple actually changed.
         if (
           previousCfg.host !== trimmedHost ||
           previousCfg.port !== port ||
