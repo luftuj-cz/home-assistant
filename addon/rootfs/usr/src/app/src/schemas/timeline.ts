@@ -4,7 +4,12 @@ import { z } from "zod";
 export const timelineModeInputSchema = z.object({
   name: z.string().trim().min(1, "Mode name is required"),
   color: z.string().optional(),
-  power: z.number().min(0, "Power must be at least 0").optional(),
+  power: z
+    .number()
+    .int("Power must be a whole number")
+    .min(0, "Power must be at least 0")
+    .max(65535, "Power must be at most 65535")
+    .optional(),
   temperature: z
     .number()
     .min(0, "Temperature must be at least 0")
@@ -28,7 +33,12 @@ export const timelineEventInputSchema = z.object({
   hruConfig: z
     .object({
       mode: z.string().optional(),
-      power: z.number().min(0, "Power must be at least 0").optional(),
+      power: z
+    .number()
+    .int("Power must be a whole number")
+    .min(0, "Power must be at least 0")
+    .max(65535, "Power must be at most 65535")
+    .optional(),
       temperature: z
         .number()
         .min(0, "Temperature must be at least 0")
