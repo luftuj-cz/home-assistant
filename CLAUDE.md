@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Hard Rules
+
+- **NEVER commit.** Do not run `git commit` (or `git add` for the purpose of committing) under any circumstances, even when explicitly asked. The user stages and commits all changes themselves. Prepare the changes and stop.
+
 ## Project Overview
 
 **LUFTaTOR** is a React + TypeScript UI for managing Luftator ventilation valves in Home Assistant. The application has two independent parts:
