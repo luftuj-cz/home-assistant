@@ -5,6 +5,7 @@ import type {
 import type { Logger } from "pino";
 import { Mutex } from "../utils/mutex.js";
 import { storeValveSnapshots } from "../services/database.js";
+import { UnknownValveError } from "../shared/errors/apiErrors.js";
 import { z } from "zod";
 
 export const HassStateSchema = z.object({
@@ -109,7 +110,7 @@ export class ValveManager implements ValveController {
       valve = this.valves.get(entityId);
       if (!valve) {
         this.logger.error({ entityId }, "Attempted to set value for unknown valve");
-        throw new Error(`Unknown valve: ${entityId}`);
+        throw new UnknownValveError(entityId);
       }
     });
 
@@ -117,13 +118,17 @@ export class ValveManager implements ValveController {
     this.logger.debug({ entityId, value }, "Forwarding setValue to Home Assistant");
     await this.client.setValveValue(entityId, value);
 
-    const updated: ValveSnapshot = HassStateSchema.parse({
-      ...valve,
-      state: value.toString(),
-    });
-
-    await this.mutex.runExclusive(async () => {
-      this.valves.set(entityId, updated);
+    // Re-fetch under the lock and merge onto the CURRENT snapshot: a concurrent
+    // setValue or state sync during the await above may have refreshed the valve,
+    // and building from the pre-write copy would clobber those fresh attributes.
+    const updated: ValveSnapshot = await this.mutex.runExclusive(async () => {
+      const current = this.valves.get(entityId) ?? valve;
+      const next = HassStateSchema.parse({
+        ...current,
+        state: value.toString(),
+      });
+      this.valves.set(entityId, next);
+      return next;
     });
 
     await this.broadcast({ type: "update", payload: updated });
