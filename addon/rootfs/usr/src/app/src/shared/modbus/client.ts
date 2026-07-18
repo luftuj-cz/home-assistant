@@ -438,6 +438,24 @@ export function getModbusStatusFor(cfg: {
   return clientCache.get(toKey(cfg))?.getStatus() ?? null;
 }
 
+/**
+ * Destroy and evict a single cached client (its TCP socket and reconnect timer).
+ * Call this when a config tuple is retired (e.g. HRU host/port/unitId changed) so
+ * the orphaned client does not keep a socket open to the old device forever or
+ * retry a now-unreachable host indefinitely via scheduleReconnect().
+ */
+export async function releaseSharedModbusClient(cfg: {
+  host: string;
+  port: number;
+  unitId: number;
+}): Promise<void> {
+  const key = toKey(cfg);
+  const client = clientCache.get(key);
+  if (!client) return;
+  clientCache.delete(key);
+  await client.destroy();
+}
+
 export async function closeAllSharedClients(): Promise<void> {
   const promises: Promise<void>[] = [];
   for (const client of clientCache.values()) {
