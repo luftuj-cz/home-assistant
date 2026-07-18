@@ -4,7 +4,11 @@ import { useTranslation } from "react-i18next";
 
 import type { Valve } from "@luftuj/shared/types/valve";
 import { ValveSlider } from "@luftuj/shared/ui";
-import { formatValveValue, getValveGroupBounds } from "@luftuj/shared/utils/valve";
+import {
+  formatValveValue,
+  getValveGroupBounds,
+  getValveStatusColor,
+} from "@luftuj/shared/utils/valve";
 
 import { ValveCard } from "./ValveCard";
 
@@ -32,17 +36,33 @@ export function ValveGroupSection({
     return valves.reduce((sum, v) => sum + v.value, 0) / valves.length;
   }, [valves, bounds.min]);
 
-  const [bulkValue, setBulkValue] = useState(averageValue);
+  const isMixed = useMemo(
+    () => valves.length > 0 && !valves.every((v) => v.value === valves[0].value),
+    [valves],
+  );
+
+  const initialBulkValue = isMixed ? bounds.min : averageValue;
+
+  const [bulkValue, setBulkValue] = useState(initialBulkValue);
+  const [bulkOverridden, setBulkOverridden] = useState(false);
 
   useEffect(() => {
-    setBulkValue(averageValue);
-  }, [averageValue]);
+    setBulkValue(initialBulkValue);
+    setBulkOverridden(false);
+  }, [initialBulkValue]);
 
   const hasUnavailableValve = valves.some((v) => !v.isAvailable);
+
+  const showMixedLabel = isMixed && !bulkOverridden;
+
+  const sliderColor = showMixedLabel
+    ? "gray"
+    : getValveStatusColor(bulkValue, bounds.min, bounds.max);
 
   const handleBulkPreview = useCallback(
     (value: number) => {
       setBulkValue(value);
+      setBulkOverridden(true);
       for (const valve of valves) {
         onPreview(valve.entityId, value);
       }
@@ -91,10 +111,14 @@ export function ValveGroupSection({
             min={bounds.min}
             max={bounds.max}
             step={bounds.step}
-            label={(val) => formatValveValue(val, bounds.min, bounds.max, t)}
+            label={(val) =>
+              showMixedLabel
+                ? t("valves.groups.mixedValues", { defaultValue: "Mixed" })
+                : formatValveValue(val, bounds.min, bounds.max, t)
+            }
             onChange={handleBulkPreview}
             onChangeEnd={handleBulkCommit}
-            color="blue"
+            color={sliderColor}
             size="md"
             disabled={hasUnavailableValve}
           />
