@@ -40,6 +40,7 @@ import {
 } from "../schemas/settings.js";
 import type { HruService, HruUnitDefinition } from "../features/hru/hru.service.js";
 import { validateRequest } from "../middleware/validateRequest.js";
+import { releaseSharedModbusClient } from "../shared/modbus/client.js";
 import {
   ApiError,
   ApiSuccess,
@@ -330,6 +331,29 @@ export function createSettingsRouter(
           }
         }
 
+        // Capture the previous connection tuple before overwriting so we can retire
+        // its shared Modbus client if host/port/unitId changed - otherwise the stale
+        // client leaks its TCP socket / reconnect timer for the old device forever.
+        // When nothing was stored yet, fall back to the same default tuple the GET
+        // handler and status probe assume (localhost:502:1), so a client created for
+        // that default before the first save is retired too.
+        let previousCfg: { host: string; port: number; unitId: number } = {
+          host: "localhost",
+          port: 502,
+          unitId: 1,
+        };
+        const rawPrevious = getAppSetting(HRU_SETTINGS_KEY);
+        if (rawPrevious) {
+          try {
+            const prev = JSON.parse(String(rawPrevious)) as HruSettings;
+            previousCfg = { host: prev.host, port: prev.port, unitId: prev.unitId ?? 1 };
+          } catch {
+            logger.warn(
+              "Failed to parse previous HRU settings; falling back to default tuple for cleanup",
+            );
+          }
+        }
+
         const settings: HruSettings = {
           unit: resolvedUnit,
           host: trimmedHost,
@@ -338,6 +362,22 @@ export function createSettingsRouter(
           maxPower,
         };
         setAppSetting(HRU_SETTINGS_KEY, JSON.stringify(settings));
+
+        // Retire the old client off the response path; socket teardown must not
+        // block the 204. Only when the tuple actually changed (same tuple keeps
+        // its live, in-use client).
+        if (
+          previousCfg.host !== trimmedHost ||
+          previousCfg.port !== port ||
+          previousCfg.unitId !== resolvedUnitId
+        ) {
+          void releaseSharedModbusClient(previousCfg).catch((err) => {
+            logger.warn(
+              { err, previousCfg },
+              "Failed to release stale Modbus client after HRU settings change",
+            );
+          });
+        }
 
         // Trigger MQTT discovery update
         try {
