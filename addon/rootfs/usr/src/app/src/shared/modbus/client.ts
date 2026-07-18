@@ -132,6 +132,29 @@ export class ModbusTcpClient {
   }
 
   /**
+   * Serialize `fn` against every other lock holder on this client. Used by
+   * runBatch (data batches) AND the reconnect timer, so a reconnect can't swap
+   * the socket out from under an in-flight transaction. connect()/ensureConnected
+   * must NOT be wrapped when already inside a holder - they'd deadlock on the
+   * lock this call holds.
+   */
+  private async withOpLock<T>(fn: () => Promise<T>): Promise<T> {
+    const previous = this.opLock;
+    let release: () => void;
+    this.opLock = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    await previous;
+
+    try {
+      return await fn();
+    } finally {
+      release!();
+    }
+  }
+
+  /**
    * Serialize a whole batch (one HRU read or write cycle - typically several
    * register operations) against the same socket, and enforce the vendor-recommended
    * minimum spacing BETWEEN batches, not between every register op inside one -
@@ -150,69 +173,62 @@ export class ModbusTcpClient {
    */
   async runBatch<T>(fn: () => Promise<T>, opts?: { retries?: number }): Promise<T> {
     const maxAttempts = 1 + Math.max(0, opts?.retries ?? 0);
-    const previous = this.opLock;
-    let release: () => void;
-    this.opLock = new Promise<void>((resolve) => {
-      release = resolve;
-    });
-
-    await previous;
-
-    try {
-      const minGapMs = this.cfg.minGapMs ?? 0;
-      const wait = minGapMs - (Date.now() - this.lastBatchEndedAt);
-      if (wait > 0) {
-        await new Promise((r) => setTimeout(r, wait));
-      }
-
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          await this.ensureConnected();
-          const result = await fn();
-          this.consecutiveFailures = 0;
-          this.lastErrorMessage = null;
-          this.lastErrorAt = null;
-          return result;
-        } catch (err) {
-          // Capture this before resetClient()/handleDisconnect() below can
-          // flip it to false - if the failure was a connect failure,
-          // connectInternal()'s own error path already called
-          // handleDisconnect() (and counted it) before this catch ran, so
-          // `connected` will already be false here.
-          const alreadyCountedByConnect = !this.connected;
-          this.lastErrorMessage = err instanceof Error ? err.message : String(err);
-          this.lastErrorAt = Date.now();
-          this.resetClient();
-
-          const attemptsLeft = maxAttempts - attempt;
-          if (attemptsLeft <= 0) {
-            // Only call handleDisconnect() (which counts the failure) once
-            // every retry within this batch is exhausted - in-batch retries
-            // are one caller's own retry budget, not independent disconnects,
-            // and shouldn't inflate scheduleReconnect's backoff exponent.
-            // Skip it here if a connect failure already ran it, or this batch
-            // failure would be double-counted for one real disconnect.
-            if (!alreadyCountedByConnect) {
-              this.handleDisconnect();
-            }
-            this.logger.error({ err, attempt }, "Modbus TCP: batch failed, giving up");
-            throw err;
-          }
-          this.notifyStatus();
-          this.logger.warn({ err, attempt, attemptsLeft }, "Modbus TCP: batch failed, retrying");
-          // Retrying reconnects and starts a new Modbus session, so it must
-          // respect the same vendor-mandated inter-session spacing as the
-          // gap between whole batches, not just the retry backoff.
-          const retryDelay = Math.max(ModbusTcpClient.RETRY_DELAY_MS * attempt, minGapMs);
-          await new Promise((r) => setTimeout(r, retryDelay));
+    return this.withOpLock(async () => {
+      try {
+        const minGapMs = this.cfg.minGapMs ?? 0;
+        const wait = minGapMs - (Date.now() - this.lastBatchEndedAt);
+        if (wait > 0) {
+          await new Promise((r) => setTimeout(r, wait));
         }
+
+        for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+          try {
+            await this.ensureConnected();
+            const result = await fn();
+            this.consecutiveFailures = 0;
+            this.lastErrorMessage = null;
+            this.lastErrorAt = null;
+            return result;
+          } catch (err) {
+            // Capture this before resetClient()/handleDisconnect() below can
+            // flip it to false - if the failure was a connect failure,
+            // connectInternal()'s own error path already called
+            // handleDisconnect() (and counted it) before this catch ran, so
+            // `connected` will already be false here.
+            const alreadyCountedByConnect = !this.connected;
+            this.lastErrorMessage = err instanceof Error ? err.message : String(err);
+            this.lastErrorAt = Date.now();
+            this.resetClient();
+
+            const attemptsLeft = maxAttempts - attempt;
+            if (attemptsLeft <= 0) {
+              // Only call handleDisconnect() (which counts the failure) once
+              // every retry within this batch is exhausted - in-batch retries
+              // are one caller's own retry budget, not independent disconnects,
+              // and shouldn't inflate scheduleReconnect's backoff exponent.
+              // Skip it here if a connect failure already ran it, or this batch
+              // failure would be double-counted for one real disconnect.
+              if (!alreadyCountedByConnect) {
+                this.handleDisconnect();
+              }
+              this.logger.error({ err, attempt }, "Modbus TCP: batch failed, giving up");
+              throw err;
+            }
+            this.notifyStatus();
+            this.logger.warn({ err, attempt, attemptsLeft }, "Modbus TCP: batch failed, retrying");
+            // Retrying reconnects and starts a new Modbus session, so it must
+            // respect the same vendor-mandated inter-session spacing as the
+            // gap between whole batches, not just the retry backoff.
+            const retryDelay = Math.max(ModbusTcpClient.RETRY_DELAY_MS * attempt, minGapMs);
+            await new Promise((r) => setTimeout(r, retryDelay));
+          }
+        }
+        // Unreachable: the loop above always returns or throws.
+        throw new Error("Modbus TCP: batch retry loop exited unexpectedly");
+      } finally {
+        this.lastBatchEndedAt = Date.now();
       }
-      // Unreachable: the loop above always returns or throws.
-      throw new Error("Modbus TCP: batch retry loop exited unexpectedly");
-    } finally {
-      this.lastBatchEndedAt = Date.now();
-      release!();
-    }
+    });
   }
 
   private handleDisconnect() {
@@ -305,7 +321,10 @@ export class ModbusTcpClient {
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null;
       this.notifyStatus();
-      void this.connect().catch(() => {
+      // Take the op lock so the reconnect's connectTCP can't swap the socket
+      // mid-transaction while a runBatch is in flight (orphans the in-flight
+      // read/write, which then times out into a failure loop).
+      void this.withOpLock(() => this.connect()).catch(() => {
         this.logger.debug("Modbus TCP reconnection failed");
       });
     }, wait);

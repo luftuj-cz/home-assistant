@@ -213,11 +213,11 @@ export class MqttService extends EventEmitter {
       const lastUnitId = savedUnitIdForId;
       const will = lastUnitId
         ? {
-          topic: `${BASE_TOPIC}/${lastUnitId}/status`,
-          payload: "offline",
-          qos: 1,
-          retain: true,
-        }
+            topic: `${BASE_TOPIC}/${lastUnitId}/status`,
+            payload: "offline",
+            qos: 1,
+            retain: true,
+          }
         : undefined;
 
       this.client = mqtt.connect({
@@ -1081,7 +1081,15 @@ export class MqttService extends EventEmitter {
       if (m.isBoost && isRelevantUnit) {
         currentBoostMap[m.id] = slug;
         activeBoostCount++;
-        await this.publishBoostButtons(unitId, m.id, m.name, slug, prevBoostMap, device, availability);
+        await this.publishBoostButtons(
+          unitId,
+          m.id,
+          m.name,
+          slug,
+          prevBoostMap,
+          device,
+          availability,
+        );
       } else {
         await this.removeBoostButtons(unitId, m.id, m.name, slug, prevBoostMap, currentBoostMap);
       }

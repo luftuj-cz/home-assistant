@@ -1,4 +1,7 @@
-import type { HassStateChangedEvent, HomeAssistantClient } from "../services/homeAssistantClient.js";
+import type {
+  HassStateChangedEvent,
+  HomeAssistantClient,
+} from "../services/homeAssistantClient.js";
 import type { Logger } from "pino";
 import { Mutex } from "../utils/mutex.js";
 import { storeValveSnapshots } from "../services/database.js";
@@ -56,8 +59,7 @@ export class ValveManager implements ValveController {
     private readonly client: HomeAssistantClient,
     private readonly logger: Logger,
     private readonly broadcast: BroadcastFn,
-  ) {
-  }
+  ) {}
 
   async start(): Promise<void> {
     this.logger.info("Valve manager starting; refreshing initial snapshot");
