@@ -13,6 +13,7 @@ import {
   type TimelineOverride,
 } from "../types/index.js";
 import type { SettingsRepository } from "../features/settings/settings.repository.js";
+import { INFINITE_BOOST_DURATION_MINUTES } from "../constants.js";
 
 export type TimelineSource = "manual" | "schedule" | "boost";
 
@@ -39,7 +40,6 @@ type ActivePayload = {
 };
 
 export class TimelineScheduler {
-  private static readonly INFINITE_BOOST_DURATION = 999999;
   private static readonly TRANSLATIONS = {
     cs: {
       manual: "Manuální",
@@ -113,8 +113,8 @@ export class TimelineScheduler {
   public getBoostRemainingMinutes(): number {
     const override = this.settingsRepo.getTimelineOverride();
     if (!override?.endTime) return 0;
-    if (override.durationMinutes === TimelineScheduler.INFINITE_BOOST_DURATION) {
-      return TimelineScheduler.INFINITE_BOOST_DURATION;
+    if (override.durationMinutes === INFINITE_BOOST_DURATION_MINUTES) {
+      return INFINITE_BOOST_DURATION_MINUTES;
     }
     const diff = new Date(override.endTime).getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / 60000));

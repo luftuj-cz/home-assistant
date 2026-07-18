@@ -11,7 +11,7 @@ import {
 } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useForm } from "@mantine/form";
+import { useForm, type UseFormReturnType } from "@mantine/form";
 import { useMantineColorScheme } from "@mantine/core";
 import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
@@ -73,10 +73,8 @@ interface StepsContextValue {
   defaultMaxPower: number | undefined;
   powerVariable: HruVariable | undefined;
   isDemoUnit: boolean;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  modbusForm: any;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  mqttForm: any;
+  modbusForm: UseFormReturnType<ModbusForm>;
+  mqttForm: UseFormReturnType<MqttForm>;
   selectedLanguage: string;
   setSelectedLanguage: (lang: string) => void;
   selectedTheme: "light" | "dark";
