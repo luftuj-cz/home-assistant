@@ -50,6 +50,7 @@ export type TimelineMode = {
   isBoost?: boolean;
   hruId?: string;
   nativeMode?: number;
+  scriptEntityIds?: string[];
 };
 
 export type TimelineOverride = {
@@ -60,6 +61,7 @@ export type TimelineOverride = {
     temperature?: number;
     variables?: Record<string, number | string | boolean>;
     luftatorConfig?: Record<string, number>;
+    scriptEntityIds?: string[];
   };
   endTime: string;
   durationMinutes: number;

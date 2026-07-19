@@ -246,18 +246,19 @@ function prepareStatements(database: DatabaseType): StatementMap {
     ),
     upsertTimelineMode: database.prepare(
       `INSERT INTO timeline_modes (id, name, color, power, temperature, luftator_config, is_boost, hru_id, native_mode,
-                                   variables)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(id) DO UPDATE SET name            = excluded.name,
-                                     color           = excluded.color,
-                                     power           = excluded.power,
-                                     temperature     = excluded.temperature,
-                                     luftator_config = excluded.luftator_config,
-                                     is_boost        = excluded.is_boost,
-                                     hru_id          = excluded.hru_id,
-                                     native_mode     = excluded.native_mode,
-                                     variables       = excluded.variables,
-                                     updated_at      = datetime('now')`,
+                                   variables, script_entity_ids)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET name              = excluded.name,
+                                     color             = excluded.color,
+                                     power             = excluded.power,
+                                     temperature       = excluded.temperature,
+                                     luftator_config   = excluded.luftator_config,
+                                     is_boost          = excluded.is_boost,
+                                     hru_id            = excluded.hru_id,
+                                     native_mode       = excluded.native_mode,
+                                     variables         = excluded.variables,
+                                     script_entity_ids = excluded.script_entity_ids,
+                                     updated_at        = datetime('now')`,
     ),
     deleteTimelineMode: database.prepare(`DELETE
                                           FROM timeline_modes

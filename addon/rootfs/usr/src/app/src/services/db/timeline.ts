@@ -138,6 +138,7 @@ export interface TimelineModeRecord {
   hru_id: string | null;
   native_mode: number | null;
   variables: string | null;
+  script_entity_ids: string | null;
 }
 
 /**
@@ -188,6 +189,7 @@ export function getTimelineModes(hruId?: string): TimelineMode[] {
         hruId: r.hru_id ?? undefined,
         nativeMode: r.native_mode ?? undefined,
         variables,
+        scriptEntityIds: parseScriptEntityIds(r.script_entity_ids, r.id),
       };
     })
     .sort((a, b) => a.name.localeCompare(b.name));
@@ -239,7 +241,25 @@ export function getTimelineMode(id: number): TimelineMode | null {
     hruId: record.hru_id ?? undefined,
     nativeMode: record.native_mode ?? undefined,
     variables,
+    scriptEntityIds: parseScriptEntityIds(record.script_entity_ids, record.id),
   };
+}
+
+/**
+ * Parses the stored JSON array of script entity ids into a string[].
+ * Returns an empty array on missing/invalid data (backward compatible with old rows).
+ */
+function parseScriptEntityIds(raw: string | null, modeId: number): string[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) {
+      return parsed.filter((s): s is string => typeof s === "string");
+    }
+  } catch (err) {
+    getModuleLogger()?.error({ err, modeId }, "Failed to parse script_entity_ids JSON");
+  }
+  return [];
 }
 
 /**
@@ -267,6 +287,9 @@ export function upsertTimelineMode(mode: TimelineMode): TimelineMode {
     mode.hruId ?? null,
     mode.nativeMode ?? null,
     mode.variables ? JSON.stringify(mode.variables) : null,
+    mode.scriptEntityIds && mode.scriptEntityIds.length > 0
+      ? JSON.stringify(mode.scriptEntityIds)
+      : null,
   ) as { lastInsertRowid: number | bigint };
 
   const id = mode.id ?? Number(result.lastInsertRowid);
@@ -469,6 +492,9 @@ export function migrateModesToTable(getAppSetting: (key: string) => string | nul
               mode.hruId ?? null,
               mode.nativeMode ?? null,
               mode.variables ? JSON.stringify(mode.variables) : null,
+              mode.scriptEntityIds && mode.scriptEntityIds.length > 0
+                ? JSON.stringify(mode.scriptEntityIds)
+                : null,
             );
           } catch (err) {
             if (String(err).includes("UNIQUE constraint failed")) {

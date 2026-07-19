@@ -107,7 +107,13 @@ const hruRepo = new HruRepository(logger);
 const hruService = new HruService(hruRepo, settingsRepo, logger);
 const appStartedAt = new Date();
 
-const timelineScheduler = new TimelineScheduler(valveManager, hruService, settingsRepo, logger);
+const timelineScheduler = new TimelineScheduler(
+  valveManager,
+  hruService,
+  settingsRepo,
+  logger,
+  haClient,
+);
 
 const mqttService = new MqttService(config.mqtt, settingsRepo, timelineScheduler, logger);
 const hruMonitor = new HruMonitor(hruService, mqttService, timelineScheduler, logger);

@@ -2,6 +2,18 @@ import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import { parseApiError } from "@luftuj/shared/utils/apiError";
 import type { ApiTimelineEvent, Mode, TimelineEvent } from "@luftuj/shared/types/timeline";
 
+export interface HaScript {
+  entityId: string;
+  friendlyName: string;
+}
+
+export async function getHaScripts(): Promise<HaScript[]> {
+  const res = await fetch(resolveApiUrl("/api/settings/scripts"));
+  if (!res.ok) throw await parseApiError(res);
+  const data = (await res.json()) as { scripts?: HaScript[] };
+  return data.scripts ?? [];
+}
+
 export async function fetchTimelineModes(unitId?: string): Promise<Mode[]> {
   const url = unitId
     ? resolveApiUrl(`/api/timeline/modes?unitId=${encodeURIComponent(unitId)}`)

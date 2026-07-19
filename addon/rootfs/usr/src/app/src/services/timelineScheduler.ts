@@ -1,6 +1,7 @@
 import type { Logger } from "pino";
 import type { ValveController } from "../core/valveManager.js";
-import { getAppSetting, getTimelineModes, type TimelineEvent } from "./database.js";
+import type { HomeAssistantClient } from "./homeAssistantClient.js";
+import { getAppSetting, getTimelineModes, setAppSetting, type TimelineEvent } from "./database.js";
 import { mapTodayToTimelineDay, pickActiveEvent, timeToMinutes } from "./timeline/eventPicker.js";
 import { findTimelineModeByReference } from "./timeline/modeReference.js";
 
@@ -37,7 +38,13 @@ type ActivePayload = {
   source: TimelineSource;
   id?: number;
   friendlyModeName?: string;
+  scriptEntityIds?: string[];
+  // Uniquely identifies a single activation instance, so scripts fire once per
+  // real activation but re-fire when the user re-triggers the same mode.
+  activationToken?: string;
 };
+
+const LAST_SCRIPT_ACTIVATION_KEY = "timeline.lastScriptActivation";
 
 export class TimelineScheduler {
   private static readonly TRANSLATIONS = {
@@ -61,6 +68,7 @@ export class TimelineScheduler {
     private readonly hruService: HruService,
     private readonly settingsRepo: SettingsRepository,
     private readonly logger: Logger,
+    private readonly haClient: HomeAssistantClient | null = null,
   ) {}
 
   public start(): void {
@@ -152,6 +160,12 @@ export class TimelineScheduler {
     if (!activePayload) {
       this.logger.debug("TimelineScheduler: no active event or boost for current time");
       this.lastActiveState = { source: "manual", modeName: undefined };
+      // Nothing active: clear the fired-activation marker so the next real
+      // activation always runs its scripts. Only write when it actually holds a
+      // value, otherwise every idle 10s tick would issue a needless DB write.
+      if (getAppSetting(LAST_SCRIPT_ACTIVATION_KEY)) {
+        setAppSetting(LAST_SCRIPT_ACTIVATION_KEY, "");
+      }
       return;
     }
 
@@ -301,6 +315,10 @@ export class TimelineScheduler {
         luftatorConfig: mode.luftatorConfig,
         source: "boost",
         friendlyModeName: mode.name,
+        scriptEntityIds: mode.scriptEntityIds,
+        // endTime is recomputed on every POST /boost, so re-pressing the same
+        // mode yields a new token and re-runs the scripts.
+        activationToken: `boost|${override.modeId}|${override.endTime}`,
       };
     }
 
@@ -315,6 +333,8 @@ export class TimelineScheduler {
         luftatorConfig: override.customConfig.luftatorConfig,
         source: "boost",
         friendlyModeName: "Test Mode",
+        scriptEntityIds: override.customConfig.scriptEntityIds,
+        activationToken: `test|${override.endTime}`,
       };
     }
 
@@ -415,6 +435,11 @@ export class TimelineScheduler {
       source: "schedule",
       id: event.id,
       friendlyModeName: foundMode?.name,
+      scriptEntityIds: foundMode?.scriptEntityIds,
+      // One activation per scheduled slot; a different slot/mode re-fires.
+      // Fall back to day+time when the event has no id (id-less events would
+      // otherwise all collide under "undefined").
+      activationToken: `schedule|${event.id ?? "x"}|${event.dayOfWeek ?? "all"}|${event.startTime}`,
     };
   }
 
@@ -473,6 +498,48 @@ export class TimelineScheduler {
     }
   }
 
+  /**
+   * Runs the HA scripts attached to the activated mode via `script.turn_on`.
+   * Fires once per real activation, keyed on a per-activation token that is
+   * persisted, so it does NOT re-fire on every 10s re-tick nor on a process
+   * restart while the same activation is still in effect, but DOES re-fire when
+   * the user re-triggers the mode (a new token). Runs on activation transition
+   * regardless of the HRU/valve write result, since the scripts drive separate
+   * hardware that must follow the scene even if the ventilation write fails.
+   */
+  private maybeRunActivationScripts(activePayload: ActivePayload, source: TimelineSource): void {
+    const scripts = activePayload.scriptEntityIds ?? [];
+    if (scripts.length === 0) {
+      return;
+    }
+
+    // Key on the activation instance only (not the script list): editing a
+    // mode's scripts mid-activation must not re-run them until re-activation.
+    const activationKey = activePayload.activationToken ?? source;
+    if (activationKey === (getAppSetting(LAST_SCRIPT_ACTIVATION_KEY) || null)) {
+      return;
+    }
+    // Persist before firing so a concurrent/immediate re-tick (or a restart mid
+    // dispatch) does not double-fire the scripts.
+    setAppSetting(LAST_SCRIPT_ACTIVATION_KEY, activationKey);
+
+    if (!this.haClient) {
+      this.logger.warn(
+        { scripts },
+        "TimelineScheduler: cannot run activation scripts, no Home Assistant client",
+      );
+      return;
+    }
+
+    this.logger.info(
+      { scripts, source, mode: activePayload.friendlyModeName },
+      "TimelineScheduler: running activation scripts",
+    );
+    void this.haClient.callService("script", "turn_on", { entity_id: scripts }).catch((err) => {
+      this.logger.error({ err, scripts }, "TimelineScheduler: activation script.turn_on failed");
+    });
+  }
+
   private async applyEventValues(
     activePayload: ActivePayload,
     throwOnApplyError = false,
@@ -488,6 +555,11 @@ export class TimelineScheduler {
         "TimelineScheduler: resolved friendly mode name",
       );
     }
+
+    // Fire on the activation transition itself, independent of the HRU/valve
+    // apply below: the scripts drive separate hardware that must follow the
+    // scene even if the ventilation write fails. Deduped once-per-activation.
+    this.maybeRunActivationScripts(activePayload, source);
 
     const hasValves = luftatorConfig && Object.keys(luftatorConfig).length > 0;
     const hasHru = Boolean(hruConfig);

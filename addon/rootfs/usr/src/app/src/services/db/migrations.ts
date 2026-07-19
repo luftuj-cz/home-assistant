@@ -129,6 +129,10 @@ const migrations: Migration[] = [
       `CREATE INDEX IF NOT EXISTS idx_valve_group_members_group_id ON valve_group_members(group_id)`,
     ],
   },
+  {
+    id: "012_add_mode_script_entity_ids",
+    statements: [`ALTER TABLE timeline_modes ADD COLUMN script_entity_ids TEXT;`],
+  },
 ];
 
 export function applyMigrations(database: DatabaseType): void {
