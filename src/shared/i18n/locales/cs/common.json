@@ -488,6 +488,7 @@
     "boostSelectMode": "Vybrat režim",
     "boostActiveMode": "Aktivní režim",
     "boostCancel": "Zrušit manuální režim",
+    "boostActivating": "Nastavuji režim na jednotce — může to trvat pár vteřin…",
     "nativeMode": "Režim rekuperační jednotky",
     "activeMode": {
       "manual": "Manuální",
