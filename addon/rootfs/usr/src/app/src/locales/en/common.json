@@ -194,6 +194,12 @@
       "modeIsBoost": "Show as boost button",
       "modeIsBoostBadge": "BOOST",
       "modeIsBoostDescription": "Display this mode as a quick-action button on the dashboard.",
+      "modeScripts": "Run scripts on activation",
+      "modeScriptsDescription": "Home Assistant scripts to run whenever this mode is activated (boost, schedule or test).",
+      "modeScriptPlaceholder": "Select a script",
+      "modeScriptNothingFound": "No scripts found",
+      "modeScriptAdd": "Add script",
+      "modeScriptRemove": "Remove",
       "nativeMode": "Native Unit Mode",
       "nativeModePlaceholder": "Select mode...",
       "modeValves": "Valve openings",
@@ -386,6 +392,23 @@
   "debug": {
     "title": "Debug Tools",
     "description": "Advanced diagnostics and register inspection.",
+    "haEntities": {
+      "openLink": "HA Entities",
+      "title": "Home Assistant Entities",
+      "description": "Browse all Home Assistant entities and their current values (sensors, scripts, and more).",
+      "back": "Back to Debug",
+      "searchPlaceholder": "Search by entity id or name…",
+      "allDomains": "All domains",
+      "refresh": "Refresh",
+      "count": "{{shown}} of {{total}} entities",
+      "colEntity": "Entity",
+      "colName": "Name",
+      "colState": "State",
+      "colUnit": "Unit",
+      "colDeviceClass": "Device class",
+      "loadFailed": "Failed to load entities.",
+      "unavailable": "Home Assistant is not available."
+    },
     "backendValues": "Backend Debug Values",
     "copy": "Copy",
     "copied": "Copied",
@@ -502,6 +525,7 @@
     "boostSelectMode": "Select Mode",
     "boostActiveMode": "Active Mode",
     "boostCancel": "Cancel Boost",
+    "boostActivating": "Applying mode to the device — this can take a few seconds…",
     "nativeMode": "Native mode",
     "activeMode": {
       "manual": "Manual",
@@ -525,7 +549,20 @@
       "reachable": "Reachable",
       "unreachable": "Unreachable",
       "reconnecting": "Reconnecting (attempt {{count}})",
-      "reconnectingDetail": "Failed attempts: {{count}} — last error: {{error}}"
+      "reconnectingDetail": "Failed attempts: {{count}} — last error: {{error}}",
+      "notifications": {
+        "disconnectedTitle": "Modbus connection lost",
+        "reconnectedTitle": "Modbus connection restored"
+      }
+    },
+    "modbusErrors": {
+      "ECONNREFUSED": "Connection refused by the Modbus device — check that it's powered on and reachable",
+      "ETIMEDOUT": "Connection to the Modbus device timed out",
+      "CONNECT_TIMEOUT": "The Modbus device did not respond in time",
+      "EHOSTUNREACH": "The Modbus device is unreachable on the network",
+      "ECONNRESET": "The connection to the Modbus device was reset",
+      "ENOTFOUND": "The Modbus device's address could not be found",
+      "unknown": "Connection problem: {{error}}"
     },
     "hruStatusTitle": "HRU live values",
     "hruStatusDescription": "Reads HRU registers every 10 seconds",
@@ -538,7 +575,21 @@
     "mqttStatus": {
       "connected": "Connected",
       "disconnected": "Disconnected",
-      "lastDiscovery": "Last refresh: {{time}}"
+      "lastDiscovery": "Last refresh: {{time}}",
+      "disconnectedDetail": "Reason: {{error}}",
+      "notifications": {
+        "disconnectedTitle": "MQTT connection lost",
+        "reconnectedTitle": "MQTT connection restored"
+      }
+    },
+    "mqttErrors": {
+      "MQTT_NOT_AUTHORIZED": "MQTT broker rejected the credentials",
+      "MQTT_BAD_CREDENTIALS": "Incorrect MQTT username or password",
+      "ECONNREFUSED": "MQTT broker refused the connection",
+      "ETIMEDOUT": "Connection to the MQTT broker timed out",
+      "ENOTFOUND": "The MQTT broker's address could not be found",
+      "CONNECTION_CLOSED": "MQTT connection closed unexpectedly",
+      "unknown": "Connection problem: {{error}}"
     }
   },
   "apiErrors": {

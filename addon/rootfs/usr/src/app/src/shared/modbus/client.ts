@@ -1,5 +1,18 @@
 import ModbusRTU from "modbus-serial";
 import type { Logger } from "pino";
+import { classifyConnectionError, type ConnectionErrorState } from "../errorCodes.js";
+
+/**
+ * Modbus-specific error classification (message-pattern matching), falling
+ * back to the shared Node-errno classifier for socket-level errors. Kept
+ * local to this module rather than in the shared classifier so Modbus and
+ * MQTT don't have to import each other's protocol-specific patterns.
+ */
+function classifyModbusError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (message.includes("Modbus TCP connect timed out")) return "CONNECT_TIMEOUT";
+  return classifyConnectionError(err);
+}
 
 export interface ModbusTcpConfig {
   host: string;
@@ -11,12 +24,10 @@ export interface ModbusTcpConfig {
   minGapMs?: number;
 }
 
-export interface ModbusConnectionStatus {
+export interface ModbusConnectionStatus extends ConnectionErrorState {
   connected: boolean;
   reconnecting: boolean;
   consecutiveFailures: number;
-  lastErrorMessage: string | null;
-  lastErrorAt: number | null;
 }
 
 type ConnectionStatusListener = (status: ModbusConnectionStatus) => void;
@@ -37,6 +48,7 @@ export class ModbusTcpClient {
   private consecutiveFailures = 0;
   private failureCounted = false;
   private lastErrorMessage: string | null = null;
+  private lastErrorCode: string | null = null;
   private lastErrorAt: number | null = null;
   private readonly statusListeners = new Set<ConnectionStatusListener>();
 
@@ -62,6 +74,7 @@ export class ModbusTcpClient {
         this.hasConnectedOnce && (this.reconnectTimer !== null || this.connectInFlight !== null),
       consecutiveFailures: this.consecutiveFailures,
       lastErrorMessage: this.lastErrorMessage,
+      lastErrorCode: this.lastErrorCode,
       lastErrorAt: this.lastErrorAt,
     };
   }
@@ -187,6 +200,7 @@ export class ModbusTcpClient {
             const result = await fn();
             this.consecutiveFailures = 0;
             this.lastErrorMessage = null;
+            this.lastErrorCode = null;
             this.lastErrorAt = null;
             return result;
           } catch (err) {
@@ -197,6 +211,7 @@ export class ModbusTcpClient {
             // `connected` will already be false here.
             const alreadyCountedByConnect = !this.connected;
             this.lastErrorMessage = err instanceof Error ? err.message : String(err);
+            this.lastErrorCode = classifyModbusError(err);
             this.lastErrorAt = Date.now();
             this.resetClient();
 
@@ -308,6 +323,9 @@ export class ModbusTcpClient {
           this.client.setID(this.cfg.unitId);
           this.connected = true;
           this.hasConnectedOnce = true;
+          this.lastErrorMessage = null;
+          this.lastErrorCode = null;
+          this.lastErrorAt = null;
           this.logger.info(
             { host: this.cfg.host, port: this.cfg.port, unitId: this.cfg.unitId },
             "Modbus TCP connected successfully",

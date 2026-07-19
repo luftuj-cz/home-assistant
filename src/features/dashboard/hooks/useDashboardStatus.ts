@@ -22,6 +22,7 @@ export function useDashboardStatus() {
     hruName: config.hruName,
     mqttStatus: system.mqttStatus,
     mqttLastDiscovery: system.mqttLastDiscovery,
+    mqttError: system.mqttError,
     activeMode: system.activeMode,
     configuredMaxPower: config.configuredMaxPower,
     unitId: config.unitId,

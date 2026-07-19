@@ -6,6 +6,7 @@ import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimeli
 import { StatusCard } from "@luftuj/features/dashboard/components/StatusCard";
 import { HruStatusCard } from "@luftuj/features/dashboard/components/HruStatusCard";
 import { BoostButtons } from "@luftuj/features/dashboard/components/BoostButtons";
+import { translateConnectionError } from "@luftuj/shared/utils/connectionError";
 
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -18,6 +19,7 @@ export function DashboardPage() {
     hruName,
     mqttStatus,
     mqttLastDiscovery,
+    mqttError,
     activeMode,
     configuredMaxPower,
     unitId,
@@ -113,7 +115,12 @@ export function DashboardPage() {
             <Text size="sm" c="dimmed">
               {t("dashboard.modbusStatus.reconnectingDetail", {
                 count: modbusLive.consecutiveFailures,
-                error: modbusLive.lastErrorMessage ?? "",
+                error: translateConnectionError(
+                  "modbusErrors",
+                  modbusLive.lastErrorCode,
+                  modbusLive.lastErrorMessage,
+                  t,
+                ),
                 defaultValue: "Failed attempts: {{count}} — last error: {{error}}",
               })}
             </Text>
@@ -137,7 +144,21 @@ export function DashboardPage() {
               ? t("dashboard.haStatus.loading")
               : t(`dashboard.mqttStatus.${mqttStatus}`)
           }
-        />
+        >
+          {mqttStatus === "disconnected" && (mqttError?.lastErrorCode || mqttError?.lastErrorMessage) && (
+            <Text size="sm" c="dimmed">
+              {t("dashboard.mqttStatus.disconnectedDetail", {
+                error: translateConnectionError(
+                  "mqttErrors",
+                  mqttError.lastErrorCode,
+                  mqttError.lastErrorMessage,
+                  t,
+                ),
+                defaultValue: "Reason: {{error}}",
+              })}
+            </Text>
+          )}
+        </StatusCard>
       </Stack>
     </Container>
   );

@@ -128,12 +128,18 @@ onAnyModbusStatusChange((_key, status) => {
 
 function broadcastSystemStatus() {
   const haStatus = haClient ? haClient.getConnectionState() : "offline";
-  const mqttStatus = mqttService.isConnected() ? "connected" : "disconnected";
+  const mqttConnectionStatus = mqttService.getStatus();
+  const mqttStatus = mqttConnectionStatus.connected ? "connected" : "disconnected";
   void broadcast({
     type: "status",
     payload: {
       ha: { connection: haStatus },
-      mqtt: { connection: mqttStatus },
+      mqtt: {
+        connection: mqttStatus,
+        lastErrorMessage: mqttConnectionStatus.lastErrorMessage,
+        lastErrorCode: mqttConnectionStatus.lastErrorCode,
+        lastErrorAt: mqttConnectionStatus.lastErrorAt,
+      },
       modbus: lastModbusStatus,
     },
   });
@@ -258,13 +264,19 @@ wss.on("connection", async (socket) => {
   // Send initial status
   try {
     const haStatus = haClient ? haClient.getConnectionState() : "offline";
-    const mqttStatus = mqttService.isConnected() ? "connected" : "disconnected";
+    const mqttConnectionStatus = mqttService.getStatus();
+    const mqttStatus = mqttConnectionStatus.connected ? "connected" : "disconnected";
     socket.send(
       JSON.stringify({
         type: "status",
         payload: {
           ha: { connection: haStatus },
-          mqtt: { connection: mqttStatus },
+          mqtt: {
+            connection: mqttStatus,
+            lastErrorMessage: mqttConnectionStatus.lastErrorMessage,
+            lastErrorCode: mqttConnectionStatus.lastErrorCode,
+            lastErrorAt: mqttConnectionStatus.lastErrorAt,
+          },
           modbus: lastModbusStatus,
         },
       }),
