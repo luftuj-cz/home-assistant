@@ -1,7 +1,7 @@
 import type { Logger } from "pino";
 import type { ValveController } from "../core/valveManager.js";
 import type { HomeAssistantClient } from "./homeAssistantClient.js";
-import { getAppSetting, getTimelineModes, setAppSetting, type TimelineEvent } from "./database.js";
+import { getAppSetting, getTimelineModes, type TimelineEvent } from "./database.js";
 import { mapTodayToTimelineDay, pickActiveEvent, timeToMinutes } from "./timeline/eventPicker.js";
 import { findTimelineModeByReference } from "./timeline/modeReference.js";
 
@@ -44,8 +44,6 @@ type ActivePayload = {
   activationToken?: string;
 };
 
-const LAST_SCRIPT_ACTIVATION_KEY = "timeline.lastScriptActivation";
-
 export class TimelineScheduler {
   private static readonly TRANSLATIONS = {
     cs: {
@@ -62,6 +60,10 @@ export class TimelineScheduler {
   private schedulerTimer: NodeJS.Timeout | null = null;
   private keepAliveTimer: NodeJS.Timeout | null = null;
   private lastActiveState: ActiveState | null = null;
+  // In-memory (deliberately NOT persisted): resets on process restart so the
+  // active mode's scripts re-fire after an add-on restart, re-syncing the
+  // external hardware to the current scene.
+  private lastScriptActivationKey: string | null = null;
 
   constructor(
     private readonly valveManager: ValveController,
@@ -161,11 +163,8 @@ export class TimelineScheduler {
       this.logger.debug("TimelineScheduler: no active event or boost for current time");
       this.lastActiveState = { source: "manual", modeName: undefined };
       // Nothing active: clear the fired-activation marker so the next real
-      // activation always runs its scripts. Only write when it actually holds a
-      // value, otherwise every idle 10s tick would issue a needless DB write.
-      if (getAppSetting(LAST_SCRIPT_ACTIVATION_KEY)) {
-        setAppSetting(LAST_SCRIPT_ACTIVATION_KEY, "");
-      }
+      // activation always runs its scripts.
+      this.lastScriptActivationKey = null;
       return;
     }
 
@@ -502,26 +501,30 @@ export class TimelineScheduler {
    * Runs the HA scripts attached to the activated mode via `script.turn_on`.
    * Fires once per real activation, keyed on a per-activation token that is
    * persisted, so it does NOT re-fire on every 10s re-tick nor on a process
-   * restart while the same activation is still in effect, but DOES re-fire when
-   * the user re-triggers the mode (a new token). Runs on activation transition
-   * regardless of the HRU/valve write result, since the scripts drive separate
-   * hardware that must follow the scene even if the ventilation write fails.
+   * re-tick, but DOES re-fire when the user re-triggers the mode (a new token)
+   * and after an add-on restart (the in-memory key resets). Runs on activation
+   * transition regardless of the HRU/valve write result, since the scripts
+   * drive separate hardware that must follow the scene even if the ventilation
+   * write fails.
    */
   private maybeRunActivationScripts(activePayload: ActivePayload, source: TimelineSource): void {
+    // Key on the activation instance only (not the script list): editing a
+    // mode's scripts mid-activation must not re-run them until re-activation.
+    const activationKey = activePayload.activationToken ?? source;
+    if (activationKey === this.lastScriptActivationKey) {
+      return;
+    }
+    // Record this activation as the new baseline BEFORE the empty-scripts check.
+    // Even a scriptless activation (e.g. a plain boost) must consume the dedup
+    // slot, otherwise returning from it to a scripted plan whose token equals
+    // the pre-boost baseline would be wrongly suppressed and never re-fire.
+    // Setting before firing also stops a concurrent re-tick from double-firing.
+    this.lastScriptActivationKey = activationKey;
+
     const scripts = activePayload.scriptEntityIds ?? [];
     if (scripts.length === 0) {
       return;
     }
-
-    // Key on the activation instance only (not the script list): editing a
-    // mode's scripts mid-activation must not re-run them until re-activation.
-    const activationKey = activePayload.activationToken ?? source;
-    if (activationKey === (getAppSetting(LAST_SCRIPT_ACTIVATION_KEY) || null)) {
-      return;
-    }
-    // Persist before firing so a concurrent/immediate re-tick (or a restart mid
-    // dispatch) does not double-fire the scripts.
-    setAppSetting(LAST_SCRIPT_ACTIVATION_KEY, activationKey);
 
     if (!this.haClient) {
       this.logger.warn(
