@@ -31,3 +31,17 @@ body {
     transform 0.2s ease,
     opacity 0.2s ease !important;
 }
+
+@keyframes luftuj-activating-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.luftuj-activating-pulse {
+  animation: luftuj-activating-pulse 1.2s ease-in-out infinite;
+}
