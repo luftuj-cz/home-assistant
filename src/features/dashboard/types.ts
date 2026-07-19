@@ -2,13 +2,19 @@ export type ConnectionState = "connected" | "connecting" | "disconnected" | "off
 export type ModbusState = "loading" | "reachable" | "unreachable";
 export type MqttState = "connected" | "disconnected" | "loading";
 
-export interface ModbusLiveStatus {
+export interface ConnectionErrorInfo {
+  lastErrorMessage: string | null;
+  lastErrorCode: string | null;
+  lastErrorAt: number | null;
+}
+
+export interface ModbusLiveStatus extends ConnectionErrorInfo {
   connected: boolean;
   reconnecting: boolean;
   consecutiveFailures: number;
-  lastErrorMessage: string | null;
-  lastErrorAt: number | null;
 }
+
+export type MqttLiveStatus = ConnectionErrorInfo;
 
 export interface ActiveMode {
   source: "manual" | "schedule" | "boost";

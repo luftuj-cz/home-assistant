@@ -512,7 +512,20 @@
       "reachable": "Dostupný",
       "unreachable": "Nedostupný",
       "reconnecting": "Znovu se připojuje (pokus {{count}})",
-      "reconnectingDetail": "Neúspěšné pokusy: {{count}} — poslední chyba: {{error}}"
+      "reconnectingDetail": "Neúspěšné pokusy: {{count}} — poslední chyba: {{error}}",
+      "notifications": {
+        "disconnectedTitle": "Modbus spojení ztraceno",
+        "reconnectedTitle": "Modbus spojení obnoveno"
+      }
+    },
+    "modbusErrors": {
+      "ECONNREFUSED": "Modbus zařízení odmítlo spojení — zkontrolujte, že je zapnuté a dostupné",
+      "ETIMEDOUT": "Vypršel čas připojení k Modbus zařízení",
+      "CONNECT_TIMEOUT": "Modbus zařízení neodpovědělo včas",
+      "EHOSTUNREACH": "Modbus zařízení není v síti dostupné",
+      "ECONNRESET": "Spojení s Modbus zařízením bylo přerušeno",
+      "ENOTFOUND": "Adresu Modbus zařízení se nepodařilo najít",
+      "unknown": "Problém se spojením: {{error}}"
     },
     "hruStatusTitle": "Živé hodnoty rekuperační jednotky",
     "hruStatusDescription": "Čte registry rekuperační jednotky každých 10 sekund",
@@ -525,7 +538,21 @@
     "mqttStatus": {
       "connected": "Připojeno",
       "disconnected": "Odpojeno",
-      "lastDiscovery": "Poslední obnova: {{time}}"
+      "lastDiscovery": "Poslední obnova: {{time}}",
+      "disconnectedDetail": "Důvod: {{error}}",
+      "notifications": {
+        "disconnectedTitle": "MQTT spojení ztraceno",
+        "reconnectedTitle": "MQTT spojení obnoveno"
+      }
+    },
+    "mqttErrors": {
+      "MQTT_NOT_AUTHORIZED": "MQTT broker odmítl přihlašovací údaje",
+      "MQTT_BAD_CREDENTIALS": "Nesprávné uživatelské jméno nebo heslo MQTT",
+      "ECONNREFUSED": "MQTT broker odmítl spojení",
+      "ETIMEDOUT": "Vypršel čas připojení k MQTT brokeru",
+      "ENOTFOUND": "Adresu MQTT brokeru se nepodařilo najít",
+      "CONNECTION_CLOSED": "MQTT spojení bylo neočekávaně ukončeno",
+      "unknown": "Problém se spojením: {{error}}"
     }
   },
   "valves": {
