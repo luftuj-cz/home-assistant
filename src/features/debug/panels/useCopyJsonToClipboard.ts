@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { TFunction } from "i18next";
 import { notifications } from "@mantine/notifications";
 import type { Logger } from "@luftuj/shared/utils/logger";
+import { writeTextToClipboard } from "@luftuj/shared/utils/clipboard";
 
 export function useCopyJsonToClipboard(logger: Logger, t: TFunction) {
   const [copying, setCopying] = useState(false);
@@ -19,7 +20,7 @@ export function useCopyJsonToClipboard(logger: Logger, t: TFunction) {
     setCopying(true);
     try {
       const text = JSON.stringify(data, null, 2);
-      await navigator.clipboard.writeText(text);
+      await writeTextToClipboard(text);
       notifications.show({
         title: t("debug.copySuccessTitle", { defaultValue: "Copied" }),
         message: t("debug.copySuccess", { defaultValue: "Debug values copied to clipboard." }),
