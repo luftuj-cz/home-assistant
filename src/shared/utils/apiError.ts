@@ -1,4 +1,5 @@
 import type { TFunction } from "i18next";
+import { translateErrorCode } from "@luftuj/shared/utils/errorTranslation";
 
 export class ApiResponseError extends Error {
   readonly code?: string;
@@ -21,11 +22,7 @@ export async function parseApiError(res: Response): Promise<ApiResponseError> {
 }
 
 export function translateApiError(err: unknown, t: TFunction): string {
-  if (err instanceof ApiResponseError && err.code) {
-    const key = `apiErrors.${err.code}`;
-    const translated = t(key, { defaultValue: "" });
-    if (translated) return translated;
-  }
-  if (err instanceof Error) return err.message;
-  return t("settings.timeline.notifications.unknown");
+  const fallback = err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
+  const code = err instanceof ApiResponseError ? err.code : undefined;
+  return translateErrorCode("apiErrors", code, fallback, t);
 }

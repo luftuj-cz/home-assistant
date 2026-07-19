@@ -2,10 +2,13 @@ import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { resolveApiUrl, resolveWebSocketUrl } from "@luftuj/shared/utils/api";
 import { createLogger } from "@luftuj/shared/utils/logger";
+import { useConnectionTransitionToast } from "@luftuj/features/dashboard/hooks/useConnectionTransitionToast";
 import type {
   ActiveMode,
+  ConnectionErrorInfo,
   ConnectionState,
   ModbusLiveStatus,
+  MqttLiveStatus,
   MqttState,
 } from "@luftuj/features/dashboard/types";
 
@@ -16,28 +19,39 @@ interface SystemStatus {
   haLoading: boolean;
   mqttStatus: MqttState;
   mqttLastDiscovery: string | null;
+  mqttError: MqttLiveStatus | null;
   activeMode: ActiveMode | null;
   modbusLive: ModbusLiveStatus | null;
 }
 
-function readModbusPayload(payload: unknown): ModbusLiveStatus | null {
+function readConnectionErrorFields(payload: unknown): ConnectionErrorInfo | null {
   const m = payload as
     | {
-        connected?: boolean;
-        reconnecting?: boolean;
-        consecutiveFailures?: number;
         lastErrorMessage?: string | null;
+        lastErrorCode?: string | null;
         lastErrorAt?: number | null;
       }
     | null
     | undefined;
   if (!m) return null;
   return {
+    lastErrorMessage: m.lastErrorMessage ?? null,
+    lastErrorCode: m.lastErrorCode ?? null,
+    lastErrorAt: m.lastErrorAt ?? null,
+  };
+}
+
+function readModbusPayload(payload: unknown): ModbusLiveStatus | null {
+  const m = payload as { connected?: boolean; reconnecting?: boolean; consecutiveFailures?: number } | null | undefined;
+  if (!m) return null;
+  // payload is already confirmed truthy above, so readConnectionErrorFields
+  // (which only returns null for a falsy payload) always returns an object here.
+  const errorFields = readConnectionErrorFields(payload)!;
+  return {
     connected: Boolean(m.connected),
     reconnecting: Boolean(m.reconnecting),
     consecutiveFailures: m.consecutiveFailures ?? 0,
-    lastErrorMessage: m.lastErrorMessage ?? null,
-    lastErrorAt: m.lastErrorAt ?? null,
+    ...errorFields,
   };
 }
 
@@ -47,6 +61,7 @@ export function useSystemStatus(): SystemStatus {
   const [haLoading, setHaLoading] = useState(true);
   const [mqttStatus, setMqttStatus] = useState<MqttState>("loading");
   const [mqttLastDiscovery, setMqttLastDiscovery] = useState<string | null>(null);
+  const [mqttError, setMqttError] = useState<MqttLiveStatus | null>(null);
   const [activeMode, setActiveMode] = useState<ActiveMode | null>(null);
   const [modbusLive, setModbusLive] = useState<ModbusLiveStatus | null>(null);
   const wsRef = useRef<WebSocket | null>(null);
@@ -66,7 +81,13 @@ export function useSystemStatus(): SystemStatus {
         const data =
           ((await res.json().catch(() => null)) as {
             ha?: { connection?: string };
-            mqtt?: { connection?: "connected" | "disconnected"; lastDiscovery?: string | null };
+            mqtt?: {
+              connection?: "connected" | "disconnected";
+              lastDiscovery?: string | null;
+              lastErrorMessage?: string | null;
+              lastErrorCode?: string | null;
+              lastErrorAt?: number | null;
+            };
             modbus?: unknown;
             timeline?: ActiveMode | null;
           } | null) ?? {};
@@ -78,6 +99,7 @@ export function useSystemStatus(): SystemStatus {
         if (data.mqtt) {
           setMqttStatus(data.mqtt.connection ?? "disconnected");
           setMqttLastDiscovery(data.mqtt.lastDiscovery ?? null);
+          setMqttError(readConnectionErrorFields(data.mqtt));
         }
         setModbusLive(readModbusPayload(data.modbus));
         if (data.timeline !== undefined) {
@@ -137,7 +159,12 @@ export function useSystemStatus(): SystemStatus {
           type?: string;
           payload?: {
             ha?: { connection?: string };
-            mqtt?: { connection?: "connected" | "disconnected" };
+            mqtt?: {
+              connection?: "connected" | "disconnected";
+              lastErrorMessage?: string | null;
+              lastErrorCode?: string | null;
+              lastErrorAt?: number | null;
+            };
             modbus?: unknown;
             timeline?: ActiveMode | null;
           };
@@ -150,6 +177,9 @@ export function useSystemStatus(): SystemStatus {
           const m = msg?.payload?.mqtt?.connection;
           if (m === "connected" || m === "disconnected") {
             setMqttStatus(m);
+          }
+          if (msg?.payload && "mqtt" in msg.payload) {
+            setMqttError(readConnectionErrorFields(msg.payload.mqtt));
           }
           if (msg?.payload && "modbus" in msg.payload) {
             setModbusLive(readModbusPayload(msg.payload.modbus));
@@ -195,5 +225,33 @@ export function useSystemStatus(): SystemStatus {
     };
   }, []);
 
-  return { haStatus, haLoading, mqttStatus, mqttLastDiscovery, activeMode, modbusLive };
+  useConnectionTransitionToast({
+    connected: modbusLive?.connected ?? null,
+    errorCode: modbusLive?.lastErrorCode ?? null,
+    errorMessage: modbusLive?.lastErrorMessage ?? null,
+    namespace: "modbusErrors",
+    disconnectedTitleKey: "dashboard.modbusStatus.notifications.disconnectedTitle",
+    reconnectedTitleKey: "dashboard.modbusStatus.notifications.reconnectedTitle",
+    reconnectedMessageKey: "dashboard.modbusStatus.reachable",
+  });
+
+  useConnectionTransitionToast({
+    connected: mqttStatus === "loading" ? null : mqttStatus === "connected",
+    errorCode: mqttError?.lastErrorCode ?? null,
+    errorMessage: mqttError?.lastErrorMessage ?? null,
+    namespace: "mqttErrors",
+    disconnectedTitleKey: "dashboard.mqttStatus.notifications.disconnectedTitle",
+    reconnectedTitleKey: "dashboard.mqttStatus.notifications.reconnectedTitle",
+    reconnectedMessageKey: "dashboard.mqttStatus.connected",
+  });
+
+  return {
+    haStatus,
+    haLoading,
+    mqttStatus,
+    mqttLastDiscovery,
+    mqttError,
+    activeMode,
+    modbusLive,
+  };
 }

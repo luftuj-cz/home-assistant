@@ -10,6 +10,7 @@ import { getAppSetting } from "./database.js";
 import { INFINITE_BOOST_DURATION_MINUTES } from "../constants.js";
 import type { SettingsRepository } from "../features/settings/settings.repository.js";
 import type { TimelineScheduler } from "./timelineScheduler.js";
+import { classifyConnectionError, type ConnectionErrorState } from "../shared/errorCodes.js";
 import enCommon from "../locales/en/common.json" with { type: "json" };
 import csCommon from "../locales/cs/common.json" with { type: "json" };
 
@@ -17,6 +18,24 @@ const DISCOVERY_PREFIX = "homeassistant";
 const BASE_TOPIC = "luftuj/hru";
 const STATIC_CLIENT_ID_PREFIX = "luftuj-addon-client";
 const PUBLISH_DELAY_MS = 30;
+
+/**
+ * mqtt.js's ErrorWithReasonCode carries a numeric MQTT reason code in `.code`
+ * (not a Node errno string), so the shared classifyConnectionError must not
+ * see it first - it would return e.g. `134` and never match these patterns.
+ * Match on message text instead (stable across mqtt.js versions), falling
+ * back to the shared Node-errno classifier for socket-level errors.
+ */
+function classifyMqttError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  if (message.includes("Bad username or password") || message.includes("Bad User Name or Password")) {
+    return "MQTT_BAD_CREDENTIALS";
+  }
+  if (message.includes("Not authorized")) {
+    return "MQTT_NOT_AUTHORIZED";
+  }
+  return classifyConnectionError(err);
+}
 
 type LocalizedStrings = {
   power: string;
@@ -98,6 +117,10 @@ function getModeLabels(lang: string): Record<string, string> {
   };
 }
 
+export interface MqttConnectionStatus extends ConnectionErrorState {
+  connected: boolean;
+}
+
 export class MqttService extends EventEmitter {
   private client: mqtt.MqttClient | null = null;
   private connected = false;
@@ -105,6 +128,10 @@ export class MqttService extends EventEmitter {
   private isProcessingDiscovery = false;
   private reloadInProgress = false;
   private lastSuccessAt = 0;
+  private lastErrorMessage: string | null = null;
+  private lastErrorCode: string | null = null;
+  private lastErrorAt: number | null = null;
+  private intentionalDisconnect = false;
   private publishQueue: Promise<void> = Promise.resolve();
 
   private cachedDiscoveryUnit: HeatRecoveryUnit | null = null;
@@ -181,7 +208,18 @@ export class MqttService extends EventEmitter {
     return !!this.client && this.connected;
   }
 
+  public getStatus(): MqttConnectionStatus {
+    return {
+      connected: this.isConnected(),
+      lastErrorMessage: this.lastErrorMessage,
+      lastErrorCode: this.lastErrorCode,
+      lastErrorAt: this.lastErrorAt,
+    };
+  }
+
   public async connect(): Promise<void> {
+    this.intentionalDisconnect = false;
+
     if (this.client) {
       this.logger.warn("MQTT: Connect called but client already exists. Ignoring.");
       return;
@@ -248,6 +286,7 @@ export class MqttService extends EventEmitter {
   public async disconnect(): Promise<void> {
     if (this.client) {
       this.logger.info("MQTT: Disconnecting...");
+      this.intentionalDisconnect = true;
       try {
         await this.client.endAsync(true);
         this.logger.info("MQTT: Disconnected successfully");
@@ -487,6 +526,9 @@ export class MqttService extends EventEmitter {
       this.logger.info({ connack, clientId: this.client?.options?.clientId }, "MQTT: Connected");
       this.connected = true;
       this.lastSuccessAt = Date.now();
+      this.lastErrorMessage = null;
+      this.lastErrorCode = null;
+      this.lastErrorAt = null;
 
       // Sequence all operations to prevent flooding the broker
       // The broker has receiveMaximum limit (e.g., 20) that can be exceeded
@@ -557,12 +599,26 @@ export class MqttService extends EventEmitter {
         "MQTT: Error event received",
       );
       this.connected = false;
+      if (!this.intentionalDisconnect) {
+        this.lastErrorMessage = err?.message ?? String(err);
+        this.lastErrorCode = classifyMqttError(err);
+        this.lastErrorAt = Date.now();
+      }
       this.emit("disconnect");
     });
 
     this.client.on("close", () => {
       const wasConnected = this.connected;
       this.connected = false;
+      // "error" almost always fires before "close" for a real failure - only
+      // stamp a generic code here if nothing more specific was already
+      // captured AND this wasn't our own intentional disconnect()/reloadConfig()
+      // call, i.e. a genuine broker-initiated disconnect with no error event.
+      if (this.lastErrorCode === null && !this.intentionalDisconnect) {
+        this.lastErrorMessage = "Connection closed";
+        this.lastErrorCode = "CONNECTION_CLOSED";
+        this.lastErrorAt = Date.now();
+      }
       if (wasConnected) {
         this.logger.warn(
           {

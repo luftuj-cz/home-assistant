@@ -115,9 +115,13 @@ export function createStatusRouter(
       const ha = haClient
         ? { connection: haClient.getConnectionState() }
         : { connection: "offline" };
+      const mqttConnectionStatus = mqttService.getStatus();
       const mqtt = {
-        connection: mqttService.isConnected() ? "connected" : "disconnected",
+        connection: mqttConnectionStatus.connected ? "connected" : "disconnected",
         lastDiscovery: mqttService.getLastDiscoveryTime(),
+        lastErrorMessage: mqttConnectionStatus.lastErrorMessage,
+        lastErrorCode: mqttConnectionStatus.lastErrorCode,
+        lastErrorAt: mqttConnectionStatus.lastErrorAt,
       };
       const timeline = timelineScheduler.getActiveState();
       const savedSettings = loadSavedHruSettings();
@@ -259,6 +263,7 @@ export function createStatusRouter(
     const walPath = `${dbPath}-wal`;
     const shmPath = `${dbPath}-shm`;
     const mqttLastSuccessAtMs = mqttService.getLastSuccessAt();
+    const mqttDebugStatus = mqttService.getStatus();
     const logBufferSize = getServerLogBufferSize();
 
     const payload = {
@@ -289,7 +294,8 @@ export function createStatusRouter(
           connection: haClient ? haClient.getConnectionState() : "offline",
         },
         mqtt: {
-          connection: mqttService.isConnected() ? "connected" : "disconnected",
+          ...mqttDebugStatus,
+          connection: mqttDebugStatus.connected ? "connected" : "disconnected",
           lastDiscovery: mqttService.getLastDiscoveryTime(),
           lastSuccessAtMs: mqttLastSuccessAtMs,
           lastSuccessAt:

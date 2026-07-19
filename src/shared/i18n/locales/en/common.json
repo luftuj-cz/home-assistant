@@ -549,7 +549,20 @@
       "reachable": "Reachable",
       "unreachable": "Unreachable",
       "reconnecting": "Reconnecting (attempt {{count}})",
-      "reconnectingDetail": "Failed attempts: {{count}} — last error: {{error}}"
+      "reconnectingDetail": "Failed attempts: {{count}} — last error: {{error}}",
+      "notifications": {
+        "disconnectedTitle": "Modbus connection lost",
+        "reconnectedTitle": "Modbus connection restored"
+      }
+    },
+    "modbusErrors": {
+      "ECONNREFUSED": "Connection refused by the Modbus device — check that it's powered on and reachable",
+      "ETIMEDOUT": "Connection to the Modbus device timed out",
+      "CONNECT_TIMEOUT": "The Modbus device did not respond in time",
+      "EHOSTUNREACH": "The Modbus device is unreachable on the network",
+      "ECONNRESET": "The connection to the Modbus device was reset",
+      "ENOTFOUND": "The Modbus device's address could not be found",
+      "unknown": "Connection problem: {{error}}"
     },
     "hruStatusTitle": "HRU live values",
     "hruStatusDescription": "Reads HRU registers every 10 seconds",
@@ -562,7 +575,21 @@
     "mqttStatus": {
       "connected": "Connected",
       "disconnected": "Disconnected",
-      "lastDiscovery": "Last refresh: {{time}}"
+      "lastDiscovery": "Last refresh: {{time}}",
+      "disconnectedDetail": "Reason: {{error}}",
+      "notifications": {
+        "disconnectedTitle": "MQTT connection lost",
+        "reconnectedTitle": "MQTT connection restored"
+      }
+    },
+    "mqttErrors": {
+      "MQTT_NOT_AUTHORIZED": "MQTT broker rejected the credentials",
+      "MQTT_BAD_CREDENTIALS": "Incorrect MQTT username or password",
+      "ECONNREFUSED": "MQTT broker refused the connection",
+      "ETIMEDOUT": "Connection to the MQTT broker timed out",
+      "ENOTFOUND": "The MQTT broker's address could not be found",
+      "CONNECTION_CLOSED": "MQTT connection closed unexpectedly",
+      "unknown": "Connection problem: {{error}}"
     }
   },
   "apiErrors": {
