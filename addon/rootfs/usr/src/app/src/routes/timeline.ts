@@ -98,6 +98,7 @@ function mapTimelineModeInput(payload: TimelineModeInput): Omit<TimelineMode, "i
     luftatorConfig: payload.luftatorConfig,
     isBoost: payload.isBoost ?? false,
     nativeMode: payload.nativeMode,
+    scriptEntityIds: payload.scriptEntityIds,
   };
 }
 
@@ -684,6 +685,7 @@ export function createTimelineRouter(
             temperature: config.temperature,
             variables: config.variables,
             luftatorConfig: config.luftatorConfig,
+            scriptEntityIds: config.scriptEntityIds,
           },
           endTime,
           durationMinutes,

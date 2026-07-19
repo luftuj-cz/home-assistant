@@ -64,6 +64,7 @@ function isEventMessage(message: HassWebSocketMessage): message is HassWebSocket
 }
 
 const LUFTATOR_ENTITY_PREFIX = "number.luftator_";
+const SCRIPT_ENTITY_PREFIX = "script.";
 const STATE_CHANGED_EVENT = "state_changed";
 const RECONNECT_DELAY_MS = 5_000;
 
@@ -91,8 +92,12 @@ export class HomeAssistantClient {
     return this.fetchJson<Record<string, unknown>>("/api/config");
   }
 
+  async fetchAllStates(): Promise<HassState[]> {
+    return this.fetchJson<HassState[]>("/api/states");
+  }
+
   async fetchLuftatorEntities(): Promise<HassState[]> {
-    const payload = await this.fetchJson<HassState[]>("/api/states");
+    const payload = await this.fetchAllStates();
     const entities = payload.filter((entity) =>
       entity.entity_id.startsWith(LUFTATOR_ENTITY_PREFIX),
     );
@@ -101,6 +106,40 @@ export class HomeAssistantClient {
       "Successfully fetched Luftator entities from Home Assistant",
     );
     return entities;
+  }
+
+  async listScripts(): Promise<Array<{ entityId: string; friendlyName: string }>> {
+    const payload = await this.fetchAllStates();
+    const scripts = payload
+      .filter((entity) => entity.entity_id.startsWith(SCRIPT_ENTITY_PREFIX))
+      .map((entity) => {
+        const friendly = entity.attributes?.friendly_name;
+        return {
+          entityId: entity.entity_id,
+          friendlyName: typeof friendly === "string" && friendly ? friendly : entity.entity_id,
+        };
+      });
+    this.logger.info({ count: scripts.length }, "Successfully fetched scripts from Home Assistant");
+    return scripts;
+  }
+
+  async callService(domain: string, service: string, data: Record<string, unknown>): Promise<void> {
+    const response = await fetch(`${this.baseUrl}/api/services/${domain}/${service}`, {
+      method: "POST",
+      headers: this.headers,
+      body: JSON.stringify(data),
+    });
+
+    if (!response.ok) {
+      const body = await response.text();
+      this.logger.error(
+        { domain, service, data, body, status: response.status },
+        "Failed to call Home Assistant service",
+      );
+      throw new Error(`Failed to call service ${domain}.${service}: ${response.status}`);
+    }
+
+    this.logger.info({ domain, service, data }, "Successfully called Home Assistant service");
   }
 
   async setValveValue(entityId: string, value: number): Promise<void> {

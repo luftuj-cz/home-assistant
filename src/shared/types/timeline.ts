@@ -31,4 +31,5 @@ export interface Mode {
   nativeMode?: number;
   power?: number;
   temperature?: number;
+  scriptEntityIds?: string[];
 }

@@ -123,6 +123,16 @@ export function createSettingsRouter(
     });
   });
 
+  router.get("/scripts", async (_request: Request, response: Response, next: NextFunction) => {
+    try {
+      const scripts = haClient ? await haClient.listScripts() : [];
+      response.json({ scripts });
+    } catch (err) {
+      logger.error({ err }, "Failed to list Home Assistant scripts");
+      next(err);
+    }
+  });
+
   router.post(
     "/onboarding-finish",
     async (_request: Request, response: Response, next: NextFunction) => {

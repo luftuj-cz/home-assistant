@@ -1,9 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import type { Mode } from "@luftuj/shared/types/timeline";
 import type { Valve } from "@luftuj/shared/types/valve";
 
 type VariableValue = number | string | boolean;
+
+// A script row carries a stable id so React keys survive add/remove without
+// re-associating per-row UI state (focus, open dropdown) to the wrong row.
+export interface ScriptRow {
+  id: number;
+  value: string | null;
+}
 
 export interface ModeFormState {
   name: string;
@@ -16,6 +23,10 @@ export interface ModeFormState {
   setIsBoost: (v: boolean) => void;
   valveOpenings: Record<string, number | undefined>;
   setValveOpenings: Dispatch<SetStateAction<Record<string, number | undefined>>>;
+  scriptRows: ScriptRow[];
+  addScript: () => void;
+  removeScript: (id: number) => void;
+  setScript: (id: number, value: string | null) => void;
   submitted: boolean;
   setSubmitted: (v: boolean) => void;
   getPayload: () => Omit<Partial<Mode>, "id">;
@@ -27,7 +38,13 @@ export function useModeForm(opened: boolean, mode: Mode | null, valves: Valve[])
   const [color, setColor] = useState("");
   const [isBoost, setIsBoost] = useState(false);
   const [valveOpenings, setValveOpenings] = useState<Record<string, number | undefined>>({});
+  const [scriptRows, setScriptRows] = useState<ScriptRow[]>([]);
   const [submitted, setSubmitted] = useState(false);
+  const nextRowId = useRef(0);
+
+  function makeRows(values: string[]): ScriptRow[] {
+    return values.map((value) => ({ id: nextRowId.current++, value }));
+  }
 
   useEffect(() => {
     if (!opened) return;
@@ -38,14 +55,29 @@ export function useModeForm(opened: boolean, mode: Mode | null, valves: Valve[])
       setColor(mode.color ?? "");
       setIsBoost(mode.isBoost ?? false);
       setValveOpenings(mode.luftatorConfig ?? {});
+      setScriptRows(makeRows(mode.scriptEntityIds ?? []));
     } else {
       setName("");
       setVariableValues({});
       setColor("");
       setIsBoost(false);
       setValveOpenings({});
+      setScriptRows([]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [opened, mode]);
+
+  function addScript(): void {
+    setScriptRows((prev) => [...prev, { id: nextRowId.current++, value: null }]);
+  }
+
+  function removeScript(id: number): void {
+    setScriptRows((prev) => prev.filter((row) => row.id !== id));
+  }
+
+  function setScript(id: number, value: string | null): void {
+    setScriptRows((prev) => prev.map((row) => (row.id === id ? { ...row, value } : row)));
+  }
 
   function getPayload(): Omit<Partial<Mode>, "id"> {
     const trimmedName = name.trim();
@@ -67,12 +99,21 @@ export function useModeForm(opened: boolean, mode: Mode | null, valves: Valve[])
         cleanedValveOpenings[key] = 0;
       }
     }
+    // Drop empty rows and duplicates; keep only valid script entity ids.
+    const cleanedScripts = Array.from(
+      new Set(
+        scriptRows
+          .map((row) => row.value)
+          .filter((s): s is string => typeof s === "string" && s.trim().length > 0),
+      ),
+    );
     return {
       name: trimmedName,
       variables: variableValues,
       color: color || undefined,
       isBoost,
       luftatorConfig: Object.keys(cleanedValveOpenings).length ? cleanedValveOpenings : undefined,
+      scriptEntityIds: cleanedScripts,
     };
   }
 
@@ -87,6 +128,10 @@ export function useModeForm(opened: boolean, mode: Mode | null, valves: Valve[])
     setIsBoost,
     valveOpenings,
     setValveOpenings,
+    scriptRows,
+    addScript,
+    removeScript,
+    setScript,
     submitted,
     setSubmitted,
     getPayload,

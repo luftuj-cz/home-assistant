@@ -414,6 +414,72 @@ export function createStatusRouter(
     },
   );
 
+  async function buildHomeAssistantEntitiesSnapshot() {
+    const capturedAt = new Date().toISOString();
+
+    if (!haClient) {
+      return {
+        capturedAt,
+        available: false,
+        connection: "offline",
+        detail: "Home Assistant client is not configured",
+        entities: [],
+      };
+    }
+
+    const states = await haClient.fetchAllStates();
+    const entities = states.map((entity) => {
+      const attributes = entity.attributes ?? {};
+      const friendly = attributes.friendly_name;
+      const unit = attributes.unit_of_measurement;
+      const deviceClass = attributes.device_class;
+      return {
+        entityId: entity.entity_id,
+        domain: entity.entity_id.split(".")[0] ?? "",
+        state: entity.state,
+        friendlyName: typeof friendly === "string" && friendly ? friendly : entity.entity_id,
+        unit: typeof unit === "string" ? unit : null,
+        deviceClass: typeof deviceClass === "string" ? deviceClass : null,
+        attributes,
+        lastChanged: entity.last_changed ?? null,
+      };
+    });
+
+    return {
+      capturedAt,
+      available: true,
+      connection: haClient.getConnectionState(),
+      entityCount: entities.length,
+      entities,
+    };
+  }
+
+  router.get(
+    "/debug/home-assistant/entities",
+    async (_request: Request, response: Response, next: NextFunction) => {
+      try {
+        const payload = await buildHomeAssistantEntitiesSnapshot();
+        response.json(payload);
+      } catch (error) {
+        logger.error({ error }, "Failed to fetch Home Assistant entities");
+        next(error);
+      }
+    },
+  );
+
+  router.get(
+    "/debug/home-assistant/entities/download",
+    async (_request: Request, response: Response, next: NextFunction) => {
+      try {
+        const payload = await buildHomeAssistantEntitiesSnapshot();
+        sendJsonDownload(response, payload, "luftator-ha-entities");
+      } catch (error) {
+        logger.error({ error }, "Failed to download Home Assistant entities");
+        next(error);
+      }
+    },
+  );
+
   router.get("/debug/logs", (request: Request, response: Response, next: NextFunction) => {
     try {
       const limit = parseLogLimit(request.query.limit, 300);
