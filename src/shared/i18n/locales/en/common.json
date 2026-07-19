@@ -525,6 +525,7 @@
     "boostSelectMode": "Select Mode",
     "boostActiveMode": "Active Mode",
     "boostCancel": "Cancel Boost",
+    "boostActivating": "Applying mode to the device — this can take a few seconds…",
     "nativeMode": "Native mode",
     "activeMode": {
       "manual": "Manual",

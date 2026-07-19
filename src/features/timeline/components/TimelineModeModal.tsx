@@ -51,6 +51,7 @@ export function TimelineModeModal({
   const isMobile = useMediaQuery("(max-width: 48em)");
   const form = useModeForm(opened, mode, valves);
   const [testRemainingSeconds, setTestRemainingSeconds] = useState<number | null>(null);
+  const [isActivatingTest, setIsActivatingTest] = useState(false);
   const testTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const { data: debugMode } = useQuery({
@@ -117,6 +118,7 @@ export function TimelineModeModal({
 
   function handleTest() {
     if (testRemainingSeconds !== null) {
+      setIsActivatingTest(true);
       void cancelBoost()
         .then(() => {
           setTestRemainingSeconds(null);
@@ -135,13 +137,15 @@ export function TimelineModeModal({
             message: translateApiError(err, t),
             color: "red",
           });
-        });
+        })
+        .finally(() => setIsActivatingTest(false));
       return;
     }
 
     form.setSubmitted(true);
     if (!validateForm()) return;
 
+    setIsActivatingTest(true);
     testTimelineMode(form.getPayload() as Omit<Mode, "id">, 1)
       .then(() => {
         setTestRemainingSeconds(60);
@@ -157,7 +161,8 @@ export function TimelineModeModal({
           message: translateApiError(err, t),
           color: "red",
         });
-      });
+      })
+      .finally(() => setIsActivatingTest(false));
   }
 
   function handleSave() {
@@ -262,16 +267,25 @@ export function TimelineModeModal({
           </Button>
           <Button
             variant="outline"
-            leftSection={<IconTestPipe size={16} />}
+            leftSection={testRemainingSeconds === null ? <IconTestPipe size={16} /> : undefined}
             onClick={handleTest}
             color={testRemainingSeconds === null ? "blue" : "red"}
+            loading={isActivatingTest}
+            loaderProps={{ type: "bars", size: "sm" }}
+            disabled={saving}
             fullWidth={isMobile}
           >
             {testRemainingSeconds === null
               ? t("settings.timeline.modal.test")
               : `${t("settings.timeline.modal.cancel")} (${testRemainingSeconds}s)`}
           </Button>
-          <Button onClick={handleSave} loading={saving} radius="md" fullWidth={isMobile}>
+          <Button
+            onClick={handleSave}
+            loading={saving}
+            disabled={isActivatingTest}
+            radius="md"
+            fullWidth={isMobile}
+          >
             {t(mode ? "settings.timeline.modeUpdateAction" : "settings.timeline.modeCreateAction")}
           </Button>
         </Group>

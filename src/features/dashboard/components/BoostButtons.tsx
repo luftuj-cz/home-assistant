@@ -79,9 +79,13 @@ function getModeButtonOpacity(
   isLoading: boolean,
   loadingId: number | null,
   modeId: number,
+  isCancelling: boolean,
 ): number {
   if ((hasActiveBoost && !isCurrentMode) || (isLoading && loadingId !== modeId)) {
     return 0.3;
+  }
+  if (isCurrentMode && isCancelling) {
+    return 0.5;
   }
   return 1;
 }
@@ -234,6 +238,7 @@ export function BoostButtons({ modes, t, activeUnitId }: Readonly<BoostButtonsPr
               radius="md"
               size="sm"
               loading={isCancelling}
+              loaderProps={{ size: "xs" }}
             >
               {t("dashboard.boostCancel", { defaultValue: "Cancel Boost" })}
             </Button>
@@ -306,6 +311,7 @@ export function BoostButtons({ modes, t, activeUnitId }: Readonly<BoostButtonsPr
                       onClick={() => setDuration((d) => Math.max(1, d - 1))}
                       size="lg"
                       radius="xl"
+                      disabled={loadingModeId !== null}
                     >
                       <IconMinus size={22} />
                     </ActionIcon>
@@ -340,6 +346,7 @@ export function BoostButtons({ modes, t, activeUnitId }: Readonly<BoostButtonsPr
                       onClick={() => setDuration((d) => Math.min(240, d + 1))}
                       size="lg"
                       radius="xl"
+                      disabled={loadingModeId !== null}
                     >
                       <IconPlus size={22} />
                     </ActionIcon>
@@ -390,6 +397,12 @@ export function BoostButtons({ modes, t, activeUnitId }: Readonly<BoostButtonsPr
               </Text>
             </Group>
 
+            {loadingModeId !== null && (
+              <Text size="xs" c="orange" fw={600} ta="center" className="luftuj-activating-pulse">
+                {t("dashboard.boostActivating")}
+              </Text>
+            )}
+
             <Flex wrap="wrap" gap="md" justify="center" align="center">
               {boostModes.map((m) => {
                 const isActive = activeBoost?.modeId === m.id;
@@ -419,12 +432,16 @@ export function BoostButtons({ modes, t, activeUnitId }: Readonly<BoostButtonsPr
                         loadingModeId !== null,
                         loadingModeId,
                         m.id,
+                        isCancelling,
                       ),
-                      transform: isActive || loadingModeId === m.id ? "scale(1.05)" : "scale(1)",
+                      transform:
+                        (isActive && !isCancelling) || loadingModeId === m.id
+                          ? "scale(1.05)"
+                          : "scale(1)",
                       boxShadow:
-                        isActive || loadingModeId === m.id
+                        (isActive && !isCancelling) || loadingModeId === m.id
                           ? "0 10px 40px rgba(255, 165, 0, 0.3)"
-                          : "none",
+                          : "0 10px 40px rgba(255, 165, 0, 0)",
                     }}
                   >
                     <Stack gap={10} align="center" justify="center" h="100%" w="100%">
