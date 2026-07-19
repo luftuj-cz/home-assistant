@@ -87,6 +87,11 @@ const TimelinePage = lazy(() =>
 const DebugPage = lazy(() =>
   import("../features/debug/DebugPage").then((m) => ({ default: m.DebugPage })),
 );
+const HaEntitiesPage = lazy(() =>
+  import("../features/debug/ha-entities/HaEntitiesPage").then((m) => ({
+    default: m.HaEntitiesPage,
+  })),
+);
 const OnboardingPage = lazy(() =>
   import("../features/onboarding/OnboardingPage").then((m) => ({ default: m.OnboardingPage })),
 );
@@ -125,6 +130,12 @@ const debugRoute = createRoute({
   component: DebugPage,
 });
 
+const haEntitiesRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/debug/home-assistant",
+  component: HaEntitiesPage,
+});
+
 const onboardingRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/onboarding",
@@ -137,6 +148,7 @@ const routeTree = rootRoute.addChildren([
   settingsRoute,
   timelineRoute,
   debugRoute,
+  haEntitiesRoute,
   onboardingRoute,
 ]);
 

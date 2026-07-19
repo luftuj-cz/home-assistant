@@ -21,6 +21,9 @@ export const timelineModeInputSchema = z.object({
     .optional(),
   isBoost: z.boolean().optional(),
   nativeMode: z.number().int().optional(),
+  scriptEntityIds: z
+    .array(z.string().trim().startsWith("script.", "Must be a Home Assistant script entity"))
+    .optional(),
 });
 
 // Timeline Event Schemas
@@ -34,11 +37,11 @@ export const timelineEventInputSchema = z.object({
     .object({
       mode: z.string().optional(),
       power: z
-    .number()
-    .int("Power must be a whole number")
-    .min(0, "Power must be at least 0")
-    .max(65535, "Power must be at most 65535")
-    .optional(),
+        .number()
+        .int("Power must be a whole number")
+        .min(0, "Power must be at least 0")
+        .max(65535, "Power must be at most 65535")
+        .optional(),
       temperature: z
         .number()
         .min(0, "Temperature must be at least 0")

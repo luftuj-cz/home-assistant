@@ -14,6 +14,7 @@ import { translateApiError } from "@luftuj/shared/utils/apiError";
 import { useModeForm } from "@luftuj/features/timeline/hooks/useModeForm";
 import { ModeVariableFields } from "@luftuj/features/timeline/components/ModeVariableFields";
 import { ModeValveSelector } from "@luftuj/features/timeline/components/ModeValveSelector";
+import { ModeScriptFields } from "@luftuj/features/timeline/components/ModeScriptFields";
 
 interface TimelineModeModalProps {
   opened: boolean;
@@ -245,6 +246,14 @@ export function TimelineModeModal({
           checked={form.isBoost}
           onChange={(e) => form.setIsBoost(e.currentTarget.checked)}
           size="md"
+        />
+
+        <ModeScriptFields
+          scriptRows={form.scriptRows}
+          onAdd={form.addScript}
+          onRemove={form.removeScript}
+          onChange={form.setScript}
+          t={t}
         />
 
         <Group justify="flex-end" gap="sm" mt="xs" grow={isMobile}>

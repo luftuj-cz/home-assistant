@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { Container, Select, Stack, Tabs, Text, Title } from "@mantine/core";
+import { Button, Container, Group, Select, Stack, Tabs, Text, Title } from "@mantine/core";
+import { IconExternalLink } from "@tabler/icons-react";
 import { useMediaQuery } from "@mantine/hooks";
+import { useRouter } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
 import { BackendValuesPanel } from "@luftuj/features/debug/panels/BackendValuesPanel";
 import { HomeAssistantApiPanel } from "@luftuj/features/debug/panels/HomeAssistantApiPanel";
@@ -10,6 +12,7 @@ import { ServerLogsPanel } from "@luftuj/features/debug/panels/ServerLogsPanel";
 
 export function DebugPage() {
   const { t } = useTranslation();
+  const router = useRouter();
   const isMobile = useMediaQuery("(max-width: 48em)");
   const [activeTab, setActiveTab] = useState<string>("backend-values");
 
@@ -31,8 +34,19 @@ export function DebugPage() {
     <Container size="xl">
       <Stack gap="xl">
         <Stack gap="xs">
-          <Title order={1}>{t("debug.title")}</Title>
-          <Text c="dimmed">{t("debug.description")}</Text>
+          <Group justify="space-between" align="flex-start">
+            <div>
+              <Title order={1}>{t("debug.title")}</Title>
+              <Text c="dimmed">{t("debug.description")}</Text>
+            </div>
+            <Button
+              variant="light"
+              leftSection={<IconExternalLink size={16} />}
+              onClick={() => router.navigate({ to: "/debug/home-assistant" })}
+            >
+              {t("debug.haEntities.openLink", { defaultValue: "HA Entities" })}
+            </Button>
+          </Group>
         </Stack>
 
         <Tabs value={activeTab} onChange={(v) => setActiveTab(v ?? "backend-values")}>
