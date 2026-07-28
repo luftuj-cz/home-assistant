@@ -376,6 +376,15 @@
       },
       "contact": {
         "prefix": "If you cannot find an answer to your question in the documentation, contact us at:"
+      },
+      "bugReport": {
+        "title": "Bug report data",
+        "description": "Download a single ZIP file with logs and diagnostics. Attach it when you contact us so we can help you faster. Passwords and tokens are removed automatically.",
+        "download": "Download bug report",
+        "successTitle": "Bug report ready",
+        "successMessage": "The bug report file was downloaded. Attach it to your message to support.",
+        "errorTitle": "Download failed",
+        "errorMessage": "Could not generate the bug report. Please try again."
       }
     },
     "developer": {
