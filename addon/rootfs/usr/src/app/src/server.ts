@@ -37,6 +37,7 @@ import { createDatabaseRouter } from "./routes/database.js";
 import { createValvesRouter } from "./routes/valves.js";
 import { createValveGroupsRouter } from "./routes/valveGroups.js";
 import { createStatusRouter } from "./routes/status.js";
+import { createSupportBundleRouter } from "./features/support/support.routes.js";
 import { createCommissioningRouter } from "./routes/commissioning.js";
 import { CommissioningRunner } from "./services/commissioningRunner.js";
 import {
@@ -158,6 +159,19 @@ app.use(
 );
 app.use("/api/valves", createValvesRouter(valveManager, logger));
 app.use("/api/valve-groups", createValveGroupsRouter(valveManager, logger));
+app.use(
+  "/api/support",
+  createSupportBundleRouter({
+    valveManager,
+    haClient,
+    mqttService,
+    timelineScheduler,
+    baseUrl: config.baseUrl,
+    appStartedAt,
+    config,
+    logger,
+  }),
+);
 app.use(
   "/api",
   createStatusRouter(
