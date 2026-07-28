@@ -330,6 +330,15 @@
       },
       "contact": {
         "prefix": "Pokud v dokumentaci nenajdete odpověď na svou otázku, kontaktujte nás na:"
+      },
+      "bugReport": {
+        "title": "Data pro hlášení chyby",
+        "description": "Stáhněte jeden ZIP soubor s logy a diagnostikou. Přiložte ho, když nás kontaktujete, abychom vám mohli rychleji pomoci. Hesla a tokeny jsou automaticky odstraněny.",
+        "download": "Stáhnout data pro hlášení chyby",
+        "successTitle": "Data připravena",
+        "successMessage": "Soubor s daty pro hlášení chyby byl stažen. Přiložte ho ke zprávě pro podporu.",
+        "errorTitle": "Stažení selhalo",
+        "errorMessage": "Data pro hlášení chyby se nepodařilo vytvořit. Zkuste to prosím znovu."
       }
     },
     "developer": {
