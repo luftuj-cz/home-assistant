@@ -3,6 +3,12 @@ import { Router } from "express";
 import type { Logger } from "pino";
 import {
   assignLegacyEventsToUnit,
+  deleteTimelineModeValues,
+  ensureActiveSeasonId,
+  getActiveSeasonId,
+  getModeUsage,
+  ModeValuesEmptyError,
+  ModeValuesInUseError,
   deleteTimelineEvent,
   deleteTimelineEventsByMode,
   deleteTimelineMode,
@@ -111,8 +117,14 @@ function eventsOverlapByDay(
   return firstDay === secondDay;
 }
 
-function hasTimeConflict(event: TimelineEventInput, hruId: string | null): boolean {
-  const existingEvents = getTimelineEvents(hruId);
+// Scoped to one season: two seasons may legitimately hold an event at the same
+// time on the same day, so a clash only matters within the season being edited.
+function hasTimeConflict(
+  event: TimelineEventInput,
+  hruId: string | null,
+  timelineId?: number,
+): boolean {
+  const existingEvents = getTimelineEvents(hruId, timelineId);
 
   return existingEvents.some((existingEvent) => {
     if (existingEvent.id === event.id) {
@@ -149,6 +161,42 @@ export function createTimelineRouter(
     } catch {
       return null;
     }
+  }
+
+  /**
+   * Season the request is about. Explicit `seasonId` wins so a user editing
+   * summer while winter is running writes to summer; without it the active
+   * season is used, which is what every pre-seasons client sends.
+   */
+  function getRequestSeasonId(rawSeasonId: unknown, hruId: string | null): number | undefined {
+    const raw = rawSeasonId;
+    if (typeof raw === "string" && raw.trim() !== "") {
+      const parsed = Number.parseInt(raw, 10);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    // "" and null both mean "no unit configured", but only null matches the
+    // unit-less rows. Callers that pass "" would otherwise resolve no season
+    // and read the legacy mode values, while /events - passing null - stays
+    // season-scoped, so the two disagreed about what is configured.
+    return getActiveSeasonId(hruId && hruId.trim() !== "" ? hruId : null);
+  }
+
+  /**
+   * Same resolution, but for writes: it creates the unit's whole-year season if
+   * the database has none. An install created after this release has no season
+   * row until the feature is switched on, and a row stored without one is
+   * invisible to every season-scoped read from that point onwards.
+   */
+  function getWriteSeasonId(rawSeasonId: unknown, hruId: string | null): number | undefined {
+    const raw = rawSeasonId;
+    if (typeof raw === "string" && raw.trim() !== "") {
+      const parsed = Number.parseInt(raw, 10);
+      if (Number.isFinite(parsed)) return parsed;
+    }
+    // "" and null both mean "no unit configured". Only the latter matches the
+    // unit-less rows elsewhere, so normalise before a season gets created under
+    // an empty-string unit that nothing else would ever look up.
+    return ensureActiveSeasonId(hruId && hruId.trim() !== "" ? hruId : null);
   }
 
   function getHruMaxPower(unitIdOverride?: string | null): number {
@@ -240,12 +288,25 @@ export function createTimelineRouter(
     hruService.validateWriteValues(hruPayload, unitId || undefined);
   }
 
-  function validateEventHruPayload(payload: TimelineEventInput, unitId: string | null): void {
+  function validateEventHruPayload(
+    payload: TimelineEventInput,
+    unitId: string | null,
+    seasonId?: number,
+  ): void {
     if (payload.hruConfig?.mode !== undefined) {
-      const modes = getTimelineModes(unitId || undefined);
+      const modes = getTimelineModes(unitId || undefined, seasonId);
       const referencedMode = findTimelineModeByReference(modes, payload.hruConfig.mode);
       if (!referencedMode) {
         throw new NotFoundError("Referenced timeline mode not found", "MODE_NOT_FOUND");
+      }
+      // Gate on write, never on read: an enabled event pointing at a mode with
+      // no values for its season would otherwise be dropped silently at
+      // resolution time, taking the schedule down with it.
+      if (payload.enabled !== false && referencedMode.configured === false) {
+        throw new ConflictError(
+          `Mode "${referencedMode.name}" has no values configured for this season`,
+          "MODE_NOT_CONFIGURED_FOR_SEASON",
+        );
       }
     }
 
@@ -292,7 +353,10 @@ export function createTimelineRouter(
   router.get("/modes", (request: Request, response: Response) => {
     const currentUnitId = getCurrentUnitId(request.query.unitId as string) || "";
     // Pass unit ID to DB fetching so we get global AND unit specific modes
-    const allModes = getTimelineModes(currentUnitId);
+    const allModes = getTimelineModes(
+      currentUnitId,
+      getRequestSeasonId(request.query.seasonId, currentUnitId),
+    );
 
     // Migration logic removed from GET - migration is now handled by DB service on startup
     // We just return filtered modes
@@ -328,7 +392,10 @@ export function createTimelineRouter(
 
         // We need to pass undefined ID for creation, but type expects number.
         // upsertTimelineMode handles null/undefined ID for creation logic.
-        const created = upsertTimelineMode({ ...newMode, id: undefined as unknown as number });
+        const created = upsertTimelineMode(
+          { ...newMode, id: undefined as unknown as number },
+          getWriteSeasonId(request.query.seasonId, currentUnitId),
+        );
 
         // Trigger MQTT discovery refresh to publish new boost buttons if needed
         mqttService.refreshDiscovery().catch((error) => {
@@ -338,6 +405,10 @@ export function createTimelineRouter(
         logger.info({ id: created.id, name: created.name }, "Timeline mode created");
         response.status(201).json(created);
       } catch (error) {
+        // A mode with nothing to apply is a rejected input, not a server fault.
+        if (error instanceof ModeValuesEmptyError) {
+          return next(new BadRequestError(error.message, "MODE_VALUES_EMPTY"));
+        }
         if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
           return next(
             new ConflictError("Mode name already exists for this unit", "DUPLICATE_MODE_NAME"),
@@ -378,7 +449,10 @@ export function createTimelineRouter(
           hruId: modeUnitId,
         };
 
-        const saved = upsertTimelineMode(updated);
+        const saved = upsertTimelineMode(
+          updated,
+          getWriteSeasonId(request.query.seasonId, updated.hruId ?? null),
+        );
 
         // Trigger MQTT discovery refresh to update boost buttons
         mqttService.refreshDiscovery().catch((error) => {
@@ -389,6 +463,9 @@ export function createTimelineRouter(
         response.json(saved);
       } catch (error) {
         if (error instanceof ApiError) return next(error);
+        if (error instanceof ModeValuesEmptyError) {
+          return next(new BadRequestError(error.message, "MODE_VALUES_EMPTY"));
+        }
         if (error instanceof Error && error.message.includes("UNIQUE constraint failed")) {
           return next(
             new ConflictError("Mode name already exists for this unit", "DUPLICATE_MODE_NAME"),
@@ -399,6 +476,52 @@ export function createTimelineRouter(
       }
     },
   );
+
+  // Puts a mode back to unconfigured for one season, so it stops being usable
+  // there without touching the seasons it is still set up for. Refused while
+  // enabled events in that season still reference it.
+  router.delete("/modes/:id/values", (request: Request, response: Response, next: NextFunction) => {
+    try {
+      const id = Number.parseInt(request.params.id as string, 10);
+      if (!Number.isFinite(id)) {
+        return next(new BadRequestError("Invalid mode id", "INVALID_MODE_ID"));
+      }
+
+      const hruId = getCurrentUnitId(request.query.unitId as string);
+      const seasonId = getRequestSeasonId(request.query.seasonId, hruId);
+      if (seasonId === undefined) {
+        return next(new BadRequestError("No season to remove values from", "UNKNOWN_SEASON"));
+      }
+
+      deleteTimelineModeValues(id, seasonId);
+      logger.info({ id, seasonId }, "Removed mode values for season");
+      response.status(204).end();
+    } catch (error) {
+      if (error instanceof ModeValuesInUseError) {
+        return next(new ConflictError(error.message, "MODE_VALUES_IN_USE"));
+      }
+      if (error instanceof ApiError) return next(error);
+      logger.error({ error }, "Failed to remove mode values");
+      next(error);
+    }
+  });
+
+  // Dry run for the deletion confirmation: identity is shared, so deleting a
+  // mode removes events from seasons the user is not looking at.
+  router.get("/modes/:id/usage", (request: Request, response: Response, next: NextFunction) => {
+    try {
+      const id = Number.parseInt(request.params.id as string, 10);
+      if (!Number.isFinite(id)) {
+        return next(new BadRequestError("Invalid mode id", "INVALID_MODE_ID"));
+      }
+      const hruId = getCurrentUnitId(request.query.unitId as string);
+      response.json({ modeId: id, seasons: getModeUsage(id, hruId) });
+    } catch (error) {
+      if (error instanceof ApiError) return next(error);
+      logger.error({ error }, "Failed to compute mode usage");
+      next(error);
+    }
+  });
 
   router.delete("/modes/:id", (request: Request, response: Response, next: NextFunction) => {
     try {
@@ -462,10 +585,13 @@ export function createTimelineRouter(
         }
       }
 
-      const events = getTimelineEvents(hruId);
+      const events = getTimelineEvents(hruId, getRequestSeasonId(request.query.seasonId, hruId));
 
       // Self-healing: purge orphaned events (referencing non-existent modes)
-      const modes = getTimelineModes(hruId || undefined);
+      const modes = getTimelineModes(
+        hruId || undefined,
+        getRequestSeasonId(request.query.seasonId, hruId),
+      );
       const orphanedIds = events
         .filter((e) => {
           const modeReference = e.hruConfig?.mode;
@@ -504,9 +630,10 @@ export function createTimelineRouter(
         const body = request.body as TimelineEventInput;
         const hruId = getCurrentUnitId(request.query.unitId as string);
 
-        validateEventHruPayload(body, hruId);
+        const seasonId = getWriteSeasonId(request.query.seasonId, hruId);
+        validateEventHruPayload(body, hruId, seasonId);
 
-        if (hasTimeConflict(body, hruId)) {
+        if (hasTimeConflict(body, hruId, seasonId)) {
           return next(
             new ConflictError(
               "An event already exists at this time for the selected day",
@@ -524,6 +651,7 @@ export function createTimelineRouter(
           enabled: body.enabled ?? true,
           priority: body.priority ?? 0,
           hruId: hruId,
+          timelineId: seasonId ?? null,
         });
         logger.info(
           { id: event.id, day: event.dayOfWeek, time: event.startTime },
@@ -587,12 +715,40 @@ export function createTimelineRouter(
         const unitId = request.query.unitId as string | undefined;
         const hruId = getCurrentUnitId(unitId);
 
-        const modes = getTimelineModes(hruId || undefined);
-        const modeExists = modes.some((m) => m.id === modeId);
-        if (!modeExists) return next(new NotFoundError("Mode not found", "MODE_NOT_FOUND"));
+        const modes = getTimelineModes(
+          hruId || undefined,
+          getRequestSeasonId(request.query.seasonId, hruId),
+        );
+        const boostMode = modes.find((m) => m.id === modeId);
+        if (!boostMode) return next(new NotFoundError("Mode not found", "MODE_NOT_FOUND"));
+
+        // Refuse rather than write an empty payload: an unconfigured mode would
+        // report a running boost while nothing reached the hardware.
+        if (boostMode.configured === false) {
+          return next(
+            new ConflictError(
+              `Mode "${boostMode.name}" has no values configured for the current season`,
+              "MODE_NOT_CONFIGURED_FOR_SEASON",
+            ),
+          );
+        }
 
         const endTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
-        const override: TimelineOverride = { modeId, endTime, durationMinutes };
+        // Freeze the resolved values so a boost that outlives a season boundary
+        // keeps the behaviour it started with.
+        const override: TimelineOverride = {
+          modeId,
+          endTime,
+          durationMinutes,
+          customConfig: {
+            nativeMode: boostMode.nativeMode,
+            power: boostMode.power,
+            temperature: boostMode.temperature,
+            variables: boostMode.variables,
+            luftatorConfig: boostMode.luftatorConfig,
+            scriptEntityIds: boostMode.scriptEntityIds,
+          },
+        };
 
         setAppSetting(TIMELINE_OVERRIDE_KEY, JSON.stringify(override));
         logger.info({ modeId, durationMinutes, endTime }, "Timeline boost activated");

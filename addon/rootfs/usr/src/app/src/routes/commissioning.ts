@@ -2,7 +2,7 @@ import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import type { Logger } from "pino";
 import { z } from "zod";
-import { getAppSetting, getTimelineModes } from "../services/database.js";
+import { getAppSetting, getTimelineModes, getActiveSeasonId } from "../services/database.js";
 import { HRU_SETTINGS_KEY, type HruSettings } from "../types/index.js";
 import type { CommissioningRunner } from "../services/commissioningRunner.js";
 import type { HruService } from "../features/hru/hru.service.js";
@@ -49,7 +49,7 @@ export function createCommissioningRouter(
           typeof startCommissioningSchema
         >;
         const unitId = getCurrentUnitId(hruService);
-        const allModes = getTimelineModes(unitId);
+        const allModes = getTimelineModes(unitId, getActiveSeasonId(unitId ?? null));
 
         const candidates = modeIds ? allModes.filter((m) => modeIds.includes(m.id)) : allModes;
 

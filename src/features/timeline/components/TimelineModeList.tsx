@@ -10,9 +10,10 @@ import {
   Stack,
   Text,
   Title,
+  Tooltip,
 } from "@mantine/core";
 import { useDraggable } from "@dnd-kit/core";
-import { IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconAlertTriangle, IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { Mode } from "@luftuj/shared/types/timeline";
 import { formatTemperature, getTemperatureLabel } from "@luftuj/shared/utils/temperature";
@@ -49,19 +50,26 @@ export function ModeCard({
   innerRef,
   style,
 }: Readonly<ModeCardProps>) {
+  // `configured === false` means the mode exists in this season but has no
+  // values there: visible and listed, but not usable. `undefined` means no
+  // season applies, which is the pre-seasons case.
+  const unconfigured = m.configured === false;
+
   return (
     <Card
       ref={innerRef}
       withBorder
       p="md"
       radius="lg"
-      {...dragHandleProps}
+      {...(unconfigured ? {} : dragHandleProps)}
       style={{
         borderTop: `6px solid ${m.color || "var(--mantine-color-blue-6)"}`,
         backgroundColor: "rgba(255, 255, 255, 0.05)",
         backdropFilter: "blur(10px)",
-        cursor: "grab",
+        cursor: unconfigured ? "not-allowed" : "grab",
         touchAction: "none",
+        opacity: unconfigured ? 0.6 : 1,
+        borderStyle: unconfigured ? "dashed" : undefined,
         ...style,
       }}
     >
@@ -83,6 +91,17 @@ export function ModeCard({
               </Title>
             </Group>
             <Group gap={6}>
+              {unconfigured && (
+                <Badge
+                  size="xs"
+                  color="yellow"
+                  variant="light"
+                  radius="sm"
+                  leftSection={<IconAlertTriangle size={11} />}
+                >
+                  {t("settings.timeline.modeUnconfigured")}
+                </Badge>
+              )}
               {m.isBoost && (
                 <Badge size="xs" color="orange" variant="light" radius="sm">
                   {t("settings.timeline.modeIsBoostBadge")}
@@ -104,15 +123,27 @@ export function ModeCard({
           </Stack>
 
           <Group gap={4} wrap="nowrap">
-            <ActionIcon
-              size="lg"
-              variant="subtle"
-              aria-label={t("settings.timeline.edit")}
-              onClick={() => onEdit(m)}
-              radius="md"
+            <Tooltip
+              label={t("settings.timeline.modeUnconfiguredHint")}
+              disabled={!unconfigured}
+              multiline
+              w={240}
             >
-              <IconEdit size={20} />
-            </ActionIcon>
+              <ActionIcon
+                size="lg"
+                variant={unconfigured ? "filled" : "subtle"}
+                color={unconfigured ? "yellow" : undefined}
+                aria-label={
+                  unconfigured
+                    ? t("settings.timeline.modeConfigureAction")
+                    : t("settings.timeline.edit")
+                }
+                onClick={() => onEdit(m)}
+                radius="md"
+              >
+                <IconEdit size={20} />
+              </ActionIcon>
+            </Tooltip>
             <ActionIcon
               size="lg"
               variant="subtle"
@@ -140,6 +171,9 @@ function DraggableModeCard({
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: `${MODE_DRAG_PREFIX}${mode.id}`,
     data: { mode },
+    // A mode with no values for this season cannot be scheduled, so it must not
+    // be draggable onto a day. The card explains why and offers the way out.
+    disabled: mode.configured === false,
   });
 
   return (

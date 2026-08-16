@@ -9,15 +9,15 @@ import { translateApiError } from "@luftuj/shared/utils/apiError";
 
 const logger = createLogger("useTimelineEventsQuery");
 
-export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string) {
+export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string, seasonId?: number) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["timeline-events", activeUnitId],
+    queryKey: ["timeline-events", activeUnitId, seasonId],
     queryFn: async () => {
       logger.debug("Fetching timeline events", { activeUnitId });
-      const loaded = await api.fetchTimelineEvents(activeUnitId);
+      const loaded = await api.fetchTimelineEvents(activeUnitId, seasonId);
       logger.info("Timeline events loaded", { count: loaded.length, activeUnitId });
       return loaded;
     },
@@ -44,29 +44,33 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string) {
           luftatorConfig: mergedLuftatorConfig,
         },
         activeUnitId,
+        seasonId,
       );
     },
     onSuccess: (saved) => {
-      queryClient.setQueryData<TimelineEvent[]>(["timeline-events", activeUnitId], (prev) => {
-        if (!prev) return [saved];
-        const idx = prev.findIndex((e) => e.id === saved.id);
-        if (idx >= 0) {
-          logger.info("Timeline event updated", {
+      queryClient.setQueryData<TimelineEvent[]>(
+        ["timeline-events", activeUnitId, seasonId],
+        (prev) => {
+          if (!prev) return [saved];
+          const idx = prev.findIndex((e) => e.id === saved.id);
+          if (idx >= 0) {
+            logger.info("Timeline event updated", {
+              id: saved.id,
+              dayOfWeek: saved.dayOfWeek,
+              startTime: saved.startTime,
+            });
+            const next = [...prev];
+            next[idx] = { ...prev[idx], ...saved };
+            return next;
+          }
+          logger.info("Timeline event created", {
             id: saved.id,
             dayOfWeek: saved.dayOfWeek,
             startTime: saved.startTime,
           });
-          const next = [...prev];
-          next[idx] = { ...prev[idx], ...saved };
-          return next;
-        }
-        logger.info("Timeline event created", {
-          id: saved.id,
-          dayOfWeek: saved.dayOfWeek,
-          startTime: saved.startTime,
-        });
-        return [...prev, saved];
-      });
+          return [...prev, saved];
+        },
+      );
     },
     onError: (err, event) => {
       logger.error("Failed to save timeline event", {
@@ -85,8 +89,9 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string) {
   const deleteEventMutation = useMutation({
     mutationFn: (id: number) => api.deleteTimelineEvent(id),
     onSuccess: (_, id) => {
-      queryClient.setQueryData<TimelineEvent[]>(["timeline-events", activeUnitId], (prev) =>
-        prev ? prev.filter((e) => e.id !== id) : [],
+      queryClient.setQueryData<TimelineEvent[]>(
+        ["timeline-events", activeUnitId, seasonId],
+        (prev) => (prev ? prev.filter((e) => e.id !== id) : []),
       );
       logger.info("Timeline event deleted", { id });
     },
@@ -118,7 +123,7 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string) {
     return map;
   }, [query.data]);
 
-  const saveEvent = async (event: TimelineEvent, options?: { silent?: boolean }) => {
+  async function saveEvent(event: TimelineEvent, options?: { silent?: boolean }): Promise<boolean> {
     try {
       await saveEventMutation.mutateAsync(event);
       if (!options?.silent) {
@@ -132,9 +137,9 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string) {
     } catch {
       return false;
     }
-  };
+  }
 
-  const deleteEvent = async (id: number, options?: { silent?: boolean }) => {
+  async function deleteEvent(id: number, options?: { silent?: boolean }): Promise<boolean> {
     try {
       await deleteEventMutation.mutateAsync(id);
       if (!options?.silent) {
@@ -148,7 +153,7 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string) {
     } catch {
       return false;
     }
-  };
+  }
 
   return {
     events: query.data ?? [],
