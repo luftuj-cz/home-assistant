@@ -116,12 +116,32 @@ const settingsRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/settings",
   component: SettingsPage,
+  /**
+   * Which accordion section to open on arrival, so another page can link
+   * straight at the setting it is talking about instead of leaving the user to
+   * hunt for it.
+   */
+  validateSearch: (search: Record<string, unknown>): { section?: string } => {
+    const raw = search.section;
+    return typeof raw === "string" && raw.trim() !== "" ? { section: raw } : {};
+  },
 });
 
 const timelineRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/timeline",
   component: TimelinePage,
+  /**
+   * Which season is being *viewed*. Deliberately separate from which season is
+   * active: browsing another season must never change what the unit is doing.
+   * Keeping it in the URL means the selection survives a reload and the back
+   * button, and can be linked to.
+   */
+  validateSearch: (search: Record<string, unknown>): { season?: number } => {
+    const raw = search.season;
+    const parsed = typeof raw === "string" ? Number.parseInt(raw, 10) : Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? { season: parsed } : {};
+  },
 });
 
 const debugRoute = createRoute({

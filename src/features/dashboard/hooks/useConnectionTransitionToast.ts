@@ -62,7 +62,12 @@ export function useConnectionTransitionToast(params: ConnectionTransitionToastPa
       } else {
         notifications.show({
           title: t(disconnectedTitleKey),
-          message: translateConnectionError(namespace, errorRef.current.code, errorRef.current.message, t),
+          message: translateConnectionError(
+            namespace,
+            errorRef.current.code,
+            errorRef.current.message,
+            t,
+          ),
           color: "red",
         });
       }

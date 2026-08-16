@@ -145,19 +145,20 @@ export function DashboardPage() {
               : t(`dashboard.mqttStatus.${mqttStatus}`)
           }
         >
-          {mqttStatus === "disconnected" && (mqttError?.lastErrorCode || mqttError?.lastErrorMessage) && (
-            <Text size="sm" c="dimmed">
-              {t("dashboard.mqttStatus.disconnectedDetail", {
-                error: translateConnectionError(
-                  "mqttErrors",
-                  mqttError.lastErrorCode,
-                  mqttError.lastErrorMessage,
-                  t,
-                ),
-                defaultValue: "Reason: {{error}}",
-              })}
-            </Text>
-          )}
+          {mqttStatus === "disconnected" &&
+            (mqttError?.lastErrorCode || mqttError?.lastErrorMessage) && (
+              <Text size="sm" c="dimmed">
+                {t("dashboard.mqttStatus.disconnectedDetail", {
+                  error: translateConnectionError(
+                    "mqttErrors",
+                    mqttError.lastErrorCode,
+                    mqttError.lastErrorMessage,
+                    t,
+                  ),
+                  defaultValue: "Reason: {{error}}",
+                })}
+              </Text>
+            )}
         </StatusCard>
       </Stack>
     </Container>

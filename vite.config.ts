@@ -1,6 +1,9 @@
-import { defineConfig, type Logger } from "vite";
+import type { Logger } from "vite";
+import { defineConfig } from "vite-plus";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+
+import oxlintConfig from "./oxlint.config";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -46,6 +49,13 @@ const filteredLogger: Logger = {
 // https://vite.dev/config/
 export default defineConfig({
   base: "./",
+  // `vp check` reads its lint settings from here, not from oxlint.config.ts.
+  // Without this it linted with default rules - reporting 0 errors while
+  // `npx oxlint` reported real ones - and walked the committed build output,
+  // drowning the run in thousands of warnings from minified bundles.
+  // The rules stay in oxlint.config.ts because the backend package runs Oxlint
+  // directly against it (see addon/rootfs/usr/src/app package scripts).
+  lint: oxlintConfig,
   // MPA mode disables Vite's SPA history fallback. The app uses hash-based
   // routing, so the dev server only needs to serve index.html at "/". Junk
   // pathnames (e.g. /wdawd/) then return 404 instead of booting the app at a

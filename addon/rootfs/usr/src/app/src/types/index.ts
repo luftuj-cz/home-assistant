@@ -31,6 +31,8 @@ export const ADDON_MODES = ["manual", "timeline"] as const;
 export type AddonMode = (typeof ADDON_MODES)[number];
 
 export const TIMELINE_MODES_KEY = "timeline.modes";
+/** Opt-in flag for seasons. Off by default; gates the feature, never the schema. */
+export const SEASONS_ENABLED_KEY = "timeline.seasons_enabled";
 export const TIMELINE_OVERRIDE_KEY = "timeline.override";
 export const BOOST_DURATION_KEY = "boost.duration";
 export const DEBUG_MODE_KEY = "developer.debug_mode";
@@ -51,6 +53,13 @@ export type TimelineMode = {
   hruId?: string;
   nativeMode?: number;
   scriptEntityIds?: string[];
+  /**
+   * Whether this mode has values for the season it was resolved against. A mode
+   * exists in every season but may be unconfigured in some: it is then listed
+   * and visible, but cannot be scheduled. Undefined when the mode was resolved
+   * without a season (legacy callers that predate seasons).
+   */
+  configured?: boolean;
 };
 
 export type TimelineOverride = {

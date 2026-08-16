@@ -1,7 +1,15 @@
 import type { Logger } from "pino";
 import type { ValveController } from "../core/valveManager.js";
 import type { HomeAssistantClient } from "./homeAssistantClient.js";
-import { getAppSetting, getTimelineModes, type TimelineEvent } from "./database.js";
+import {
+  getActiveSeasonId,
+  getAppSetting,
+  getSeasons,
+  getTimelineEvents,
+  getTimelineModes,
+  type Season,
+  type TimelineEvent,
+} from "./database.js";
 import { mapTodayToTimelineDay, pickActiveEvent, timeToMinutes } from "./timeline/eventPicker.js";
 import { findTimelineModeByReference } from "./timeline/modeReference.js";
 
@@ -10,13 +18,21 @@ import {
   HRU_SETTINGS_KEY,
   type HruSettings,
   LANGUAGE_SETTING_KEY,
+  SEASONS_ENABLED_KEY,
   type TimelineMode,
   type TimelineOverride,
 } from "../types/index.js";
 import type { SettingsRepository } from "../features/settings/settings.repository.js";
 import { INFINITE_BOOST_DURATION_MINUTES } from "../constants.js";
 
-export type TimelineSource = "manual" | "schedule" | "boost";
+/**
+ * "fallback" is the automatic safe state: distinct from "manual" so the
+ * dashboard and MQTT never present an automatic low state as user control.
+ */
+export type TimelineSource = "manual" | "schedule" | "boost" | "fallback";
+
+/** Setpoint written by the safe state, clamped into the unit's declared range. */
+export const SAFE_STATE_TEMPERATURE_C = 20;
 
 export type HruWritePayload = Record<string, number | string | boolean>;
 
@@ -50,13 +66,21 @@ export class TimelineScheduler {
       manual: "Manuální",
       boost: "Manuální režim",
       schedule: "Plán",
+      fallback: "Bezpečný režim",
     },
     en: {
       manual: "Manual",
       boost: "Boost",
       schedule: "Schedule",
+      fallback: "Safe state",
     },
   };
+  /**
+   * Whether the safe state has already been written for the current no-event
+   * condition. Cleared as soon as anything else applies, so leaving and
+   * re-entering the condition writes it again.
+   */
+  private safeStateApplied = false;
   private schedulerTimer: NodeJS.Timeout | null = null;
   private keepAliveTimer: NodeJS.Timeout | null = null;
   private lastActiveState: ActiveState | null = null;
@@ -114,6 +138,10 @@ export class TimelineScheduler {
 
     if (state.source === "manual") {
       return translations.manual;
+    }
+    // Never render the automatic safe state as user control.
+    if (state.source === "fallback") {
+      return translations.fallback;
     }
 
     const prefix = state.source === "boost" ? translations.boost : translations.schedule;
@@ -273,9 +301,147 @@ export class TimelineScheduler {
     );
     const today = mapTodayToTimelineDay();
     const event = pickActiveEvent(currentUnitId, nowMinutes, today);
-    if (!event) return null;
+    if (!event) {
+      return this.resolveNoEventPayload(currentUnitId);
+    }
 
     return this.buildScheduledEventPayload(event, currentUnitId);
+  }
+
+  /**
+   * Nothing is scheduled. Rather than leaving the unit on whatever was last
+   * written - which can go unnoticed for months - drive it to a defined low
+   * state. Gated on seasons being enabled: without them "no applicable event"
+   * has always meant "write nothing", and changing that for existing installs
+   * would be a hardware-visible change on update.
+   */
+  private resolveNoEventPayload(currentUnitId: string | undefined): ActivePayload | null {
+    const seasons = getSeasons(currentUnitId ?? null);
+    const enabled = seasons.filter((season) => season.enabled);
+
+    if (seasons.length > 0 && enabled.length === 0) {
+      this.logger.error(
+        { unitId: currentUnitId },
+        "TimelineScheduler: no season is enabled - no schedule can apply on any day",
+      );
+      this.safeStateApplied = false;
+      return null;
+    }
+
+    if (!this.isSeasonsFeatureEnabled(enabled)) {
+      this.logger.debug("TimelineScheduler: no active event or boost for current time");
+      this.safeStateApplied = false;
+      return null;
+    }
+
+    if (!this.hasEverHadEnabledEvent()) {
+      // A never-configured install is still running whatever the user set
+      // before the add-on existed. Turning it down on install day would be the
+      // add-on overwriting a working configuration.
+      this.logger.debug("TimelineScheduler: no schedule has ever existed, leaving the unit alone");
+      this.safeStateApplied = false;
+      return null;
+    }
+
+    const values = this.buildSafeStateValues(currentUnitId);
+    if (Object.keys(values).length === 0) {
+      this.logger.warn(
+        { unitId: currentUnitId },
+        "TimelineScheduler: safe state has nothing to write for this unit",
+      );
+      this.safeStateApplied = false;
+      return null;
+    }
+
+    // Written on entry into the no-event condition and not re-asserted after
+    // that: applyEventValues writes on every tick, and an automatic low state
+    // that reappears ten seconds after every manual adjustment is indisting-
+    // uishable, to the user, from broken hardware. The flag re-arms as soon as
+    // any other source applies, so leaving and re-entering writes it again.
+    const alreadyApplied = this.safeStateApplied;
+    this.safeStateApplied = true;
+
+    if (alreadyApplied) {
+      this.logger.debug(
+        { unitId: currentUnitId },
+        "TimelineScheduler: safe state already applied, leaving the unit alone",
+      );
+      return {
+        hruConfig: null,
+        luftatorConfig: null,
+        source: "fallback",
+        friendlyModeName: undefined,
+        scriptEntityIds: [],
+        activationToken: "fallback|safe-state",
+      };
+    }
+
+    this.logger.warn(
+      { unitId: currentUnitId, values },
+      "TimelineScheduler: active season has no applicable event, applying safe state",
+    );
+
+    return {
+      hruConfig: { variables: values },
+      luftatorConfig: null,
+      source: "fallback",
+      friendlyModeName: undefined,
+      scriptEntityIds: [],
+      activationToken: "fallback|safe-state",
+    };
+  }
+
+  /** True once seasons are in play, i.e. the feature has been switched on. */
+  private isSeasonsFeatureEnabled(enabledSeasons: Season[]): boolean {
+    return enabledSeasons.length > 1 || getAppSetting(SEASONS_ENABLED_KEY) === "true";
+  }
+
+  private hasEverHadEnabledEvent(): boolean {
+    try {
+      return getTimelineEvents(this.getCurrentUnitId()).some((event) => event.enabled);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Every numeric HRU variable at its declared minimum, with the temperature
+   * setpoint at a sane default clamped into range. Valves are deliberately
+   * untouched: they are a separate physical system and a user may have
+   * positioned them on purpose.
+   */
+  private buildSafeStateValues(currentUnitId: string | undefined): HruWritePayload {
+    const values: HruWritePayload = {};
+    const unit = this.hruService
+      .getAllUnits()
+      .find((candidate) => candidate.id === currentUnitId) as
+      | {
+          variables?: Array<{
+            name: string;
+            type: string;
+            editable: boolean;
+            min?: number;
+            max?: number;
+          }>;
+        }
+      | undefined;
+
+    for (const variable of unit?.variables ?? []) {
+      if (variable.type !== "number" || !variable.editable) continue;
+      if (variable.name === "temperature") {
+        // Clamp into the declared range, but an absent bound must not become
+        // the default itself: with `max ?? 20`, a unit declaring min 22 and no
+        // max was driven to 20, below its own minimum, and the write rejected.
+        const min = variable.min ?? Number.NEGATIVE_INFINITY;
+        const max = variable.max ?? Number.POSITIVE_INFINITY;
+        values.temperature = Math.min(Math.max(SAFE_STATE_TEMPERATURE_C, min), max);
+        continue;
+      }
+      if (variable.min !== undefined) {
+        values[variable.name] = variable.min;
+      }
+    }
+    return values;
   }
 
   private resolveBoostPayload(
@@ -289,7 +455,7 @@ export class TimelineScheduler {
     }
 
     if (override.modeId) {
-      const modes = getTimelineModes(currentUnitId);
+      const modes = getTimelineModes(currentUnitId, getActiveSeasonId(currentUnitId ?? null));
       const mode = modes.find((m) => m.id === override.modeId);
       if (!mode) {
         this.logger.warn(
@@ -299,22 +465,47 @@ export class TimelineScheduler {
         this.settingsRepo.setTimelineOverride(null);
         return undefined;
       }
-      const modeVariables = mode.variables ?? {};
+
+      // Values frozen at boost start win over a live lookup, so a boost that
+      // crosses a season boundary keeps the behaviour it began with instead of
+      // silently switching to the new season's values mid-run. An override
+      // written by an older build carries no snapshot and resolves live.
+      const frozen = override.customConfig;
+
+      // A mode with no values for the active season would build an empty
+      // payload: the write would be skipped while the dashboard still claimed a
+      // boost was running. Refuse loudly instead - but only when there is no
+      // snapshot to fall back on. A boost that started in a season where the
+      // mode WAS configured keeps running on the values it captured, even once
+      // a boundary moves it into a season where the mode has none; cancelling
+      // it there would end the boost early for a reason the user never sees.
+      if (!frozen && mode.configured === false) {
+        this.logger.error(
+          { modeId: override.modeId, mode: mode.name },
+          "TimelineScheduler: boost mode not configured for the active season, cancelling boost",
+        );
+        this.settingsRepo.setTimelineOverride(null);
+        return undefined;
+      }
+
+      const variables = frozen ? frozen.variables : mode.variables;
+      const modeVariables = variables ?? {};
       const nativeMode =
         typeof modeVariables.mode === "number" || typeof modeVariables.mode === "string"
           ? modeVariables.mode
-          : mode.nativeMode;
+          : (frozen?.nativeMode ?? mode.nativeMode);
+
       return {
         hruConfig: {
           mode: nativeMode,
-          power: mode.power,
-          temperature: mode.temperature,
-          variables: mode.variables,
+          power: frozen ? frozen.power : mode.power,
+          temperature: frozen ? frozen.temperature : mode.temperature,
+          variables,
         },
-        luftatorConfig: mode.luftatorConfig,
+        luftatorConfig: frozen ? frozen.luftatorConfig : mode.luftatorConfig,
         source: "boost",
         friendlyModeName: mode.name,
-        scriptEntityIds: mode.scriptEntityIds,
+        scriptEntityIds: frozen ? frozen.scriptEntityIds : mode.scriptEntityIds,
         // endTime is recomputed on every POST /boost, so re-pressing the same
         // mode yields a new token and re-runs the scripts.
         activationToken: `boost|${override.modeId}|${override.endTime}`,
@@ -406,7 +597,7 @@ export class TimelineScheduler {
     let resolved = initial;
 
     if (displayModeName) {
-      const modes = getTimelineModes(currentUnitId);
+      const modes = getTimelineModes(currentUnitId, getActiveSeasonId(currentUnitId ?? null));
       foundMode = findTimelineModeByReference(modes, displayModeName);
       if (foundMode) {
         resolved = this.applyFoundModeToValues(foundMode, initial);
@@ -438,7 +629,7 @@ export class TimelineScheduler {
       // One activation per scheduled slot; a different slot/mode re-fires.
       // Fall back to day+time when the event has no id (id-less events would
       // otherwise all collide under "undefined").
-      activationToken: `schedule|${event.id ?? "x"}|${event.dayOfWeek ?? "all"}|${event.startTime}`,
+      activationToken: `schedule|${event.timelineId ?? "none"}|${event.id ?? "x"}|${event.dayOfWeek ?? "all"}|${event.startTime}`,
     };
   }
 
@@ -549,6 +740,12 @@ export class TimelineScheduler {
   ): Promise<void> {
     const { hruConfig, luftatorConfig, source, id } = activePayload;
     let firstApplyError: Error | null = null;
+
+    // Anything else taking over re-arms the safe state, so entering the
+    // no-event condition again writes it rather than assuming it still holds.
+    if (source !== "fallback") {
+      this.safeStateApplied = false;
+    }
 
     let modeName: ModeValue;
     if (source === "boost" || source === "schedule") {

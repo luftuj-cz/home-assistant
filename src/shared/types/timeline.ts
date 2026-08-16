@@ -32,4 +32,10 @@ export interface Mode {
   power?: number;
   temperature?: number;
   scriptEntityIds?: string[];
+  /**
+   * Whether this mode has values for the season it was resolved against. A mode
+   * exists in every season but may be unconfigured in some: it is then listed
+   * and visible, but cannot be scheduled. Undefined when no season applies.
+   */
+  configured?: boolean;
 }

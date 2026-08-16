@@ -14,14 +14,40 @@ export {
   deleteTimelineEvent,
   deleteTimelineEventsByMode,
   deleteTimelineMode,
+  countEnabledEventsUsingMode,
+  deleteTimelineModeValues,
   getTimelineEvents,
   getTimelineMode,
+  getModeUsage,
   getTimelineModes,
   migrateLegacyEventsForUnit,
+  ModeValuesEmptyError,
+  ModeValuesInUseError,
+  type ModeUsage,
   type TimelineEvent,
   upsertTimelineEvent,
   upsertTimelineMode,
 } from "./db/timeline.js";
+export {
+  ACTIVE_SEASON_SETTING_KEY,
+  cacheActiveSeason,
+  ensureActiveSeasonId,
+  ensureSeasons,
+  getActiveSeasonId,
+  getEnabledSeasons,
+  getSeasons,
+  inRange,
+  previousMonthDay,
+  resolveActiveSeason,
+  type Season,
+  SEASON_KEYS,
+  type SeasonKey,
+  setSeasonEnabled,
+  setSeasonStart,
+  updateSeason,
+  toMonthDay,
+  validatePartition,
+} from "./db/seasons.js";
 export {
   checkpointDatabase,
   createDatabaseBackup,
@@ -77,6 +103,7 @@ export type StatementMap = {
   getAllSettings: Statement;
   upsertSetting: Statement;
   getTimelineEvents: Statement;
+  getTimelineEventsBySeason: Statement;
   upsertTimelineEvent: Statement;
   deleteTimelineEvent: Statement;
   assignLegacyEvents: Statement;
@@ -84,6 +111,7 @@ export type StatementMap = {
   deleteEventsByModeIdOnly: Statement;
   getTimelineModes: Statement;
   upsertTimelineMode: Statement;
+  upsertTimelineModeIdentity: Statement;
   deleteTimelineMode: Statement;
   getTimelineMode: Statement;
   getValveGroups: Statement;
@@ -199,6 +227,7 @@ function prepareStatements(database: DatabaseType): StatementMap {
               enabled,
               priority,
               hru_id,
+              timeline_id,
               created_at,
               updated_at
        FROM timeline_events
@@ -207,8 +236,8 @@ function prepareStatements(database: DatabaseType): StatementMap {
        ORDER BY day_of_week NULLS LAST, start_time, priority DESC`,
     ),
     upsertTimelineEvent: database.prepare(
-      `INSERT INTO timeline_events (id, start_time, day_of_week, hru_config, luftator_config, enabled, priority, hru_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `INSERT INTO timeline_events (id, start_time, day_of_week, hru_config, luftator_config, enabled, priority, hru_id, timeline_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
        ON CONFLICT(id) DO UPDATE SET start_time      = excluded.start_time,
                                      day_of_week     = excluded.day_of_week,
                                      hru_config      = excluded.hru_config,
@@ -216,7 +245,24 @@ function prepareStatements(database: DatabaseType): StatementMap {
                                      enabled         = excluded.enabled,
                                      priority        = excluded.priority,
                                      hru_id          = excluded.hru_id,
+                                     timeline_id     = excluded.timeline_id,
                                      updated_at      = datetime('now')`,
+    ),
+    getTimelineEventsBySeason: database.prepare(
+      `SELECT id,
+              start_time,
+              day_of_week,
+              hru_config,
+              luftator_config,
+              enabled,
+              priority,
+              hru_id,
+              timeline_id,
+              created_at,
+              updated_at
+       FROM timeline_events
+       WHERE timeline_id = ?
+       ORDER BY day_of_week NULLS LAST, start_time, priority DESC`,
     ),
     deleteTimelineEvent: database.prepare(`DELETE
                                            FROM timeline_events
@@ -259,6 +305,19 @@ function prepareStatements(database: DatabaseType): StatementMap {
                                      variables         = excluded.variables,
                                      script_entity_ids = excluded.script_entity_ids,
                                      updated_at        = datetime('now')`,
+    ),
+    // Identity only. Used when values are being written for a season other than
+    // the unit's default: the legacy value columns are what a build from before
+    // seasons reads, so mirroring winter's numbers into them would make a
+    // downgrade apply winter all year.
+    upsertTimelineModeIdentity: database.prepare(
+      `INSERT INTO timeline_modes (id, name, color, is_boost, hru_id)
+       VALUES (?, ?, ?, ?, ?)
+       ON CONFLICT(id) DO UPDATE SET name       = excluded.name,
+                                     color      = excluded.color,
+                                     is_boost   = excluded.is_boost,
+                                     hru_id     = excluded.hru_id,
+                                     updated_at = datetime('now')`,
     ),
     deleteTimelineMode: database.prepare(`DELETE
                                           FROM timeline_modes

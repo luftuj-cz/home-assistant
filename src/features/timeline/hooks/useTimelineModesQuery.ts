@@ -9,15 +9,15 @@ import { translateApiError, ApiResponseError } from "@luftuj/shared/utils/apiErr
 
 const logger = createLogger("useTimelineModesQuery");
 
-export function useTimelineModesQuery(unitId?: string) {
+export function useTimelineModesQuery(unitId?: string, seasonId?: number) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
 
   const query = useQuery({
-    queryKey: ["timeline-modes", unitId],
+    queryKey: ["timeline-modes", unitId, seasonId],
     queryFn: async () => {
       logger.debug("Fetching timeline modes", { unitId });
-      const data = await api.fetchTimelineModes(unitId);
+      const data = await api.fetchTimelineModes(unitId, seasonId);
       logger.info("Timeline modes loaded", { count: data.length, unitId });
       return data.map(mapModeForUi);
     },
@@ -28,14 +28,14 @@ export function useTimelineModesQuery(unitId?: string) {
     mutationFn: async (mode: Partial<Mode>) => {
       const isEdit = typeof mode.id === "number";
       if (isEdit) {
-        return api.updateTimelineMode(mode as Mode);
+        return api.updateTimelineMode(mode as Mode, unitId, seasonId);
       }
-      return api.createTimelineMode(mode as Omit<Mode, "id">);
+      return api.createTimelineMode(mode as Omit<Mode, "id">, unitId, seasonId);
     },
     onSuccess: (saved, variables) => {
       const mappedSaved = mapModeForUi(saved);
       const isEdit = typeof variables.id === "number";
-      queryClient.setQueryData<Mode[]>(["timeline-modes", unitId], (prev) => {
+      queryClient.setQueryData<Mode[]>(["timeline-modes", unitId, seasonId], (prev) => {
         if (!prev) return [mappedSaved];
         if (isEdit) {
           logger.info("Timeline mode updated", { id: mappedSaved.id, name: mappedSaved.name });
@@ -71,7 +71,7 @@ export function useTimelineModesQuery(unitId?: string) {
   const deleteModeMutation = useMutation({
     mutationFn: (id: number) => api.deleteTimelineMode(id),
     onSuccess: (_, id) => {
-      queryClient.setQueryData<Mode[]>(["timeline-modes", unitId], (prev) =>
+      queryClient.setQueryData<Mode[]>(["timeline-modes", unitId, seasonId], (prev) =>
         prev ? prev.filter((m) => m.id !== id) : [],
       );
       logger.info("Timeline mode deleted", { id });
@@ -91,7 +91,7 @@ export function useTimelineModesQuery(unitId?: string) {
     },
   });
 
-  const saveMode = async (mode: Partial<Mode>): Promise<boolean> => {
+  async function saveMode(mode: Partial<Mode>): Promise<boolean> {
     try {
       await saveModeMutation.mutateAsync(mode);
       return true;
@@ -101,16 +101,16 @@ export function useTimelineModesQuery(unitId?: string) {
       }
       return false;
     }
-  };
+  }
 
-  const deleteMode = async (id: number): Promise<boolean> => {
+  async function deleteMode(id: number): Promise<boolean> {
     try {
       await deleteModeMutation.mutateAsync(id);
       return true;
     } catch {
       return false;
     }
-  };
+  }
 
   return {
     modes: query.data ?? [],

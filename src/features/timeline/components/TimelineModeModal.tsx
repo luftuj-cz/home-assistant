@@ -1,5 +1,23 @@
-import { Button, ColorInput, Group, Modal, Stack, Switch, Text, TextInput } from "@mantine/core";
-import { IconEdit, IconFileText, IconPalette, IconPlus, IconTestPipe } from "@tabler/icons-react";
+import {
+  Alert,
+  Button,
+  ColorInput,
+  Group,
+  Modal,
+  Select,
+  Stack,
+  Switch,
+  Text,
+  TextInput,
+} from "@mantine/core";
+import {
+  IconAlertTriangle,
+  IconEdit,
+  IconFileText,
+  IconPalette,
+  IconPlus,
+  IconTestPipe,
+} from "@tabler/icons-react";
 import { useEffect, useRef, useState } from "react";
 import { useMediaQuery } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
@@ -31,6 +49,17 @@ interface TimelineModeModalProps {
   unitId?: string;
   nameError?: string | null;
   onNameChange?: () => void;
+  /** Localised name of the season these values belong to, when seasons are on. */
+  seasonLabel?: string;
+  /**
+   * Seasons where this mode already has values, offered as a source to copy
+   * from. Only populated while the mode is unconfigured for the viewed season -
+   * filling a fresh season by hand is the tedious part of the feature.
+   */
+  copyFromSeasons?: Array<{ id: number; label: string }>;
+  onCopyFromSeason?: (seasonId: number) => Promise<Mode | undefined>;
+  /** Puts the mode back to unconfigured for the season being viewed. */
+  onClearSeasonValues?: () => void;
 }
 
 export function TimelineModeModal({
@@ -47,6 +76,10 @@ export function TimelineModeModal({
   existingModes = [],
   nameError,
   onNameChange,
+  seasonLabel,
+  copyFromSeasons = [],
+  onCopyFromSeason,
+  onClearSeasonValues,
 }: Readonly<TimelineModeModalProps>) {
   const isMobile = useMediaQuery("(max-width: 48em)");
   const form = useModeForm(opened, mode, valves);
@@ -93,6 +126,18 @@ export function TimelineModeModal({
     };
   }, [testRemainingSeconds]);
 
+  /**
+   * A mode may legitimately consist of activation scripts alone - the summer
+   * "open the window instead of running the unit" case seasons were built for.
+   * The HRU fields are only mandatory when the mode actually drives the unit,
+   * so the check is skipped once scripts are the only thing entered. The
+   * backend applies the same rule: values **or** scripts.
+   */
+  const isScriptOnly =
+    form.scriptRows.some((row) => row.value && row.value.trim() !== "") &&
+    Object.keys(form.variableValues).length === 0 &&
+    Object.values(form.valveOpenings).every((opening) => opening === undefined);
+
   function validateForm(): boolean {
     if (!form.name.trim()) {
       notifications.show({
@@ -102,9 +147,11 @@ export function TimelineModeModal({
       });
       return false;
     }
-    const missingVariable = hruVariables
-      .filter((v) => v.editable && v.type !== "boolean")
-      .some((v) => form.variableValues[v.name] === undefined);
+    const missingVariable =
+      !isScriptOnly &&
+      hruVariables
+        .filter((v) => v.editable && v.type !== "boolean")
+        .some((v) => form.variableValues[v.name] === undefined);
     if (missingVariable) {
       notifications.show({
         title: t("settings.timeline.notifications.validationFailedTitle"),
@@ -195,7 +242,16 @@ export function TimelineModeModal({
             <IconPlus size={20} color="var(--mantine-primary-color-5)" />
           )}
           <Text fw={600}>
-            {t(mode ? "settings.timeline.modeEditTitle" : "settings.timeline.modeDialogTitle")}
+            {(() => {
+              const base = t(
+                mode ? "settings.timeline.modeEditTitle" : "settings.timeline.modeDialogTitle",
+              );
+              // The dialog is unchanged otherwise: the only difference is which
+              // season the values land in, so it has to say which one.
+              return seasonLabel
+                ? t("settings.timeline.modeSeasonTitle", { title: base, season: seasonLabel })
+                : base;
+            })()}
           </Text>
         </Group>
       }
@@ -204,6 +260,36 @@ export function TimelineModeModal({
       fullScreen={isMobile}
     >
       <Stack gap="md">
+        {copyFromSeasons.length > 0 && onCopyFromSeason && (
+          <Alert color="yellow" variant="light" icon={<IconAlertTriangle size={16} />}>
+            <Stack gap="xs">
+              <Text size="sm">{t("settings.timeline.modeCopyFromSeasonHint")}</Text>
+              <Select
+                size="xs"
+                placeholder={t("settings.timeline.modeCopyFromSeason")}
+                data={copyFromSeasons.map((season) => ({
+                  value: String(season.id),
+                  label: season.label,
+                }))}
+                onChange={(value) => {
+                  if (!value) return;
+                  void onCopyFromSeason(Number(value)).then((source) => {
+                    if (!source) return;
+                    form.setVariableValues(source.variables ?? {});
+                    form.setValveOpenings(source.luftatorConfig ?? {});
+                    form.setScriptRows(
+                      (source.scriptEntityIds ?? []).map((value, index) => ({
+                        id: -1 - index,
+                        value,
+                      })),
+                    );
+                  });
+                }}
+                comboboxProps={{ withinPortal: true }}
+              />
+            </Stack>
+          </Alert>
+        )}
         <TextInput
           label={t("settings.timeline.modeName")}
           placeholder={t("settings.timeline.modePlaceholder")}
@@ -212,6 +298,7 @@ export function TimelineModeModal({
             form.setName(e.target.value);
             onNameChange?.();
           }}
+          description={seasonLabel ? t("settings.timeline.modeSharedFieldsHint") : undefined}
           leftSection={<IconFileText size={16} stroke={1.5} />}
           error={
             nameError || (!form.name.trim() && form.submitted ? t("validation.required") : null)
@@ -261,7 +348,29 @@ export function TimelineModeModal({
           t={t}
         />
 
+        {isScriptOnly && (
+          <Text size="xs" c="dimmed">
+            {t("settings.timeline.modeScriptOnlyHint")}
+          </Text>
+        )}
+
         <Group justify="flex-end" gap="sm" mt="xs" grow={isMobile}>
+          {/* Removing the values for one season is the only way back to the
+              unconfigured state, and it is what makes the "set up here but not
+              there" model reversible. Offered only where it means something: an
+              existing mode that is configured for the season being viewed. */}
+          {onClearSeasonValues && mode && mode.configured !== false && (
+            <Button
+              variant="subtle"
+              color="red"
+              onClick={onClearSeasonValues}
+              disabled={saving || isActivatingTest}
+              radius="md"
+              fullWidth={isMobile}
+            >
+              {t("settings.timeline.modeClearSeasonValues")}
+            </Button>
+          )}
           <Button variant="light" onClick={onClose} radius="md" fullWidth={isMobile}>
             {t("settings.timeline.modal.cancel")}
           </Button>

@@ -22,7 +22,8 @@ export async function parseApiError(res: Response): Promise<ApiResponseError> {
 }
 
 export function translateApiError(err: unknown, t: TFunction): string {
-  const fallback = err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
+  const fallback =
+    err instanceof Error ? err.message : t("settings.timeline.notifications.unknown");
   const code = err instanceof ApiResponseError ? err.code : undefined;
   return translateErrorCode("apiErrors", code, fallback, t);
 }

@@ -3,6 +3,7 @@ import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/options.js";
+import { getActiveSeasonId } from "./database.js";
 import type { HeatRecoveryUnit, LocalizedText } from "../features/hru/hru.definitions.js";
 import type { MqttSettings, TimelineMode, TimelineOverride } from "../types/index.js";
 import { LANGUAGE_SETTING_KEY } from "../types/index.js";
@@ -28,7 +29,10 @@ const PUBLISH_DELAY_MS = 30;
  */
 function classifyMqttError(err: unknown): string {
   const message = err instanceof Error ? err.message : String(err);
-  if (message.includes("Bad username or password") || message.includes("Bad User Name or Password")) {
+  if (
+    message.includes("Bad username or password") ||
+    message.includes("Bad User Name or Password")
+  ) {
     return "MQTT_BAD_CREDENTIALS";
   }
   if (message.includes("Not authorized")) {
@@ -46,6 +50,7 @@ type LocalizedStrings = {
   cancel_boost: string;
   boost_label: string;
   boost_remaining: string;
+  active_season: string;
   boost_mode: string;
   level_unit: string;
 };
@@ -71,6 +76,7 @@ const FALLBACK_STRINGS: LocalizedStrings = {
   cancel_boost: "Cancel Boost",
   boost_label: "Boost: {{name}}",
   boost_remaining: "Boost Time Remaining",
+  active_season: "Active Season",
   boost_mode: "Active Boost",
   level_unit: "level",
 };
@@ -101,6 +107,7 @@ function getDiscoveryStrings(lang: string): LocalizedStrings {
     cancel_boost: res?.dashboard?.boostCancel ?? FALLBACK_STRINGS.cancel_boost,
     boost_label: res?.dashboard?.activeMode?.boost ?? FALLBACK_STRINGS.boost_label,
     boost_remaining: res?.dashboard?.boostTimeRemaining ?? FALLBACK_STRINGS.boost_remaining,
+    active_season: res?.settings?.seasons?.mqttActiveSeason ?? FALLBACK_STRINGS.active_season,
     boost_mode: res?.dashboard?.boostActiveMode ?? FALLBACK_STRINGS.boost_mode,
     level_unit: res?.app?.units?.level ?? FALLBACK_STRINGS.level_unit,
   };
@@ -361,6 +368,8 @@ export class MqttService extends EventEmitter {
     native_mode_formatted?: string;
     boost_remaining?: number;
     boost_name?: string;
+    /** Stable season key, never the localised name, so automations cannot break. */
+    active_season?: string;
   }): Promise<void> {
     if (!this.client) {
       this.logger.warn("MQTT: Cannot publish state - client not initialized");
@@ -894,6 +903,24 @@ export class MqttService extends EventEmitter {
       );
     }
 
+    // Read-only view of the active season. There is deliberately no command
+    // topic: the active season is derived from the calendar, so Home Assistant
+    // reacts to it and cannot set it. Retained like every other entity - it was
+    // briefly non-retained so that a downgrade would leave no ghost entity, but
+    // downgrade is out of scope and the cost was real: after a broker restart
+    // the entity would vanish until the add-on happened to republish discovery,
+    // silently breaking any automation referencing it.
+    await this.publishSensor(
+      unitId,
+      "active_season",
+      strings.active_season,
+      "{{ value_json.active_season }}",
+      device,
+      availability,
+      "mdi:sun-snowflake-variant",
+    );
+    entityCount++;
+
     // Standard sensors (computed)
     await this.publishSensor(
       unitId,
@@ -997,6 +1024,7 @@ export class MqttService extends EventEmitter {
     icon?: string,
     unit_of_measure?: string,
     device_class?: string,
+    retain = true,
   ) {
     if (!this.client || !this.connected) return;
     const payload = {
@@ -1013,7 +1041,7 @@ export class MqttService extends EventEmitter {
     await this.throttledPublish(
       `${DISCOVERY_PREFIX}/sensor/luftuj_hru_${unitId}/${id}/config`,
       JSON.stringify(payload),
-      { qos: 1, retain: true },
+      { qos: 1, retain },
     );
   }
 
@@ -1112,7 +1140,14 @@ export class MqttService extends EventEmitter {
     // This aligns with how the API retrieves modes via getCurrentUnitId()
     const hruSettings = this.settingsRepo.getHruSettings();
     const settingsUnitId = hruSettings?.unit || unit.code;
-    const modes = this.settingsRepo.getTimelineModes(settingsUnitId);
+    // Boost buttons are published for every mode regardless of which season is
+    // active, so the discovery set never churns on a season change. Values are
+    // still resolved against the active season, and a press on a mode that is
+    // unconfigured there fails loudly rather than silently doing nothing.
+    const modes = this.settingsRepo.getTimelineModes(
+      settingsUnitId,
+      getActiveSeasonId(settingsUnitId ?? null),
+    );
     let activeBoostCount = 0;
 
     // Debug: Log what we're working with
