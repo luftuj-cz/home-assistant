@@ -18,6 +18,7 @@ import {
   IconCopy,
   IconClipboardCheck,
   IconClock,
+  IconAlertTriangle,
 } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { TimelineEvent, Mode } from "@luftuj/shared/types/timeline";
@@ -31,6 +32,8 @@ interface TimelineDayCardProps {
   events: TimelineEvent[];
   modes: Mode[];
   copyDay: number | null;
+  /** True while a day is on the clipboard, including one copied from another season. */
+  copyActive: boolean;
   loading: boolean;
   onCopy: (day: number) => void;
   onPaste: (day: number) => void;
@@ -76,6 +79,7 @@ export function TimelineDayCard({
   events,
   modes,
   copyDay,
+  copyActive,
   loading,
   onCopy,
   onPaste,
@@ -90,7 +94,7 @@ export function TimelineDayCard({
   const { setNodeRef, isOver } = useDroppable({ id: `${DAY_DROP_PREFIX}${dayIdx}` });
 
   let copyAction: ReactNode;
-  if (copyDay === null) {
+  if (!copyActive) {
     copyAction = (
       <Tooltip label={t("settings.timeline.copyDay")} withArrow>
         <ActionIcon
@@ -204,9 +208,23 @@ export function TimelineDayCard({
                 color={highlightColor}
                 title={
                   <Group justify="space-between" align="center" wrap="nowrap">
-                    <Text fw={700} size="sm">
-                      {ev.startTime}
-                    </Text>
+                    <Group gap={6} wrap="nowrap">
+                      <Text fw={700} size="sm">
+                        {ev.startTime}
+                      </Text>
+                      {/* Write-gating should make this unreachable, but a DB
+                          import or a cross-season paste can still produce it,
+                          and a silently inert event is worse than a marked one. */}
+                      {mode?.configured === false && (
+                        <Tooltip label={t("settings.timeline.eventModeUnconfigured")}>
+                          <IconAlertTriangle
+                            size={14}
+                            color="var(--mantine-color-yellow-6)"
+                            aria-label={t("settings.timeline.eventModeUnconfigured")}
+                          />
+                        </Tooltip>
+                      )}
+                    </Group>
                     <Group gap={6} wrap="nowrap">
                       <MotionSwitch
                         size="xs"

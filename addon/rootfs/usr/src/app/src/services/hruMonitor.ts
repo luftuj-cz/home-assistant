@@ -1,4 +1,6 @@
 import type { Logger } from "pino";
+import { getAppSetting, resolveActiveSeason } from "./database.js";
+import { HRU_SETTINGS_KEY, type HruSettings } from "../types/index.js";
 import type { MqttService } from "./mqttService.js";
 import type { HruService } from "../features/hru/hru.service.js";
 import type { TimelineScheduler } from "./timelineScheduler.js";
@@ -107,6 +109,9 @@ export class HruMonitor {
           mode_formatted: addonMode,
           boost_remaining: boostRemaining,
           boost_name: boostActiveName || "-",
+          // Stable key, never the localised name: automations comparing this
+          // must not break when the interface language changes.
+          active_season: this.resolveActiveSeasonKey(),
         });
         this.logger.info("HRU Monitor: Successfully published state update to MQTT");
       } catch (err) {
@@ -114,6 +119,21 @@ export class HruMonitor {
       }
     } finally {
       this.hruService.setRefreshing(false);
+    }
+  }
+
+  /**
+   * Season key for the MQTT state, or "-" when seasons are not in play. Never
+   * throws: a monitoring read must not fail because a season could not be
+   * resolved.
+   */
+  private resolveActiveSeasonKey(): string {
+    try {
+      const raw = getAppSetting(HRU_SETTINGS_KEY);
+      const settings = raw ? (JSON.parse(raw) as HruSettings) : null;
+      return resolveActiveSeason(settings?.unit ?? null)?.seasonKey ?? "-";
+    } catch {
+      return "-";
     }
   }
 }

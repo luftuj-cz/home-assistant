@@ -1,8 +1,10 @@
 import { useCallback, useMemo, useState } from "react";
-import { Stack, Text, Title, Divider, Container } from "@mantine/core";
+import { Button, Group, Modal, Stack, Text, Title, Divider, Container } from "@mantine/core";
 import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
 import { useTranslation } from "react-i18next";
+import { useQueryClient } from "@tanstack/react-query";
 import { IconCalendar } from "@tabler/icons-react";
+import { translateApiError } from "@luftuj/shared/utils/apiError";
 
 import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimelineModesQuery";
 import { useTimelineEventsQuery } from "@luftuj/features/timeline/hooks/useTimelineEventsQuery";
@@ -29,31 +31,47 @@ import {
   DEFAULT_START_TIME,
 } from "@luftuj/features/timeline/utils";
 import type { TimelineEvent, Mode } from "@luftuj/shared/types/timeline";
+import { notifications } from "@mantine/notifications";
 import { createLogger } from "@luftuj/shared/utils/logger";
+import * as api from "@luftuj/features/timeline/api";
+import { ModeDeleteConfirm } from "@luftuj/features/timeline/components/ModeDeleteConfirm";
+import {
+  EmptyActiveSeasonNotice,
+  SeasonSwitcher,
+  SeasonViewNotice,
+  useSeasonView,
+} from "@luftuj/features/timeline/components/SeasonSwitcher";
 
 const logger = createLogger("TimelinePage");
 
 export function TimelinePage() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const sensors = useDndSensors();
   const [activeMode, setActiveMode] = useState<Mode | null>(null);
+  // Deleting a mode removes events from every season, including ones off-screen,
+  // so it goes through a confirmation that shows the per-season damage first.
+  const [modePendingDelete, setModePendingDelete] = useState<Mode | null>(null);
 
   const { valves, valveGroups, hruVariables, powerUnit, maxPower, activeUnitId, loading } =
     useHruContext();
+
+  const { seasons, activeSeasonId, viewedSeasonId, setViewedSeason, viewedSeason, activeSeason } =
+    useSeasonView();
 
   const {
     modes,
     saveMode,
     deleteMode,
     isMutating: isModesMutating,
-  } = useTimelineModesQuery(activeUnitId);
+  } = useTimelineModesQuery(activeUnitId, viewedSeasonId);
   const {
     eventsByDay,
     saveEvent,
     deleteEvent,
     refetch: refetchEvents,
     isMutating,
-  } = useTimelineEventsQuery(modes, activeUnitId);
+  } = useTimelineEventsQuery(modes, activeUnitId, viewedSeasonId);
 
   const {
     eventModalOpen,
@@ -79,13 +97,53 @@ export function TimelinePage() {
 
   const dayLabels = useMemo(() => getDayLabels(t), [t]);
 
-  const { copyDay, setCopyDay, handlePasteDay } = useDayCopyPaste(
-    t,
-    eventsByDay,
-    deleteEvent,
-    saveEvent,
-    dayLabels,
+  /**
+   * Puts a mode back to unconfigured for the season being viewed. The backend
+   * refuses while enabled events there still use it, which is the point: the
+   * alternative is a schedule quietly pointing at a mode that does nothing.
+   */
+  const handleClearSeasonValues = useCallback(
+    async (modeId: number) => {
+      try {
+        await api.clearModeValuesForSeason(modeId, activeUnitId, viewedSeasonId);
+        handleCloseModeModal();
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["timeline-modes"] }),
+          queryClient.invalidateQueries({ queryKey: ["timeline-events"] }),
+          queryClient.invalidateQueries({ queryKey: ["seasons"] }),
+        ]);
+        notifications.show({
+          color: "green",
+          title: t("settings.timeline.notifications.saveSuccessTitle"),
+          message: t("settings.timeline.modeValuesCleared"),
+        });
+      } catch (err) {
+        logger.error("Failed to clear mode values for season", { error: err, modeId });
+        notifications.show({
+          color: "red",
+          title: t("settings.timeline.notifications.saveFailedTitle"),
+          message: translateApiError(err, t),
+        });
+      }
+    },
+    [activeUnitId, handleCloseModeModal, queryClient, t, viewedSeasonId],
   );
+
+  const {
+    copyDay,
+    copyActive,
+    copySourceSeasonLabel,
+    setCopyDay,
+    handlePasteDay,
+    pendingPaste,
+    confirmPaste,
+    cancelPaste,
+  } = useDayCopyPaste(t, eventsByDay, deleteEvent, saveEvent, dayLabels, {
+    seasonId: viewedSeasonId,
+    seasonLabel: viewedSeason ? t(`settings.seasons.names.${viewedSeason.seasonKey}`) : undefined,
+    unitId: activeUnitId,
+    modes,
+  });
 
   const modeOptions = useMemo(() => getModeOptions(modes), [modes]);
 
@@ -128,6 +186,17 @@ export function TimelinePage() {
       if (!over) return;
       const mode = active.data.current?.mode as Mode | undefined;
       if (!mode) return;
+      // Belt and braces: the card is already non-draggable when unconfigured,
+      // but the drop handler must refuse too - the same event can be created
+      // from the modal, and a silently ignored drop teaches nothing.
+      if (mode.configured === false) {
+        notifications.show({
+          color: "yellow",
+          title: t("settings.timeline.modeUnconfigured"),
+          message: t("settings.timeline.modeUnconfiguredDrop", { mode: mode.name }),
+        });
+        return;
+      }
       const overId = String(over.id);
       if (!overId.startsWith(DAY_DROP_PREFIX)) return;
       const day = Number(overId.slice(DAY_DROP_PREFIX.length));
@@ -150,12 +219,34 @@ export function TimelinePage() {
           </Text>
         </Stack>
 
+        <Stack gap="sm">
+          <SeasonSwitcher
+            seasons={seasons}
+            viewedSeasonId={viewedSeasonId}
+            activeSeasonId={activeSeasonId}
+            onChange={setViewedSeason}
+            canLeave={() => {
+              // A mode or event dialog is scoped to the season it was opened
+              // in. Switching underneath it would silently retarget the save.
+              if (!eventModalOpen && !modeModalOpen) return true;
+              notifications.show({
+                color: "yellow",
+                title: t("settings.timeline.seasonSwitchBlockedTitle"),
+                message: t("settings.timeline.seasonSwitchBlocked"),
+              });
+              return false;
+            }}
+          />
+          <SeasonViewNotice viewedSeason={viewedSeason} activeSeason={activeSeason} />
+          <EmptyActiveSeasonNotice activeSeason={activeSeason} />
+        </Stack>
+
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <TimelineModeList
             modes={modes}
             onAdd={handleAddMode}
             onEdit={handleEditMode}
-            onDelete={handleDeleteMode}
+            onDelete={(id) => setModePendingDelete(modes.find((m) => m.id === id) ?? null)}
             t={t}
             powerUnit={powerUnit}
           />
@@ -193,6 +284,7 @@ export function TimelinePage() {
                   events={eventsByDay.get(dayIdx) ?? []}
                   modes={modes}
                   copyDay={copyDay}
+                  copyActive={copyActive}
                   loading={loading}
                   onCopy={setCopyDay}
                   onPaste={handlePasteDay}
@@ -212,7 +304,7 @@ export function TimelinePage() {
               <ModeCard
                 mode={activeMode}
                 onEdit={handleEditMode}
-                onDelete={handleDeleteMode}
+                onDelete={(id) => setModePendingDelete(modes.find((m) => m.id === id) ?? null)}
                 t={t}
                 powerUnit={powerUnit}
                 style={{ cursor: "grabbing", boxShadow: "var(--mantine-shadow-md)" }}
@@ -245,10 +337,68 @@ export function TimelinePage() {
           hruVariables={hruVariables}
           maxPower={maxPower}
           existingModes={modes}
+          seasonLabel={
+            viewedSeason ? t(`settings.seasons.names.${viewedSeason.seasonKey}`) : undefined
+          }
+          copyFromSeasons={
+            // Only worth offering while this mode has nothing here yet.
+            editingMode && editingMode.configured === false
+              ? seasons
+                  .filter((season) => season.id !== viewedSeasonId)
+                  .map((season) => ({
+                    id: season.id,
+                    label: t(`settings.seasons.names.${season.seasonKey}`),
+                  }))
+              : []
+          }
+          onCopyFromSeason={(seasonId) =>
+            editingMode
+              ? api.fetchModeInSeason(editingMode.id, seasonId, activeUnitId)
+              : Promise.resolve(undefined)
+          }
+          onClearSeasonValues={
+            editingMode && viewedSeasonId !== undefined
+              ? () => void handleClearSeasonValues(editingMode.id)
+              : undefined
+          }
           nameError={modeNameError}
           onNameChange={handleNameChange}
         />
       </Stack>
+      <Modal
+        opened={pendingPaste !== null}
+        onClose={cancelPaste}
+        centered
+        title={<Text fw={600}>{t("settings.timeline.pasteOverwriteTitle")}</Text>}
+      >
+        <Stack gap="md">
+          <Text size="sm">
+            {t("settings.timeline.pasteOverwriteBody", {
+              day: pendingPaste ? dayLabels[pendingPaste.targetDay] : "",
+              count: pendingPaste?.replacing ?? 0,
+              source: copySourceSeasonLabel ?? "",
+            })}
+          </Text>
+          <Group justify="flex-end">
+            <Button variant="default" onClick={cancelPaste}>
+              {t("settings.timeline.modal.cancel")}
+            </Button>
+            <Button color="red" onClick={confirmPaste}>
+              {t("settings.timeline.pasteOverwriteConfirm")}
+            </Button>
+          </Group>
+        </Stack>
+      </Modal>
+
+      <ModeDeleteConfirm
+        mode={modePendingDelete}
+        unitId={activeUnitId}
+        onCancel={() => setModePendingDelete(null)}
+        onConfirm={(id) => {
+          setModePendingDelete(null);
+          void handleDeleteMode(id);
+        }}
+      />
     </Container>
   );
 }

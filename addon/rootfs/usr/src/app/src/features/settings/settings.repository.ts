@@ -85,11 +85,11 @@ export class SettingsRepository {
     }
   }
 
-  getTimelineModes(hruId?: string): TimelineMode[] {
+  getTimelineModes(hruId?: string, timelineId?: number): TimelineMode[] {
     try {
-      return getTimelineModes(hruId);
+      return getTimelineModes(hruId, timelineId);
     } catch (err) {
-      this.logger.error({ err, hruId }, "Failed to get timeline modes");
+      this.logger.error({ err, hruId, timelineId }, "Failed to get timeline modes");
       return [];
     }
   }

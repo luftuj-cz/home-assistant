@@ -42,7 +42,10 @@ function readConnectionErrorFields(payload: unknown): ConnectionErrorInfo | null
 }
 
 function readModbusPayload(payload: unknown): ModbusLiveStatus | null {
-  const m = payload as { connected?: boolean; reconnecting?: boolean; consecutiveFailures?: number } | null | undefined;
+  const m = payload as
+    | { connected?: boolean; reconnecting?: boolean; consecutiveFailures?: number }
+    | null
+    | undefined;
   if (!m) return null;
   // payload is already confirmed truthy above, so readConnectionErrorFields
   // (which only returns null for a falsy payload) always returns an object here.

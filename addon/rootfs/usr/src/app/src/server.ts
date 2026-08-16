@@ -31,6 +31,7 @@ import { SettingsRepository } from "./features/settings/settings.repository.js";
 import { HruService } from "./features/hru/hru.service.js";
 import { HruController } from "./features/hru/hru.controller.js";
 
+import { createSeasonsRouter } from "./routes/seasons.js";
 import { createTimelineRouter } from "./routes/timeline.js";
 import { createSettingsRouter } from "./routes/settings.js";
 import { createDatabaseRouter } from "./routes/database.js";
@@ -152,6 +153,7 @@ const hruController = new HruController(hruService, logger);
 app.use("/api/hru", createHruRouter(hruController));
 app.use("/api/commissioning", createCommissioningRouter(commissioningRunner, hruService, logger));
 app.use("/api/timeline", createTimelineRouter(logger, timelineScheduler, hruService, mqttService));
+app.use("/api/seasons", createSeasonsRouter(logger, hruService, timelineScheduler));
 app.use("/api/settings", createSettingsRouter(hruService, mqttService, haClient, logger));
 app.use(
   "/api/database",

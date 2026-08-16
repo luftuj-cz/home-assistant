@@ -1,5 +1,10 @@
 import type { TimelineEvent } from "../database.js";
-import { getTimelineEvents, getTimelineModes } from "../database.js";
+import {
+  getActiveSeasonId,
+  getModuleLogger,
+  getTimelineEvents,
+  getTimelineModes,
+} from "../database.js";
 import { hasResolvableTimelineModeReference } from "./modeReference.js";
 
 /**
@@ -26,6 +31,52 @@ export function timeToMinutes(value: string): number {
 }
 
 /**
+ * Signature of the last reported set of unresolvable events, so an unchanged
+ * condition is not re-reported. Reset when the condition clears, so it is
+ * reported again if it comes back.
+ */
+let lastUnresolvableSignature: string | null = null;
+
+/**
+ * Reports enabled events whose mode cannot be resolved for the active season.
+ *
+ * Write-gating makes such an event unreachable, so one appearing here means the
+ * schedule is silently losing entries - a house left unventilated with nothing
+ * in the journal. It is therefore an error, not a debug line.
+ *
+ * Reported once per condition rather than once per weekday per tick: the
+ * scheduler runs every ten seconds and the day loop runs seven times, so the
+ * unthrottled version produced about 60,000 identical error lines a day and
+ * buried the message it exists to deliver - including in the bug-report bundle.
+ */
+function reportUnresolvableEvents(
+  currentUnitId: string | undefined,
+  activeSeasonId: number | undefined,
+  events: TimelineEvent[],
+  modes: ReturnType<typeof getTimelineModes>,
+): void {
+  const dropped = events
+    .filter((e) => e.enabled && !hasResolvableTimelineModeReference(modes, e.hruConfig?.mode))
+    .map((e) => ({ id: e.id, startTime: e.startTime, mode: e.hruConfig?.mode }));
+
+  if (dropped.length === 0) {
+    lastUnresolvableSignature = null;
+    return;
+  }
+
+  const signature = `${currentUnitId ?? "-"}|${activeSeasonId ?? "-"}|${dropped
+    .map((e) => `${e.id}:${e.mode}`)
+    .join(",")}`;
+  if (signature === lastUnresolvableSignature) return;
+  lastUnresolvableSignature = signature;
+
+  getModuleLogger()?.error(
+    { unitId: currentUnitId, seasonId: activeSeasonId, dropped },
+    "pickActiveEvent: dropping events whose mode cannot be resolved - schedule is incomplete",
+  );
+}
+
+/**
  * Picks the active timeline event for the current time
  * Searches backwards through days to find the most recent applicable event
  * @param currentUnitId - Optional HRU unit ID for unit-specific events
@@ -38,7 +89,11 @@ export function pickActiveEvent(
   nowMinutes: number,
   today: number,
 ): TimelineEvent | null {
-  const allEvents = getTimelineEvents(currentUnitId);
+  const activeSeasonId = getActiveSeasonId(currentUnitId ?? null);
+  const allEvents = getTimelineEvents(currentUnitId, activeSeasonId);
+  const modes = getTimelineModes(currentUnitId, activeSeasonId);
+
+  reportUnresolvableEvents(currentUnitId, activeSeasonId, allEvents, modes);
 
   for (let d = 0; d < 7; d++) {
     const targetDay = (today - d + 7) % 7;
@@ -46,7 +101,6 @@ export function pickActiveEvent(
       (e) => e.enabled && (e.dayOfWeek === null || e.dayOfWeek === targetDay),
     );
 
-    const modes = getTimelineModes(currentUnitId);
     let filtered = dayCandidates.filter((e) =>
       hasResolvableTimelineModeReference(modes, e.hruConfig?.mode),
     );

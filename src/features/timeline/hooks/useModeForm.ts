@@ -24,6 +24,7 @@ export interface ModeFormState {
   valveOpenings: Record<string, number | undefined>;
   setValveOpenings: Dispatch<SetStateAction<Record<string, number | undefined>>>;
   scriptRows: ScriptRow[];
+  setScriptRows: Dispatch<SetStateAction<ScriptRow[]>>;
   addScript: () => void;
   removeScript: (id: number) => void;
   setScript: (id: number, value: string | null) => void;
@@ -93,12 +94,6 @@ export function useModeForm(opened: boolean, mode: Mode | null, valves: Valve[])
       },
       {} as Record<string, number>,
     );
-    for (const valve of valves) {
-      const key = valve.entityId || valve.name;
-      if (key && !(key in cleanedValveOpenings)) {
-        cleanedValveOpenings[key] = 0;
-      }
-    }
     // Drop empty rows and duplicates; keep only valid script entity ids.
     const cleanedScripts = Array.from(
       new Set(
@@ -107,6 +102,25 @@ export function useModeForm(opened: boolean, mode: Mode | null, valves: Valve[])
           .filter((s): s is string => typeof s === "string" && s.trim().length > 0),
       ),
     );
+
+    // A mode that only runs scripts must write nothing to the hardware - "in
+    // summer, open the window instead of running the unit". Defaulting every
+    // valve to 0 below would turn that into "close every valve", so the
+    // defaults are skipped when scripts are all that has been entered.
+    const scriptOnly =
+      cleanedScripts.length > 0 &&
+      Object.keys(variableValues).length === 0 &&
+      Object.keys(cleanedValveOpenings).length === 0;
+
+    if (!scriptOnly) {
+      for (const valve of valves) {
+        const key = valve.entityId || valve.name;
+        if (key && !(key in cleanedValveOpenings)) {
+          cleanedValveOpenings[key] = 0;
+        }
+      }
+    }
+
     return {
       name: trimmedName,
       variables: variableValues,
@@ -129,6 +143,7 @@ export function useModeForm(opened: boolean, mode: Mode | null, valves: Valve[])
     valveOpenings,
     setValveOpenings,
     scriptRows,
+    setScriptRows,
     addScript,
     removeScript,
     setScript,
