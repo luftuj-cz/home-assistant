@@ -1,0 +1,17 @@
+# Read by Oxfmt (and any Prettier-compatible tool) to decide what NOT to format.
+# Oxlint keeps its own list in oxlint.config.ts - keep the two in step.
+
+# Build output. Committed because the add-on image ships it, but it is generated
+# by `npm run build:addon`, and reformatting minified bundles is pure churn.
+addon/rootfs/usr/share/luftujha/www/
+dist/
+dist-ssr/
+.vite-temp/
+
+# Planning artifacts: prose, checklists and delta specs, none of it code and all
+# of it local-only. Formatting them rewrites tables and wrapped lines for no
+# benefit, and drags other changes' documents into every check run.
+openspec/
+HANDOFF-SEASONS.md
+FOLLOW-UPS.md
+AGENTS.md
