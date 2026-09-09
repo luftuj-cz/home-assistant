@@ -1,0 +1,58 @@
+name: SonarCloud
+
+on:
+  push:
+    branches: [ main, development ]
+  pull_request:
+    branches: [ main, development ]
+  workflow_dispatch:
+
+jobs:
+  analyze:
+    name: Analyze
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          # Sonar needs full history to attribute issues and resolve the new code period
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: "npm"
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: npm --prefix addon/rootfs/usr/src/app ci
+
+      - name: Run backend tests with coverage
+        run: npm --prefix addon/rootfs/usr/src/app run test:coverage
+
+      # vitest writes SF: paths relative to the backend package, but the scanner
+      # resolves them from the repo root (where src/ is the frontend). Without
+      # this prefix none of the 64 files resolve and coverage silently reads 0%.
+      - name: Rebase coverage paths onto the repo root
+        run: |
+          sed -i 's|^SF:|SF:addon/rootfs/usr/src/app/|' \
+            addon/rootfs/usr/src/app/coverage/lcov.info
+
+      - name: SonarCloud scan
+        uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
+
+      # Polls the analysis task written to .scannerwork/report-task.txt by the
+      # step above and fails the job if the gate is not PASSED.
+      - name: Quality gate
+        uses: SonarSource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
+        with:
+          pollingTimeoutSec: "600"
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: https://sonarcloud.io
