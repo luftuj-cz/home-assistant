@@ -10,6 +10,7 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+coverage
 *.local
 addon/rootfs/usr/src/app/.env
 addon/rootfs/usr/src/app/.venv
