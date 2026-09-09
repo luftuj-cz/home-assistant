@@ -27,7 +27,7 @@ const resources = {
 export type SupportedLanguage = keyof typeof resources;
 
 export function isSupportedLanguage(language: string): language is SupportedLanguage {
-  return Object.prototype.hasOwnProperty.call(resources, language);
+  return Object.hasOwn(resources, language);
 }
 
 try {

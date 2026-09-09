@@ -72,7 +72,9 @@ export function HaEntitiesPage() {
   const entities = data?.entities ?? [];
 
   const domainOptions = useMemo(() => {
-    const domains = Array.from(new Set(entities.map((e) => e.domain))).sort();
+    const domains = Array.from(new Set(entities.map((e) => e.domain))).sort((a, b) =>
+      a.localeCompare(b),
+    );
     return [
       {
         value: ALL_DOMAINS,
@@ -191,6 +193,11 @@ export function HaEntitiesPage() {
                   {filtered.map((e) => {
                     const isOpen = expanded === e.entityId;
                     const hasAttributes = Object.keys(e.attributes).length > 0;
+                    const chevron = isOpen ? (
+                      <IconChevronDown size={14} />
+                    ) : (
+                      <IconChevronRight size={14} />
+                    );
                     return (
                       <Fragment key={e.entityId}>
                         <Table.Tr>
@@ -200,15 +207,7 @@ export function HaEntitiesPage() {
                               disabled={!hasAttributes}
                             >
                               <Group gap="xs" wrap="nowrap">
-                                {hasAttributes ? (
-                                  isOpen ? (
-                                    <IconChevronDown size={14} />
-                                  ) : (
-                                    <IconChevronRight size={14} />
-                                  )
-                                ) : (
-                                  <span style={{ width: 14 }} />
-                                )}
+                                {hasAttributes ? chevron : <span style={{ width: 14 }} />}
                                 <Badge size="xs" variant="light">
                                   {e.domain}
                                 </Badge>

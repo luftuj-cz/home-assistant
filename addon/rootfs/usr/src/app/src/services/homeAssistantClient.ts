@@ -1,5 +1,11 @@
 import type { Logger } from "pino";
-import WebSocket from "ws";
+import WebSocket, { type RawData } from "ws";
+
+function rawDataToString(data: RawData): string {
+  if (Array.isArray(data)) return Buffer.concat(data).toString();
+  if (Buffer.isBuffer(data)) return data.toString();
+  return Buffer.from(data).toString();
+}
 
 export interface HassState {
   entity_id: string;
@@ -228,7 +234,7 @@ export class HomeAssistantClient {
 
       socket.on("message", (data) => {
         try {
-          const payload = JSON.parse(data.toString()) as unknown;
+          const payload = JSON.parse(rawDataToString(data)) as unknown;
           if (isHassWebSocketMessage(payload)) {
             boundHandleMessage(payload, socket!, handler);
           } else {
