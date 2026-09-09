@@ -688,7 +688,8 @@
     "MODE_VALUES_EMPTY": "A mode has to set at least one value or one activation script for this season.",
     "MODE_VALUES_IN_USE": "Events in this season still use this mode. Remove or switch them off first.",
     "INVALID_SEASON_PARTITION": "The season cannot be changed like that: at least one season has to stay on, and no two may start on the same day.",
-    "UNKNOWN_SEASON": "Unknown season"
+    "UNKNOWN_SEASON": "Unknown season",
+    "SEASONS_FEATURE_DISABLED": "Seasons are switched off. Enable them in Settings before changing a season."
   },
   "errors": {
     "i18n": {

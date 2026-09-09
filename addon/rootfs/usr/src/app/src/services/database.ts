@@ -16,6 +16,7 @@ export {
   deleteTimelineMode,
   countEnabledEventsUsingMode,
   deleteTimelineModeValues,
+  getTimelineEventById,
   getTimelineEvents,
   getTimelineMode,
   getModeUsage,

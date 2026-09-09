@@ -2,12 +2,17 @@ import { SEASONS_ENABLED_KEY } from "../../types/index.js";
 import { getDatabase, getModuleLogger, setupDatabase } from "../database.js";
 import { getAppSetting, setAppSetting } from "./settings.js";
 import {
+  adoptSeasonlessContent,
   ensureSeasons,
   getSeasons,
   persistDerivedSpanEnds,
+  SEASON_KEYS,
   type Season,
   type SeasonKey,
+  validatePartition,
 } from "./seasons.js";
+
+export { adoptSeasonlessContent };
 
 /** Meteorological boundaries: round dates, Czech convention, draggable afterwards. */
 const SEED_SPAN_STARTS: Record<SeasonKey, string> = {
@@ -17,6 +22,66 @@ const SEED_SPAN_STARTS: Record<SeasonKey, string> = {
   winter: "12-01",
 };
 
+/**
+ * Where `disableSeasonsFeature` parks the partition it collapses. Keyed per
+ * unit (`""` for unit-less rows) so switching units in between cannot restore
+ * one unit's boundaries onto another.
+ */
+export const SEASONS_PARKED_PARTITION_KEY = "timeline.seasons_parked_partition";
+
+type ParkedSeason = { spanStart: string; enabled: boolean };
+type ParkedPartition = Partial<Record<SeasonKey, ParkedSeason>>;
+
+function partitionStorageKey(hruId: string | null): string {
+  return hruId ?? "";
+}
+
+function readParkedPartitions(): Record<string, ParkedPartition> {
+  const raw = getAppSetting(SEASONS_PARKED_PARTITION_KEY);
+  if (!raw) return {};
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return parsed && typeof parsed === "object" ? (parsed as Record<string, ParkedPartition>) : {};
+  } catch (err) {
+    getModuleLogger()?.warn({ err }, "Ignoring unreadable parked season partition");
+    return {};
+  }
+}
+
+function writeParkedPartitions(partitions: Record<string, ParkedPartition>): void {
+  setAppSetting(SEASONS_PARKED_PARTITION_KEY, JSON.stringify(partitions));
+}
+
+function isSeasonKey(value: string): value is SeasonKey {
+  return (SEASON_KEYS as readonly string[]).includes(value);
+}
+
+/**
+ * The partition to bring back on enable, or null when there is nothing parked
+ * for this unit or what is parked would not be a valid partition any more.
+ */
+function takeParkedPartition(hruId: string | null, seasons: Season[]): ParkedPartition | null {
+  const all = readParkedPartitions();
+  const key = partitionStorageKey(hruId);
+  const parked = all[key];
+  if (!parked) return null;
+
+  delete all[key];
+  writeParkedPartitions(all);
+
+  const candidate = seasons.map((season) => {
+    const saved = parked[season.seasonKey];
+    return saved
+      ? { ...season, spanStart: saved.spanStart, enabled: saved.enabled }
+      : { ...season, spanStart: SEED_SPAN_STARTS[season.seasonKey], enabled: false };
+  });
+  if (validatePartition(candidate).length > 0) {
+    getModuleLogger()?.warn({ hruId, parked }, "Parked season partition is invalid, reseeding");
+    return null;
+  }
+  return parked;
+}
+
 function requireDatabase() {
   if (!getDatabase()) setupDatabase();
   const db = getDatabase();
@@ -24,15 +89,27 @@ function requireDatabase() {
   return db;
 }
 
+/**
+ * The one definition of "seasons are in play". The scheduler, the routes and
+ * the feature flows all ask this, so that an install cannot be half-on: gated
+ * writes refused while the safe state fires, or vice versa.
+ */
 export function isSeasonsFeatureEnabled(): boolean {
   return getAppSetting(SEASONS_ENABLED_KEY) === "true";
 }
 
 /**
- * Turning the feature on must not change what the unit is doing. It seeds the
- * four meteorological seasons and, unless told otherwise, copies the existing
- * schedule and mode values into all of them - so every season starts as an
- * exact copy of the single schedule that was running before.
+ * Turning the feature on must not change what the unit is doing. The first
+ * time, it seeds the four meteorological seasons and, unless told otherwise,
+ * copies the existing schedule and mode values into all of them - so every
+ * season starts as an exact copy of the single schedule that was running
+ * before.
+ *
+ * Turning it back on after a disable restores the partition that was parked:
+ * the boundaries the user had moved and the seasons they had switched off. The
+ * disable dialog promises that off/on brings back exactly what was there, and
+ * events and mode values already survive the round trip - reseeding the
+ * boundaries on top of them broke that promise for the partition itself.
  */
 export function enableSeasonsFeature(hruId: string | null, cloneCurrent = true): Season[] {
   const db = requireDatabase();
@@ -48,11 +125,17 @@ export function enableSeasonsFeature(hruId: string | null, cloneCurrent = true):
     // today actually belongs to one.
     adoptSeasonlessContent(hruId, source.id);
 
+    const parked = takeParkedPartition(hruId, seasons);
     const setBoundary = db.prepare(
-      `UPDATE timelines SET span_start = ?, enabled = 1, updated_at = datetime('now') WHERE id = ?`,
+      `UPDATE timelines SET span_start = ?, enabled = ?, updated_at = datetime('now') WHERE id = ?`,
     );
     for (const season of seasons) {
-      setBoundary.run(SEED_SPAN_STARTS[season.seasonKey], season.id);
+      const restored = parked?.[season.seasonKey];
+      if (restored) {
+        setBoundary.run(restored.spanStart, restored.enabled ? 1 : 0, season.id);
+      } else {
+        setBoundary.run(SEED_SPAN_STARTS[season.seasonKey], 1, season.id);
+      }
     }
 
     if (cloneCurrent) {
@@ -69,47 +152,6 @@ export function enableSeasonsFeature(hruId: string | null, cloneCurrent = true):
   persistDerivedSpanEnds(hruId);
   getModuleLogger()?.info({ hruId, cloneCurrent }, "Seasons feature enabled");
   return getSeasons(hruId);
-}
-
-/**
- * Pulls everything that predates the unit's seasons into the season the feature
- * grows from.
- *
- * There are two kinds of season-less content. Events written while the unit had
- * no season row at all carry `timeline_id IS NULL` - migration 013 only
- * back-fills units that already owned events, so every install created after
- * this release starts that way. Modes from the same period have no row in
- * `timeline_mode_values`; their values live only in the legacy columns.
- *
- * Left alone, enabling the feature would scope the schedule to a season none of
- * it belongs to: the timeline would come up empty, every mode would read as
- * unconfigured, and the safe state would drive the unit to minimum.
- *
- * Unit-less events are folded in as well, matching migration 013 and the
- * adoption in `assignLegacyEventsToUnit`: a season of their own would be
- * orphaned the moment the unit adopts them.
- */
-export function adoptSeasonlessContent(hruId: string | null, timelineId: number): void {
-  const db = requireDatabase();
-
-  db.prepare(
-    `UPDATE timeline_events
-     SET timeline_id = ?, updated_at = datetime('now')
-     WHERE timeline_id IS NULL
-       AND (hru_id IS ? OR hru_id IS NULL)`,
-  ).run(timelineId, hruId);
-
-  // Same back-fill migration 014 performs: for a mode never saved per season,
-  // the legacy columns are still the truth.
-  db.prepare(
-    `INSERT OR IGNORE INTO timeline_mode_values
-       (mode_id, timeline_id, power, temperature, native_mode, variables, luftator_config,
-        script_entity_ids)
-     SELECT m.id, ?, m.power, m.temperature, m.native_mode, m.variables, m.luftator_config,
-            m.script_entity_ids
-     FROM timeline_modes m
-     WHERE m.hru_id IS ? OR m.hru_id IS NULL`,
-  ).run(timelineId, hruId);
 }
 
 /** True when a season already holds a schedule or mode values of its own. */
@@ -205,7 +247,10 @@ export function getDisableImpact(hruId: string | null, keepSeasonKey: SeasonKey)
  *
  * The kept season keeps its own key rather than being rewritten to spring: the
  * rows survive now, so an off/on round trip restores exactly what was there
- * instead of needing a fixed key to grow back from.
+ * instead of needing a fixed key to grow back from. The partition itself -
+ * every season's boundary and enabled flag - is parked in `app_settings`, since
+ * the rows are about to be overwritten with the whole-year collapse and the
+ * enable flow reads them back from there.
  */
 export function disableSeasonsFeature(
   hruId: string | null,
@@ -224,6 +269,15 @@ export function disableSeasonsFeature(
   }
 
   const run = db.transaction(() => {
+    const partition: ParkedPartition = {};
+    for (const season of seasons) {
+      if (!isSeasonKey(season.seasonKey)) continue;
+      partition[season.seasonKey] = { spanStart: season.spanStart, enabled: season.enabled };
+    }
+    const all = readParkedPartitions();
+    all[partitionStorageKey(hruId)] = partition;
+    writeParkedPartitions(all);
+
     const park = db.prepare(
       `UPDATE timelines SET enabled = 0, updated_at = datetime('now') WHERE id = ?`,
     );

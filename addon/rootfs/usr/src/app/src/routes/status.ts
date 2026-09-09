@@ -264,19 +264,6 @@ export function createStatusRouter(
     },
   );
 
-  router.get(
-    "/debug/home-assistant/entities/download",
-    async (_request: Request, response: Response, next: NextFunction) => {
-      try {
-        const payload = await buildHomeAssistantEntitiesSnapshot(haClient);
-        sendJsonDownload(response, payload, "luftator-ha-entities");
-      } catch (error) {
-        logger.error({ error }, "Failed to download Home Assistant entities");
-        next(error);
-      }
-    },
-  );
-
   router.get("/debug/logs", (request: Request, response: Response, next: NextFunction) => {
     try {
       const limit = parseLogLimit(request.query.limit, 300);

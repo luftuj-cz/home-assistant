@@ -3,7 +3,6 @@ import { Router } from "express";
 import type { Logger } from "pino";
 import {
   ensureSeasons,
-  getAppSetting,
   getSeasons,
   getTimelineEvents,
   getTimelineModes,
@@ -25,9 +24,9 @@ import {
 } from "../schemas/seasons.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import { ApiError, BadRequestError, ConflictError } from "../shared/errors/apiErrors.js";
-import { HRU_SETTINGS_KEY, type HruSettings } from "../types/index.js";
 import type { HruService } from "../features/hru/hru.service.js";
 import type { TimelineScheduler } from "../services/timelineScheduler.js";
+import { resolveCurrentUnitId } from "../services/unitResolution.js";
 
 export function createSeasonsRouter(
   logger: Logger,
@@ -36,17 +35,8 @@ export function createSeasonsRouter(
 ) {
   const router = Router();
 
-  /** Mirrors the timeline router: an explicit unit wins, else the configured one. */
   function getCurrentUnitId(unitIdOverride?: string): string | null {
-    try {
-      if (unitIdOverride) return unitIdOverride;
-      const raw = getAppSetting(HRU_SETTINGS_KEY);
-      const settings = raw ? (JSON.parse(raw) as HruSettings) : null;
-      if (settings?.unit) return settings.unit;
-      return hruService.getAllUnits()[0]?.id ?? null;
-    } catch {
-      return null;
-    }
+    return resolveCurrentUnitId(hruService, unitIdOverride);
   }
 
   /**
@@ -110,6 +100,12 @@ export function createSeasonsRouter(
    * validator server-side, not only in the drag UI: this endpoint is reachable
    * directly, and a partition with no enabled season would leave the unit with
    * no schedule on any day of the year.
+   *
+   * Refused while the feature is off. The GET above deliberately does not
+   * materialise season rows then, but this used to: a direct call (an
+   * automation, a stale client) could enable a second, empty season on an
+   * install whose UI said seasons were off - the scheduler then drove the unit
+   * to the safe state for half the year with nothing visible to explain it.
    */
   router.patch(
     "/:key",
@@ -119,6 +115,15 @@ export function createSeasonsRouter(
         const key = request.params.key as SeasonKey;
         const hruId = getCurrentUnitId(request.query.unitId as string);
         const { enabled, spanStart } = request.body as { enabled?: boolean; spanStart?: string };
+
+        if (!isSeasonsFeatureEnabled()) {
+          return next(
+            new ConflictError(
+              "Seasons are disabled; enable the feature before changing a season",
+              "SEASONS_FEATURE_DISABLED",
+            ),
+          );
+        }
 
         ensureSeasons(hruId);
         let seasons = getSeasons(hruId);

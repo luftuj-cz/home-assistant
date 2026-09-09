@@ -698,7 +698,8 @@
     "MODE_VALUES_EMPTY": "Mód musí mít pro toto období aspoň jednu hodnotu nebo jeden aktivační skript.",
     "MODE_VALUES_IN_USE": "Události v tomto období tento mód pořád používají. Nejdřív je smaž nebo vypni.",
     "INVALID_SEASON_PARTITION": "Období takhle změnit nelze: aspoň jedno musí zůstat zapnuté a žádná dvě nesmí začínat ve stejný den.",
-    "UNKNOWN_SEASON": "Neznámé období"
+    "UNKNOWN_SEASON": "Neznámé období",
+    "SEASONS_FEATURE_DISABLED": "Období jsou vypnutá. Nejdřív je zapni v Nastavení, pak půjde období změnit."
   },
   "errors": {
     "i18n": {

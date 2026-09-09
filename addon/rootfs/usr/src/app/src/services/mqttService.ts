@@ -11,6 +11,7 @@ import { getAppSetting } from "./database.js";
 import { INFINITE_BOOST_DURATION_MINUTES } from "../constants.js";
 import type { SettingsRepository } from "../features/settings/settings.repository.js";
 import type { TimelineScheduler } from "./timelineScheduler.js";
+import { BoostModeNotConfiguredError, buildBoostOverride } from "./timeline/boostOverride.js";
 import { classifyConnectionError, type ConnectionErrorState } from "../shared/errorCodes.js";
 import enCommon from "../locales/en/common.json" with { type: "json" };
 import csCommon from "../locales/cs/common.json" with { type: "json" };
@@ -733,18 +734,13 @@ export class MqttService extends EventEmitter {
 
         const modeId = Number.parseInt(modeIdStr, 10);
         const duration = this.settingsRepo.getBoostDuration();
-
-        const durationMinutes = duration;
         const endTime = new Date(Date.now() + duration * 60 * 1000).toISOString();
 
-        const override: TimelineOverride = { modeId, endTime, durationMinutes };
+        const override = this.buildBoostOverrideFor(modeId, duration, endTime);
+        if (!override) return;
 
         this.logger.info({ modeId, duration, override }, "MQTT: Execute Boost Start");
-
-        this.settingsRepo.setTimelineOverride(override);
-        await this.timelineScheduler.executeScheduledEvent();
-        this.emit("command-received");
-
+        await this.applyBoostOverride(override);
         this.logger.info("MQTT: Boost activated successfully");
       }
 
@@ -760,21 +756,91 @@ export class MqttService extends EventEmitter {
         }
 
         const modeId = Number.parseInt(modeIdStr, 10);
-        const durationMinutes = INFINITE_BOOST_DURATION_MINUTES;
         const endTime = new Date("9999-12-31T23:59:59.999Z").toISOString();
 
-        const override: TimelineOverride = { modeId, endTime, durationMinutes };
+        const override = this.buildBoostOverrideFor(
+          modeId,
+          INFINITE_BOOST_DURATION_MINUTES,
+          endTime,
+        );
+        if (!override) return;
 
         this.logger.info({ modeId, override }, "MQTT: Execute Infinite Boost Start");
-
-        this.settingsRepo.setTimelineOverride(override);
-        await this.timelineScheduler.executeScheduledEvent();
-        this.emit("command-received");
-
+        await this.applyBoostOverride(override);
         this.logger.info("MQTT: Infinite Boost activated successfully");
       }
     } catch (err) {
       this.logger.error({ err, topic }, "MQTT: Error handling incoming message");
+    }
+  }
+
+  /**
+   * The override an MQTT boost button stores - built the same way as the HTTP
+   * boost, with the mode's values frozen at start. The two paths used to differ:
+   * the button wrote a bare `{ modeId }`, so an infinite boost that crossed a
+   * season boundary silently switched to the new season's values, or was
+   * cancelled by the scheduler where the mode had none. A button press has no
+   * response channel, so an unconfigured mode is reported in the log and the
+   * override is left untouched instead of being replaced by one that would do
+   * nothing.
+   */
+  private buildBoostOverrideFor(
+    modeId: number,
+    durationMinutes: number,
+    endTime: string,
+  ): NonNullable<TimelineOverride> | null {
+    // Modes are stored under the unit id from HRU settings, not the MQTT topic
+    // slug - the same lookup discovery uses to publish the buttons.
+    const settingsUnitId =
+      this.settingsRepo.getHruSettings()?.unit || this.cachedDiscoveryUnit?.code;
+    const modes = this.settingsRepo.getTimelineModes(
+      settingsUnitId,
+      getActiveSeasonId(settingsUnitId ?? null),
+    );
+    const mode = modes.find((candidate) => candidate.id === modeId);
+    if (!mode) {
+      this.logger.warn(
+        { settingsUnitId, modeId },
+        "MQTT: boost requested for an unknown mode, ignoring",
+      );
+      return null;
+    }
+    try {
+      return buildBoostOverride(mode, durationMinutes, endTime);
+    } catch (err) {
+      if (err instanceof BoostModeNotConfiguredError) {
+        this.logger.error(
+          { settingsUnitId, modeId, mode: mode.name },
+          "MQTT: boost mode has no values for the active season, ignoring button press",
+        );
+        return null;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Stores the override and applies it at once, the way the HTTP boost does:
+   * if the apply fails - a configured valve missing from Home Assistant, the
+   * HRU unreachable - the previous override is restored and re-applied, so a
+   * button press cannot leave the dashboard showing a boost that never reached
+   * the hardware. The failure is logged; a button has no other reply channel.
+   */
+  private async applyBoostOverride(override: NonNullable<TimelineOverride>): Promise<void> {
+    const previous = this.settingsRepo.getTimelineOverride();
+    this.settingsRepo.setTimelineOverride(override);
+    try {
+      await this.timelineScheduler.executeScheduledEventOrThrow();
+    } catch (err) {
+      this.logger.error(
+        { err, modeId: override.modeId },
+        "MQTT: boost could not be applied, restoring the previous state",
+      );
+      this.settingsRepo.setTimelineOverride(previous);
+      await this.timelineScheduler.executeScheduledEvent();
+      return;
+    } finally {
+      this.emit("command-received");
     }
   }
 
@@ -1203,10 +1269,13 @@ export class MqttService extends EventEmitter {
     device: object,
     availability: object[],
   ) {
-    // Delete old slug topic if renamed
+    // Delete both old slug topics if renamed. Removing only the plain button
+    // left the old "∞" button in Home Assistant forever, still starting the
+    // renamed mode.
     if (prevBoostMap[modeId] && prevBoostMap[modeId] !== slug) {
       const oldSlug = prevBoostMap[modeId];
       await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}`);
+      await this.removeDiscoveryEntity(unitId, "button", `boost_${oldSlug}_infinite`);
     }
 
     await this.publishButton(

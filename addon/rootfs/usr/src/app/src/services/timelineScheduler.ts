@@ -7,21 +7,19 @@ import {
   getSeasons,
   getTimelineEvents,
   getTimelineModes,
-  type Season,
   type TimelineEvent,
 } from "./database.js";
-import { mapTodayToTimelineDay, pickActiveEvent, timeToMinutes } from "./timeline/eventPicker.js";
+import { isSeasonsFeatureEnabled } from "./db/seasonsFeature.js";
+import {
+  mapTodayToTimelineDay,
+  pickActiveEventWithContext,
+  timeToMinutes,
+} from "./timeline/eventPicker.js";
 import { findTimelineModeByReference } from "./timeline/modeReference.js";
+import { resolveCurrentUnitId } from "./unitResolution.js";
 
 import type { HruService } from "../features/hru/hru.service.js";
-import {
-  HRU_SETTINGS_KEY,
-  type HruSettings,
-  LANGUAGE_SETTING_KEY,
-  SEASONS_ENABLED_KEY,
-  type TimelineMode,
-  type TimelineOverride,
-} from "../types/index.js";
+import { LANGUAGE_SETTING_KEY, type TimelineMode, type TimelineOverride } from "../types/index.js";
 import type { SettingsRepository } from "../features/settings/settings.repository.js";
 import { INFINITE_BOOST_DURATION_MINUTES } from "../constants.js";
 
@@ -76,9 +74,11 @@ export class TimelineScheduler {
     },
   };
   /**
-   * Whether the safe state has already been written for the current no-event
-   * condition. Cleared as soon as anything else applies, so leaving and
-   * re-entering the condition writes it again.
+   * Whether the safe state has been written - successfully - for the current
+   * no-event condition. Set only once the HRU confirmed the write, so a failed
+   * attempt (Modbus briefly unreachable) is retried on the next tick instead of
+   * being remembered as done. Cleared as soon as anything else applies, so
+   * leaving and re-entering the condition writes it again.
    */
   private safeStateApplied = false;
   private schedulerTimer: NodeJS.Timeout | null = null;
@@ -254,24 +254,7 @@ export class TimelineScheduler {
   }
 
   private getCurrentUnitId(): string | undefined {
-    try {
-      const rawSettings = getAppSetting(HRU_SETTINGS_KEY);
-      if (rawSettings) {
-        const settings = JSON.parse(rawSettings) as HruSettings;
-        if (settings.unit) {
-          return settings.unit;
-        }
-      }
-    } catch (err) {
-      this.logger.error(
-        { err },
-        "TimelineScheduler: failed to parse HRU settings, treating as global/no unit",
-      );
-    }
-
-    // Fallback: use first available unit if specific setting is missing
-    const units = this.hruService.getAllUnits();
-    return units[0]?.id;
+    return resolveCurrentUnitId(this.hruService) ?? undefined;
   }
 
   private async reportValveStates(): Promise<void> {
@@ -300,12 +283,12 @@ export class TimelineScheduler {
       `${new Date().getHours().toString().padStart(2, "0")}:${new Date().getMinutes().toString().padStart(2, "0")}`,
     );
     const today = mapTodayToTimelineDay();
-    const event = pickActiveEvent(currentUnitId, nowMinutes, today);
+    const { event, modes } = pickActiveEventWithContext(currentUnitId, nowMinutes, today);
     if (!event) {
       return this.resolveNoEventPayload(currentUnitId);
     }
 
-    return this.buildScheduledEventPayload(event, currentUnitId);
+    return this.buildScheduledEventPayload(event, modes);
   }
 
   /**
@@ -328,7 +311,10 @@ export class TimelineScheduler {
       return null;
     }
 
-    if (!this.isSeasonsFeatureEnabled(enabled)) {
+    // One definition of "seasons are on", shared with the routes: a partition
+    // with several enabled seasons can only come from the enable flow, which
+    // sets the flag, so the flag alone is authoritative.
+    if (!isSeasonsFeatureEnabled()) {
       this.logger.debug("TimelineScheduler: no active event or boost for current time");
       this.safeStateApplied = false;
       return null;
@@ -343,25 +329,14 @@ export class TimelineScheduler {
       return null;
     }
 
-    const values = this.buildSafeStateValues(currentUnitId);
-    if (Object.keys(values).length === 0) {
-      this.logger.warn(
-        { unitId: currentUnitId },
-        "TimelineScheduler: safe state has nothing to write for this unit",
-      );
-      this.safeStateApplied = false;
-      return null;
-    }
-
     // Written on entry into the no-event condition and not re-asserted after
     // that: applyEventValues writes on every tick, and an automatic low state
     // that reappears ten seconds after every manual adjustment is indisting-
-    // uishable, to the user, from broken hardware. The flag re-arms as soon as
-    // any other source applies, so leaving and re-entering writes it again.
-    const alreadyApplied = this.safeStateApplied;
-    this.safeStateApplied = true;
-
-    if (alreadyApplied) {
+    // uishable, to the user, from broken hardware. The flag is set by
+    // applyEventValues once the write succeeded - not here - so a failed write
+    // is tried again next tick. It re-arms as soon as any other source
+    // applies, so leaving and re-entering writes it again.
+    if (this.safeStateApplied) {
       this.logger.debug(
         { unitId: currentUnitId },
         "TimelineScheduler: safe state already applied, leaving the unit alone",
@@ -374,6 +349,15 @@ export class TimelineScheduler {
         scriptEntityIds: [],
         activationToken: "fallback|safe-state",
       };
+    }
+
+    const values = this.buildSafeStateValues(currentUnitId);
+    if (Object.keys(values).length === 0) {
+      this.logger.warn(
+        { unitId: currentUnitId },
+        "TimelineScheduler: safe state has nothing to write for this unit",
+      );
+      return null;
     }
 
     this.logger.warn(
@@ -389,11 +373,6 @@ export class TimelineScheduler {
       scriptEntityIds: [],
       activationToken: "fallback|safe-state",
     };
-  }
-
-  /** True once seasons are in play, i.e. the feature has been switched on. */
-  private isSeasonsFeatureEnabled(enabledSeasons: Season[]): boolean {
-    return enabledSeasons.length > 1 || getAppSetting(SEASONS_ENABLED_KEY) === "true";
   }
 
   private hasEverHadEnabledEvent(): boolean {
@@ -577,10 +556,12 @@ export class TimelineScheduler {
     };
   }
 
-  private buildScheduledEventPayload(
-    event: TimelineEvent,
-    currentUnitId: string | undefined,
-  ): ActivePayload {
+  /**
+   * `modes` are the ones the picker already resolved for the active season -
+   * passed in rather than re-read, so a tick queries the season and its modes
+   * once instead of twice.
+   */
+  private buildScheduledEventPayload(event: TimelineEvent, modes: TimelineMode[]): ActivePayload {
     const initial = {
       modeToSend: undefined as ModeValue,
       effectivePower: event.hruConfig?.power,
@@ -597,7 +578,6 @@ export class TimelineScheduler {
     let resolved = initial;
 
     if (displayModeName) {
-      const modes = getTimelineModes(currentUnitId, getActiveSeasonId(currentUnitId ?? null));
       foundMode = findTimelineModeByReference(modes, displayModeName);
       if (foundMode) {
         resolved = this.applyFoundModeToValues(foundMode, initial);
@@ -644,10 +624,22 @@ export class TimelineScheduler {
     for (const [entityId, opening] of Object.entries(luftatorConfig)) {
       if (opening === undefined || opening === null) continue;
       if (!activeEntityIds.has(entityId)) {
+        // The mode keeps its configuration for this valve - but the apply did
+        // not happen. For a boost that has to count as a failure: skipping
+        // silently made a valve-only boost report success while Home Assistant
+        // was down or the entity had been evicted - the dashboard showed a
+        // running boost and nothing had moved. (Before the guard existed the
+        // write threw "Unknown valve", the boost was rolled back and the user
+        // saw the error.) A scheduled event is applied best-effort instead, so
+        // one evicted valve cannot block cancelling a boost: the cancel path
+        // re-applies the schedule and rolls the boost back if that throws.
         this.logger.warn(
           { entityId, source },
-          "Skipping valve missing from the current snapshot; keeping its mode configuration",
+          "Valve missing from the current snapshot; keeping its mode configuration",
         );
+        if (source === "boost") {
+          firstError ??= new Error(`Valve ${entityId} is not available in Home Assistant`);
+        }
         continue;
       }
       try {
@@ -795,6 +787,14 @@ export class TimelineScheduler {
     }
 
     firstApplyError = valveApplyError ?? hruApplyError;
+
+    // The safe state counts as applied only once the unit confirmed the write.
+    // Remembering it beforehand meant a Modbus hiccup on that one tick left the
+    // unit on its old values for the whole gap in the schedule - precisely the
+    // situation the safe state exists to prevent.
+    if (source === "fallback" && hasHru && !hruApplyError) {
+      this.safeStateApplied = true;
+    }
 
     // Only report the new mode/boost name once the HRU side is actually confirmed
     // applied - reporting it optimistically made the dashboard/MQTT claim a mode

@@ -532,7 +532,9 @@ function SeasonBoundaryEditor({
 }>) {
   const { i18n } = useTranslation();
   const [month, setMonth] = useState(() => Number.parseInt(season.spanStart.slice(0, 2), 10));
-  const [day, setDay] = useState(() => Number.parseInt(season.spanStart.slice(3), 10));
+  // "" while the user has the field cleared: a live boundary must not move on
+  // the strength of an empty input.
+  const [day, setDay] = useState<number | "">(() => Number.parseInt(season.spanStart.slice(3), 10));
 
   useEffect(() => {
     setMonth(Number.parseInt(season.spanStart.slice(0, 2), 10));
@@ -550,7 +552,13 @@ function SeasonBoundaryEditor({
 
   const maxDay = DAYS_IN_MONTH[month - 1] ?? 31;
 
-  function commit(nextMonth: number, nextDay: number) {
+  function commit(nextMonth: number, nextDay: number | "") {
+    if (nextDay === "" || !Number.isFinite(nextDay)) {
+      // Nothing typed: restore the stored day instead of guessing the 1st,
+      // which could silently shift the boundary by up to a month.
+      setDay(Number.parseInt(season.spanStart.slice(3), 10));
+      return;
+    }
     const clampedDay = Math.min(Math.max(nextDay, 1), DAYS_IN_MONTH[nextMonth - 1] ?? 31);
     const next = toMonthDay(nextMonth, clampedDay);
     if (clampedDay !== nextDay) setDay(clampedDay);
@@ -562,7 +570,7 @@ function SeasonBoundaryEditor({
       <NumberInput
         label={t("settings.seasons.day")}
         value={day}
-        onChange={(value) => setDay(Number(value) || 1)}
+        onChange={(value) => setDay(value === "" ? "" : Number(value))}
         onBlur={() => commit(month, day)}
         min={1}
         max={maxDay}

@@ -356,17 +356,33 @@ export class ModeValuesInUseError extends Error {
 /**
  * True when this season is the one whose values the legacy columns represent.
  *
- * A one-season install is always spring, and spring is what migration 014
- * copied the legacy columns into, so spring is the season a build from before
- * this change would be reading when it looks at `timeline_modes`.
+ * The legacy columns describe the schedule of an install without seasons: one
+ * season covering the whole year. While the feature is off that is exactly the
+ * unit's single enabled season - whichever key it has. Disabling the feature
+ * keeps the season the user chose rather than forcing spring, so the default is
+ * defined by that invariant first: while autumn is the only enabled season,
+ * autumn is what the legacy columns mirror. (Testing the literal "spring" left
+ * them frozen forever on such an install.)
+ *
+ * With several seasons enabled no single one describes the year. Spring is
+ * mirrored then, because it is what migration 014 copied the legacy columns
+ * into and therefore the season a build from before seasons would be reading -
+ * the only downgrade contract the spec makes.
  */
 function isDefaultSeason(timelineId: number): boolean {
   const db = getDatabase();
   if (!db) return false;
-  const row = db.prepare(`SELECT season_key FROM timelines WHERE id = ?`).get(timelineId) as
-    | { season_key?: string }
-    | undefined;
-  return row?.season_key === "spring";
+  const row = db
+    .prepare(
+      `SELECT t.season_key, t.enabled,
+              (SELECT COUNT(*) FROM timelines o
+               WHERE o.enabled = 1 AND o.hru_id IS t.hru_id) AS enabled_count
+       FROM timelines t WHERE t.id = ?`,
+    )
+    .get(timelineId) as { season_key: string; enabled: number; enabled_count: number } | undefined;
+  if (!row) return false;
+  if (row.enabled_count === 1) return Boolean(row.enabled);
+  return row.season_key === "spring";
 }
 
 /**
@@ -644,7 +660,19 @@ export function assignLegacyEventsToUnit(hruId: string): void {
             `UPDATE timeline_events SET timeline_id = ?, updated_at = datetime('now')
              WHERE timeline_id = ?`,
           ).run(target.id, season.id);
-          db.prepare(`DELETE FROM timeline_mode_values WHERE timeline_id = ?`).run(season.id);
+          // The unit-less season's mode values travel with its events. Values
+          // the unit's own season already holds win; only modes it has nothing
+          // for are filled in. Deleting them outright was an unrecoverable loss
+          // with no backup, for an install that merely selected its unit late.
+          db.prepare(
+            `INSERT OR IGNORE INTO timeline_mode_values
+               (mode_id, timeline_id, power, temperature, native_mode, variables,
+                luftator_config, script_entity_ids)
+             SELECT mode_id, ?, power, temperature, native_mode, variables,
+                    luftator_config, script_entity_ids
+             FROM timeline_mode_values WHERE timeline_id = ?`,
+          ).run(target.id, season.id);
+          // ON DELETE CASCADE removes the source season's remaining value rows.
           db.prepare(`DELETE FROM timelines WHERE id = ?`).run(season.id);
         } else {
           db.prepare(
@@ -696,6 +724,19 @@ export function migrateLegacyEventsForUnit(hruId: string): void {
   if (migratedCount > 0) {
     getModuleLogger()?.info({ count: migratedCount }, "Finished migrating legacy events for unit");
   }
+}
+
+/**
+ * One event by id, regardless of unit or season. Used by the update path to
+ * keep an event in the season it already belongs to.
+ */
+export function getTimelineEventById(id: number): TimelineEvent | null {
+  const db = getDatabase();
+  if (!db) return null;
+  const record = db.prepare(`SELECT * FROM timeline_events WHERE id = ?`).get(id) as
+    | TimelineEventRecord
+    | undefined;
+  return record ? denormaliseTimelineEvent(record) : null;
 }
 
 /**
