@@ -66,10 +66,19 @@ export function formatDebugValue(value: unknown, path: string): string {
     return String(value);
   }
 
+  // collectDebugRows only ever reaches here with a function or a symbol, for
+  // which JSON.stringify returns undefined rather than throwing. The catch
+  // covers cyclic payloads a direct caller of this exported helper could pass.
+  if (typeof value === "function") {
+    return "[Function]";
+  }
+  if (typeof value === "symbol") {
+    return value.toString();
+  }
   try {
-    return JSON.stringify(value);
+    return JSON.stringify(value) ?? "[Unserializable]";
   } catch {
-    return String(value);
+    return "[Circular]";
   }
 }
 

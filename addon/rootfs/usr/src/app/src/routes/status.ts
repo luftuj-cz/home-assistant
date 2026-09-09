@@ -26,7 +26,13 @@ import {
 } from "../features/support/diagnostics.js";
 
 function parseLogLimit(rawLimit: unknown, defaultLimit: number): number {
-  const parsedLimit = Number.parseInt(String(rawLimit ?? defaultLimit), 10);
+  // Express yields string | string[] | ParsedQs; a repeated ?limit= keeps the
+  // historical behaviour of honouring the first occurrence.
+  const value = Array.isArray(rawLimit) ? rawLimit[0] : rawLimit;
+  if (typeof value !== "string") {
+    return defaultLimit;
+  }
+  const parsedLimit = Number.parseInt(value, 10);
   return Number.isFinite(parsedLimit) ? parsedLimit : defaultLimit;
 }
 

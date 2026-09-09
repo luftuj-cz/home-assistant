@@ -125,31 +125,32 @@ function YearBar({ seasons, t }: Readonly<{ seasons: SeasonSummary[]; t: (k: str
   return (
     <Stack gap={4}>
       <Group gap={0} wrap="nowrap" style={{ width: "100%", height: 34 }}>
-        {segments.map(({ season, length }) => (
-          <Tooltip
-            key={season.id}
-            label={`${t(`settings.seasons.names.${season.seasonKey}`)}: ${formatMonthDay(season.spanStart)} - ${formatMonthDay(season.spanEnd)}`}
-          >
-            <div
-              style={{
-                flexGrow: length,
-                flexBasis: 0,
-                height: "100%",
-                backgroundColor: `var(--mantine-color-${SEASON_COLORS[season.seasonKey]}-6)`,
-                opacity: season.isActive ? 1 : 0.55,
-                borderRight: "1px solid var(--mantine-color-body)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                overflow: "hidden",
-              }}
-            >
-              <Text size="xs" c="white" fw={600} truncate>
-                {t(`settings.seasons.names.${season.seasonKey}`)}
-              </Text>
-            </div>
-          </Tooltip>
-        ))}
+        {segments.map(({ season, length }) => {
+          const name = t(`settings.seasons.names.${season.seasonKey}`);
+          const span = `${formatMonthDay(season.spanStart)} - ${formatMonthDay(season.spanEnd)}`;
+          return (
+            <Tooltip key={season.id} label={`${name}: ${span}`}>
+              <div
+                style={{
+                  flexGrow: length,
+                  flexBasis: 0,
+                  height: "100%",
+                  backgroundColor: `var(--mantine-color-${SEASON_COLORS[season.seasonKey]}-6)`,
+                  opacity: season.isActive ? 1 : 0.55,
+                  borderRight: "1px solid var(--mantine-color-body)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "hidden",
+                }}
+              >
+                <Text size="xs" c="white" fw={600} truncate>
+                  {name}
+                </Text>
+              </div>
+            </Tooltip>
+          );
+        })}
       </Group>
 
       <div style={{ position: "relative", height: 16 }}>

@@ -172,8 +172,7 @@ export function hasEffectiveValues(mode: TimelineMode): boolean {
   if (mode.nativeMode !== undefined) return true;
   if (mode.variables && Object.keys(mode.variables).length > 0) return true;
   if (mode.luftatorConfig && Object.keys(mode.luftatorConfig).length > 0) return true;
-  if (mode.scriptEntityIds && mode.scriptEntityIds.length > 0) return true;
-  return false;
+  return !!(mode.scriptEntityIds && mode.scriptEntityIds.length > 0);
 }
 
 function readSeasonValues(timelineId: number): Map<number, TimelineModeValueRecord> {
@@ -181,7 +180,12 @@ function readSeasonValues(timelineId: number): Map<number, TimelineModeValueReco
   if (!db) return new Map();
   const rows = cachedStatement(
     db,
-    `SELECT mode_id, power, temperature, native_mode, variables, luftator_config,
+    `SELECT mode_id,
+            power,
+            temperature,
+            native_mode,
+            variables,
+            luftator_config,
             script_entity_ids
      FROM timeline_mode_values
      WHERE timeline_id = ?`,
@@ -354,15 +358,36 @@ function isDefaultSeason(timelineId: number): boolean {
   if (!db) return false;
   const row = db
     .prepare(
-      `SELECT t.season_key, t.enabled,
-              (SELECT COUNT(*) FROM timelines o
-               WHERE o.enabled = 1 AND o.hru_id IS t.hru_id) AS enabled_count
-       FROM timelines t WHERE t.id = ?`,
+      `SELECT t.season_key,
+              t.enabled,
+              (SELECT COUNT(*)
+               FROM timelines o
+               WHERE o.enabled = 1
+                 AND o.hru_id IS t.hru_id) AS enabled_count
+       FROM timelines t
+       WHERE t.id = ?`,
     )
     .get(timelineId) as { season_key: string; enabled: number; enabled_count: number } | undefined;
   if (!row) return false;
   if (row.enabled_count === 1) return Boolean(row.enabled);
   return row.season_key === "spring";
+}
+
+type SerialisedModeValues = {
+  luftatorConfig: string | null;
+  variables: string | null;
+  scriptEntityIds: string | null;
+};
+
+function serialiseModeValues(mode: TimelineMode): SerialisedModeValues {
+  return {
+    luftatorConfig: mode.luftatorConfig ? JSON.stringify(mode.luftatorConfig) : null,
+    variables: mode.variables ? JSON.stringify(mode.variables) : null,
+    scriptEntityIds:
+      mode.scriptEntityIds && mode.scriptEntityIds.length > 0
+        ? JSON.stringify(mode.scriptEntityIds)
+        : null,
+  };
 }
 
 /**
@@ -371,34 +396,36 @@ function isDefaultSeason(timelineId: number): boolean {
  * The legacy columns on `timeline_modes` are mirrored separately, by the caller,
  * and only for the default season - see `upsertTimelineMode`.
  */
-function writeSeasonValues(modeId: number, timelineId: number, mode: TimelineMode): void {
+function writeSeasonValues(
+  modeId: number,
+  timelineId: number,
+  mode: TimelineMode,
+  json: SerialisedModeValues,
+): void {
   const db = getDatabase();
   if (!db) throw new Error("Database not initialised");
 
   db.prepare(
     `INSERT INTO timeline_mode_values
-       (mode_id, timeline_id, power, temperature, native_mode, variables, luftator_config,
-        script_entity_ids)
+     (mode_id, timeline_id, power, temperature, native_mode, variables, luftator_config,
+      script_entity_ids)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-     ON CONFLICT(mode_id, timeline_id) DO UPDATE SET
-       power             = excluded.power,
-       temperature       = excluded.temperature,
-       native_mode       = excluded.native_mode,
-       variables         = excluded.variables,
-       luftator_config   = excluded.luftator_config,
-       script_entity_ids = excluded.script_entity_ids,
-       updated_at        = datetime('now')`,
+     ON CONFLICT(mode_id, timeline_id) DO UPDATE SET power             = excluded.power,
+                                                     temperature       = excluded.temperature,
+                                                     native_mode       = excluded.native_mode,
+                                                     variables         = excluded.variables,
+                                                     luftator_config   = excluded.luftator_config,
+                                                     script_entity_ids = excluded.script_entity_ids,
+                                                     updated_at        = datetime('now')`,
   ).run(
     modeId,
     timelineId,
     mode.power ?? null,
     mode.temperature ?? null,
     mode.nativeMode ?? null,
-    mode.variables ? JSON.stringify(mode.variables) : null,
-    mode.luftatorConfig ? JSON.stringify(mode.luftatorConfig) : null,
-    mode.scriptEntityIds && mode.scriptEntityIds.length > 0
-      ? JSON.stringify(mode.scriptEntityIds)
-      : null,
+    json.variables,
+    json.luftatorConfig,
+    json.scriptEntityIds,
   );
 }
 
@@ -416,9 +443,11 @@ export function countEnabledEventsUsingMode(modeId: number, timelineId?: number)
   // reported "no events use this mode" for a name-referenced event and let its
   // season's values be cleared out from under it.
   const name = (
-    db.prepare(`SELECT name FROM timeline_modes WHERE id = ?`).get(modeId) as
-      | { name: string }
-      | undefined
+    db
+      .prepare(`SELECT name
+                FROM timeline_modes
+                WHERE id = ?`)
+      .get(modeId) as { name: string } | undefined
   )?.name;
 
   const matches = `(
@@ -429,7 +458,9 @@ export function countEnabledEventsUsingMode(modeId: number, timelineId?: number)
   const scope = timelineId === undefined ? "" : "AND timeline_id = @timelineId";
 
   const row = db
-    .prepare(`SELECT COUNT(*) AS n FROM timeline_events WHERE enabled = 1 ${scope} AND ${matches}`)
+    .prepare(`SELECT COUNT(*) AS n
+              FROM timeline_events
+              WHERE enabled = 1 ${scope} AND ${matches}`)
     .get({
       modeId,
       modeIdText: String(modeId),
@@ -458,8 +489,12 @@ export function getModeUsage(modeId: number, hruId?: string | null): ModeUsage[]
   const seasons = db
     .prepare(
       hruId === undefined || hruId === null
-        ? `SELECT id, season_key FROM timelines WHERE hru_id IS NULL`
-        : `SELECT id, season_key FROM timelines WHERE hru_id = ?`,
+        ? `SELECT id, season_key
+           FROM timelines
+           WHERE hru_id IS NULL`
+        : `SELECT id, season_key
+           FROM timelines
+           WHERE hru_id = ?`,
     )
     .all(...(hruId === undefined || hruId === null ? [] : [hruId])) as {
     id: number;
@@ -470,7 +505,10 @@ export function getModeUsage(modeId: number, hruId?: string | null): ModeUsage[]
     const usingMode = countEnabledEventsUsingMode(modeId, season.id);
     const total = (
       db
-        .prepare(`SELECT COUNT(*) AS n FROM timeline_events WHERE enabled = 1 AND timeline_id = ?`)
+        .prepare(`SELECT COUNT(*) AS n
+                  FROM timeline_events
+                  WHERE enabled = 1
+                    AND timeline_id = ?`)
         .get(season.id) as { n: number }
     ).n;
     return {
@@ -496,10 +534,10 @@ export function deleteTimelineModeValues(modeId: number, timelineId: number): vo
     throw new ModeValuesInUseError(inUse);
   }
 
-  db.prepare(`DELETE FROM timeline_mode_values WHERE mode_id = ? AND timeline_id = ?`).run(
-    modeId,
-    timelineId,
-  );
+  db.prepare(`DELETE
+              FROM timeline_mode_values
+              WHERE mode_id = ?
+                AND timeline_id = ?`).run(modeId, timelineId);
 }
 
 /**
@@ -531,6 +569,9 @@ export function upsertTimelineMode(mode: TimelineMode, timelineId?: number): Tim
 
   const mirrorsLegacyColumns = timelineId === undefined || isDefaultSeason(timelineId);
 
+  const isBoostFlag = mode.isBoost ? 1 : 0;
+  const json = serialiseModeValues(mode);
+
   const result = (
     mirrorsLegacyColumns
       ? statements.upsertTimelineMode.run(
@@ -539,20 +580,18 @@ export function upsertTimelineMode(mode: TimelineMode, timelineId?: number): Tim
           mode.color ?? null,
           mode.power ?? null,
           mode.temperature ?? null,
-          mode.luftatorConfig ? JSON.stringify(mode.luftatorConfig) : null,
-          mode.isBoost ? 1 : 0,
+          json.luftatorConfig,
+          isBoostFlag,
           mode.hruId ?? null,
           mode.nativeMode ?? null,
-          mode.variables ? JSON.stringify(mode.variables) : null,
-          mode.scriptEntityIds && mode.scriptEntityIds.length > 0
-            ? JSON.stringify(mode.scriptEntityIds)
-            : null,
+          json.variables,
+          json.scriptEntityIds,
         )
       : statements.upsertTimelineModeIdentity.run(
           mode.id ?? null,
           mode.name,
           mode.color ?? null,
-          mode.isBoost ? 1 : 0,
+          isBoostFlag,
           mode.hruId ?? null,
         )
   ) as { lastInsertRowid: number | bigint };
@@ -560,7 +599,7 @@ export function upsertTimelineMode(mode: TimelineMode, timelineId?: number): Tim
   const id = mode.id ?? Number(result.lastInsertRowid);
 
   if (timelineId !== undefined) {
-    writeSeasonValues(id, timelineId, mode);
+    writeSeasonValues(id, timelineId, mode, json);
   }
 
   getModuleLogger()?.debug(
@@ -612,7 +651,11 @@ export function assignLegacyEventsToUnit(hruId: string): void {
   try {
     const db = getDatabase();
     if (db) {
-      const unitless = db.prepare(`SELECT id FROM timelines WHERE hru_id IS NULL`).all() as {
+      const unitless = db
+        .prepare(`SELECT id
+                                   FROM timelines
+                                   WHERE hru_id IS NULL`)
+        .all() as {
         id: number;
       }[];
 
@@ -622,12 +665,18 @@ export function assignLegacyEventsToUnit(hruId: string): void {
         // outright would then collide with UNIQUE(season_key, hru_id), so the
         // events are repointed at the unit's own season instead.
         const target = db
-          .prepare(`SELECT id FROM timelines WHERE hru_id = ? ORDER BY enabled DESC, id LIMIT 1`)
+          .prepare(`SELECT id
+                    FROM timelines
+                    WHERE hru_id = ?
+                    ORDER BY enabled DESC, id
+                    LIMIT 1`)
           .get(hruId) as { id: number } | undefined;
 
         if (target) {
           db.prepare(
-            `UPDATE timeline_events SET timeline_id = ?, updated_at = datetime('now')
+            `UPDATE timeline_events
+             SET timeline_id = ?,
+                 updated_at = datetime('now')
              WHERE timeline_id = ?`,
           ).run(target.id, season.id);
           // The unit-less season's mode values travel with its events. Values
@@ -636,17 +685,29 @@ export function assignLegacyEventsToUnit(hruId: string): void {
           // with no backup, for an install that merely selected its unit late.
           db.prepare(
             `INSERT OR IGNORE INTO timeline_mode_values
-               (mode_id, timeline_id, power, temperature, native_mode, variables,
-                luftator_config, script_entity_ids)
-             SELECT mode_id, ?, power, temperature, native_mode, variables,
-                    luftator_config, script_entity_ids
-             FROM timeline_mode_values WHERE timeline_id = ?`,
+             (mode_id, timeline_id, power, temperature, native_mode, variables,
+              luftator_config, script_entity_ids)
+             SELECT mode_id,
+                    ?,
+                    power,
+                    temperature,
+                    native_mode,
+                    variables,
+                    luftator_config,
+                    script_entity_ids
+             FROM timeline_mode_values
+             WHERE timeline_id = ?`,
           ).run(target.id, season.id);
           // ON DELETE CASCADE removes the source season's remaining value rows.
-          db.prepare(`DELETE FROM timelines WHERE id = ?`).run(season.id);
+          db.prepare(`DELETE
+                      FROM timelines
+                      WHERE id = ?`).run(season.id);
         } else {
           db.prepare(
-            `UPDATE timelines SET hru_id = ?, updated_at = datetime('now') WHERE id = ?`,
+            `UPDATE timelines
+             SET hru_id = ?,
+                 updated_at = datetime('now')
+             WHERE id = ?`,
           ).run(hruId, season.id);
         }
       }
@@ -701,9 +762,11 @@ export function migrateLegacyEventsForUnit(hruId: string): void {
 export function getTimelineEventById(id: number): TimelineEvent | null {
   const db = getDatabase();
   if (!db) return null;
-  const record = db.prepare(`SELECT * FROM timeline_events WHERE id = ?`).get(id) as
-    | TimelineEventRecord
-    | undefined;
+  const record = db
+    .prepare(`SELECT *
+                             FROM timeline_events
+                             WHERE id = ?`)
+    .get(id) as TimelineEventRecord | undefined;
   return record ? denormaliseTimelineEvent(record) : null;
 }
 
@@ -801,20 +864,19 @@ export function migrateModesToTable(getAppSetting: (key: string) => string | nul
       getDatabase()!.transaction(() => {
         for (const mode of oldModes) {
           try {
+            const json = serialiseModeValues(mode);
             stmt.upsertTimelineMode.run(
               mode.id ?? null,
               mode.name,
               mode.color ?? null,
               mode.power ?? null,
               mode.temperature ?? null,
-              mode.luftatorConfig ? JSON.stringify(mode.luftatorConfig) : null,
+              json.luftatorConfig,
               mode.isBoost ? 1 : 0,
               mode.hruId ?? null,
               mode.nativeMode ?? null,
-              mode.variables ? JSON.stringify(mode.variables) : null,
-              mode.scriptEntityIds && mode.scriptEntityIds.length > 0
-                ? JSON.stringify(mode.scriptEntityIds)
-                : null,
+              json.variables,
+              json.scriptEntityIds,
             );
           } catch (err) {
             if (String(err).includes("UNIQUE constraint failed")) {
