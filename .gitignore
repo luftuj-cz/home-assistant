@@ -41,6 +41,8 @@ addon/rootfs/usr/src/app/src/**/*.js
 .github/instructions/codacy.instructions.md
 /tools/simulator/hru-simulator
 /.claude/
+# Local MCP server config - holds machine-specific absolute tool paths
+/.mcp.json
 /.ai/
 /.junie/
 /.windsurf/

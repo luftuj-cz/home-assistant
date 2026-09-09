@@ -6,9 +6,9 @@ name: SonarCloud
 # fails the gate check. PRs into main are covered by pull-request analysis.
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:

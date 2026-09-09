@@ -1,13 +1,13 @@
 import mqtt from "mqtt";
 import { EventEmitter } from "node:events";
 import { randomUUID } from "node:crypto";
+import { inspect } from "node:util";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/options.js";
-import { getActiveSeasonId } from "./database.js";
+import { getActiveSeasonId, getAppSetting } from "./database.js";
 import type { HeatRecoveryUnit, LocalizedText } from "../features/hru/hru.definitions.js";
 import type { MqttSettings, TimelineMode, TimelineOverride } from "../types/index.js";
 import { LANGUAGE_SETTING_KEY } from "../types/index.js";
-import { getAppSetting } from "./database.js";
 import { INFINITE_BOOST_DURATION_MINUTES } from "../constants.js";
 import type { SettingsRepository } from "../features/settings/settings.repository.js";
 import type { TimelineScheduler } from "./timelineScheduler.js";
@@ -22,6 +22,28 @@ const STATIC_CLIENT_ID_PREFIX = "luftuj-addon-client";
 const PUBLISH_DELAY_MS = 30;
 
 /**
+ * Total: this runs inside the mqtt "error" listener, where a throw would
+ * escape emit() and take the process down. JSON.stringify both throws (cyclic
+ * payloads, BigInt fields) and returns undefined (functions, symbols), so
+ * neither result can be trusted on its own.
+ */
+function stringifyMqttError(err: unknown): string {
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  try {
+    return JSON.stringify(err) ?? inspectError(err);
+  } catch {
+    return inspectError(err);
+  }
+}
+
+// lastErrorMessage is surfaced in the status API and rendered as a one-line
+// banner, so the fallback must not wrap.
+function inspectError(err: unknown): string {
+  return inspect(err, { breakLength: Infinity, compact: true, depth: 2 });
+}
+
+/**
  * mqtt.js's ErrorWithReasonCode carries a numeric MQTT reason code in `.code`
  * (not a Node errno string), so the shared classifyConnectionError must not
  * see it first - it would return e.g. `134` and never match these patterns.
@@ -29,7 +51,7 @@ const PUBLISH_DELAY_MS = 30;
  * back to the shared Node-errno classifier for socket-level errors.
  */
 function classifyMqttError(err: unknown): string {
-  const message = err instanceof Error ? err.message : String(err);
+  const message = stringifyMqttError(err);
   if (
     message.includes("Bad username or password") ||
     message.includes("Bad User Name or Password")
@@ -120,7 +142,12 @@ function getModeLabels(lang: string): Record<string, string> {
   return {
     ...FALLBACK_MODE_LABELS,
     ...Object.fromEntries(
-      Object.entries(modes).map(([key, value]) => [`hru.modes.${key}`, String(value)]),
+      Object.entries(modes).map(([key, value]) => [
+        `hru.modes.${key}`,
+        // Entity names must stay plain strings - a nested LocalizedText object
+        // carries its label under `.text`, exactly like getLocalizedText.
+        typeof value === "string" ? value : ((value as { text?: string }).text ?? String(value)),
+      ]),
     ),
   };
 }
@@ -609,7 +636,7 @@ export class MqttService extends EventEmitter {
       );
       this.connected = false;
       if (!this.intentionalDisconnect) {
-        this.lastErrorMessage = err?.message ?? String(err);
+        this.lastErrorMessage = stringifyMqttError(err);
         this.lastErrorCode = classifyMqttError(err);
         this.lastErrorAt = Date.now();
       }

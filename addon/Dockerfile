@@ -1,3 +1,6 @@
+# Runs as root by design: the HA base image boots s6-overlay, which needs root to set
+# up its supervision tree and the Supervisor-mounted volumes (/data, share, config).
+# Adding a non-root USER breaks startup. (sonar docker:S6471 reviewed as Safe)
 ARG BUILD_FROM=ghcr.io/home-assistant/amd64-base:3.24
 FROM ${BUILD_FROM}
 

@@ -145,6 +145,44 @@ function hasTimeConflict(
   });
 }
 
+/**
+ * "" and null both mean "no unit configured", but only null matches the
+ * unit-less rows. A caller passing "" would otherwise resolve no season and
+ * read the legacy mode values - or create a season under an empty-string unit
+ * that nothing else would ever look up.
+ */
+function normaliseUnitId(hruId: string | null): string | null {
+  return hruId && hruId.trim() !== "" ? hruId : null;
+}
+
+/**
+ * Season the request is about. Explicit `seasonId` wins so a user editing
+ * summer while winter is running writes to summer; without it the active
+ * season is used, which is what every pre-seasons client sends.
+ */
+function getRequestSeasonId(rawSeasonId: unknown, hruId: string | null): number | undefined {
+  return parseExplicitSeasonId(rawSeasonId) ?? getActiveSeasonId(normaliseUnitId(hruId));
+}
+
+/**
+ * Same resolution, but for writes: it creates the unit's whole-year season if
+ * the database has none. An install created after this release has no season
+ * row until the feature is switched on, and a row stored without one is
+ * invisible to every season-scoped read from that point onwards.
+ */
+function getWriteSeasonId(rawSeasonId: unknown, hruId: string | null): number | undefined {
+  return parseExplicitSeasonId(rawSeasonId) ?? ensureActiveSeasonId(normaliseUnitId(hruId));
+}
+
+/** See `resolveEventWriteSeasonId`: an existing event stays in its own season. */
+function getEventWriteSeasonId(
+  rawSeasonId: unknown,
+  eventId: number | undefined,
+  hruId: string | null,
+): number | undefined {
+  return resolveEventWriteSeasonId(rawSeasonId, eventId, normaliseUnitId(hruId));
+}
+
 export function createTimelineRouter(
   logger: Logger,
   timelineScheduler: TimelineScheduler,
@@ -155,44 +193,6 @@ export function createTimelineRouter(
 
   function getCurrentUnitId(unitIdOverride?: string): string | null {
     return resolveCurrentUnitId(hruService, unitIdOverride);
-  }
-
-  /**
-   * "" and null both mean "no unit configured", but only null matches the
-   * unit-less rows. A caller passing "" would otherwise resolve no season and
-   * read the legacy mode values - or create a season under an empty-string unit
-   * that nothing else would ever look up.
-   */
-  function normaliseUnitId(hruId: string | null): string | null {
-    return hruId && hruId.trim() !== "" ? hruId : null;
-  }
-
-  /**
-   * Season the request is about. Explicit `seasonId` wins so a user editing
-   * summer while winter is running writes to summer; without it the active
-   * season is used, which is what every pre-seasons client sends.
-   */
-  function getRequestSeasonId(rawSeasonId: unknown, hruId: string | null): number | undefined {
-    return parseExplicitSeasonId(rawSeasonId) ?? getActiveSeasonId(normaliseUnitId(hruId));
-  }
-
-  /**
-   * Same resolution, but for writes: it creates the unit's whole-year season if
-   * the database has none. An install created after this release has no season
-   * row until the feature is switched on, and a row stored without one is
-   * invisible to every season-scoped read from that point onwards.
-   */
-  function getWriteSeasonId(rawSeasonId: unknown, hruId: string | null): number | undefined {
-    return parseExplicitSeasonId(rawSeasonId) ?? ensureActiveSeasonId(normaliseUnitId(hruId));
-  }
-
-  /** See `resolveEventWriteSeasonId`: an existing event stays in its own season. */
-  function getEventWriteSeasonId(
-    rawSeasonId: unknown,
-    eventId: number | undefined,
-    hruId: string | null,
-  ): number | undefined {
-    return resolveEventWriteSeasonId(rawSeasonId, eventId, normaliseUnitId(hruId));
   }
 
   function getHruMaxPower(unitIdOverride?: string | null): number {
@@ -718,6 +718,10 @@ export function createTimelineRouter(
           if (error instanceof BoostModeNotConfiguredError) {
             return next(new ConflictError(error.message, "MODE_NOT_CONFIGURED_FOR_SEASON"));
           }
+          // Deliberately rethrown into the handler's own catch: keeping this
+          // try around buildBoostOverride alone is what stops an unrelated
+          // failure later in the handler from being reported as a 409.
+          // noinspection ExceptionCaughtLocallyJS
           throw error;
         }
 

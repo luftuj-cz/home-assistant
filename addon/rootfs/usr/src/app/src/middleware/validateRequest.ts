@@ -9,7 +9,7 @@ const logger = createLogger(config.logLevel);
 /**
  * Middleware factory to validate request body against a Zod schema
  */
-export function validateRequest<T extends z.ZodTypeAny>(schema: T) {
+export function validateRequest(schema: z.ZodType) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       req.body = schema.parse(req.body);
@@ -39,7 +39,7 @@ export function validateRequest<T extends z.ZodTypeAny>(schema: T) {
 /**
  * Middleware to validate URL parameters against a Zod schema
  */
-export function validateParams<T extends z.ZodTypeAny>(schema: T) {
+export function validateParams(schema: z.ZodType) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       const validated = schema.parse(req.params);
@@ -70,7 +70,7 @@ export function validateParams<T extends z.ZodTypeAny>(schema: T) {
 /**
  * Middleware to validate URL query parameters against a Zod schema
  */
-export function validateQuery<T extends z.ZodTypeAny>(schema: T) {
+export function validateQuery(schema: z.ZodType) {
   return (req: Request, res: Response, next: NextFunction): void => {
     try {
       const validated = schema.parse(req.query);

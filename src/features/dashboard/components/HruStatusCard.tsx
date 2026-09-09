@@ -39,6 +39,20 @@ interface HruStatusCardProps {
   configuredMaxPower?: number;
 }
 
+/**
+ * Total: these run during render, where a JSON.stringify throw on a cyclic
+ * HRU payload would unmount the card instead of degrading one label.
+ */
+function stringifyUnknownValue(value: unknown): string {
+  if (typeof value === "function") return "[Function]";
+  if (typeof value === "symbol") return value.toString();
+  try {
+    return JSON.stringify(value) ?? "?";
+  } catch {
+    return "?";
+  }
+}
+
 export function HruStatusCard({
   status,
   hruName,
@@ -57,7 +71,9 @@ export function HruStatusCard({
 
   function getModeText(val: unknown): string {
     if (typeof val === "string") return t(val, { defaultValue: val });
-    return String(val ?? "?");
+    if (val === null || val === undefined) return "?";
+    if (typeof val === "number" || typeof val === "boolean") return String(val);
+    return stringifyUnknownValue(val);
   }
 
   function getOptionLabel(variable: HruVariable | undefined, raw: unknown): string | undefined {
@@ -76,7 +92,10 @@ export function HruStatusCard({
     const fromOption = getOptionLabel(variable, rawVal);
     if (fromOption) return fromOption;
     if (typeof displayVal === "string") return t(displayVal, { defaultValue: displayVal });
-    return String(displayVal ?? rawVal ?? "?");
+    const fallback = displayVal ?? rawVal;
+    if (fallback === null || fallback === undefined) return "?";
+    if (typeof fallback === "number" || typeof fallback === "boolean") return String(fallback);
+    return stringifyUnknownValue(fallback);
   }
 
   const fetchedAt = status && !("error" in status) ? status.fetchedAt : null;

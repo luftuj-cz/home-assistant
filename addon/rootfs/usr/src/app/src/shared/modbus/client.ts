@@ -346,7 +346,7 @@ export class ModbusTcpClient {
   async connect(): Promise<void> {
     if (this.connected) return;
     if (this.destroyed) throw new Error("Modbus client destroyed");
-    if (this.connectInFlight) return this.connectInFlight;
+    if (this.connectInFlight !== null) return this.connectInFlight;
 
     this.connectInFlight = this.connectInternal().finally(() => {
       this.connectInFlight = null;
@@ -386,7 +386,7 @@ export class ModbusTcpClient {
     this.clearReconnectTimer();
 
     // If there is a connection in flight, wait for it to finish (it will handle destruction)
-    if (this.connectInFlight) {
+    if (this.connectInFlight !== null) {
       try {
         await this.connectInFlight;
       } catch {

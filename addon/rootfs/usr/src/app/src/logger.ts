@@ -1,3 +1,4 @@
+import { inspect } from "node:util";
 import type { Logger } from "pino";
 import pino from "pino";
 
@@ -34,10 +35,38 @@ function stringifyLogValue(value: unknown): string {
   }
 
   try {
-    return JSON.stringify(value);
+    return JSON.stringify(value, expandErrors) ?? inspectLogValue(value);
   } catch {
-    return String(value);
+    return inspectLogValue(value);
   }
+}
+
+/**
+ * Error's `message` and `stack` are non-enumerable, so the common
+ * `logger.error({ err }, "...")` shape would otherwise serialise to `{"err":{}}`
+ * and every downloaded bug report would carry no error detail at all.
+ */
+function expandErrors(_key: string, value: unknown): unknown {
+  if (value instanceof Error) {
+    return { name: value.name, message: value.message, stack: value.stack };
+  }
+  return value;
+}
+
+function collapseNewlines(text: string): string {
+  // Matching the whole whitespace run and deciding in the callback keeps this
+  // linear. A pattern like /\s*[\r\n]+\s*/ backtracks per position over long
+  // runs of spaces that turn out to contain no newline at all.
+  return text.replace(/\s+/g, (whitespace) => (/[\r\n]/.test(whitespace) ? " " : whitespace));
+}
+
+function inspectLogValue(value: unknown): string {
+  return inspect(value, {
+    breakLength: Infinity,
+    compact: true,
+    depth: 4,
+    maxStringLength: 512,
+  });
 }
 
 function bufferServerLog(level: number | string, args: unknown[]): void {
@@ -66,7 +95,12 @@ function bufferServerLog(level: number | string, args: unknown[]): void {
 
   const context = contextParts.join(" ");
   const contextSuffix = context ? ` ${context}` : "";
-  const line = `[${timestamp}] ${levelLabel.toUpperCase()} ${message}${contextSuffix}`;
+  // `line` is the one-entry-per-line form the log viewer and the download
+  // endpoint (which joins entries with newlines) rely on - a stack trace left
+  // intact here would read as a dozen separate entries.
+  const line = collapseNewlines(
+    `[${timestamp}] ${levelLabel.toUpperCase()} ${message}${contextSuffix}`,
+  );
   bufferedServerLogs.push({
     timestamp,
     level: levelLabel,

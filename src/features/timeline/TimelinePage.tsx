@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
-import { Button, Group, Modal, Stack, Text, Title, Divider, Container } from "@mantine/core";
-import { DndContext, DragOverlay, type DragEndEvent, type DragStartEvent } from "@dnd-kit/core";
+import { Button, Container, Divider, Group, Modal, Stack, Text, Title } from "@mantine/core";
+import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent } from "@dnd-kit/core";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { IconCalendar } from "@tabler/icons-react";
@@ -9,28 +9,28 @@ import { translateApiError } from "@luftuj/shared/utils/apiError";
 import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimelineModesQuery";
 import { useTimelineEventsQuery } from "@luftuj/features/timeline/hooks/useTimelineEventsQuery";
 import { useDndSensors } from "@luftuj/shared/dnd/useDndSensors";
-import { TimelineModeList, ModeCard } from "@luftuj/features/timeline/components/TimelineModeList";
+import { ModeCard, TimelineModeList } from "@luftuj/features/timeline/components/TimelineModeList";
 import {
-  TimelineDayCard,
   DAY_DROP_PREFIX,
+  TimelineDayCard,
 } from "@luftuj/features/timeline/components/TimelineDayCard";
 import { TimelineEventModal } from "@luftuj/features/timeline/components/TimelineEventModal";
 import { TimelineModeModal } from "@luftuj/features/timeline/components/TimelineModeModal";
 
 import {
-  useEventWorkflow,
-  useModeWorkflow,
   useDayCopyPaste,
+  useEventWorkflow,
   useHruContext,
+  useModeWorkflow,
 } from "@luftuj/features/timeline/hooks";
 
 import {
   DAY_ORDER,
+  DEFAULT_START_TIME,
   getDayLabels,
   getModeOptions,
-  DEFAULT_START_TIME,
 } from "@luftuj/features/timeline/utils";
-import type { TimelineEvent, Mode } from "@luftuj/shared/types/timeline";
+import type { Mode, TimelineEvent } from "@luftuj/shared/types/timeline";
 import { notifications } from "@mantine/notifications";
 import { createLogger } from "@luftuj/shared/utils/logger";
 import * as api from "@luftuj/features/timeline/api";
@@ -342,7 +342,7 @@ export function TimelinePage() {
           }
           copyFromSeasons={
             // Only worth offering while this mode has nothing here yet.
-            editingMode && editingMode.configured === false
+            editingMode?.configured === false
               ? seasons
                   .filter((season) => season.id !== viewedSeasonId)
                   .map((season) => ({
