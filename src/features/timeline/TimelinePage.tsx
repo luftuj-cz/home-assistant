@@ -56,8 +56,24 @@ export function TimelinePage() {
   const { valves, valveGroups, hruVariables, powerUnit, maxPower, activeUnitId, loading } =
     useHruContext();
 
-  const { seasons, activeSeasonId, viewedSeasonId, setViewedSeason, viewedSeason, activeSeason } =
-    useSeasonView();
+  const {
+    featureEnabled: seasonsEnabled,
+    unitHasEnabledEvents,
+    seasons,
+    activeSeasonId,
+    viewedSeasonId,
+    setViewedSeason,
+    viewedSeason,
+    activeSeason,
+  } = useSeasonView();
+
+  // With the feature off there is still one season row behind the scenes, but
+  // the user has no seasons: naming one in a dialog title or a paste toast is
+  // vocabulary they never opted into.
+  const viewedSeasonLabel =
+    seasonsEnabled && viewedSeason
+      ? t(`settings.seasons.names.${viewedSeason.seasonKey}`)
+      : undefined;
 
   const {
     modes,
@@ -140,7 +156,7 @@ export function TimelinePage() {
     cancelPaste,
   } = useDayCopyPaste(t, eventsByDay, deleteEvent, saveEvent, dayLabels, {
     seasonId: viewedSeasonId,
-    seasonLabel: viewedSeason ? t(`settings.seasons.names.${viewedSeason.seasonKey}`) : undefined,
+    seasonLabel: viewedSeasonLabel,
     unitId: activeUnitId,
     modes,
   });
@@ -238,7 +254,11 @@ export function TimelinePage() {
             }}
           />
           <SeasonViewNotice viewedSeason={viewedSeason} activeSeason={activeSeason} />
-          <EmptyActiveSeasonNotice activeSeason={activeSeason} />
+          <EmptyActiveSeasonNotice
+            featureEnabled={seasonsEnabled}
+            unitHasEnabledEvents={unitHasEnabledEvents}
+            activeSeason={activeSeason}
+          />
         </Stack>
 
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
@@ -337,9 +357,7 @@ export function TimelinePage() {
           hruVariables={hruVariables}
           maxPower={maxPower}
           existingModes={modes}
-          seasonLabel={
-            viewedSeason ? t(`settings.seasons.names.${viewedSeason.seasonKey}`) : undefined
-          }
+          seasonLabel={viewedSeasonLabel}
           copyFromSeasons={
             // Only worth offering while this mode has nothing here yet.
             editingMode?.configured === false
@@ -357,7 +375,10 @@ export function TimelinePage() {
               : Promise.resolve(undefined)
           }
           onClearSeasonValues={
-            editingMode && viewedSeasonId !== undefined
+            // "Clear the values for this season" only means something when
+            // other seasons hold values of their own; on a feature-off install
+            // it is just an unlabelled way to make the mode unconfigured.
+            seasonsEnabled && editingMode && viewedSeasonId !== undefined
               ? () => void handleClearSeasonValues(editingMode.id)
               : undefined
           }
