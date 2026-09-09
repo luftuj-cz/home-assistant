@@ -66,7 +66,6 @@ export function assertImportableSchemaVersion(filePath: string, logger?: Logger)
  * Synchronous on purpose: callers take this backup immediately before something
  * destructive, and the copy has to be on disk before that runs.
  *
- * @param logger - Optional logger instance
  * @returns Path to the backup file, or null when there was nothing to copy or
  *          the copy failed. A caller about to destroy data should treat null as
  *          a reason to stop.
@@ -107,17 +106,11 @@ export function createDatabaseBackupSync(logger?: Logger): string | null {
 
 /**
  * Async wrapper, kept for the route handlers that already await it.
- * @returns Path to the backup file or null if it could not be created
  */
 export async function createDatabaseBackup(logger?: Logger): Promise<string | null> {
   return createDatabaseBackupSync(logger);
 }
 
-/**
- * Replaces the current database with a provided buffer
- * @param buffer - Database file content as buffer
- * @param logger - Optional logger instance
- */
 export async function replaceDatabaseWithFile(buffer: Buffer, logger?: Logger): Promise<void> {
   const dbPath = getDatabasePath();
   const tempPath = `${dbPath}.tmp`;
@@ -158,10 +151,6 @@ export async function replaceDatabaseWithFile(buffer: Buffer, logger?: Logger): 
   logger?.info("Database replaced from backup file");
 }
 
-/**
- * Resets the database by deleting all database files
- * @param logger - Optional logger instance
- */
 export async function resetDatabase(logger?: Logger): Promise<void> {
   setStopping(true);
   closeDatabase();
@@ -187,7 +176,6 @@ export async function resetDatabase(logger?: Logger): Promise<void> {
 
 /**
  * Performs a WAL checkpoint to flush changes to the main database file
- * @param logger - Optional logger instance
  */
 export function checkpointDatabase(logger?: Logger): void {
   if (!getDatabase() || !getStatements()) {

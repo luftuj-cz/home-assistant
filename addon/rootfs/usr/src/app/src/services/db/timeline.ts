@@ -34,11 +34,6 @@ export interface TimelineEventRecord {
   updated_at: string;
 }
 
-/**
- * Normalizes a timeline event for database storage
- * @param event - Timeline event to normalize
- * @returns Database record format (without id, created_at, updated_at)
- */
 export function normaliseTimelineEvent(
   event: TimelineEvent,
 ): Omit<TimelineEventRecord, "id" | "created_at" | "updated_at"> {
@@ -72,11 +67,6 @@ export function normaliseTimelineEvent(
   };
 }
 
-/**
- * Denormalizes a database record to a timeline event
- * @param record - Database record
- * @returns Timeline event object
- */
 export function denormaliseTimelineEvent(record: TimelineEventRecord): TimelineEvent {
   let hruConfig = null;
   if (record.hru_config) {
@@ -112,11 +102,6 @@ export function denormaliseTimelineEvent(record: TimelineEventRecord): TimelineE
   };
 }
 
-/**
- * Retrieves all timeline events for a specific HRU unit
- * @param hruId - Optional HRU unit ID (null/undefined for global events)
- * @returns Array of timeline events
- */
 export function getTimelineEvents(hruId?: string | null, timelineId?: number): TimelineEvent[] {
   if (!getDatabase() || !getStatements()) {
     setupDatabase();
@@ -261,11 +246,6 @@ export function getTimelineModes(hruId?: string, timelineId?: number): TimelineM
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-/**
- * Retrieves a single timeline mode by ID
- * @param id - Timeline mode ID
- * @returns Timeline mode or null if not found
- */
 export function getTimelineMode(id: number): TimelineMode | null {
   if (!getDatabase() || !getStatements()) {
     setupDatabase();
@@ -534,10 +514,6 @@ export function deleteTimelineModeValues(modeId: number, timelineId: number): vo
  * autumn's numbers into them would make a downgrade run autumn all year round -
  * and the spec only promises that edits to the default season stay visible to
  * an older build.
- *
- * @param mode - Timeline mode to upsert
- * @param timelineId - Season whose values are being written
- * @returns Timeline mode with assigned ID
  */
 export function upsertTimelineMode(mode: TimelineMode, timelineId?: number): TimelineMode {
   if (timelineId !== undefined && !hasEffectiveValues(mode)) {
@@ -604,8 +580,6 @@ export function upsertTimelineMode(mode: TimelineMode, timelineId?: number): Tim
  * Its per-season values go with it: `timeline_mode_values` declares
  * `ON DELETE CASCADE` and better-sqlite3 opens every connection with
  * `PRAGMA foreign_keys = ON`, so SQLite removes them.
- *
- * @param id - Timeline mode ID
  */
 export function deleteTimelineMode(id: number): void {
   if (!getDatabase() || !getStatements()) {
@@ -619,10 +593,6 @@ export function deleteTimelineMode(id: number): void {
   getModuleLogger()?.debug({ id }, "Deleted timeline mode");
 }
 
-/**
- * Assigns legacy (unit-less) events to a specific HRU unit
- * @param hruId - HRU unit ID to assign events to
- */
 export function assignLegacyEventsToUnit(hruId: string): void {
   if (!getDatabase() || !getStatements()) {
     setupDatabase();
@@ -690,7 +660,6 @@ export function assignLegacyEventsToUnit(hruId: string): void {
 
 /**
  * Migrates legacy events that use mode names instead of mode IDs
- * @param hruId - HRU unit ID to migrate events for
  */
 export function migrateLegacyEventsForUnit(hruId: string): void {
   const modes = getTimelineModes();
@@ -703,7 +672,6 @@ export function migrateLegacyEventsForUnit(hruId: string): void {
       // It's a name (e.g. "Vypnuto")
       const foundMode = modes.find((m) => m.name === rawMode);
       if (foundMode) {
-        // Update to ID
         const updatedEvent = {
           ...event,
           hruConfig: {
@@ -739,11 +707,6 @@ export function getTimelineEventById(id: number): TimelineEvent | null {
   return record ? denormaliseTimelineEvent(record) : null;
 }
 
-/**
- * Creates or updates a timeline event
- * @param event - Timeline event to upsert
- * @returns Timeline event with assigned ID
- */
 export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
   if (!getDatabase() || !getStatements()) {
     setupDatabase();
@@ -786,10 +749,6 @@ export function upsertTimelineEvent(event: TimelineEvent): TimelineEvent {
   };
 }
 
-/**
- * Deletes a timeline event by ID
- * @param id - Timeline event ID
- */
 export function deleteTimelineEvent(id: number): void {
   if (!getDatabase() || !getStatements()) {
     setupDatabase();
@@ -804,11 +763,6 @@ export function deleteTimelineEvent(id: number): void {
   getModuleLogger()?.debug({ id }, "Deleted timeline event");
 }
 
-/**
- * Deletes all timeline events associated with a specific mode
- * @param modeId - Timeline mode ID
- * @param modeName - Optional timeline mode name reference
- */
 export function deleteTimelineEventsByMode(modeId: number, modeName?: string): void {
   if (!getDatabase() || !getStatements()) {
     setupDatabase();
@@ -828,7 +782,6 @@ export function deleteTimelineEventsByMode(modeId: number, modeName?: string): v
 
 /**
  * Migrates timeline modes from JSON settings to SQL table
- * @param getAppSetting - Function to retrieve app settings
  */
 export function migrateModesToTable(getAppSetting: (key: string) => string | null): void {
   if (!getDatabase() || !getStatements()) return;

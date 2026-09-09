@@ -542,7 +542,6 @@ export class TimelineScheduler {
       effectiveTemperature = foundMode.temperature;
     }
 
-    // Merge any additional variables from mode
     for (const [key, value] of Object.entries(v)) {
       if (value !== undefined) effectiveVariables[key] = value;
     }
