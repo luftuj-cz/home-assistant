@@ -2,6 +2,49 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 
+## [1.1.0-stable] - UNRELEASED
+
+### Added
+
+- **Seasons**: Optional per-season timelines (spring, summer, autumn, winter) with movable boundaries. Each season
+  has its own schedule and its own mode values; a mode can be left unconfigured in a season it is not needed in.
+  Off by default; enabling it clones the current schedule into every season so nothing changes until you edit it.
+  Turning it off parks the other seasons and turning it back on restores exactly what was there.
+- **Safe state**: With seasons enabled, a season with no applicable event drives the unit to a defined low state
+  (minimum values, 20 °C) instead of leaving it on whatever was last written. Written once, retried after a
+  failed write, and never applied to installs that have never had a schedule.
+- **Bug report bundle**: One-click download of logs, diagnostics, connection state and a redacted database copy
+  for developers. Credentials from the add-on config and from the Settings UI are scrubbed.
+- **Activation scripts**: Modes can run Home Assistant scripts on activation; they fire once per activation and
+  again after an add-on restart.
+- **Valve groups**: Group valves and drive them together from one slider.
+- **Debug tooling**: Copy and download actions on debug panels, server log download, links to Home Assistant
+  entities, HRU status age indicator.
+
+### Changed
+
+- **Boost**: Boost values are frozen at start, so a boost crossing a season boundary keeps running on the values
+  it began with. Applies to the UI boost and to both MQTT buttons.
+- **Power validation**: Decimal power values are rounded instead of rejected, so modes saved by earlier versions
+  stay editable.
+- **Connection errors**: Human-readable Modbus and MQTT connection errors surfaced as notifications.
+- **Toolchain**: Node 24 LTS, TypeScript 7, Alpine 3.24 base image, updated dependencies.
+
+### Fixed
+
+- **Modbus**: Serialized reconnects and status probes under one lock, bounded handshake timeout, outage counting
+  once per connect attempt, stale clients retired when connection settings change.
+- **MQTT**: Publish queue no longer stalls after a single failed publish; renaming a boost mode removes both of
+  its old buttons; a boost button on a mode with no values for the running season is refused instead of doing
+  nothing; listener leak on restart fixed.
+- **Database import**: Services are stopped and the database swap is guarded during import.
+- **Valve handling**: Unavailable valves are reported instead of crashing; a boost that could not move a
+  configured valve fails visibly instead of reporting success.
+- **Timeline**: Editing an event without naming a season keeps it in its own season; day paste resolves modes
+  referenced by name; clearing the season day field no longer commits the 1st of the month.
+- **Upgrade safety**: Pre-migration database backup; existing installs keep every mode configured after the
+  first save, including boost-only and valve-only setups.
+
 ## [1.0.9-stable] - 2026-06-15
 
 ### Added

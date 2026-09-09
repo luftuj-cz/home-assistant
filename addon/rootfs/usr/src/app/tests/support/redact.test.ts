@@ -114,6 +114,26 @@ describe("collectSecrets", () => {
     );
     expect(secrets).not.toContain("SECRET_HA_TOKEN");
   });
+
+  it("picks up credentials saved through the Settings UI", () => {
+    // A password entered in the UI lives in app_settings and may differ from
+    // the add-on config; it has to be scrubbed from free-form text as well.
+    const secrets = collectSecrets(makeConfig(), {
+      "mqtt.settings": JSON.stringify({
+        enabled: true,
+        host: "core-mosquitto",
+        port: 1883,
+        user: "luftator-ui-user",
+        password: "UI_SAVED_PASSWORD",
+      }),
+      "hru.settings": JSON.stringify({ unit: "atrea-am", host: "192.168.1.20" }),
+      "frontend.log_level": "info",
+    });
+    expect(secrets).toContain("UI_SAVED_PASSWORD");
+    expect(secrets).toContain("luftator-ui-user");
+    expect(secrets).not.toContain("192.168.1.20");
+    expect(secrets).not.toContain("info");
+  });
 });
 
 describe("maskConfig", () => {
