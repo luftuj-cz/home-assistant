@@ -1,4 +1,4 @@
 [tools]
-go = "1.26.2"
-node = "22"
+go = "1.27.1"
+node = "lts" # Must be current LTS version
 npm = "latest"
