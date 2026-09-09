@@ -51,6 +51,18 @@ export function createSupportBundleRouter(deps: SupportBundleDeps) {
 
     archive.pipe(response);
 
+    // A download cancelled in the browser leaves the archive with no consumer:
+    // it stops pulling from its sources and the streamed database copy would sit
+    // open, its temp file never released. Aborting drops the pending work and
+    // ends the source streams so their cleanup runs.
+    let finalized = false;
+    response.on("close", () => {
+      if (!finalized) {
+        logger.info("Bug report download closed before completion, aborting archive");
+        archive.abort();
+      }
+    });
+
     try {
       const manifest = await buildBugReportBundle(
         {
@@ -74,6 +86,7 @@ export function createSupportBundleRouter(deps: SupportBundleDeps) {
         "Bug report bundle assembled",
       );
       await archive.finalize();
+      finalized = true;
     } catch (error) {
       logger.error({ error }, "Failed to assemble bug report bundle");
       if (!response.headersSent) {

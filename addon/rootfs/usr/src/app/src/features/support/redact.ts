@@ -22,6 +22,14 @@ function isSensitiveKey(key: string): boolean {
  */
 const MIN_SCRUBBABLE_USERNAME_LENGTH = 6;
 
+/**
+ * Same floor for passwords typed into the Settings UI. A four-character
+ * password such as "1883" would otherwise be scrubbed out of every port number
+ * and entity id in the bundle. A short password is still masked wherever it
+ * sits behind a password-like key; only the free-text sweep skips it.
+ */
+const MIN_SCRUBBABLE_STORED_SECRET_LENGTH = 6;
+
 const COMMON_USERNAMES = new Set([
   "addon",
   "admin",
@@ -51,7 +59,10 @@ function isScrubbableUsername(value: string): boolean {
  * blind-replacing a short or common username would corrupt unrelated
  * hostnames, MQTT topics and entity ids all over the bundle.
  */
-export function collectSecrets(config: AppConfig): string[] {
+export function collectSecrets(
+  config: AppConfig,
+  storedSettings: Record<string, string> = {},
+): string[] {
   const secrets = new Set<string>();
 
   function add(value: string | null | undefined): void {
@@ -74,7 +85,48 @@ export function collectSecrets(config: AppConfig): string[] {
   add(process.env.MQTT_PASSWORD);
   addUsername(process.env.MQTT_USER);
 
+  // Credentials entered through the Settings UI live in app_settings, not in
+  // the add-on config, and can differ from it. Without them here a password
+  // saved in the UI was scrubbed from the settings dump (by key) but not from
+  // log lines or other free-form text that happened to contain it.
+  for (const raw of Object.values(storedSettings)) {
+    collectSecretsFromStoredValue(raw, add, addUsername);
+  }
+
   return [...secrets];
+}
+
+function collectSecretsFromStoredValue(
+  raw: string,
+  add: (value: string | null | undefined) => void,
+  addUsername: (value: string | null | undefined) => void,
+): void {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return;
+  }
+
+  function walk(node: unknown): void {
+    if (Array.isArray(node)) {
+      for (const item of node) walk(item);
+      return;
+    }
+    if (node === null || typeof node !== "object") return;
+    for (const [key, value] of Object.entries(node)) {
+      if (typeof value === "string" && isSensitiveKey(key)) {
+        if (/user/i.test(key)) {
+          addUsername(value);
+        } else if (value.length >= MIN_SCRUBBABLE_STORED_SECRET_LENGTH) {
+          add(value);
+        }
+      } else {
+        walk(value);
+      }
+    }
+  }
+  walk(parsed);
 }
 
 function redactString(input: string, secrets: string[]): string {

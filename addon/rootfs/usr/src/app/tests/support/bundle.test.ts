@@ -1,3 +1,4 @@
+import type { Readable } from "node:stream";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import DatabaseConstructor from "better-sqlite3";
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
@@ -10,6 +11,8 @@ import { setupTempDatabase } from "../helpers/testDb.js";
 const HA_TOKEN = "SECRET_HA_TOKEN_VALUE";
 const MQTT_PASSWORD = "SUPER_MQTT_PASSWORD";
 const MQTT_USER = "mqtt-user-name";
+const UI_MQTT_PASSWORD = "UI_ENTERED_MQTT_PASSWORD";
+const UI_MQTT_USER = "ui-entered-mqtt-user";
 
 const noopLogger = {
   info: () => {},
@@ -33,10 +36,25 @@ function makeConfig(): AppConfig {
 
 type AppendedEntry = { name: string; content: string | Buffer };
 
-function makeFakeArchive(entries: AppendedEntry[]) {
+/**
+ * Collects appended entries, draining streams into Buffers the way the real
+ * archive would when it finalises - the database copy is streamed so the
+ * add-on never holds the whole file in memory.
+ */
+function makeFakeArchive(entries: AppendedEntry[], pending: Promise<void>[]) {
   return {
-    append(content: string | Buffer, opts: { name: string }) {
-      entries.push({ name: opts.name, content });
+    append(content: string | Buffer | Readable, opts: { name: string }) {
+      if (typeof content === "string" || Buffer.isBuffer(content)) {
+        entries.push({ name: opts.name, content });
+        return;
+      }
+      pending.push(
+        (async () => {
+          const chunks: Buffer[] = [];
+          for await (const chunk of content) chunks.push(Buffer.from(chunk));
+          entries.push({ name: opts.name, content: Buffer.concat(chunks) });
+        })(),
+      );
     },
   };
 }
@@ -53,14 +71,16 @@ describe("buildBugReportBundle", () => {
   });
 
   it("assembles all sources, redacts secrets, and never leaks credentials", async () => {
-    // Seed a settings row that embeds the MQTT password, mimicking persisted creds.
+    // Seed a settings row that embeds MQTT credentials entered through the UI.
+    // They deliberately differ from the add-on config: the bundle must not rely
+    // on config-derived secrets alone to keep them out.
     ctx.database.setAppSetting(
       "mqtt.settings",
       JSON.stringify({
         host: "core-mosquitto",
         port: 1883,
-        user: MQTT_USER,
-        password: MQTT_PASSWORD,
+        user: UI_MQTT_USER,
+        password: UI_MQTT_PASSWORD,
       }),
     );
 
@@ -91,7 +111,9 @@ describe("buildBugReportBundle", () => {
     };
 
     const entries: AppendedEntry[] = [];
-    const manifest = await buildBugReportBundle(deps, makeFakeArchive(entries) as never);
+    const pending: Promise<void>[] = [];
+    const manifest = await buildBugReportBundle(deps, makeFakeArchive(entries, pending) as never);
+    await Promise.all(pending);
 
     const names = entries.map((entry) => entry.name).sort();
     expect(names).toEqual(
@@ -116,6 +138,8 @@ describe("buildBugReportBundle", () => {
         expect(entry.content).not.toContain(HA_TOKEN);
         expect(entry.content).not.toContain(MQTT_PASSWORD);
         expect(entry.content).not.toContain(MQTT_USER);
+        expect(entry.content).not.toContain(UI_MQTT_PASSWORD);
+        expect(entry.content).not.toContain(UI_MQTT_USER);
       }
     }
 
@@ -134,8 +158,8 @@ describe("buildBugReportBundle", () => {
           .prepare("SELECT value FROM app_settings WHERE key = ?")
           .get("mqtt.settings") as { value: string } | undefined;
         expect(row?.value).toBeDefined();
-        expect(row!.value).not.toContain(MQTT_PASSWORD);
-        expect(row!.value).not.toContain(MQTT_USER);
+        expect(row!.value).not.toContain(UI_MQTT_PASSWORD);
+        expect(row!.value).not.toContain(UI_MQTT_USER);
       } finally {
         verifyDb.close();
       }

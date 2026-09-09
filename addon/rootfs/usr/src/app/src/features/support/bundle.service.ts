@@ -3,10 +3,11 @@ import DatabaseConstructor from "better-sqlite3";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import type { Readable } from "node:stream";
 import type { Logger } from "pino";
 import type { AppConfig } from "../../config/options.js";
 import { APP_VERSION } from "../../constants.js";
-import { checkpointDatabase, getDatabasePath } from "../../services/database.js";
+import { checkpointDatabase, getAllAppSettings, getDatabasePath } from "../../services/database.js";
 import { getRecentServerLogs } from "../../logger.js";
 import { getModbusStatusFor } from "../../shared/modbus/client.js";
 import {
@@ -37,9 +38,15 @@ export type BundleManifest = {
 /**
  * Copy the live SQLite database into a throwaway file and scrub any
  * credential-bearing values out of its `app_settings` table. The live
- * database is never modified. Returns the redacted copy as a Buffer.
+ * database is never modified.
+ *
+ * Returns a stream over the redacted copy rather than its contents: the
+ * database may be tens or hundreds of megabytes (import allows 200 MB) and the
+ * add-on runs in a memory-limited container, so reading it whole could take
+ * down the very add-on the user is filing a report about. The temporary file is
+ * removed once the stream closes, i.e. after the archive has consumed it.
  */
-function buildRedactedDbCopy(secrets: string[], logger: Logger): Buffer {
+function buildRedactedDbCopy(secrets: string[], logger: Logger): Readable {
   const sourcePath = getDatabasePath();
   if (!fs.existsSync(sourcePath)) {
     throw new Error("Database file not found");
@@ -77,14 +84,44 @@ function buildRedactedDbCopy(secrets: string[], logger: Logger): Buffer {
     } finally {
       db.close();
     }
+  } catch (error) {
+    removeQuietly(copyPath, logger);
+    throw error;
+  }
 
-    return fs.readFileSync(copyPath);
-  } finally {
-    try {
-      fs.unlinkSync(copyPath);
-    } catch (error) {
-      logger.warn({ error }, "Failed to remove temporary bundle database copy");
-    }
+  const stream = fs.createReadStream(copyPath);
+  // Unlink as soon as the file is open: on Linux (the only platform the add-on
+  // runs on) the data stays readable through the open descriptor and the file
+  // disappears the moment it closes - however the stream ends, including a
+  // download aborted mid-transfer. Where an open file cannot be unlinked the
+  // attempt is logged and the close handler removes it instead.
+  let removed = false;
+  stream.once("open", () => {
+    removed = removeQuietly(copyPath, logger);
+  });
+  stream.once("close", () => {
+    if (!removed) removeQuietly(copyPath, logger);
+  });
+  return stream;
+}
+
+function removeQuietly(filePath: string, logger: Logger): boolean {
+  try {
+    fs.unlinkSync(filePath);
+    return true;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return true;
+    logger.warn({ error }, "Failed to remove temporary bundle database copy");
+    return false;
+  }
+}
+
+function readStoredSettings(logger: Logger): Record<string, string> {
+  try {
+    return getAllAppSettings();
+  } catch (error) {
+    logger.warn({ error }, "Could not read stored settings for secret collection");
+    return {};
   }
 }
 
@@ -98,13 +135,13 @@ export async function buildBugReportBundle(
   archive: Archiver,
 ): Promise<BundleManifest> {
   const { diagnostics, config, logger } = deps;
-  const secrets = collectSecrets(config);
+  const secrets = collectSecrets(config, readStoredSettings(logger));
   const sources: ManifestEntry[] = [];
 
   async function addSource(
     source: string,
     file: string,
-    produce: () => Promise<string | Buffer> | string | Buffer,
+    produce: () => Promise<string | Buffer | Readable> | string | Buffer | Readable,
   ): Promise<void> {
     try {
       const content = await produce();
