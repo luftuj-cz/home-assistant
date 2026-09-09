@@ -16,6 +16,14 @@ type NoEventResolver = {
   applyEventValues: (payload: Payload) => Promise<void>;
 };
 
+/** One scheduler tick as the loop runs it: resolve, then apply what came back. */
+async function tick(scheduler: Scheduler): Promise<Payload | null> {
+  const resolver = scheduler as unknown as NoEventResolver;
+  const payload = resolver.resolveNoEventPayload(UNIT);
+  if (payload) await resolver.applyEventValues(payload);
+  return payload;
+}
+
 const UNIT = "atrea-am";
 
 const UNIT_DEFINITION = {
@@ -37,6 +45,7 @@ describe("safe state", () => {
   let cleanup: () => void;
   let db: DatabaseType;
   let scheduler: Scheduler;
+  let writeValues: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
     const temp = await setupTempDatabase();
@@ -57,9 +66,10 @@ describe("safe state", () => {
     ).run(UNIT);
 
     const { TimelineScheduler } = await import("../../../src/services/timelineScheduler.js");
+    writeValues = vi.fn(async () => undefined);
     scheduler = new TimelineScheduler(
       {} as never,
-      { getAllUnits: () => [UNIT_DEFINITION] } as never,
+      { getAllUnits: () => [UNIT_DEFINITION], writeValues } as never,
       { setTimelineOverride: vi.fn() } as never,
       { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as never,
     );
@@ -80,20 +90,39 @@ describe("safe state", () => {
     expect(payload?.hruConfig?.variables).toMatchObject({ power: 0, temperature: 20 });
   });
 
-  it("does not re-assert it on subsequent ticks", () => {
-    resolve();
+  it("does not re-assert it on subsequent ticks once the write succeeded", async () => {
+    await tick(scheduler);
+    expect(writeValues).toHaveBeenCalledTimes(1);
 
-    for (let tick = 0; tick < 5; tick++) {
-      const payload = resolve();
+    for (let round = 0; round < 5; round++) {
+      const payload = await tick(scheduler);
       // Still reported as the fallback, but with nothing to write.
       expect(payload?.source).toBe("fallback");
       expect(payload?.hruConfig).toBeNull();
     }
+    expect(writeValues).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries on the next tick when the write failed", async () => {
+    // Modbus unreachable on the tick the schedule ran out.
+    writeValues.mockRejectedValueOnce(new Error("ECONNREFUSED"));
+
+    await tick(scheduler);
+    expect(writeValues).toHaveBeenCalledTimes(1);
+
+    // Not remembered as applied: the unit is still on its old values.
+    const retry = await tick(scheduler);
+    expect(retry?.hruConfig?.variables).toMatchObject({ power: 0, temperature: 20 });
+    expect(writeValues).toHaveBeenCalledTimes(2);
+
+    // And only now does it settle.
+    expect((await tick(scheduler))?.hruConfig).toBeNull();
+    expect(writeValues).toHaveBeenCalledTimes(2);
   });
 
   it("writes it again after something else has applied in between", async () => {
-    resolve();
-    expect(resolve()?.hruConfig).toBeNull();
+    await tick(scheduler);
+    expect((await tick(scheduler))?.hruConfig).toBeNull();
 
     await (scheduler as unknown as NoEventResolver).applyEventValues({
       hruConfig: { variables: { power: 60 } },

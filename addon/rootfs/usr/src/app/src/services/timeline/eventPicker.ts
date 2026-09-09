@@ -5,6 +5,7 @@ import {
   getTimelineEvents,
   getTimelineModes,
 } from "../database.js";
+import type { TimelineMode } from "../../types/index.js";
 import { hasResolvableTimelineModeReference } from "./modeReference.js";
 
 /**
@@ -89,12 +90,46 @@ export function pickActiveEvent(
   nowMinutes: number,
   today: number,
 ): TimelineEvent | null {
+  return pickActiveEventWithContext(currentUnitId, nowMinutes, today).event;
+}
+
+export interface ActiveEventContext {
+  event: TimelineEvent | null;
+  /** Season the pick was resolved against; undefined on a database without seasons. */
+  activeSeasonId: number | undefined;
+  /** Modes as resolved for that season, so the caller need not read them again. */
+  modes: TimelineMode[];
+}
+
+/**
+ * Same pick, but also returns what it had to read to make it. The scheduler
+ * needs the same season-scoped modes right afterwards to build the payload;
+ * reading them twice per tick doubled the database work in steady state.
+ */
+export function pickActiveEventWithContext(
+  currentUnitId: string | undefined,
+  nowMinutes: number,
+  today: number,
+): ActiveEventContext {
   const activeSeasonId = getActiveSeasonId(currentUnitId ?? null);
   const allEvents = getTimelineEvents(currentUnitId, activeSeasonId);
   const modes = getTimelineModes(currentUnitId, activeSeasonId);
 
   reportUnresolvableEvents(currentUnitId, activeSeasonId, allEvents, modes);
 
+  return {
+    event: selectEvent(allEvents, modes, nowMinutes, today),
+    activeSeasonId,
+    modes,
+  };
+}
+
+function selectEvent(
+  allEvents: TimelineEvent[],
+  modes: TimelineMode[],
+  nowMinutes: number,
+  today: number,
+): TimelineEvent | null {
   for (let d = 0; d < 7; d++) {
     const targetDay = (today - d + 7) % 7;
     const dayCandidates = allEvents.filter(

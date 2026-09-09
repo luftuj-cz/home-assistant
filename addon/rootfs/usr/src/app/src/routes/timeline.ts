@@ -27,6 +27,12 @@ import {
   type TimelineMode,
   type TimelineOverride,
 } from "../types/index.js";
+import { parseExplicitSeasonId, resolveCurrentUnitId } from "../services/unitResolution.js";
+import {
+  BoostModeNotConfiguredError,
+  buildBoostOverride,
+} from "../services/timeline/boostOverride.js";
+import { resolveEventWriteSeasonId } from "../services/timeline/eventSeason.js";
 
 import type { TimelineScheduler } from "../services/timelineScheduler.js";
 import type { HruService } from "../features/hru/hru.service.js";
@@ -148,19 +154,17 @@ export function createTimelineRouter(
   const router = Router();
 
   function getCurrentUnitId(unitIdOverride?: string): string | null {
-    try {
-      if (unitIdOverride) return unitIdOverride;
+    return resolveCurrentUnitId(hruService, unitIdOverride);
+  }
 
-      const raw = getAppSetting(HRU_SETTINGS_KEY);
-      const settings = raw ? (JSON.parse(raw) as HruSettings) : null;
-      if (settings?.unit) return settings.unit;
-
-      // Fallback to first available unit if none selected, matches frontend fallback
-      const units = hruService.getAllUnits();
-      return units[0]?.id || null;
-    } catch {
-      return null;
-    }
+  /**
+   * "" and null both mean "no unit configured", but only null matches the
+   * unit-less rows. A caller passing "" would otherwise resolve no season and
+   * read the legacy mode values - or create a season under an empty-string unit
+   * that nothing else would ever look up.
+   */
+  function normaliseUnitId(hruId: string | null): string | null {
+    return hruId && hruId.trim() !== "" ? hruId : null;
   }
 
   /**
@@ -169,16 +173,7 @@ export function createTimelineRouter(
    * season is used, which is what every pre-seasons client sends.
    */
   function getRequestSeasonId(rawSeasonId: unknown, hruId: string | null): number | undefined {
-    const raw = rawSeasonId;
-    if (typeof raw === "string" && raw.trim() !== "") {
-      const parsed = Number.parseInt(raw, 10);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-    // "" and null both mean "no unit configured", but only null matches the
-    // unit-less rows. Callers that pass "" would otherwise resolve no season
-    // and read the legacy mode values, while /events - passing null - stays
-    // season-scoped, so the two disagreed about what is configured.
-    return getActiveSeasonId(hruId && hruId.trim() !== "" ? hruId : null);
+    return parseExplicitSeasonId(rawSeasonId) ?? getActiveSeasonId(normaliseUnitId(hruId));
   }
 
   /**
@@ -188,15 +183,16 @@ export function createTimelineRouter(
    * invisible to every season-scoped read from that point onwards.
    */
   function getWriteSeasonId(rawSeasonId: unknown, hruId: string | null): number | undefined {
-    const raw = rawSeasonId;
-    if (typeof raw === "string" && raw.trim() !== "") {
-      const parsed = Number.parseInt(raw, 10);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-    // "" and null both mean "no unit configured". Only the latter matches the
-    // unit-less rows elsewhere, so normalise before a season gets created under
-    // an empty-string unit that nothing else would ever look up.
-    return ensureActiveSeasonId(hruId && hruId.trim() !== "" ? hruId : null);
+    return parseExplicitSeasonId(rawSeasonId) ?? ensureActiveSeasonId(normaliseUnitId(hruId));
+  }
+
+  /** See `resolveEventWriteSeasonId`: an existing event stays in its own season. */
+  function getEventWriteSeasonId(
+    rawSeasonId: unknown,
+    eventId: number | undefined,
+    hruId: string | null,
+  ): number | undefined {
+    return resolveEventWriteSeasonId(rawSeasonId, eventId, normaliseUnitId(hruId));
   }
 
   function getHruMaxPower(unitIdOverride?: string | null): number {
@@ -630,7 +626,7 @@ export function createTimelineRouter(
         const body = request.body as TimelineEventInput;
         const hruId = getCurrentUnitId(request.query.unitId as string);
 
-        const seasonId = getWriteSeasonId(request.query.seasonId, hruId);
+        const seasonId = getEventWriteSeasonId(request.query.seasonId, body.id, hruId);
         validateEventHruPayload(body, hruId, seasonId);
 
         if (hasTimeConflict(body, hruId, seasonId)) {
@@ -722,33 +718,19 @@ export function createTimelineRouter(
         const boostMode = modes.find((m) => m.id === modeId);
         if (!boostMode) return next(new NotFoundError("Mode not found", "MODE_NOT_FOUND"));
 
-        // Refuse rather than write an empty payload: an unconfigured mode would
-        // report a running boost while nothing reached the hardware.
-        if (boostMode.configured === false) {
-          return next(
-            new ConflictError(
-              `Mode "${boostMode.name}" has no values configured for the current season`,
-              "MODE_NOT_CONFIGURED_FOR_SEASON",
-            ),
-          );
-        }
-
         const endTime = new Date(Date.now() + durationMinutes * 60 * 1000).toISOString();
-        // Freeze the resolved values so a boost that outlives a season boundary
-        // keeps the behaviour it started with.
-        const override: TimelineOverride = {
-          modeId,
-          endTime,
-          durationMinutes,
-          customConfig: {
-            nativeMode: boostMode.nativeMode,
-            power: boostMode.power,
-            temperature: boostMode.temperature,
-            variables: boostMode.variables,
-            luftatorConfig: boostMode.luftatorConfig,
-            scriptEntityIds: boostMode.scriptEntityIds,
-          },
-        };
+        let override: TimelineOverride;
+        try {
+          // Refuses an unconfigured mode rather than writing an empty payload,
+          // and freezes the resolved values so a boost that outlives a season
+          // boundary keeps the behaviour it started with.
+          override = buildBoostOverride(boostMode, durationMinutes, endTime);
+        } catch (error) {
+          if (error instanceof BoostModeNotConfiguredError) {
+            return next(new ConflictError(error.message, "MODE_NOT_CONFIGURED_FOR_SEASON"));
+          }
+          throw error;
+        }
 
         setAppSetting(TIMELINE_OVERRIDE_KEY, JSON.stringify(override));
         logger.info({ modeId, durationMinutes, endTime }, "Timeline boost activated");

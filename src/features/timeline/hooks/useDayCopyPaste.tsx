@@ -137,7 +137,12 @@ export function useDayCopyPaste(
 
       for (const event of source.events) {
         const modeRef = event.hruConfig?.mode?.toString();
-        const mode = context.modes.find((candidate) => candidate.id.toString() === modeRef);
+        // Events reference a mode by id or - legacy rows - by name; the backend
+        // resolves both, so the paste has to as well or a name-referenced event
+        // is judged against a mode that was never found.
+        const mode = context.modes.find(
+          (candidate) => candidate.id.toString() === modeRef || candidate.name === modeRef,
+        );
         // The invariant only covers *enabled* events, so an event whose mode is
         // unconfigured here is kept and switched off rather than dropped. The
         // whole day survives; the blocked parts are inert and flagged.
