@@ -1,10 +1,14 @@
 name: SonarCloud
 
+# Only the main branch is readable on this SonarCloud project: analyses of other
+# long-lived branches process successfully but every read of them returns 403
+# (org is FREE and the project is NOT_BOUND to the luftuj-cz GitHub org), which
+# fails the gate check. PRs into main are covered by pull-request analysis.
 on:
   push:
-    branches: [ main, development ]
+    branches: [ main ]
   pull_request:
-    branches: [ main, development ]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
