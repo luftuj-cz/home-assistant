@@ -27,6 +27,13 @@ export function useSeasonView() {
   const seasons = useMemo(() => data?.seasons.filter((s) => s.enabled) ?? [], [data]);
   const activeSeasonId = data?.activeSeasonId ?? undefined;
 
+  // Mirrors the scheduler's unit-wide check, parked seasons included: it only
+  // reaches for the safe state once some schedule has existed on this unit.
+  const unitHasEnabledEvents = useMemo(
+    () => (data?.seasons ?? []).some((season) => season.enabledEvents > 0),
+    [data],
+  );
+
   // Default to the active season, so opening the page shows what is running.
   const viewedSeasonId = useMemo(() => {
     if (search.season && seasons.some((s) => s.id === search.season)) return search.season;
@@ -42,6 +49,7 @@ export function useSeasonView() {
 
   return {
     featureEnabled: data?.featureEnabled ?? false,
+    unitHasEnabledEvents,
     seasons,
     activeSeasonId,
     viewedSeasonId,
@@ -153,11 +161,27 @@ export function SeasonViewNotice({
  * The active season applying no schedule is the condition that used to leave
  * the unit frozen on stale values. The safe state catches it now, but running
  * the house on minimum ventilation is still not what anyone intended.
+ *
+ * Shown only when the scheduler would really apply that safe state, which is
+ * narrower than "the season on screen is empty". The scheduler falls back to
+ * minimum values only with the seasons feature on and some schedule already on
+ * the unit; otherwise "no applicable event" keeps its pre-seasons meaning of
+ * "write nothing". A feature-off install still carries one whole-year season
+ * row - spring, by default - so without these guards the alert fired on a
+ * perfectly normal install, naming a season the user never enabled and
+ * announcing a hardware change that never happened.
  */
 export function EmptyActiveSeasonNotice({
+  featureEnabled,
+  unitHasEnabledEvents,
   activeSeason,
-}: Readonly<{ activeSeason?: SeasonSummary }>) {
+}: Readonly<{
+  featureEnabled: boolean;
+  unitHasEnabledEvents: boolean;
+  activeSeason?: SeasonSummary;
+}>) {
   const { t } = useTranslation();
+  if (!featureEnabled || !unitHasEnabledEvents) return null;
   if (!activeSeason || activeSeason.enabledEvents > 0) return null;
 
   return (
