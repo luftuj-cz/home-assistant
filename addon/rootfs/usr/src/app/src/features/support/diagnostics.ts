@@ -165,10 +165,11 @@ export async function buildDebugSnapshot(deps: DiagnosticsDeps) {
       bufferedCount: logBufferSize,
       maxBufferedCount: 1_000,
     },
-    settings: {
-      raw: allSettings,
-      parsed: parsedSettings,
-    },
+    // Parsed only. The raw view held every setting as one opaque JSON string,
+    // which the key-based redaction cannot see into - an MQTT password saved
+    // through the Settings UI (and therefore unknown to the config-derived
+    // secret list) went into the bundle in plain text.
+    settings: parsedSettings,
   };
 }
 
