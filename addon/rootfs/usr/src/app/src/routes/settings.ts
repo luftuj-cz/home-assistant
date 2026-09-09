@@ -385,7 +385,6 @@ export function createSettingsRouter(
           });
         }
 
-        // Trigger MQTT discovery update
         try {
           const config = hruService.getResolvedConfiguration(settings);
           if (config) {

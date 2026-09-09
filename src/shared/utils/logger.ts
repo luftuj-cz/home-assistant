@@ -127,10 +127,6 @@ function emit(level: LogLevel, module: string, message: string, meta?: LogMeta):
   }
 }
 
-// ---------------------------------------------------------------------------
-// Timing helpers
-// ---------------------------------------------------------------------------
-
 function now(): number {
   return performance.now();
 }
@@ -140,7 +136,6 @@ function fmtMs(start: number): number {
 }
 
 // ---------------------------------------------------------------------------
-// Logger interface returned by createLogger
 // ---------------------------------------------------------------------------
 
 export interface Logger {

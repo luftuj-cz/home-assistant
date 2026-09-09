@@ -53,13 +53,11 @@ const ADDON_CONFIG_PATH = join(ROOT_DIR, "addon", "config.yaml");
 
 console.log(`Setting version to: ${fullVersion} (${releaseType} release)`);
 
-// 1. Update package.json
 const pkg = JSON.parse(readFileSync(ROOT_PKG_PATH, "utf-8"));
 pkg.version = fullVersion;
 writeFileSync(ROOT_PKG_PATH, JSON.stringify(pkg, null, 2) + "\n");
 console.log(`Updated ${ROOT_PKG_PATH}`);
 
-// 2. Update constants.ts
 let constantsContent = readFileSync(CONSTANTS_PATH, "utf-8");
 const constantsRegex = /export const APP_VERSION = ".*";/;
 if (constantsRegex.test(constantsContent)) {
@@ -75,13 +73,11 @@ if (constantsRegex.test(constantsContent)) {
 writeFileSync(CONSTANTS_PATH, constantsContent);
 console.log(`Updated ${CONSTANTS_PATH}`);
 
-// 3. Update addon/config.yaml
 let configContent = readFileSync(ADDON_CONFIG_PATH, "utf-8");
 const configRegex = /^version: .*$/m;
 if (configRegex.test(configContent)) {
   configContent = configContent.replace(configRegex, `version: ${fullVersion}`);
 } else {
-  // Fallback
   configContent = `version: ${fullVersion}\n${configContent}`;
 }
 
@@ -118,7 +114,6 @@ if (releaseType === "dev") {
 writeFileSync(ADDON_CONFIG_PATH, configContent);
 console.log(`Updated ${ADDON_CONFIG_PATH}`);
 
-// 4. Update src/config.ts
 const FRONTEND_CONFIG_PATH = join(ROOT_DIR, "src", "config.ts");
 let frontendConfigContent = readFileSync(FRONTEND_CONFIG_PATH, "utf-8");
 const frontendConfigRegex = /export const APP_VERSION = ".*";/;
@@ -128,7 +123,6 @@ if (frontendConfigRegex.test(frontendConfigContent)) {
     `export const APP_VERSION = "${fullVersion}";`,
   );
 } else {
-  // Fallback
   frontendConfigContent = `export const APP_VERSION = "${fullVersion}";\n${frontendConfigContent}`;
   console.warn(`Warning: APP_VERSION not found in src/config.ts, prepended it.`);
 }

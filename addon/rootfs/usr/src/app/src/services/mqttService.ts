@@ -546,7 +546,6 @@ export class MqttService extends EventEmitter {
       void this.handleConnectSequence();
     });
 
-    // Register remaining event handlers
     this.setupEventListenersContinued();
   }
 
@@ -691,10 +690,8 @@ export class MqttService extends EventEmitter {
 
       this.logger.info({ topic, payload, unitBaseTopic }, "MQTT: Incoming message processing");
 
-      // 1. Duration Set
       if (topic === `${unitBaseTopic}/boost_duration/set`) {
         const duration = Number.parseInt(payload, 10);
-        // Validate payload (5-480)
         if (!Number.isNaN(duration) && duration >= 5 && duration <= 480) {
           this.logger.info({ duration }, "MQTT: Execute Boost Duration Set");
           this.settingsRepo.setBoostDuration(duration);
@@ -712,7 +709,6 @@ export class MqttService extends EventEmitter {
         }
       }
 
-      // 2. Cancel Boost
       if (topic === `${unitBaseTopic}/boost/cancel` && payload === "CANCEL") {
         this.logger.info("MQTT: Execute Boost Cancel");
         this.settingsRepo.setTimelineOverride(null);
@@ -721,7 +717,6 @@ export class MqttService extends EventEmitter {
         this.logger.info("MQTT: Boost cancelled successfully");
       }
 
-      // 3. Start Boost
       const startBoostMatch = new RegExp(
         String.raw`^${this.escapeRegExp(unitBaseTopic)}/boost/(\d+)/start$`,
       ).exec(topic);
@@ -744,7 +739,6 @@ export class MqttService extends EventEmitter {
         this.logger.info("MQTT: Boost activated successfully");
       }
 
-      // 4. Start Infinite Boost
       const startInfiniteBoostMatch = new RegExp(
         String.raw`^${this.escapeRegExp(unitBaseTopic)}/boost/(\d+)/start_infinite$`,
       ).exec(topic);
@@ -1022,7 +1016,6 @@ export class MqttService extends EventEmitter {
     );
     entityCount++;
 
-    // Boost Duration Number Control
     await this.publishNumber(
       unitId,
       "boost_duration",
@@ -1045,7 +1038,6 @@ export class MqttService extends EventEmitter {
       retain: true,
     });
 
-    // Cancel Boost Button
     await this.publishButton(
       unitId,
       "cancel_boost",
@@ -1188,7 +1180,6 @@ export class MqttService extends EventEmitter {
     device: object,
     availability: object[],
   ): Promise<number> {
-    // Tracking for Unit ID changes
     const lastUnitId = this.settingsRepo.getLastUnitId();
     if (lastUnitId && lastUnitId !== unitId) {
       this.logger.warn(
@@ -1216,7 +1207,6 @@ export class MqttService extends EventEmitter {
     );
     let activeBoostCount = 0;
 
-    // Debug: Log what we're working with
     const boostModes = modes.filter((m) => m.isBoost);
     this.logger.info(
       {
@@ -1309,7 +1299,6 @@ export class MqttService extends EventEmitter {
     prevBoostMap: Record<number, string>,
     currentBoostMap: Record<number, string>,
   ) {
-    // 1. Check if it was previously published as a boost (using tracked slug) and remove it
     if (prevBoostMap[modeId]) {
       const oldSlug = prevBoostMap[modeId];
       this.logger.info(
@@ -1321,8 +1310,8 @@ export class MqttService extends EventEmitter {
       delete currentBoostMap[modeId];
     }
 
-    // 2. FALLBACK: Always try to remove using the CURRENT name slug too
-    // This handles cases where we lost track (prevBoostMap empty) but the button exists.
+    // Also remove under the current slug: covers a button that exists although
+    // prevBoostMap lost track of it.
     await this.removeDiscoveryEntity(unitId, "button", `boost_${slug}`);
     await this.removeDiscoveryEntity(unitId, "button", `boost_${slug}_infinite`);
   }

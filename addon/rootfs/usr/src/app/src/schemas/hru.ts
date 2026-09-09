@@ -2,7 +2,6 @@ import { z } from "zod";
 
 const hruWriteValueSchema = z.union([z.number(), z.string(), z.boolean()]);
 
-// HRU Write Schema
 export const hruWriteInputSchema = z
   .looseObject({
     power: z
@@ -27,5 +26,4 @@ export const hruWriteInputSchema = z
     message: "At least one HRU value must be provided",
   });
 
-// Type exports
 export type HruWriteInput = z.infer<typeof hruWriteInputSchema>;

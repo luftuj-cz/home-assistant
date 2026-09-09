@@ -235,8 +235,8 @@ export const migrations: Migration[] = [
       // Copy today's values into the season that owns them. A unit-less mode is
       // readable from every unit today, so it gets a row in every season.
       // The legacy columns on timeline_modes are deliberately left populated:
-      // they are what a downgraded build reads, and 015 drops them a release
-      // later once this has soaked.
+      // they are what a downgraded build reads. Dropping them is left for a
+      // later release, once this has soaked.
       `INSERT OR IGNORE INTO timeline_mode_values
          (mode_id, timeline_id, power, temperature, native_mode, variables,
           luftator_config, script_entity_ids)
