@@ -41,18 +41,16 @@ jobs:
           sed -i 's|^SF:|SF:addon/rootfs/usr/src/app/|' \
             addon/rootfs/usr/src/app/coverage/lcov.info
 
+      # qualitygate.wait makes the scanner itself poll and fail on a red gate.
+      # The standalone quality-gate action was tried first and got HTTP 403 on
+      # /api/ce/task: an analysis token cannot read that endpoint, only the
+      # scanner that submitted the task can.
       - name: SonarCloud scan
         uses: SonarSource/sonarqube-scan-action@22918119ff8e1ca75a623e15c8296b6ea4fbe28f # v8.2.1
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: https://sonarcloud.io
-
-      # Polls the analysis task written to .scannerwork/report-task.txt by the
-      # step above and fails the job if the gate is not PASSED.
-      - name: Quality gate
-        uses: SonarSource/sonarqube-quality-gate-action@7a5fffe8e523c40e0c740b6bc2712ab503e52efa # v1.2.1
         with:
-          pollingTimeoutSec: "600"
+          args: >
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=600
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: https://sonarcloud.io
