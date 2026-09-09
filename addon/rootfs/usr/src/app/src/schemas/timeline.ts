@@ -6,9 +6,13 @@ export const timelineModeInputSchema = z.object({
   color: z.string().optional(),
   power: z
     .number()
-    .int("Power must be a whole number")
     .min(0, "Power must be at least 0")
     .max(65535, "Power must be at most 65535")
+    // Rounded rather than rejected: 1.0.9 accepted any non-negative number
+    // and the UI let decimals through, so stored modes and external
+    // automations still send e.g. 47.5. Refusing them would lock a mode
+    // saved under 1.0.9 until the user retyped a value they never chose.
+    .transform((value) => Math.round(value))
     .optional(),
   temperature: z
     .number()
@@ -38,9 +42,9 @@ export const timelineEventInputSchema = z.object({
       mode: z.string().optional(),
       power: z
         .number()
-        .int("Power must be a whole number")
         .min(0, "Power must be at least 0")
         .max(65535, "Power must be at most 65535")
+        .transform((value) => Math.round(value))
         .optional(),
       temperature: z
         .number()
