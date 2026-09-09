@@ -18,7 +18,6 @@ export class HruRepository {
       this.logger,
       async (mb) => {
         const logger = this.logger;
-        // Helper to evaluate a value or expression
         async function evaluate(val: CommandValue): Promise<number> {
           if (typeof val === "number") return val;
 

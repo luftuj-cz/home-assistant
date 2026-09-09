@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { SUPPORTED_LANGUAGES, VALID_LOG_LEVELS } from "../types/index.js";
 
-// HRU Settings Schema
 export const hruSettingsInputSchema = z.object({
   host: z.string().trim().min(1, "Host is required"),
   port: z.number().int().min(1).max(65535, "Port must be between 1 and 65535"),
@@ -15,7 +14,6 @@ export const hruSettingsInputSchema = z.object({
     .optional(),
 });
 
-// MQTT Settings Schema
 export const mqttSettingsInputSchema = z
   .object({
     enabled: z.boolean(),
@@ -37,32 +35,26 @@ export const mqttTestInputSchema = z.object({
   password: z.string().optional(),
 });
 
-// Addon Mode Schema
 export const addonModeInputSchema = z.object({
   mode: z.enum(["manual", "timeline"]),
 });
 
-// Theme Setting Schema
 export const themeSettingInputSchema = z.object({
   theme: z.enum(["light", "dark"]),
 });
 
-// Language Setting Schema
 export const languageSettingInputSchema = z.object({
   language: z.enum(SUPPORTED_LANGUAGES),
 });
 
-// Debug Mode Schema
 export const debugModeInputSchema = z.object({
   enabled: z.boolean(),
 });
 
-// Log Level Schema
 export const logLevelInputSchema = z.object({
   level: z.enum(VALID_LOG_LEVELS),
 });
 
-// Type exports
 export type HruSettingsInput = z.infer<typeof hruSettingsInputSchema>;
 export type MqttSettingsInput = z.infer<typeof mqttSettingsInputSchema>;
 export type MqttTestInput = z.infer<typeof mqttTestInputSchema>;

@@ -70,13 +70,11 @@ app.use(
   }),
 );
 
-// Middleware
 // IMPORTANT: Strip ingress path BEFORE any other middleware or routing
 app.use(createIngressPathMiddleware(logger));
 app.use(createRequestLogger(logger));
 app.use(createUserContextLogger(logger));
 
-// Services Setup
 const clients = new Set<WebSocket>();
 
 async function broadcast(message: unknown): Promise<void> {
@@ -103,7 +101,6 @@ if (config.token) {
   valveManager = new OfflineValveManager(logger, broadcast);
 }
 
-// Core Dependencies
 const settingsRepo = new SettingsRepository(logger);
 const hruRepo = new HruRepository(logger);
 const hruService = new HruService(hruRepo, settingsRepo, logger);
@@ -149,7 +146,6 @@ function broadcastSystemStatus() {
 
 const hruController = new HruController(hruService, logger);
 
-// Routes
 app.use("/api/hru", createHruRouter(hruController));
 app.use("/api/commissioning", createCommissioningRouter(commissioningRunner, hruService, logger));
 app.use("/api/timeline", createTimelineRouter(logger, timelineScheduler, hruService, mqttService));
@@ -277,7 +273,6 @@ wss.on("connection", async (socket) => {
     logger.error({ error }, "Failed to send initial snapshot to websocket client");
   }
 
-  // Send initial status
   try {
     const haStatus = haClient ? haClient.getConnectionState() : "offline";
     const mqttConnectionStatus = mqttService.getStatus();
@@ -385,7 +380,6 @@ async function shutdown(signal: string, exitCodeOverride?: number) {
   hruMonitor.stop();
   timelineScheduler.stop();
 
-  // Terminate all WebSocket connections
   logger.debug({ clientCount: clients.size }, "Terminating all WebSocket clients");
   for (const client of clients) {
     try {
@@ -396,7 +390,6 @@ async function shutdown(signal: string, exitCodeOverride?: number) {
   }
   clients.clear();
 
-  // Close WebSocket server with timeout
   try {
     await Promise.race([
       new Promise<void>((resolve) => wss.close(() => resolve())),

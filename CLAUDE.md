@@ -79,9 +79,10 @@ The frontend communicates with the backend via REST API (`/api/*`) and WebSocket
 
 **Internationalization**:
 
-- `src/i18n/` – i18next setup and locale files
-- Locales in `src/i18n/locales/{en,cs}/common.json` and `addon/rootfs/usr/src/app/src/locales/`
-- Build process copies backend locales to frontend during `npm run build`
+- `src/shared/i18n/` – i18next setup and locale files
+- Source of truth: `src/shared/i18n/locales/{en,cs}/common.json`. Edit strings here only.
+- `addon/rootfs/usr/src/app/src/locales/` is a generated copy for the backend (MQTT entity names, scheduler
+  labels); `npm run build` overwrites it via `scripts/copy-translations.mjs`. Do not edit it by hand.
 
 **Styling**:
 
@@ -197,7 +198,7 @@ The backend acts as a Home Assistant add-on. Key integration points:
 ### Frontend Build Process
 
 1. `tsc -b` – TypeScript type checking
-2. `node scripts/copy-translations.mjs` – Copy backend locales to frontend
+2. `node scripts/copy-translations.mjs` – Copy frontend locales (`src/shared/i18n/locales`) to the backend
 3. `vite build` – Bundle with chunking strategy (mantine, tanstack, motion, icons, date-fns as separate chunks)
 4. Output goes to `dist/`
 
@@ -261,7 +262,9 @@ The backend acts as a Home Assistant add-on. Key integration points:
 - **WebSocket**: Real-time updates pushed to connected clients via broadcast
 - **Offline Valve Manager**: Backend supports offline mode without Home Assistant for testing
 - **HRU Simulator**: See `tools/simulator/README.md` for testing HRU behavior
-- **Translation Sync**: Backend has its own locale files; these are copied to frontend during build
+- **Translation Sync**: Frontend locales are the source of truth; `npm run build` copies them into the backend
+  (`addon/rootfs/usr/src/app/src/locales/`). Run `node scripts/copy-translations.mjs` after editing strings if
+  the backend needs them before the next build
 - **Home Assistant Add-on**: Must run as container in Home Assistant with access to Modbus/MQTT
 
 ## Troubleshooting Common Issues
@@ -269,5 +272,6 @@ The backend acts as a Home Assistant add-on. Key integration points:
 - **API 404**: Frontend is trying to call `/api` but backend isn't running. Start backend in `addon/rootfs/usr/src/app` with `npm run dev`
 - **Type errors on build**: Run `tsc -b` to see full type-check output
 - **WebSocket connection fails**: Check that backend is running and Vite dev server proxy is configured correctly
-- **Translations missing**: Run `npm run build` (not just `npm run dev`) to copy backend locales to frontend
+- **Translations missing in MQTT/backend**: Run `node scripts/copy-translations.mjs` (or `npm run build`) to copy
+  frontend locales to the backend
 - **Linting fails with function declarations**: Use `function foo() {}` not `const foo = () => {}`

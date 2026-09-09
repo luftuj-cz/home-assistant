@@ -19,10 +19,6 @@ function normaliseRecord(record: ValveSnapshotRecord): ValveStateRecord {
   };
 }
 
-/**
- * Stores valve snapshots in the database
- * @param records - Array of valve snapshot records to store
- */
 export function storeValveSnapshots(records: ValveSnapshotRecord[]): void {
   if (records.length === 0) {
     return;

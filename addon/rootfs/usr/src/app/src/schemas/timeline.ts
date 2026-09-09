@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-// Timeline Mode Schemas
 export const timelineModeInputSchema = z.object({
   name: z.string().trim().min(1, "Mode name is required"),
   color: z.string().optional(),
@@ -30,7 +29,6 @@ export const timelineModeInputSchema = z.object({
     .optional(),
 });
 
-// Timeline Event Schemas
 const timeRegex = /^([01]?\d|2[0-3]):[0-5]\d$/;
 
 export const timelineEventInputSchema = z.object({
@@ -63,13 +61,11 @@ export const timelineEventInputSchema = z.object({
   priority: z.number().int().min(0).max(100).optional(),
 });
 
-// Boost Override Schemas
 export const boostOverrideInputSchema = z.object({
   modeId: z.number().int().positive("Mode ID is required"),
   durationMinutes: z.number().int().positive("Duration must be greater than 0"),
 });
 
-// Type exports
 export type TimelineModeInput = z.infer<typeof timelineModeInputSchema>;
 export type TimelineEventInput = z.infer<typeof timelineEventInputSchema>;
 export type BoostOverrideInput = z.infer<typeof boostOverrideInputSchema>;

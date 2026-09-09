@@ -1,9 +1,5 @@
 import { getDatabase, getModuleLogger, getStatements, setupDatabase } from "../database.js";
 
-/**
- * Retrieves all app settings
- * @returns Record of all app settings as key-value pairs
- */
 export function getAllAppSettings(): Record<string, string> {
   if (!getDatabase() || !getStatements()) {
     setupDatabase();
@@ -21,11 +17,6 @@ export function getAllAppSettings(): Record<string, string> {
   }, {});
 }
 
-/**
- * Retrieves a specific app setting by key
- * @param key - Setting key
- * @returns Setting value or null if not found
- */
 export function getAppSetting(key: string): string | null {
   if (!getDatabase() || !getStatements()) {
     setupDatabase();
@@ -40,11 +31,6 @@ export function getAppSetting(key: string): string | null {
   return row?.value ?? null;
 }
 
-/**
- * Sets an app setting
- * @param key - Setting key
- * @param value - Setting value
- */
 export function setAppSetting(key: string, value: string): void {
   if (!getDatabase() || !getStatements()) {
     setupDatabase();

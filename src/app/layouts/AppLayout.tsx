@@ -58,7 +58,6 @@ export function AppLayout() {
   const logoFull = computedColorScheme === "dark" ? logoFullDark : logoFullLight;
   const logoMark = computedColorScheme === "dark" ? logoMarkDark : logoMarkLight;
 
-  // Check Onboarding Status
   const { data: onboardingStatus, isLoading: isLoadingStatus } = useQuery({
     queryKey: ["onboarding-status"],
     queryFn: async () => {

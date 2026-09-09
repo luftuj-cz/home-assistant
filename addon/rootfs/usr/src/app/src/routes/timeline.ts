@@ -209,7 +209,6 @@ export function createTimelineRouter(
         return 100;
       }
 
-      // Get the unit definition from HRU service
       const units = hruService.getAllUnits();
       const currentUnit = units.find((u) => u.id === unitId);
 
@@ -354,8 +353,6 @@ export function createTimelineRouter(
       getRequestSeasonId(request.query.seasonId, currentUnitId),
     );
 
-    // Migration logic removed from GET - migration is now handled by DB service on startup
-    // We just return filtered modes
     const filteredModes = allModes.filter((m) => m.hruId === currentUnitId || !m.hruId);
     logger.debug(
       { count: filteredModes.length, unitId: currentUnitId },
@@ -373,7 +370,6 @@ export function createTimelineRouter(
         const currentUnitId = getCurrentUnitId(request.query.unitId as string);
         const modeData = mapTimelineModeInput(payload);
 
-        // Validate against HRU max power
         if (!validatePowerAndValves(payload, response, currentUnitId)) {
           return;
         }
@@ -433,7 +429,6 @@ export function createTimelineRouter(
         const modeData = mapTimelineModeInput(payload);
         const modeUnitId = original.hruId || getCurrentUnitId() || "";
 
-        // Validate against HRU max power
         if (!validatePowerAndValves(payload, response, modeUnitId)) {
           return;
         }
@@ -532,13 +527,11 @@ export function createTimelineRouter(
       }
 
       try {
-        // Cascade: delete events using this mode
         deleteTimelineEventsByMode(id, original.name);
       } catch (error) {
         logger.error({ error, id }, "Failed to delete associated timeline events");
       }
 
-      // Cascade: clear boost if it uses this mode
       try {
         const rawOverride = getAppSetting(TIMELINE_OVERRIDE_KEY);
         if (rawOverride && rawOverride !== "null") {
@@ -568,7 +561,6 @@ export function createTimelineRouter(
     }
   });
 
-  // Timeline Events
   router.get("/events", (request: Request, response: Response, next: NextFunction) => {
     try {
       const hruId = getCurrentUnitId(request.query.unitId as string);
@@ -605,7 +597,6 @@ export function createTimelineRouter(
             logger.warn({ error, id }, "Failed to purge orphaned event");
           }
         }
-        // Return filtered list to UI immediately
         const orphanSet = new Set(orphanedIds);
         response.json(events.filter((e) => e.id === undefined || !orphanSet.has(e.id)));
       } else {
@@ -679,13 +670,11 @@ export function createTimelineRouter(
     }
   });
 
-  // Boost Overrides
   router.get("/boost", (_request: Request, response: Response) => {
     const raw = getAppSetting(TIMELINE_OVERRIDE_KEY);
     if (!raw) return response.json({ active: null });
     try {
       const parsed = JSON.parse(raw) as TimelineOverride;
-      // Filter out expired boosts
       if (parsed && new Date(parsed.endTime) < new Date()) {
         setAppSetting(TIMELINE_OVERRIDE_KEY, "null");
         return response.json({ active: null });
