@@ -1,4 +1,4 @@
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import type { Logger } from "pino";
@@ -29,7 +29,7 @@ export function createSupportBundleRouter(deps: SupportBundleDeps) {
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
     const filename = `luftator-bugreport-${APP_VERSION}-${timestamp}.zip`;
 
-    const archive = archiver("zip", { zlib: { level: 9 } });
+    const archive = new ZipArchive({ zlib: { level: 9 } });
 
     archive.on("warning", (error) => {
       logger.warn({ error }, "Bug report bundle archive warning");

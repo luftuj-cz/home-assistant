@@ -97,7 +97,7 @@ jobs:
 
   publish:
     name: Publish manifest
-    needs: [ prepare, build ]
+    needs: [prepare, build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
