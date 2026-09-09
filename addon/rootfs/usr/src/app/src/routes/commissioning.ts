@@ -2,8 +2,8 @@ import type { NextFunction, Request, Response } from "express";
 import { Router } from "express";
 import type { Logger } from "pino";
 import { z } from "zod";
-import { getAppSetting, getTimelineModes, getActiveSeasonId } from "../services/database.js";
-import { HRU_SETTINGS_KEY, type HruSettings } from "../types/index.js";
+import { getTimelineModes, getActiveSeasonId } from "../services/database.js";
+import { resolveCurrentUnitId } from "../services/unitResolution.js";
 import type { CommissioningRunner } from "../services/commissioningRunner.js";
 import type { HruService } from "../features/hru/hru.service.js";
 import { validateRequest } from "../middleware/validateRequest.js";
@@ -13,21 +13,6 @@ const startCommissioningSchema = z.object({
   intervalSeconds: z.number().int().min(10).max(300).default(45),
   modeIds: z.array(z.number().int().positive()).min(1).optional(),
 });
-
-function getCurrentUnitId(hruService: HruService): string | undefined {
-  try {
-    const raw = getAppSetting(HRU_SETTINGS_KEY);
-    const settings = raw ? (JSON.parse(raw) as HruSettings) : null;
-    if (settings?.unit) {
-      return settings.unit;
-    }
-
-    const units = hruService.getAllUnits();
-    return units[0]?.id;
-  } catch {
-    return undefined;
-  }
-}
 
 export function createCommissioningRouter(
   commissioningRunner: CommissioningRunner,
@@ -48,7 +33,7 @@ export function createCommissioningRouter(
         const { intervalSeconds, modeIds } = request.body as z.infer<
           typeof startCommissioningSchema
         >;
-        const unitId = getCurrentUnitId(hruService);
+        const unitId = resolveCurrentUnitId(hruService) ?? undefined;
         const allModes = getTimelineModes(unitId, getActiveSeasonId(unitId ?? null));
 
         const candidates = modeIds ? allModes.filter((m) => modeIds.includes(m.id)) : allModes;
