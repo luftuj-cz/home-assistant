@@ -29,8 +29,7 @@ export {
   upsertTimelineMode,
 } from "./db/timeline.js";
 export {
-  ACTIVE_SEASON_SETTING_KEY,
-  cacheActiveSeason,
+  adoptSeasonlessContent,
   ensureActiveSeasonId,
   ensureSeasons,
   getActiveSeasonId,
@@ -42,8 +41,6 @@ export {
   type Season,
   SEASON_KEYS,
   type SeasonKey,
-  setSeasonEnabled,
-  setSeasonStart,
   updateSeason,
   toMonthDay,
   validatePartition,

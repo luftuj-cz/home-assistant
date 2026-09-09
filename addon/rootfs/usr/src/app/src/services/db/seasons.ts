@@ -1,4 +1,5 @@
 import { getDatabase, getModuleLogger, setupDatabase } from "../database.js";
+import { cachedStatement } from "./statementCache.js";
 
 /**
  * The four seasons are a fixed set. They cannot be created, deleted or renamed
@@ -20,8 +21,6 @@ const DEFAULT_SPAN_STARTS: Record<SeasonKey, string> = {
   autumn: "09-01",
   winter: "12-01",
 };
-
-export const ACTIVE_SEASON_SETTING_KEY = "timeline.active_id";
 
 /** MM-DD, no year. Shared by every path that accepts a boundary. */
 const MONTH_DAY_PATTERN = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -114,9 +113,14 @@ export function previousMonthDay(monthDay: string): string {
 function readSeasonRecords(hruId: string | null): SeasonRecord[] {
   const db = requireDatabase();
   if (hruId === null) {
-    return db.prepare(`SELECT * FROM timelines WHERE hru_id IS NULL`).all() as SeasonRecord[];
+    return cachedStatement(
+      db,
+      `SELECT * FROM timelines WHERE hru_id IS NULL`,
+    ).all() as SeasonRecord[];
   }
-  return db.prepare(`SELECT * FROM timelines WHERE hru_id = ?`).all(hruId) as SeasonRecord[];
+  return cachedStatement(db, `SELECT * FROM timelines WHERE hru_id = ?`).all(
+    hruId,
+  ) as SeasonRecord[];
 }
 
 /**
@@ -209,19 +213,66 @@ export function getActiveSeasonId(
 }
 
 /**
+ * Pulls everything that predates the unit's seasons into the given season.
+ *
+ * There are two kinds of season-less content. Events written while the unit had
+ * no season row at all carry `timeline_id IS NULL` - migration 013 only
+ * back-fills units that already owned events, so every install created after
+ * this release starts that way. Modes from the same period have no row in
+ * `timeline_mode_values`; their values live only in the legacy columns.
+ *
+ * Left alone, the first season-scoped read would find a schedule that belongs
+ * to no season and modes with no values: the timeline would come up empty,
+ * every mode would read as unconfigured, and the safe state would drive the
+ * unit to minimum. That is why every path that brings a season into existence
+ * - enabling the feature, or the first write on an install with none - runs
+ * this immediately afterwards.
+ *
+ * Unit-less events are folded in as well, matching migration 013 and the
+ * adoption in `assignLegacyEventsToUnit`: a season of their own would be
+ * orphaned the moment the unit adopts them.
+ */
+export function adoptSeasonlessContent(hruId: string | null, timelineId: number): void {
+  const db = requireDatabase();
+
+  db.prepare(
+    `UPDATE timeline_events
+     SET timeline_id = ?, updated_at = datetime('now')
+     WHERE timeline_id IS NULL
+       AND (hru_id IS ? OR hru_id IS NULL)`,
+  ).run(timelineId, hruId);
+
+  // Same back-fill migration 014 performs: for a mode never saved per season,
+  // the legacy columns are still the truth.
+  db.prepare(
+    `INSERT OR IGNORE INTO timeline_mode_values
+       (mode_id, timeline_id, power, temperature, native_mode, variables, luftator_config,
+        script_entity_ids)
+     SELECT m.id, ?, m.power, m.temperature, m.native_mode, m.variables, m.luftator_config,
+            m.script_entity_ids
+     FROM timeline_modes m
+     WHERE m.hru_id IS ? OR m.hru_id IS NULL`,
+  ).run(timelineId, hruId);
+}
+
+/**
  * The season an event or mode value written *now* belongs to, creating the
  * unit's whole-year season if it has none yet.
  *
  * Migration 013 back-fills a season only for units that already owned events,
  * so a database created after this release starts with no `timelines` row at
- * all. Writes resolved through `getActiveSeasonId` would then be stored with no
- * season - invisible to every season-scoped read the moment the feature is
+ * all - and so does an upgraded install whose users only ever used boost
+ * modes. Writes resolved through `getActiveSeasonId` would then be stored with
+ * no season - invisible to every season-scoped read the moment the feature is
  * switched on, which silently empties the whole schedule. Write paths use this
  * instead, so an event always lands in a season that exists.
  *
  * The season created here matches what 013 would have produced: `spring`,
- * covering the whole year, enabled. Read paths keep using `getActiveSeasonId`,
- * which never writes.
+ * covering the whole year, enabled. Creating it also makes every read from
+ * then on season-scoped, so the modes and events that existed before it are
+ * adopted into it in the same step (`adoptSeasonlessContent`) - otherwise the
+ * install's existing modes would all read as unconfigured from the first save
+ * onwards. Read paths keep using `getActiveSeasonId`, which never writes.
  */
 export function ensureActiveSeasonId(hruId: string | null): number | undefined {
   try {
@@ -237,49 +288,40 @@ export function ensureActiveSeasonId(hruId: string | null): number | undefined {
     const db = requireDatabase();
     const spring = seasons.find((season) => season.seasonKey === "spring");
 
-    // Rows exist but none is enabled - the Settings page created the four
-    // placeholders on an install that never turned the feature on. A
-    // one-season install is always spring covering the whole year.
-    if (spring) {
-      db.prepare(
-        `UPDATE timelines
-         SET enabled = 1, span_start = '01-01', span_end = '12-31',
-             updated_at = datetime('now')
-         WHERE id = ?`,
-      ).run(spring.id);
-      getModuleLogger()?.info({ hruId }, "Enabled the default whole-year season for writes");
-      return spring.id;
-    }
+    const create = db.transaction((): number => {
+      // Rows exist but none is enabled - the Settings page created the four
+      // placeholders on an install that never turned the feature on. A
+      // one-season install is always spring covering the whole year.
+      if (spring) {
+        db.prepare(
+          `UPDATE timelines
+           SET enabled = 1, span_start = '01-01', span_end = '12-31',
+               updated_at = datetime('now')
+           WHERE id = ?`,
+        ).run(spring.id);
+        adoptSeasonlessContent(hruId, spring.id);
+        getModuleLogger()?.info({ hruId }, "Enabled the default whole-year season for writes");
+        return spring.id;
+      }
 
-    const inserted = db
-      .prepare(
-        `INSERT INTO timelines (season_key, hru_id, span_start, span_end, enabled, sort_order)
-         VALUES ('spring', ?, '01-01', '12-31', 1, 0)`,
-      )
-      .run(hruId);
-    getModuleLogger()?.info({ hruId }, "Created the default whole-year season for writes");
-    return Number(inserted.lastInsertRowid);
+      const inserted = db
+        .prepare(
+          `INSERT INTO timelines (season_key, hru_id, span_start, span_end, enabled, sort_order)
+           VALUES ('spring', ?, '01-01', '12-31', 1, 0)`,
+        )
+        .run(hruId);
+      const id = Number(inserted.lastInsertRowid);
+      adoptSeasonlessContent(hruId, id);
+      getModuleLogger()?.info({ hruId }, "Created the default whole-year season for writes");
+      return id;
+    });
+
+    return create();
   } catch (err) {
     // A write must not fail because the season could not be resolved: without
     // an id the row is still stored, exactly as it was before seasons existed.
     getModuleLogger()?.warn({ err, hruId }, "Failed to ensure the default season");
     return undefined;
-  }
-}
-
-/**
- * Records which season is active. A cache only - the spans stay the source of
- * truth and the value is recomputed every tick.
- */
-export function cacheActiveSeason(seasonId: number | null): void {
-  try {
-    const db = requireDatabase();
-    db.prepare(
-      `INSERT INTO app_settings (key, value) VALUES (?, ?)
-       ON CONFLICT(key) DO UPDATE SET value = excluded.value`,
-    ).run(ACTIVE_SEASON_SETTING_KEY, seasonId === null ? "" : String(seasonId));
-  } catch (err) {
-    getModuleLogger()?.warn({ err }, "Failed to cache active season");
   }
 }
 
@@ -329,38 +371,16 @@ function assertValidPartition(candidate: Season[]): void {
 }
 
 /**
- * Enables or disables one season. Non-destructive in both directions: the row,
- * its events and its mode values survive a disable, and the surrounding spans
- * are derived rather than rewritten, so re-enabling reclaims exactly the span
- * it had. Disabling the last enabled season is rejected.
- */
-export function setSeasonEnabled(hruId: string | null, key: SeasonKey, enabled: boolean): Season[] {
-  const db = requireDatabase();
-  const current = getSeasons(hruId);
-  const target = current.find((season) => season.seasonKey === key);
-  if (!target) {
-    throw new Error(`Season ${key} does not exist for this unit`);
-  }
-
-  assertValidPartition(
-    current.map((season) => (season.seasonKey === key ? { ...season, enabled } : season)),
-  );
-
-  db.prepare(`UPDATE timelines SET enabled = ?, updated_at = datetime('now') WHERE id = ?`).run(
-    enabled ? 1 : 0,
-    target.id,
-  );
-  persistDerivedSpanEnds(hruId);
-  return getSeasons(hruId);
-}
-
-/**
- * Applies a boundary move and an enable/disable together, validating the
- * combined result before either is written.
+ * Applies a boundary move and/or an enable/disable, validating the combined
+ * result before either is written. This is the only mutation of a single
+ * season: enabling and disabling are non-destructive in both directions (the
+ * row, its events and its mode values survive a disable, and the surrounding
+ * spans are derived rather than rewritten, so re-enabling reclaims exactly the
+ * span it had), and disabling the last enabled season is rejected.
  *
- * Doing them as two calls committed the boundary first, so a change whose
- * *combination* broke the partition returned an error with half of it already
- * persisted - the UI rolled back, the database did not.
+ * Doing the two parts as separate calls committed the boundary first, so a
+ * change whose *combination* broke the partition returned an error with half of
+ * it already persisted - the UI rolled back, the database did not.
  */
 export function updateSeason(
   hruId: string | null,
@@ -404,31 +424,6 @@ export function updateSeason(
     }
   })();
 
-  persistDerivedSpanEnds(hruId);
-  return getSeasons(hruId);
-}
-
-/** Moves the day a season begins on. Neighbouring spans follow by derivation. */
-export function setSeasonStart(hruId: string | null, key: SeasonKey, spanStart: string): Season[] {
-  if (!MONTH_DAY_PATTERN.test(spanStart)) {
-    throw new Error(`Invalid season boundary "${spanStart}", expected MM-DD`);
-  }
-
-  const db = requireDatabase();
-  const current = getSeasons(hruId);
-  const target = current.find((season) => season.seasonKey === key);
-  if (!target) {
-    throw new Error(`Season ${key} does not exist for this unit`);
-  }
-
-  assertValidPartition(
-    current.map((season) => (season.seasonKey === key ? { ...season, spanStart } : season)),
-  );
-
-  db.prepare(`UPDATE timelines SET span_start = ?, updated_at = datetime('now') WHERE id = ?`).run(
-    spanStart,
-    target.id,
-  );
   persistDerivedSpanEnds(hruId);
   return getSeasons(hruId);
 }

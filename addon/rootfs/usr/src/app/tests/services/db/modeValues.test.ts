@@ -168,8 +168,8 @@ describe("request-scoped vs active season", () => {
     seasons = await import("../../../src/services/db/seasons.js");
 
     seasons.ensureSeasons(UNIT);
-    seasons.setSeasonEnabled(UNIT, "spring", true);
-    seasons.setSeasonEnabled(UNIT, "winter", true);
+    seasons.updateSeason(UNIT, "spring", { enabled: true });
+    seasons.updateSeason(UNIT, "winter", { enabled: true });
     db.prepare(
       `INSERT INTO timeline_modes (id, name, is_boost, hru_id) VALUES (1, 'Komfort', 0, ?)`,
     ).run(UNIT);
@@ -238,7 +238,7 @@ describe("configured-before-usable enforcement", () => {
     seasons = await import("../../../src/services/db/seasons.js");
 
     seasons.ensureSeasons(UNIT);
-    seasons.setSeasonEnabled(UNIT, "spring", true);
+    seasons.updateSeason(UNIT, "spring", { enabled: true });
     springId = seasons.getSeasons(UNIT).find((s) => s.seasonKey === "spring")!.id;
 
     db.prepare(
@@ -380,8 +380,8 @@ describe("legacy column mirroring", () => {
     seasons = await import("../../../src/services/db/seasons.js");
 
     seasons.ensureSeasons(UNIT);
-    seasons.setSeasonEnabled(UNIT, "spring", true);
-    seasons.setSeasonEnabled(UNIT, "winter", true);
+    seasons.updateSeason(UNIT, "spring", { enabled: true });
+    seasons.updateSeason(UNIT, "winter", { enabled: true });
     springId = seasons.getSeasons(UNIT).find((s) => s.seasonKey === "spring")!.id;
     winterId = seasons.getSeasons(UNIT).find((s) => s.seasonKey === "winter")!.id;
 
