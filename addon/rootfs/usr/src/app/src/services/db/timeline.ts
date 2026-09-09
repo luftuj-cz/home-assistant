@@ -1,5 +1,6 @@
 import { TIMELINE_MODES_KEY, type TimelineMode } from "../../types/index.js";
 import { getDatabase, getModuleLogger, getStatements, setupDatabase } from "../database.js";
+import { cachedStatement } from "./statementCache.js";
 
 export interface TimelineEvent {
   id?: number;
@@ -175,14 +176,17 @@ function parseJsonColumn<T>(raw: string | null, modeId: number, column: string):
 
 /**
  * A mode counts as configured for a season when it would actually do something
- * there: at least one HRU write value, or at least one activation script. A
- * script-only mode is legitimate - "in summer, open the window instead of
- * running the unit" - so scripts alone are enough.
+ * there: at least one HRU write value, at least one valve position, or at least
+ * one activation script. A script-only mode is legitimate - "in summer, open
+ * the window instead of running the unit" - so scripts alone are enough, and so
+ * is a valve-only mode: it moves hardware without touching the unit, and has
+ * been a supported configuration since before seasons existed.
  */
-function hasEffectiveValues(mode: TimelineMode): boolean {
+export function hasEffectiveValues(mode: TimelineMode): boolean {
   if (mode.power !== undefined || mode.temperature !== undefined) return true;
   if (mode.nativeMode !== undefined) return true;
   if (mode.variables && Object.keys(mode.variables).length > 0) return true;
+  if (mode.luftatorConfig && Object.keys(mode.luftatorConfig).length > 0) return true;
   if (mode.scriptEntityIds && mode.scriptEntityIds.length > 0) return true;
   return false;
 }
@@ -190,14 +194,13 @@ function hasEffectiveValues(mode: TimelineMode): boolean {
 function readSeasonValues(timelineId: number): Map<number, TimelineModeValueRecord> {
   const db = getDatabase();
   if (!db) return new Map();
-  const rows = db
-    .prepare(
-      `SELECT mode_id, power, temperature, native_mode, variables, luftator_config,
-              script_entity_ids
-       FROM timeline_mode_values
-       WHERE timeline_id = ?`,
-    )
-    .all(timelineId) as TimelineModeValueRecord[];
+  const rows = cachedStatement(
+    db,
+    `SELECT mode_id, power, temperature, native_mode, variables, luftator_config,
+            script_entity_ids
+     FROM timeline_mode_values
+     WHERE timeline_id = ?`,
+  ).all(timelineId) as TimelineModeValueRecord[];
   return new Map(rows.map((row) => [row.mode_id, row]));
 }
 

@@ -22,7 +22,7 @@ describe("season partition", () => {
 
   function enableAll() {
     for (const key of seasons.SEASON_KEYS) {
-      seasons.setSeasonEnabled(UNIT, key, true);
+      seasons.updateSeason(UNIT, key, { enabled: true });
     }
   }
 
@@ -62,7 +62,7 @@ describe("season partition", () => {
 
   describe("derived spans", () => {
     it("a single enabled season covers the whole year", () => {
-      seasons.setSeasonEnabled(UNIT, "spring", true);
+      seasons.updateSeason(UNIT, "spring", { enabled: true });
       const spring = seasons.getSeasons(UNIT).find((s) => s.seasonKey === "spring")!;
       expect(spring.spanEnd).toBe(seasons.previousMonthDay(spring.spanStart));
 
@@ -109,7 +109,7 @@ describe("season partition", () => {
   describe("enable and disable", () => {
     it("disabling absorbs the span into the preceding enabled season", () => {
       enableAll();
-      seasons.setSeasonEnabled(UNIT, "autumn", false);
+      seasons.updateSeason(UNIT, "autumn", { enabled: false });
 
       const summer = seasons.getSeasons(UNIT).find((s) => s.seasonKey === "summer")!;
       expect(summer.spanEnd).toBe("11-30");
@@ -120,8 +120,8 @@ describe("season partition", () => {
       enableAll();
       const before = seasons.getSeasons(UNIT).find((s) => s.seasonKey === "autumn")!;
 
-      seasons.setSeasonEnabled(UNIT, "autumn", false);
-      seasons.setSeasonEnabled(UNIT, "autumn", true);
+      seasons.updateSeason(UNIT, "autumn", { enabled: false });
+      seasons.updateSeason(UNIT, "autumn", { enabled: true });
 
       const after = seasons.getSeasons(UNIT).find((s) => s.seasonKey === "autumn")!;
       expect(after.id).toBe(before.id);
@@ -130,10 +130,10 @@ describe("season partition", () => {
     });
 
     it("two enabled seasons express a heating and non-heating period", () => {
-      seasons.setSeasonEnabled(UNIT, "spring", true);
-      seasons.setSeasonEnabled(UNIT, "winter", true);
-      seasons.setSeasonStart(UNIT, "spring", "04-15");
-      seasons.setSeasonStart(UNIT, "winter", "10-01");
+      seasons.updateSeason(UNIT, "spring", { enabled: true });
+      seasons.updateSeason(UNIT, "winter", { enabled: true });
+      seasons.updateSeason(UNIT, "spring", { spanStart: "04-15" });
+      seasons.updateSeason(UNIT, "winter", { spanStart: "10-01" });
 
       function on(month: number, day: number) {
         return seasons.resolveActiveSeason(UNIT, new Date(2026, month - 1, day))?.seasonKey;
@@ -146,29 +146,33 @@ describe("season partition", () => {
     });
 
     it("refuses to disable the last enabled season", () => {
-      seasons.setSeasonEnabled(UNIT, "spring", true);
-      expect(() => seasons.setSeasonEnabled(UNIT, "spring", false)).toThrow(/at least one season/i);
+      seasons.updateSeason(UNIT, "spring", { enabled: true });
+      expect(() => seasons.updateSeason(UNIT, "spring", { enabled: false })).toThrow(
+        /at least one season/i,
+      );
     });
 
     it("refuses a boundary that collides with another enabled season", () => {
       enableAll();
-      expect(() => seasons.setSeasonStart(UNIT, "summer", "03-01")).toThrow(/boundary/i);
+      expect(() => seasons.updateSeason(UNIT, "summer", { spanStart: "03-01" })).toThrow(
+        /boundary/i,
+      );
     });
 
     it("rejects a malformed boundary", () => {
       enableAll();
-      expect(() => seasons.setSeasonStart(UNIT, "summer", "6-1")).toThrow(/MM-DD/);
-      expect(() => seasons.setSeasonStart(UNIT, "summer", "13-01")).toThrow(/MM-DD/);
+      expect(() => seasons.updateSeason(UNIT, "summer", { spanStart: "6-1" })).toThrow(/MM-DD/);
+      expect(() => seasons.updateSeason(UNIT, "summer", { spanStart: "13-01" })).toThrow(/MM-DD/);
     });
   });
 
   describe("per-unit isolation", () => {
     it("keeps another unit's configuration when the active unit changes", () => {
       enableAll();
-      seasons.setSeasonStart(UNIT, "summer", "06-15");
+      seasons.updateSeason(UNIT, "summer", { spanStart: "06-15" });
 
       seasons.ensureSeasons("korado");
-      seasons.setSeasonEnabled("korado", "winter", true);
+      seasons.updateSeason("korado", "winter", { enabled: true });
 
       const original = seasons.getSeasons(UNIT).find((s) => s.seasonKey === "summer")!;
       expect(original.spanStart).toBe("06-15");
@@ -212,7 +216,7 @@ describe("event scoping by season", () => {
     timeline = await import("../../../src/services/db/timeline.js");
     seasonsMod = await import("../../../src/services/db/seasons.js");
     seasonsMod.ensureSeasons(UNIT);
-    seasonsMod.setSeasonEnabled(UNIT, "spring", true);
+    seasonsMod.updateSeason(UNIT, "spring", { enabled: true });
   });
 
   afterEach(() => {
