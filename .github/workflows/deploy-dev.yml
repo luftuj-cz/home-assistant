@@ -12,12 +12,12 @@ jobs:
       version: ${{ steps.version.outputs.version }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v7
         with:
-          node-version: 24
+          node-version: lts/*
           cache: "npm"
 
       - name: Install dependencies
@@ -48,7 +48,7 @@ jobs:
 
       - name: Prepare build matrix
         id: matrix
-        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@91a3a46c1c8b6c7397a5ee722ee4f63931f82aeb # master
+        uses: home-assistant/builder/actions/prepare-multi-arch-matrix@bb9bc86ea4c721825986c19b52e4da07be0f0fde # master (2026-08-20)
         with:
           architectures: '["amd64", "aarch64"]'
           image-name: addon-luftuj-dev
@@ -71,7 +71,7 @@ jobs:
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Download addon context
         uses: actions/download-artifact@v8
@@ -80,7 +80,7 @@ jobs:
           path: addon/
 
       - name: Build and push
-        uses: home-assistant/builder/actions/build-image@91a3a46c1c8b6c7397a5ee722ee4f63931f82aeb # master
+        uses: home-assistant/builder/actions/build-image@bb9bc86ea4c721825986c19b52e4da07be0f0fde # master (2026-08-20)
         with:
           arch: ${{ matrix.arch }}
           image: ${{ matrix.image }}
@@ -93,18 +93,18 @@ jobs:
           cosign: "false"
           container-registry-password: ${{ secrets.GITHUB_TOKEN }}
           build-args: |
-            BUILD_FROM=ghcr.io/home-assistant/${{ matrix.arch }}-base:3.19
+            BUILD_FROM=ghcr.io/home-assistant/${{ matrix.arch }}-base:3.24
 
   publish:
     name: Publish manifest
-    needs: [prepare, build]
+    needs: [ prepare, build ]
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
     steps:
       - name: Publish multi-arch manifest
-        uses: home-assistant/builder/actions/publish-multi-arch-manifest@91a3a46c1c8b6c7397a5ee722ee4f63931f82aeb # master
+        uses: home-assistant/builder/actions/publish-multi-arch-manifest@bb9bc86ea4c721825986c19b52e4da07be0f0fde # master (2026-08-20)
         with:
           architectures: '["amd64", "aarch64"]'
           image-name: addon-luftuj-dev
