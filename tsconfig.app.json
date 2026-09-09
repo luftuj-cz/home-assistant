@@ -25,14 +25,12 @@
     "noUncheckedSideEffectImports": true,
 
     /* Path aliases */
-    "baseUrl": "src",
-    "ignoreDeprecations": "6.0",
     "paths": {
-      "@luftuj/app/*": ["app/*"],
-      "@luftuj/shared/*": ["shared/*"],
-      "@luftuj/features/*": ["features/*"],
-      "@luftuj/config": ["config.ts"],
-      "@luftuj/assets/*": ["assets/*"]
+      "@luftuj/app/*": ["./src/app/*"],
+      "@luftuj/shared/*": ["./src/shared/*"],
+      "@luftuj/features/*": ["./src/features/*"],
+      "@luftuj/config": ["./src/config.ts"],
+      "@luftuj/assets/*": ["./src/assets/*"]
     }
   },
   "include": ["src"]
