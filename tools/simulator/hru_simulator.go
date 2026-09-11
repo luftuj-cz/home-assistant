@@ -32,6 +32,10 @@ func main() {
 		logic = NewKorado()
 	case "zehnder":
 		logic = NewZehnder()
+	case "brink":
+		logic = NewBrink()
+	case "systemair-save":
+		logic = NewSystemairSave()
 	default:
 		fmt.Fprintf(os.Stderr, "Error: unknown HRU type '%s'. Valid options: xvent, meltem, atrea-rd5, atrea-am, korado, zehnder\n", os.Args[1])
 		os.Exit(1)

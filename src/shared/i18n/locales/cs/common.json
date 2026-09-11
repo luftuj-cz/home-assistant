@@ -48,7 +48,17 @@
       "ventilation": "Větrání",
       "bypass": "Noční předchlazení",
       "disbalance": "Rozvážení",
-      "overpressure": "Přetlak"
+      "overpressure": "Přetlak",
+      "holiday": "Dovolená",
+      "low": "Nízký",
+      "normal": "Normální",
+      "high": "Vysoký",
+      "auto": "Automatický",
+      "manual": "Manuální",
+      "crowded": "Zvýšená obsazenost",
+      "refresh": "Provětrání",
+      "fireplace": "Krb",
+      "away": "Nepřítomnost"
     },
     "bypass": "Noční předchlazení",
     "boost": "Boost",
@@ -64,7 +74,8 @@
     "roomHumidity": "Vnitřní relativní vlhkost",
     "outsideTemperature": "Venkovní teplota",
     "supplyTemperature": "Přívodní teplota",
-    "temperatureProfile": "Teplotní profil"
+    "temperatureProfile": "Teplotní profil",
+    "bypassTemperature": "Teplota bypassu"
   },
   "settings": {
     "title": "Nastavení",
