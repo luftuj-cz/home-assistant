@@ -48,7 +48,17 @@
       "ventilation": "Ventilation",
       "bypass": "Bypass",
       "disbalance": "Disbalance",
-      "overpressure": "Overpressure"
+      "overpressure": "Overpressure",
+      "holiday": "Holiday",
+      "low": "Low",
+      "normal": "Normal",
+      "high": "High",
+      "auto": "Auto",
+      "manual": "Manual",
+      "crowded": "Crowded",
+      "refresh": "Refresh",
+      "fireplace": "Fireplace",
+      "away": "Away"
     },
     "bypass": "Bypass",
     "boost": "Boost",
@@ -64,7 +74,8 @@
     "roomHumidity": "Room relative humidity",
     "outsideTemperature": "Outside temperature",
     "supplyTemperature": "Supply temperature",
-    "temperatureProfile": "Temperature profile"
+    "temperatureProfile": "Temperature profile",
+    "bypassTemperature": "Bypass temperature"
   },
   "valves": {
     "title": "LUFTaTOR Zones",
