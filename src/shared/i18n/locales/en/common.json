@@ -58,7 +58,13 @@
       "crowded": "Crowded",
       "refresh": "Refresh",
       "fireplace": "Fireplace",
-      "away": "Away"
+      "away": "Away",
+      "standby": "Standby",
+      "intensive": "Intensive",
+      "boost": "Boost",
+      "kitchen": "Kitchen",
+      "override": "Override",
+      "airQuality": "Air quality"
     },
     "bypass": "Bypass",
     "boost": "Boost",
@@ -75,7 +81,10 @@
     "outsideTemperature": "Outside temperature",
     "supplyTemperature": "Supply temperature",
     "temperatureProfile": "Temperature profile",
-    "bypassTemperature": "Bypass temperature"
+    "bypassTemperature": "Bypass temperature",
+    "fanIntensivity": "Fan intensity",
+    "filterImpurity": "Filter impurity",
+    "heatExchangerEfficiency": "Heat exchanger efficiency"
   },
   "valves": {
     "title": "LUFTaTOR Zones",
