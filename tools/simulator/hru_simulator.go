@@ -36,6 +36,8 @@ func main() {
 		logic = NewBrink()
 	case "systemair-save":
 		logic = NewSystemairSave()
+	case "domekt-c6":
+		logic = NewDomektC6()
 	default:
 		fmt.Fprintf(os.Stderr, "Error: unknown HRU type '%s'. Valid options: xvent, meltem, atrea-rd5, atrea-am, korado, zehnder\n", os.Args[1])
 		os.Exit(1)
