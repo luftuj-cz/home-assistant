@@ -58,7 +58,13 @@
       "crowded": "Zvýšená obsazenost",
       "refresh": "Provětrání",
       "fireplace": "Krb",
-      "away": "Nepřítomnost"
+      "away": "Nepřítomnost",
+      "standby": "Pohotovostní režim",
+      "intensive": "Intenzivní",
+      "boost": "Boost",
+      "kitchen": "Kuchyně",
+      "override": "Ruční override",
+      "airQuality": "Kvalita vzduchu"
     },
     "bypass": "Noční předchlazení",
     "boost": "Boost",
@@ -75,7 +81,10 @@
     "outsideTemperature": "Venkovní teplota",
     "supplyTemperature": "Přívodní teplota",
     "temperatureProfile": "Teplotní profil",
-    "bypassTemperature": "Teplota bypassu"
+    "bypassTemperature": "Teplota bypassu",
+    "fanIntensivity": "Výkon ventilátoru",
+    "filterImpurity": "Zanesení filtru",
+    "heatExchangerEfficiency": "Účinnost rekuperace"
   },
   "settings": {
     "title": "Nastavení",

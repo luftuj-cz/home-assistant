@@ -1,0 +1,228 @@
+{
+  "code": "domekt-c6",
+  "name": "Komfovent Domekt C6",
+  "variables": [
+    {
+      "name": "power",
+      "type": "number",
+      "editable": true,
+      "onDashboard": true,
+      "label": { "text": "hru.power", "translate": true },
+      "unit": { "text": "hru.level", "translate": true },
+      "min": 1,
+      "max": 4,
+      "maxConfigurable": false,
+      "step": 1,
+      "class": "power"
+    },
+    {
+      "name": "temperature",
+      "type": "number",
+      "editable": true,
+      "onDashboard": true,
+      "label": { "text": "hru.temperature", "translate": true },
+      "unit": "˚C",
+      "min": 5,
+      "max": 40,
+      "step": 0.5,
+      "class": "temperature"
+    },
+    {
+      "name": "operationMode",
+      "type": "select",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.nativeMode", "translate": true },
+      "class": "other",
+      "options": [
+        { "value": 0, "label": { "text": "hru.modes.standby", "translate": true } },
+        { "value": 1, "label": { "text": "hru.modes.away", "translate": true } },
+        { "value": 2, "label": { "text": "hru.modes.normal", "translate": true } },
+        { "value": 3, "label": { "text": "hru.modes.intensive", "translate": true } },
+        { "value": 4, "label": { "text": "hru.modes.boost", "translate": true } },
+        { "value": 5, "label": { "text": "hru.modes.kitchen", "translate": true } },
+        { "value": 6, "label": { "text": "hru.modes.fireplace", "translate": true } },
+        { "value": 7, "label": { "text": "hru.modes.override", "translate": true } },
+        { "value": 8, "label": { "text": "hru.modes.holiday", "translate": true } },
+        { "value": 9, "label": { "text": "hru.modes.airQuality", "translate": true } },
+        { "value": 10, "label": { "text": "hru.modes.off", "translate": true } }
+      ]
+    },
+    {
+      "name": "roomTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.roomTemperature", "translate": true },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "outsideTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.outsideTemperature", "translate": true },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "supplyTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.supplyTemperature", "translate": true },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "fanIntensivity",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.fanIntensivity", "translate": true },
+      "unit": "%",
+      "class": "other"
+    },
+    {
+      "name": "filterImpurity",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.filterImpurity", "translate": true },
+      "unit": "%",
+      "class": "other"
+    },
+    {
+      "name": "heatExchangerEfficiency",
+      "type": "number",
+      "editable": false,
+      "onDashboard": false,
+      "label": { "text": "hru.heatExchangerEfficiency", "translate": true },
+      "unit": "%",
+      "class": "other"
+    },
+    {
+      "name": "error",
+      "type": "boolean",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.errorState", "translate": true },
+      "class": "flag",
+      "flag": "negative"
+    }
+  ],
+  "interface-type": "modbus-tcp",
+  "integration": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$power",
+        "value": { "function": "modbus_read_holding", "args": [5, 1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$operationMode",
+        "value": { "function": "modbus_read_holding", "args": [5, 1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$temperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [{ "function": "modbus_read_holding", "args": [110, 1] }]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$roomTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [{ "function": "modbus_read_holding", "args": [903, 1] }]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$outsideTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [{ "function": "modbus_read_holding", "args": [904, 1] }]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$supplyTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [{ "function": "modbus_read_holding", "args": [902, 1] }]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$fanIntensivity",
+        "value": {
+          "function": "multiply",
+          "args": [{ "function": "modbus_read_holding", "args": [910, 1] }, 0.1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$filterImpurity",
+        "value": { "function": "modbus_read_holding", "args": [917, 1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$heatExchangerEfficiency",
+        "value": { "function": "modbus_read_holding", "args": [924, 1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$error",
+        "value": { "function": "modbus_read_holding", "args": [958, 1] }
+      }
+    ],
+    "write": [
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [5, "$power"] }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [
+            110,
+            {
+              "function": "round",
+              "args": [{ "function": "multiply", "args": ["$temperature", 10] }]
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
