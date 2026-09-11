@@ -40,7 +40,6 @@ addon/rootfs/usr/src/app/src/**/*.js
 #Ignore vscode AI rules
 .github/instructions/codacy.instructions.md
 /tools/simulator/hru-simulator
-/.claude/
 # Local MCP server config - holds machine-specific absolute tool paths
 /.mcp.json
 /.ai/
@@ -50,3 +49,4 @@ addon/rootfs/usr/src/app/src/**/*.js
 # CocoIndex Code (ccc)
 /.cocoindex_code/
 docs/superpowers/
+/hru_docs/
