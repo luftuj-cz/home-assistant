@@ -1,0 +1,234 @@
+{
+  "code": "systemair-save",
+  "name": "Systemair SAVE",
+  "variables": [
+    {
+      "name": "power",
+      "type": "number",
+      "editable": true,
+      "onDashboard": true,
+      "label": { "text": "hru.power", "translate": true },
+      "unit": { "text": "hru.level", "translate": true },
+      "min": 2,
+      "max": 4,
+      "maxConfigurable": false,
+      "step": 1,
+      "class": "power"
+    },
+    {
+      "name": "temperature",
+      "type": "number",
+      "editable": true,
+      "onDashboard": true,
+      "label": { "text": "hru.temperature", "translate": true },
+      "unit": "˚C",
+      "min": 12,
+      "max": 30,
+      "step": 0.5,
+      "class": "temperature"
+    },
+    {
+      "name": "mode",
+      "type": "select",
+      "editable": true,
+      "onDashboard": true,
+      "label": { "text": "hru.nativeMode", "translate": true },
+      "class": "mode",
+      "options": [
+        { "value": 1, "label": { "text": "hru.modes.auto", "translate": true } },
+        { "value": 2, "label": { "text": "hru.modes.manual", "translate": true } },
+        { "value": 3, "label": { "text": "hru.modes.crowded", "translate": true } },
+        { "value": 4, "label": { "text": "hru.modes.refresh", "translate": true } },
+        { "value": 5, "label": { "text": "hru.modes.fireplace", "translate": true } },
+        { "value": 6, "label": { "text": "hru.modes.away", "translate": true } },
+        { "value": 7, "label": { "text": "hru.modes.holiday", "translate": true } }
+      ]
+    },
+    {
+      "name": "roomTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.roomTemperature", "translate": true },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "outsideTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.outsideTemperature", "translate": true },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "supplyTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.supplyTemperature", "translate": true },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "roomHumidity",
+      "type": "number",
+      "editable": false,
+      "onDashboard": false,
+      "label": { "text": "hru.roomHumidity", "translate": true },
+      "unit": "%",
+      "class": "other"
+    },
+    {
+      "name": "replaceFilterDays",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.changeFiltersIn", "translate": true },
+      "unit": { "text": "hru.days", "translate": true },
+      "class": "other"
+    },
+    {
+      "name": "error",
+      "type": "boolean",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.errorState", "translate": true },
+      "class": "flag",
+      "flag": "negative"
+    }
+  ],
+  "interface-type": "modbus-tcp",
+  "integration": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$power",
+        "value": { "function": "modbus_read_holding", "args": [1131, 1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$temperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [{ "function": "modbus_read_holding", "args": [2001, 1] }]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$mode",
+        "value": {
+          "function": "sum",
+          "args": [{ "function": "modbus_read_input", "args": [1161, 1] }, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$roomTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [{ "function": "modbus_read_input", "args": [12544, 1] }]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$outsideTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [{ "function": "modbus_read_input", "args": [12102, 1] }]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$supplyTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [{ "function": "modbus_read_input", "args": [12103, 1] }]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$roomHumidity",
+        "value": { "function": "modbus_read_input", "args": [12136, 1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$replaceFilterDays",
+        "value": {
+          "function": "round",
+          "args": [
+            {
+              "function": "multiply",
+              "args": [
+                {
+                  "function": "sum",
+                  "args": [
+                    {
+                      "function": "multiply",
+                      "args": [{ "function": "modbus_read_input", "args": [7006, 1] }, 65535]
+                    },
+                    { "function": "modbus_read_input", "args": [7005, 1] }
+                  ]
+                },
+                0.000011574074074074073
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$error",
+        "value": { "function": "modbus_read_input", "args": [15901, 1] }
+      }
+    ],
+    "write": [
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [1131, "$power"] }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding",
+          "args": [
+            2001,
+            {
+              "function": "round",
+              "args": [{ "function": "multiply", "args": ["$temperature", 10] }]
+            }
+          ]
+        }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [1162, "$mode"] }
+      }
+    ]
+  }
+}
