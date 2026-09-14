@@ -67,6 +67,9 @@
       "airQuality": "Kvalita vzduchu"
     },
     "bypass": "Noční předchlazení",
+    "bypassAuto": "Automaticky",
+    "bypassClosed": "Zavřený",
+    "bypassOpened": "Otevřený",
     "boost": "Boost",
     "offset": "Procentuální rozvážení",
     "flowOut": "Průtok výfuk",
@@ -80,8 +83,8 @@
     "roomHumidity": "Vnitřní relativní vlhkost",
     "outsideTemperature": "Venkovní teplota",
     "supplyTemperature": "Přívodní teplota",
+    "exhaustTemperature": "Odpadní teplota",
     "temperatureProfile": "Teplotní profil",
-    "bypassTemperature": "Teplota bypassu",
     "fanIntensivity": "Výkon ventilátoru",
     "filterImpurity": "Zanesení filtru",
     "heatExchangerEfficiency": "Účinnost rekuperace"

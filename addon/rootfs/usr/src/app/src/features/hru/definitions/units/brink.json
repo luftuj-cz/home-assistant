@@ -1,6 +1,6 @@
 {
   "code": "brink",
-  "name": "Brink Renovent (UWA2)",
+  "name": "Brink",
   "variables": [
     {
       "name": "power",
@@ -10,36 +10,22 @@
       "label": { "text": "hru.power", "translate": true },
       "unit": "m³/h",
       "min": 0,
-      "maxDefault": 400,
+      "maxDefault": 225,
       "maxConfigurable": true,
       "step": 5,
       "class": "power"
     },
     {
-      "name": "temperature",
-      "type": "number",
+      "name": "bypass",
+      "type": "select",
       "editable": true,
       "onDashboard": true,
-      "label": { "text": "hru.bypassTemperature", "translate": true },
-      "unit": "˚C",
-      "min": 15,
-      "max": 35,
-      "step": 0.5,
-      "class": "temperature"
-    },
-    {
-      "name": "ventilationMode",
-      "type": "select",
-      "editable": false,
-      "onDashboard": true,
-      "label": { "text": "hru.nativeMode", "translate": true },
-      "class": "other",
+      "label": { "text": "hru.bypass", "translate": true },
+      "class": "mode",
       "options": [
-        { "value": 0, "label": { "text": "hru.modes.holiday", "translate": true } },
-        { "value": 1, "label": { "text": "hru.modes.low", "translate": true } },
-        { "value": 2, "label": { "text": "hru.modes.normal", "translate": true } },
-        { "value": 3, "label": { "text": "hru.modes.high", "translate": true } },
-        { "value": 4, "label": { "text": "hru.modes.auto", "translate": true } }
+        { "value": 0, "label": { "text": "hru.bypassAuto", "translate": true } },
+        { "value": 1, "label": { "text": "hru.bypassClosed", "translate": true } },
+        { "value": 2, "label": { "text": "hru.bypassOpened", "translate": true } }
       ]
     },
     {
@@ -52,20 +38,11 @@
       "class": "other"
     },
     {
-      "name": "roomTemperature",
+      "name": "exhaustTemperature",
       "type": "number",
       "editable": false,
       "onDashboard": true,
-      "label": { "text": "hru.roomTemperature", "translate": true },
-      "unit": "˚C",
-      "class": "temperature"
-    },
-    {
-      "name": "outsideTemperature",
-      "type": "number",
-      "editable": false,
-      "onDashboard": true,
-      "label": { "text": "hru.outsideTemperature", "translate": true },
+      "label": { "text": "hru.exhaustTemperature", "translate": true },
       "unit": "˚C",
       "class": "temperature"
     },
@@ -77,15 +54,6 @@
       "label": { "text": "hru.supplyTemperature", "translate": true },
       "unit": "˚C",
       "class": "temperature"
-    },
-    {
-      "name": "roomHumidity",
-      "type": "number",
-      "editable": false,
-      "onDashboard": false,
-      "label": { "text": "hru.roomHumidity", "translate": true },
-      "unit": "%",
-      "class": "other"
     },
     {
       "name": "changeFilter",
@@ -107,51 +75,18 @@
       },
       {
         "type": "assignment",
-        "variable": "$temperature",
-        "value": {
-          "function": "multiply",
-          "args": [
-            {
-              "function": "int16",
-              "args": [{ "function": "modbus_read_holding", "args": [6101, 1] }]
-            },
-            0.1
-          ]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$ventilationMode",
-        "value": { "function": "modbus_read_input", "args": [4022, 1] }
-      },
-      {
-        "type": "assignment",
         "variable": "$flowIn",
         "value": { "function": "modbus_read_input", "args": [4032, 1] }
       },
       {
         "type": "assignment",
-        "variable": "$roomTemperature",
+        "variable": "$exhaustTemperature",
         "value": {
           "function": "multiply",
           "args": [
             {
               "function": "int16",
-              "args": [{ "function": "modbus_read_input", "args": [4082, 1] }]
-            },
-            0.1
-          ]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$outsideTemperature",
-        "value": {
-          "function": "multiply",
-          "args": [
-            {
-              "function": "int16",
-              "args": [{ "function": "modbus_read_input", "args": [4081, 1] }]
+              "args": [{ "function": "modbus_read_input", "args": [4046, 1] }]
             },
             0.1
           ]
@@ -173,16 +108,13 @@
       },
       {
         "type": "assignment",
-        "variable": "$roomHumidity",
-        "value": {
-          "function": "multiply",
-          "args": [{ "function": "modbus_read_input", "args": [4083, 1] }, 0.1]
-        }
+        "variable": "$changeFilter",
+        "value": { "function": "modbus_read_input", "args": [4100, 1] }
       },
       {
         "type": "assignment",
-        "variable": "$changeFilter",
-        "value": { "function": "modbus_read_input", "args": [4100, 1] }
+        "variable": "$bypass",
+        "value": { "function": "modbus_read_holding", "args": [6100, 1] }
       }
     ],
     "write": [
@@ -194,16 +126,7 @@
       },
       {
         "type": "action",
-        "expression": {
-          "function": "modbus_write_holding",
-          "args": [
-            6101,
-            {
-              "function": "round",
-              "args": [{ "function": "multiply", "args": ["$temperature", 10] }]
-            }
-          ]
-        }
+        "expression": { "function": "modbus_write_holding", "args": [6100, "$bypass"] }
       }
     ]
   }

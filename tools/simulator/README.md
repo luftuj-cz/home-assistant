@@ -20,3 +20,6 @@ Supported HRU types:
 - korado
 - atrea-am
 - zehnder
+- brink
+- systemair-save
+- domekt-c6
