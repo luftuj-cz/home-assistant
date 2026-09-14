@@ -8,13 +8,16 @@ import (
 	"github.com/tbrandon/mbserver"
 )
 
+// Every unit the switch in main() knows about, in the order they were added.
+const supportedUnits = "xvent, meltem, atrea-rd5, atrea-am, korado, zehnder, brink, systemair-save, domekt-c6"
+
 type HRULogic interface {
 	Configure(serv *mbserver.Server)
 }
 
 func main() {
 	if len(os.Args) < 3 {
-		fmt.Fprintln(os.Stderr, "Error: missing argument. Usage: hru_simulator <port> <xvent|meltem|atrea-rd5|atrea-am|korado>")
+		fmt.Fprintln(os.Stderr, "Error: missing argument. Usage: hru_simulator <port> <hru_type>. Supported: "+supportedUnits)
 		os.Exit(1)
 	}
 
@@ -39,7 +42,7 @@ func main() {
 	case "domekt-c6":
 		logic = NewDomektC6()
 	default:
-		fmt.Fprintf(os.Stderr, "Error: unknown HRU type '%s'. Valid options: xvent, meltem, atrea-rd5, atrea-am, korado, zehnder\n", os.Args[1])
+		fmt.Fprintf(os.Stderr, "Error: unknown HRU type '%s'. Valid options: %s\n", os.Args[2], supportedUnits)
 		os.Exit(1)
 	}
 
