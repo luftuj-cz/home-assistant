@@ -90,7 +90,7 @@ Read `references/definition-schema.md` for the full contract. In brief:
 - The `read` script must assign `$<name>` for **every** declared variable. An unassigned variable silently
   reads as `0`.
 - The `write` script must consume `$<name>` for every `"editable": true` variable.
-- Only the 20 functions in `ALLOWED_FUNCTIONS` may appear, at any nesting depth. Anything else makes the loader
+- Only the 21 functions in `ALLOWED_FUNCTIONS` may appear, at any nesting depth. Anything else makes the loader
   throw and drops the whole unit.
 
 ## Step 4 — Write the Go simulator
