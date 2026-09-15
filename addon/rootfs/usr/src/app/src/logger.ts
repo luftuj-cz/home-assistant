@@ -45,10 +45,14 @@ function stringifyLogValue(value: unknown): string {
  * Error's `message` and `stack` are non-enumerable, so the common
  * `logger.error({ err }, "...")` shape would otherwise serialise to `{"err":{}}`
  * and every downloaded bug report would carry no error detail at all.
+ *
+ * Own enumerable properties are spread in first, so the three explicit fields
+ * always win - otherwise the context a custom error exists to carry, e.g.
+ * ModbusOperationError's register address and value, is dropped right here.
  */
 function expandErrors(_key: string, value: unknown): unknown {
   if (value instanceof Error) {
-    return { name: value.name, message: value.message, stack: value.stack };
+    return { ...value, name: value.name, message: value.message, stack: value.stack };
   }
   return value;
 }

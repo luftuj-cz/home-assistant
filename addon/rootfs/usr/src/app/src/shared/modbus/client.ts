@@ -2,6 +2,90 @@ import ModbusRTU from "modbus-serial";
 import type { Logger } from "pino";
 import { classifyConnectionError, type ConnectionErrorState } from "../errorCodes.js";
 
+export type ModbusOp =
+  | "readHolding"
+  | "readInput"
+  | "readDiscrete"
+  | "readCoil"
+  | "writeHolding"
+  | "writeCoil";
+
+export interface ModbusOpContext {
+  op: ModbusOp;
+  address: number;
+  /** Register/bit count - reads only. */
+  length?: number;
+  /** Payload actually put on the wire - writes only. */
+  values?: readonly (number | boolean)[];
+  unitId?: number;
+}
+
+function formatAddress(address: number): string {
+  return `${address} (0x${address.toString(16).toUpperCase().padStart(4, "0")})`;
+}
+
+function formatOpContext(ctx: ModbusOpContext): string {
+  const parts = [ctx.op, `addr=${formatAddress(ctx.address)}`];
+  if (ctx.values !== undefined) {
+    parts.push(
+      ctx.values.length === 1
+        ? `value=${String(ctx.values[0])}`
+        : `values=[${ctx.values.join(",")}]`,
+    );
+  }
+  if (ctx.length !== undefined) parts.push(`length=${ctx.length}`);
+  if (ctx.unitId !== undefined) parts.push(`unitId=${ctx.unitId}`);
+  return `[${parts.join(" ")}]`;
+}
+
+function readModbusCode(err: unknown): number | undefined {
+  const code = (err as { modbusCode?: unknown } | null | undefined)?.modbusCode;
+  return typeof code === "number" ? code : undefined;
+}
+
+/**
+ * Carries the register address and the value that was actually sent along with
+ * a failed operation. runBatch() only ever sees an opaque callback, so without
+ * this the bare protocol message ("Modbus exception 3: Illegal data value") is
+ * all that reaches the log, the dashboard's connection line and the API - and
+ * it says nothing about which register of a multi-step HRU script rejected
+ * which value, which is the one thing needed to fix a unit definition.
+ *
+ * The context is baked into `message` rather than left on properties alone
+ * because logger.ts's expandErrors() reduces an Error to name/message/stack.
+ */
+export class ModbusOperationError extends Error {
+  readonly op: ModbusOp;
+  readonly address: number;
+  readonly length: number | undefined;
+  readonly values: readonly (number | boolean)[] | undefined;
+  readonly unitId: number | undefined;
+  readonly modbusCode: number | undefined;
+
+  constructor(cause: unknown, ctx: ModbusOpContext) {
+    const base = cause instanceof Error ? cause.message : String(cause);
+    super(`${base} ${formatOpContext(ctx)}`);
+    this.name = "ModbusOperationError";
+    this.op = ctx.op;
+    this.address = ctx.address;
+    this.length = ctx.length;
+    this.values = ctx.values;
+    this.unitId = ctx.unitId;
+    this.modbusCode = readModbusCode(cause);
+    this.cause = cause;
+  }
+}
+
+/** Log fields describing the failed operation; empty for anything else. */
+function modbusOpFields(err: unknown): Record<string, unknown> {
+  if (!(err instanceof ModbusOperationError)) return {};
+  const fields: Record<string, unknown> = { op: err.op, address: err.address };
+  if (err.length !== undefined) fields.length = err.length;
+  if (err.values !== undefined) fields.values = err.values;
+  if (err.modbusCode !== undefined) fields.modbusCode = err.modbusCode;
+  return fields;
+}
+
 /**
  * Modbus-specific error classification (message-pattern matching), falling
  * back to the shared Node-errno classifier for socket-level errors. Kept
@@ -9,6 +93,10 @@ import { classifyConnectionError, type ConnectionErrorState } from "../errorCode
  * MQTT don't have to import each other's protocol-specific patterns.
  */
 function classifyModbusError(err: unknown): string {
+  // A protocol exception carries no string `.code`, so the generic classifier
+  // would report "UNKNOWN" for the most diagnosable failures there are.
+  const modbusCode = err instanceof ModbusOperationError ? err.modbusCode : readModbusCode(err);
+  if (modbusCode !== undefined) return `MODBUS_EXCEPTION_${modbusCode}`;
   const message = err instanceof Error ? err.message : String(err);
   if (message.includes("Modbus TCP connect timed out")) return "CONNECT_TIMEOUT";
   return classifyConnectionError(err);
@@ -89,6 +177,11 @@ export class ModbusTcpClient {
    */
   setMinGapMs(minGapMs: number | undefined): void {
     this.cfg.minGapMs = minGapMs;
+  }
+
+  /** host/port/unitId, for failure logs that would otherwise not say which unit. */
+  private connectionFields(): { host: string; port: number; unitId: number } {
+    return { host: this.cfg.host, port: this.cfg.port, unitId: this.cfg.unitId };
   }
 
   private notifyStatus() {
@@ -226,11 +319,17 @@ export class ModbusTcpClient {
               if (!alreadyCountedByConnect) {
                 this.handleDisconnect();
               }
-              this.logger.error({ err, attempt }, "Modbus TCP: batch failed, giving up");
+              this.logger.error(
+                { err, ...this.connectionFields(), attempt, ...modbusOpFields(err) },
+                "Modbus TCP: batch failed, giving up",
+              );
               throw err;
             }
             this.notifyStatus();
-            this.logger.warn({ err, attempt, attemptsLeft }, "Modbus TCP: batch failed, retrying");
+            this.logger.warn(
+              { err, ...this.connectionFields(), attempt, attemptsLeft, ...modbusOpFields(err) },
+              "Modbus TCP: batch failed, retrying",
+            );
             // Retrying reconnects and starts a new Modbus session, so it must
             // respect the same vendor-mandated inter-session spacing as the
             // gap between whole batches, not just the retry backoff.
@@ -332,12 +431,12 @@ export class ModbusTcpClient {
           );
           this.notifyStatus();
           resolve();
-        } catch (e) {
+        } catch (err) {
           this.logger.error(
-            { e, host: this.cfg.host, port: this.cfg.port },
+            { err, host: this.cfg.host, port: this.cfg.port },
             "Failed to set unit ID for Modbus TCP",
           );
-          reject(e);
+          reject(err);
         }
       });
     });
@@ -403,8 +502,8 @@ export class ModbusTcpClient {
           this.logger.info("Modbus TCP disconnected (requested)");
           resolve();
         });
-      } catch (e) {
-        this.logger.warn({ e }, "Modbus TCP disconnect error");
+      } catch (err) {
+        this.logger.warn({ err }, "Modbus TCP disconnect error");
         resolve();
       }
     });
@@ -425,46 +524,73 @@ export class ModbusTcpClient {
   // which already holds the lock, applied the inter-batch gap, and ensured
   // the connection - so no locking/gap/connect logic is needed here.
 
+  /**
+   * Attach the register address (and, for writes, the payload) to whatever the
+   * transport throws. Purely a try/catch - the locking, inter-batch gap and
+   * connect handling all belong to runBatch(), per the note above.
+   */
+  private async runOp<T>(ctx: ModbusOpContext, call: () => Promise<T>): Promise<T> {
+    try {
+      return await call();
+    } catch (err) {
+      if (err instanceof ModbusOperationError) throw err;
+      throw new ModbusOperationError(err, { ...ctx, unitId: this.cfg.unitId });
+    }
+  }
+
   async readHolding(start: number, length: number): Promise<number[]> {
-    const res = await this.client.readHoldingRegisters(start, length);
+    const res = await this.runOp<{ data: number[] }>(
+      { op: "readHolding", address: start, length },
+      () => this.client.readHoldingRegisters(start, length),
+    );
     this.logger.debug({ start, length }, "Modbus TCP: readHolding success");
     return Array.from(res.data);
   }
 
   async readInput(start: number, length: number): Promise<number[]> {
-    const res = await this.client.readInputRegisters(start, length);
+    const res = await this.runOp<{ data: number[] }>(
+      { op: "readInput", address: start, length },
+      () => this.client.readInputRegisters(start, length),
+    );
     this.logger.debug({ start, length }, "Modbus TCP: readInput success");
     return Array.from(res.data);
   }
 
   async readDiscrete(start: number, length: number): Promise<boolean[]> {
-    const res = await this.client.readDiscreteInputs(start, length);
+    const res = await this.runOp<{ data: boolean[] }>(
+      { op: "readDiscrete", address: start, length },
+      () => this.client.readDiscreteInputs(start, length),
+    );
     this.logger.debug({ start, length }, "Modbus TCP: readDiscrete success");
     return Array.from(res.data);
   }
 
   async readCoil(start: number, length: number): Promise<boolean[]> {
-    const res = await this.client.readCoils(start, length);
+    const res = await this.runOp<{ data: boolean[] }>(
+      { op: "readCoil", address: start, length },
+      () => this.client.readCoils(start, length),
+    );
     this.logger.debug({ start, length }, "Modbus TCP: readCoil success");
     return Array.from(res.data);
   }
 
   async writeHolding(start: number, values: number | number[]): Promise<void> {
-    if (Array.isArray(values)) {
-      await this.client.writeRegisters(start, values);
-    } else {
-      await this.client.writeRegister(start, values);
-    }
+    const sent = Array.isArray(values) ? values : [values];
+    await this.runOp({ op: "writeHolding", address: start, values: sent }, () =>
+      Array.isArray(values)
+        ? this.client.writeRegisters(start, values)
+        : this.client.writeRegister(start, values),
+    );
     this.logger.info({ start, values }, "Modbus TCP: writeHolding success");
   }
 
   async writeCoil(start: number, values: boolean | number | (boolean | number)[]): Promise<void> {
-    if (Array.isArray(values)) {
-      const bools = values.map((v) => !!v);
-      await this.client.writeCoils(start, bools);
-    } else {
-      await this.client.writeCoil(start, !!values);
-    }
+    const bools = (Array.isArray(values) ? values : [values]).map((v) => !!v);
+    await this.runOp({ op: "writeCoil", address: start, values: bools }, () =>
+      Array.isArray(values)
+        ? this.client.writeCoils(start, bools)
+        : this.client.writeCoil(start, !!values),
+    );
     this.logger.info({ start, values }, "Modbus TCP: writeCoil success");
   }
 }

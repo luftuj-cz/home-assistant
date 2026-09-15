@@ -19,7 +19,13 @@ export function createErrorHandler(logger: Logger) {
       } else {
         logger.warn({ error }, error.message);
       }
-      response.status(error.statusCode).json({ detail: error.message, code: error.code });
+      // `detail` is translated client-side off `code`, so the underlying cause
+      // has to travel in its own field or it never reaches the user - e.g. the
+      // Modbus register and value behind a generic HRU_CONNECTION_ERROR.
+      const cause = error.cause instanceof Error ? error.cause.message : undefined;
+      response
+        .status(error.statusCode)
+        .json({ detail: error.message, code: error.code, ...(cause ? { cause } : {}) });
       return;
     }
 
