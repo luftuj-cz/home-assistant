@@ -6,6 +6,7 @@ export const ALLOWED_FUNCTIONS = [
   "non_zero",
   "delay",
   "modbus_write_holding",
+  "modbus_write_command",
   "modbus_write_holding_multi",
   "modbus_read_holding",
   "modbus_read_input",

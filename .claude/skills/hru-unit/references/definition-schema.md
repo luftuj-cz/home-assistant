@@ -80,24 +80,32 @@ Inside `value` and `args`:
 | `"42"`                               | numeric string → `42`; a non-numeric string → `0`                           |
 | `{ "function": ..., "args": [...] }` | nested expression                                                           |
 
-## All 20 allowed functions
+## All 21 allowed functions
 
 Anything not in this list makes `HruLoader.validateExpression` throw and the entire unit is dropped.
 
 ### Modbus
 
-| Function                     | Modbus FC | Semantics                                         |
-| ---------------------------- | --------- | ------------------------------------------------- |
-| `modbus_read_holding`        | **3**     | `args: [addr, count=1]` → returns `data[0]` only  |
-| `modbus_read_input`          | **4**     | `args: [addr, count=1]` → returns `data[0]` only  |
-| `modbus_read_discrete`       | **2**     | `args: [addr, count=1]` → `1` or `0`              |
-| `modbus_read_coil`           | **1**     | `args: [addr, count=1]` → `1` or `0`              |
-| `modbus_write_holding`       | **6**     | `args: [addr, val]` → returns `val`               |
-| `modbus_write_holding_multi` | **16**    | `args: [addr, v1, v2, ...]` — variadic value list |
-| `modbus_write_coil`          | **5**     | `args: [addr, val]` — any non-zero ⇒ ON           |
+| Function                     | Modbus FC | Semantics                                                 |
+| ---------------------------- | --------- | --------------------------------------------------------- |
+| `modbus_read_holding`        | **3**     | `args: [addr, count=1]` → returns `data[0]` only          |
+| `modbus_read_input`          | **4**     | `args: [addr, count=1]` → returns `data[0]` only          |
+| `modbus_read_discrete`       | **2**     | `args: [addr, count=1]` → `1` or `0`                      |
+| `modbus_read_coil`           | **1**     | `args: [addr, count=1]` → `1` or `0`                      |
+| `modbus_write_holding`       | **6**     | `args: [addr, val]` → returns `val`                       |
+| `modbus_write_command`       | **3 + 6** | `args: [addr, val]` — writes only if the register differs |
+| `modbus_write_holding_multi` | **16**    | `args: [addr, v1, v2, ...]` — variadic value list         |
+| `modbus_write_coil`          | **5**     | `args: [addr, val]` — any non-zero ⇒ ON                   |
 
 All reads return **only the first register**, whatever `count` says. There is no 32-bit, float, string or
 word-swap support: anything wider than one 16-bit register must be assembled by hand with `bit_lshift` + `sum`.
+
+`modbus_write_command` is the read-before-write variant of `modbus_write_holding`, for command registers that
+re-trigger an action on every write, or that reject a redundant one with exception 3. It issues FC3 first and
+sends FC6 only when the register does not already hold `val`; it returns `val` either way, so it is a drop-in
+replacement wherever the write is idempotent from the caller's point of view. The extra round trip happens
+inside the same Modbus session — `minGapMs` spaces whole batches, not the operations within one — so it costs
+latency but no additional inter-session delay.
 
 ### Arithmetic and bit manipulation
 

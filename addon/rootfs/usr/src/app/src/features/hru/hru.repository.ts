@@ -73,6 +73,13 @@ export class HruRepository {
             await mb.writeHolding(addr, val);
             return val;
           },
+          modbus_write_command: async ([addr = 0, val = 0]) => {
+            const data = await mb.readHolding(addr, 1);
+            if (data[0] !== val) {
+              await mb.writeHolding(addr, val);
+            }
+            return val;
+          },
           modbus_write_coil: async ([addr = 0, val = 0]) => {
             await mb.writeCoil(addr, val);
             return val;

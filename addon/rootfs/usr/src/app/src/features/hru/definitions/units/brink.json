@@ -21,7 +21,7 @@
       "editable": true,
       "onDashboard": true,
       "label": { "text": "hru.bypass", "translate": true },
-      "class": "mode",
+      "class": "other",
       "options": [
         { "value": 0, "label": { "text": "hru.bypassAuto", "translate": true } },
         { "value": 1, "label": { "text": "hru.bypassClosed", "translate": true } },
@@ -118,11 +118,11 @@
       }
     ],
     "write": [
-      { "type": "action", "expression": { "function": "modbus_write_holding", "args": [8000, 2] } },
+      { "type": "action", "expression": { "function": "modbus_write_command", "args": [8000, 2] } },
       { "type": "action", "expression": { "function": "delay", "args": [100] } },
       {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [8002, "$power"] }
+        "expression": { "function": "modbus_write_command", "args": [8002, "$power"] }
       },
       {
         "type": "action",
