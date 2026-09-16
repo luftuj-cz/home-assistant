@@ -132,6 +132,16 @@ export function formatTimestamp(value: string): string {
   return Number.isNaN(asDate.getTime()) ? value : asDate.toLocaleString();
 }
 
+export function formatLogTime(value: string): string {
+  const asDate = new Date(value);
+  if (Number.isNaN(asDate.getTime())) {
+    return value;
+  }
+
+  const time = asDate.toLocaleTimeString(undefined, { hour12: false });
+  return `${time}.${String(asDate.getMilliseconds()).padStart(3, "0")}`;
+}
+
 export function getLogLevelColor(level: string): string {
   const normalized = level.toLowerCase();
   if (normalized === "fatal" || normalized === "error") {
