@@ -475,7 +475,7 @@
       "day": "day",
       "month": "month",
       "enableTitle": "Enable seasons?",
-      "enableBody": "Four seasons will be created on meteorological boundaries: Spring 1 Mar, Summer 1 Jun, Autumn 1 Sep, Winter 1 Dec.",
+      "enableBody": "Four seasons will be created on astronomical boundaries - this year's equinoxes and solstices. You can move them afterwards.",
       "cloneLabel": "Copy the current schedule into every season",
       "cloneDescription": "Every season starts identical to today. You can then edit them one by one.",
       "enableConfirm": "Enable",

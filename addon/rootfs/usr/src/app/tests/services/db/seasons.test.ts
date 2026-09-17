@@ -92,6 +92,14 @@ describe("season partition", () => {
 
     it("resolves the expected season for representative dates", () => {
       enableAll();
+      // Fixed boundaries rather than the seeded ones: the seed follows the
+      // equinoxes of whichever year the suite runs in, and this test is about
+      // resolution, not about what the defaults are.
+      seasons.updateSeason(UNIT, "spring", { spanStart: "03-20" });
+      seasons.updateSeason(UNIT, "summer", { spanStart: "06-21" });
+      seasons.updateSeason(UNIT, "autumn", { spanStart: "09-22" });
+      seasons.updateSeason(UNIT, "winter", { spanStart: "12-21" });
+
       function on(month: number, day: number) {
         return seasons.resolveActiveSeason(UNIT, new Date(2026, month - 1, day))?.seasonKey;
       }
@@ -100,9 +108,18 @@ describe("season partition", () => {
       expect(on(7, 28)).toBe("summer");
       expect(on(10, 5)).toBe("autumn");
       expect(on(1, 20)).toBe("winter");
-      expect(on(12, 1)).toBe("winter");
       expect(on(2, 28)).toBe("winter");
-      expect(on(3, 1)).toBe("spring");
+
+      // Days either side of each boundary, which is where an off-by-one in the
+      // derived spans would show up first.
+      expect(on(3, 19)).toBe("winter");
+      expect(on(3, 20)).toBe("spring");
+      expect(on(6, 20)).toBe("spring");
+      expect(on(6, 21)).toBe("summer");
+      expect(on(9, 21)).toBe("summer");
+      expect(on(9, 22)).toBe("autumn");
+      expect(on(12, 20)).toBe("autumn");
+      expect(on(12, 21)).toBe("winter");
     });
   });
 
@@ -111,8 +128,9 @@ describe("season partition", () => {
       enableAll();
       seasons.updateSeason(UNIT, "autumn", { enabled: false });
 
+      const winter = seasons.getSeasons(UNIT).find((s) => s.seasonKey === "winter")!;
       const summer = seasons.getSeasons(UNIT).find((s) => s.seasonKey === "summer")!;
-      expect(summer.spanEnd).toBe("11-30");
+      expect(summer.spanEnd).toBe(seasons.previousMonthDay(winter.spanStart));
       expect(seasons.resolveActiveSeason(UNIT, new Date(2026, 9, 5))?.seasonKey).toBe("summer");
     });
 
@@ -154,7 +172,8 @@ describe("season partition", () => {
 
     it("refuses a boundary that collides with another enabled season", () => {
       enableAll();
-      expect(() => seasons.updateSeason(UNIT, "summer", { spanStart: "03-01" })).toThrow(
+      const spring = seasons.getSeasons(UNIT).find((s) => s.seasonKey === "spring")!;
+      expect(() => seasons.updateSeason(UNIT, "summer", { spanStart: spring.spanStart })).toThrow(
         /boundary/i,
       );
     });
@@ -375,17 +394,12 @@ describe("seasons feature enable and disable", () => {
     );
   });
 
-  it("seeds meteorological boundaries", () => {
+  it("seeds this year's astronomical boundaries", () => {
     feature.enableSeasonsFeature(UNIT, true);
     const starts = Object.fromEntries(
       seasonsMod.getSeasons(UNIT).map((s) => [s.seasonKey, s.spanStart]),
     );
-    expect(starts).toEqual({
-      spring: "03-01",
-      summer: "06-01",
-      autumn: "09-01",
-      winter: "12-01",
-    });
+    expect(starts).toEqual(seasonsMod.defaultSpanStarts());
   });
 
   it("disabling leaves exactly one season applying all year", () => {
@@ -490,8 +504,9 @@ describe("seasons feature enable and disable", () => {
 
     // Moving summer onto autumn's start day is only invalid in combination -
     // the boundary alone would have been committed before the enable failed.
+    const autumn = seasonsMod.getSeasons(UNIT).find((s) => s.seasonKey === "autumn")!;
     expect(() =>
-      seasonsMod.updateSeason(UNIT, "summer", { spanStart: "09-01", enabled: true }),
+      seasonsMod.updateSeason(UNIT, "summer", { spanStart: autumn.spanStart, enabled: true }),
     ).toThrow();
     expect(seasonsMod.getSeasons(UNIT).find((s) => s.seasonKey === "summer")?.spanStart).toBe(
       before,
