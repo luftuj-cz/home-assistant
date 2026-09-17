@@ -1201,6 +1201,35 @@ export class MqttService extends EventEmitter {
     );
   }
 
+  private async cleanupPreviousUnitDiscovery(
+    oldUnitId: string,
+    prevBoostMap: Record<number, string>,
+  ): Promise<void> {
+    if (!this.client || !this.connected) return;
+    this.logger.info({ oldUnitId }, "MQTT: Cleaning up discovery for previous unit");
+
+    await this.removeDiscoveryEntity(oldUnitId, "number", "boost_duration");
+    await this.removeDiscoveryEntity(oldUnitId, "button", "cancel_boost");
+
+    for (const oldSlug of Object.values(prevBoostMap)) {
+      await this.removeDiscoveryEntity(oldUnitId, "button", `boost_${oldSlug}`);
+      await this.removeDiscoveryEntity(oldUnitId, "button", `boost_${oldSlug}_infinite`);
+    }
+
+    for (const sensorId of [
+      "active_season",
+      "mode_standard",
+      "boost_remaining",
+      "boost_mode",
+      "power",
+      "temperature",
+      "mode",
+      "native_mode",
+    ]) {
+      await this.removeDiscoveryEntity(oldUnitId, "sensor", sensorId);
+    }
+  }
+
   private async updateBoostDiscovery(
     unitId: string,
     unit: HeatRecoveryUnit,
@@ -1208,16 +1237,16 @@ export class MqttService extends EventEmitter {
     availability: object[],
   ): Promise<number> {
     const lastUnitId = this.settingsRepo.getLastUnitId();
-    if (lastUnitId && lastUnitId !== unitId) {
-      this.logger.warn(
-        { lastUnitId, newUnitId: unitId },
-        "MQTT: Unit ID changed, old discovery entities might be orphaned",
-      );
-    }
-    this.settingsRepo.setLastUnitId(unitId);
-
     // ID-to-Slug mapping for reliable cleanup
     const prevBoostMap = this.settingsRepo.getDiscoveredBoosts();
+    if (lastUnitId && lastUnitId !== unitId) {
+      this.logger.info(
+        { lastUnitId, newUnitId: unitId },
+        "MQTT: Unit ID changed, cleaning up old discovery entities",
+      );
+      await this.cleanupPreviousUnitDiscovery(lastUnitId, prevBoostMap);
+    }
+    this.settingsRepo.setLastUnitId(unitId);
     const currentBoostMap: Record<number, string> = { ...prevBoostMap };
 
     // Get unit ID for DB lookup - modes are stored with hruId from HRU settings, not unit.id
