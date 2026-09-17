@@ -10,12 +10,10 @@ const EVENTS: readonly SolarEvent[] = [
 ];
 
 /**
- * Published instants in Czech civil time, from kalendar.beda.cz. The sample is
- * picked for the years that break the "spring is always 20 March" assumption
- * this module exists to replace: 2028, 2044 and 2048 put the June solstice on
- * the 20th, 2027 puts the December solstice on the 22nd, 2048 puts the March
- * equinox on the 19th, and the 2044 equinox lands 20 minutes past midnight,
- * which is where dropping the dynamical-time correction would flip a date.
+ * Published instants in Czech civil time, from kalendar.beda.cz. The years are
+ * the ones that break a fixed month-day: June on the 20th in 2028/2044/2048,
+ * December on the 22nd in 2027, March on the 19th in 2048. The 2044 equinox
+ * falls 20 minutes past midnight, where a missing dT correction flips the date.
  */
 const REFERENCE: Record<number, readonly [string, string][]> = {
   1951: [
@@ -110,11 +108,9 @@ describe("solarEvent", () => {
   });
 
   /**
-   * Meeus, example 27.a: the June solstice of 1962 at JDE 2437837.39245 in
-   * Dynamical Time, which is 21:24:35 UT once that year's real dT of 34s is
-   * taken off. Ours lands about half a minute earlier because deltaTSeconds
-   * extrapolates its 2005-2050 polynomial back to 1962 - tens of seconds, which
-   * is why the tolerance is a minute and why it can never move a date.
+   * Meeus, example 27.a: JDE 2437837.39245 in Dynamical Time, i.e. 21:24:35 UT
+   * after that year's real dT of 34s. Ours is half a minute earlier because the
+   * 2005-2050 dT polynomial is extrapolated back - hence the minute tolerance.
    */
   it("reproduces the worked example from Meeus", () => {
     const expected = Date.UTC(1962, 5, 21, 21, 24, 35);

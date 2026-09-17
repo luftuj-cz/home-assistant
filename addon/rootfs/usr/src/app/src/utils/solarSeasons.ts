@@ -1,17 +1,10 @@
 /**
- * The instants the astronomical seasons begin: the March equinox, the June
- * solstice, the September equinox and the December solstice.
+ * The instants the astronomical seasons begin. They move between years - spring
+ * is 19 March in 2048, the December solstice the 22nd in 2027 - so about a
+ * quarter of them miss any fixed month-day.
  *
- * These do not fall on fixed dates. Spring starts on 20 March in most years but
- * on 19 March in 2048; the December solstice is on the 21st in 2026 and on the
- * 22nd in 2027. Across 2026-2050 about a quarter of these instants miss the
- * most common date for their season, so seeding a partition from hard-coded
- * month-days is wrong that often - which is what this module exists to avoid.
- *
- * Method: Meeus, *Astronomical Algorithms*, 2nd ed., chapter 27 - a mean-instant
- * polynomial per event, corrected by the 24 periodic terms of table 27.C. Valid
- * for 1000-3000 AD and accurate to about a minute, checked here against a
- * published table for 1951-2050, where it reproduces all 400 dates exactly.
+ * Meeus, *Astronomical Algorithms*, 2nd ed., ch. 27: a mean-instant polynomial
+ * per event plus the periodic terms of table 27.C. Good to about a minute.
  */
 
 export type SolarEvent = "marchEquinox" | "juneSolstice" | "septemberEquinox" | "decemberSolstice";
@@ -66,12 +59,9 @@ function radians(degrees: number): number {
 }
 
 /**
- * TD - UT in seconds (Espenak & Meeus, the 2005-2050 polynomial).
- *
- * The chapter-27 result is in Dynamical Time, which currently runs about a
- * minute ahead of civil time. Extrapolating this one polynomial outside its
- * window costs a few seconds at most, and a few seconds never move a date, so
- * the era-by-era table it comes from would be dead weight here.
+ * TD - UT in seconds (Espenak & Meeus, 2005-2050). Chapter 27 works in Dynamical
+ * Time, about a minute ahead of civil time. Extrapolating this one polynomial
+ * costs tens of seconds, which never moves a date.
  */
 function deltaTSeconds(year: number): number {
   const t = year - 2000;
@@ -79,9 +69,9 @@ function deltaTSeconds(year: number): number {
 }
 
 /**
- * The instant, as a UTC timestamp. Which calendar day that is depends on the
- * reader's time zone - the December 2027 solstice is the 21st in London and the
- * 22nd in Prague - so callers format it in whichever zone the schedule runs in.
+ * The instant, as a UTC timestamp. The calendar day depends on the zone - the
+ * December 2027 solstice is the 21st in London, the 22nd in Prague - so callers
+ * format it in the zone the schedule runs in.
  */
 export function solarEvent(year: number, event: SolarEvent): Date {
   const y = (year - 2000) / 1000;

@@ -13,14 +13,9 @@ export const SEASON_KEYS = ["spring", "summer", "autumn", "winter"] as const;
 export type SeasonKey = (typeof SEASON_KEYS)[number];
 
 /**
- * Astronomical boundaries - the equinoxes and solstices, which is what a Czech
- * calendar means by "when spring starts".
- *
- * Computed for the year the partition is seeded in, because the instants move:
- * an install set up in 2027 gets 22 December for winter, one set up in 2028
- * gets the 21st. A boundary is a bare MM-DD that then repeats every year, so
- * this is the seed value only - it is never recomputed underneath a user who
- * has dragged it, and it drifts by at most a day over the years that follow.
+ * The equinoxes and solstices of the year the partition is seeded in. A boundary
+ * is a bare MM-DD that then repeats, so this is the seed only: never recomputed
+ * under a user who moved it, and off by at most a day in later years.
  */
 export function defaultSpanStarts(now: Date = new Date()): Record<SeasonKey, string> {
   const year = now.getFullYear();
