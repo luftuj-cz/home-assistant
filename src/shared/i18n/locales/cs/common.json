@@ -429,7 +429,7 @@
       "day": "den",
       "month": "měsíc",
       "enableTitle": "Zapnout roční období?",
-      "enableBody": "Vytvoří se čtyři období podle kalendáře: Jaro 1.3., Léto 1.6., Podzim 1.9., Zima 1.12.",
+      "enableBody": "Vytvoří se čtyři období podle astronomického kalendáře – od rovnodenností a slunovratů letošního roku. Hranice pak můžeš libovolně posunout.",
       "cloneLabel": "Zkopírovat současný plán do všech období",
       "cloneDescription": "Všechna období začnou stejně jako teď. Pak je můžeš upravovat jednotlivě.",
       "enableConfirm": "Zapnout",

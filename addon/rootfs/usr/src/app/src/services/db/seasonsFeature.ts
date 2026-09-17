@@ -3,6 +3,7 @@ import { getDatabase, getModuleLogger, setupDatabase } from "../database.js";
 import { getAppSetting, setAppSetting } from "./settings.js";
 import {
   adoptSeasonlessContent,
+  defaultSpanStarts,
   ensureSeasons,
   getSeasons,
   persistDerivedSpanEnds,
@@ -13,14 +14,6 @@ import {
 } from "./seasons.js";
 
 export { adoptSeasonlessContent };
-
-/** Meteorological boundaries: round dates, Czech convention, draggable afterwards. */
-const SEED_SPAN_STARTS: Record<SeasonKey, string> = {
-  spring: "03-01",
-  summer: "06-01",
-  autumn: "09-01",
-  winter: "12-01",
-};
 
 /**
  * Where `disableSeasonsFeature` parks the partition it collapses. Keyed per
@@ -69,11 +62,12 @@ function takeParkedPartition(hruId: string | null, seasons: Season[]): ParkedPar
   delete all[key];
   writeParkedPartitions(all);
 
+  const defaults = defaultSpanStarts();
   const candidate = seasons.map((season) => {
     const saved = parked[season.seasonKey];
     return saved
       ? { ...season, spanStart: saved.spanStart, enabled: saved.enabled }
-      : { ...season, spanStart: SEED_SPAN_STARTS[season.seasonKey], enabled: false };
+      : { ...season, spanStart: defaults[season.seasonKey], enabled: false };
   });
   if (validatePartition(candidate).length > 0) {
     getModuleLogger()?.warn({ hruId, parked }, "Parked season partition is invalid, reseeding");
@@ -100,7 +94,7 @@ export function isSeasonsFeatureEnabled(): boolean {
 
 /**
  * Turning the feature on must not change what the unit is doing. The first
- * time, it seeds the four meteorological seasons and, unless told otherwise,
+ * time, it seeds the four astronomical seasons and, unless told otherwise,
  * copies the existing schedule and mode values into all of them - so every
  * season starts as an exact copy of the single schedule that was running
  * before.
@@ -129,12 +123,13 @@ export function enableSeasonsFeature(hruId: string | null, cloneCurrent = true):
     const setBoundary = db.prepare(
       `UPDATE timelines SET span_start = ?, enabled = ?, updated_at = datetime('now') WHERE id = ?`,
     );
+    const defaults = defaultSpanStarts();
     for (const season of seasons) {
       const restored = parked?.[season.seasonKey];
       if (restored) {
         setBoundary.run(restored.spanStart, restored.enabled ? 1 : 0, season.id);
       } else {
-        setBoundary.run(SEED_SPAN_STARTS[season.seasonKey], 1, season.id);
+        setBoundary.run(defaults[season.seasonKey], 1, season.id);
       }
     }
 

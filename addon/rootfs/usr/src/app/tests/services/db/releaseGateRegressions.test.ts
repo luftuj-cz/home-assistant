@@ -149,11 +149,12 @@ describe("1.1.0 release gate regressions", () => {
     });
 
     it("seeds the defaults on a first enable with nothing parked", () => {
+      const defaults = seasons.defaultSpanStarts();
       expect(seasons.getSeasons(UNIT).map((s) => [s.seasonKey, s.spanStart, s.enabled])).toEqual([
-        ["spring", "03-01", true],
-        ["summer", "06-01", true],
-        ["autumn", "09-01", true],
-        ["winter", "12-01", true],
+        ["spring", defaults.spring, true],
+        ["summer", defaults.summer, true],
+        ["autumn", defaults.autumn, true],
+        ["winter", defaults.winter, true],
       ]);
     });
   });

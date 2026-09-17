@@ -1,3 +1,4 @@
+import { solarEvent } from "../../utils/solarSeasons.js";
 import { getDatabase, getModuleLogger, setupDatabase } from "../database.js";
 import { cachedStatement } from "./statementCache.js";
 
@@ -12,15 +13,24 @@ export const SEASON_KEYS = ["spring", "summer", "autumn", "winter"] as const;
 export type SeasonKey = (typeof SEASON_KEYS)[number];
 
 /**
- * Meteorological boundaries: round dates, matching Czech convention. Only the
- * starting point - the user drags them afterwards.
+ * Astronomical boundaries - the equinoxes and solstices, which is what a Czech
+ * calendar means by "when spring starts".
+ *
+ * Computed for the year the partition is seeded in, because the instants move:
+ * an install set up in 2027 gets 22 December for winter, one set up in 2028
+ * gets the 21st. A boundary is a bare MM-DD that then repeats every year, so
+ * this is the seed value only - it is never recomputed underneath a user who
+ * has dragged it, and it drifts by at most a day over the years that follow.
  */
-const DEFAULT_SPAN_STARTS: Record<SeasonKey, string> = {
-  spring: "03-01",
-  summer: "06-01",
-  autumn: "09-01",
-  winter: "12-01",
-};
+export function defaultSpanStarts(now: Date = new Date()): Record<SeasonKey, string> {
+  const year = now.getFullYear();
+  return {
+    spring: toMonthDay(solarEvent(year, "marchEquinox")),
+    summer: toMonthDay(solarEvent(year, "juneSolstice")),
+    autumn: toMonthDay(solarEvent(year, "septemberEquinox")),
+    winter: toMonthDay(solarEvent(year, "decemberSolstice")),
+  };
+}
 
 /** MM-DD, no year. Shared by every path that accepts a boundary. */
 const MONTH_DAY_PATTERN = /^(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -172,9 +182,10 @@ export function ensureSeasons(hruId: string | null): Season[] {
     `INSERT INTO timelines (season_key, hru_id, span_start, span_end, enabled, sort_order)
      VALUES (?, ?, ?, ?, ?, ?)`,
   );
+  const defaults = defaultSpanStarts();
   for (const key of SEASON_KEYS) {
     if (present.has(key)) continue;
-    insert.run(key, hruId, DEFAULT_SPAN_STARTS[key], DEFAULT_SPAN_STARTS[key], 0, seasonOrder(key));
+    insert.run(key, hruId, defaults[key], defaults[key], 0, seasonOrder(key));
   }
   return getSeasons(hruId);
 }
