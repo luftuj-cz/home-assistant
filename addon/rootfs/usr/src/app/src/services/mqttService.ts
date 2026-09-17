@@ -13,8 +13,7 @@ import type { SettingsRepository } from "../features/settings/settings.repositor
 import type { TimelineScheduler } from "./timelineScheduler.js";
 import { BoostModeNotConfiguredError, buildBoostOverride } from "./timeline/boostOverride.js";
 import { classifyConnectionError, type ConnectionErrorState } from "../shared/errorCodes.js";
-import enCommon from "../locales/en/common.json" with { type: "json" };
-import csCommon from "../locales/cs/common.json" with { type: "json" };
+import { getResource, resolveLocaleKey } from "../utils/localize.js";
 
 const DISCOVERY_PREFIX = "homeassistant";
 const BASE_TOPIC = "luftuj/hru";
@@ -78,18 +77,6 @@ type LocalizedStrings = {
   level_unit: string;
 };
 
-type LocaleResource = typeof enCommon;
-
-const RESOURCES: Record<string, LocaleResource> = {
-  en: enCommon,
-  cs: csCommon,
-};
-
-function normalizeLang(lang: string | null | undefined): keyof typeof RESOURCES {
-  const base = typeof lang === "string" && lang ? lang.split("-")[0] : "en";
-  return base === "cs" ? "cs" : "en";
-}
-
 const FALLBACK_STRINGS: LocalizedStrings = {
   power: "Requested Power",
   temperature: "Requested Temperature",
@@ -113,10 +100,6 @@ const FALLBACK_MODE_LABELS: Record<string, string> = {
   "hru.modes.disbalance": "Disbalance",
   "hru.modes.overpressure": "Overpressure",
 };
-
-function getResource(lang: string): LocaleResource | null {
-  return RESOURCES[normalizeLang(lang)] ?? null;
-}
 
 function getDiscoveryStrings(lang: string): LocalizedStrings {
   const res = getResource(lang) ?? getResource("en");
@@ -396,7 +379,7 @@ export class MqttService extends EventEmitter {
     native_mode_formatted?: string;
     boost_remaining?: number;
     boost_name?: string;
-    /** Stable season key, never the localised name, so automations cannot break. */
+    /** Stable season key. Published as an attribute so automations can match it. */
     active_season?: string;
   }): Promise<void> {
     if (!this.client) {
@@ -426,8 +409,9 @@ export class MqttService extends EventEmitter {
     function translateModeKey(raw?: string | number) {
       if (raw === undefined || raw === null) return undefined;
       const key = String(raw).trim();
-      if (key && modeStrings[key]) return modeStrings[key];
-      return undefined;
+      if (!key) return undefined;
+      // Definitions point anywhere in the bundle, not just at `hru.modes.*`.
+      return resolveLocaleKey(lang, key) ?? modeStrings[key];
     }
 
     function resolveModeLabel(val?: string | number) {
@@ -437,7 +421,9 @@ export class MqttService extends EventEmitter {
       if (match) {
         const label = match.label;
         const key = typeof label === "string" ? label : label?.text;
-        const translated = translateModeKey(key);
+        // `translate: false` marks free text, shown as written.
+        const translatable = typeof label === "string" || label?.translate;
+        const translated = translatable ? translateModeKey(key) : undefined;
         if (translated) return translated;
         if (key) return key;
       }
@@ -450,8 +436,42 @@ export class MqttService extends EventEmitter {
       resolveModeLabel(state.native_mode_formatted) ?? state.native_mode_formatted;
     const resolvedRawMode = resolveModeLabel(state.mode) ?? state.mode;
 
+    // Select variables arrive as locale keys - `toDisplayValue` leaves them that
+    // way for the web UI to translate in the browser. Home Assistant has no such
+    // step, so every variable is resolved here, not just the mode.
+    const localizedVariables: Record<string, string> = {};
+    // One entry per variable name, which the typed signature cannot spell out.
+    const stateValues = state as Record<string, unknown>;
+    for (const variable of unit.variables) {
+      const raw = stateValues[variable.name];
+      if (typeof raw !== "string") continue;
+
+      const option = variable.options?.find((candidate) => {
+        const text = typeof candidate.label === "string" ? candidate.label : candidate.label?.text;
+        return text === raw;
+      });
+      // Only actual option labels are looked up; translating any string that
+      // happens to match a key would rewrite readings it has no business to.
+      if (!option) continue;
+      if (typeof option.label !== "string" && !option.label?.translate) continue;
+
+      const translated = resolveLocaleKey(lang, raw);
+      if (translated) localizedVariables[variable.name] = translated;
+    }
+
+    // The sensor shows the name; the key stays in `active_season_key`, which the
+    // entity exposes as an attribute so automations keep something stable.
+    const seasonKey = state.active_season;
+    const seasonName =
+      seasonKey && seasonKey !== "-"
+        ? (resolveLocaleKey(lang, `settings.seasons.names.${seasonKey}`) ?? seasonKey)
+        : seasonKey;
+
     const payload = JSON.stringify({
       ...state,
+      ...localizedVariables,
+      active_season: seasonName,
+      active_season_key: seasonKey,
       mode: resolvedRawMode,
       mode_formatted: resolvedModeFormatted,
       native_mode_formatted: resolvedNativeMode,
@@ -1005,6 +1025,11 @@ export class MqttService extends EventEmitter {
       device,
       availability,
       "mdi:sun-snowflake-variant",
+      undefined,
+      undefined,
+      true,
+      // Stable key as state_attr(..., 'season_key'); the state is the name.
+      '{{ {"season_key": value_json.active_season_key} | tojson }}',
     );
     entityCount++;
 
@@ -1087,14 +1112,8 @@ export class MqttService extends EventEmitter {
   private getLocalizedText(text: LocalizedText, lang: string): string {
     if (typeof text === "string") return text;
     if (text.translate) {
-      const res = getResource(lang) ?? getResource("en");
-      const value = text.text
-        .split(".")
-        .reduce<unknown>(
-          (acc, key) => (acc && typeof acc === "object" ? acc[key as keyof typeof acc] : undefined),
-          res,
-        );
-      if (typeof value === "string") return value;
+      const translated = resolveLocaleKey(lang, text.text);
+      if (translated) return translated;
     }
     return text.text;
   }
@@ -1110,6 +1129,7 @@ export class MqttService extends EventEmitter {
     unit_of_measure?: string,
     device_class?: string,
     retain = true,
+    attributesTemplate?: string,
   ) {
     if (!this.client || !this.connected) return;
     const payload = {
@@ -1122,6 +1142,12 @@ export class MqttService extends EventEmitter {
       ...(icon ? { icon } : {}),
       ...(unit_of_measure ? { unit_of_measurement: unit_of_measure } : {}),
       ...(device_class ? { device_class } : {}),
+      ...(attributesTemplate
+        ? {
+            json_attributes_topic: `${BASE_TOPIC}/${unitId}/state`,
+            json_attributes_template: attributesTemplate,
+          }
+        : {}),
     };
     await this.throttledPublish(
       `${DISCOVERY_PREFIX}/sensor/luftuj_hru_${unitId}/${id}/config`,
