@@ -6,6 +6,7 @@ import {
   Button,
   Checkbox,
   Divider,
+  Flex,
   Group,
   Loader,
   Modal,
@@ -347,8 +348,14 @@ export function SeasonsSection() {
 
                   return (
                     <Paper key={season.id} withBorder p="sm" radius="md">
-                      <Group justify="space-between" wrap="nowrap" align="center">
-                        <Group gap="sm" wrap="nowrap">
+                      <Flex
+                        direction={{ base: "column", sm: "row" }}
+                        justify="space-between"
+                        align={{ base: "stretch", sm: "center" }}
+                        gap="sm"
+                        wrap="nowrap"
+                      >
+                        <Group gap="sm" wrap="nowrap" align="flex-start">
                           <Tooltip
                             label={t("settings.seasons.lastEnabledBlocked")}
                             disabled={!isLastEnabled}
@@ -423,7 +430,7 @@ export function SeasonsSection() {
                           }
                           t={t}
                         />
-                      </Group>
+                      </Flex>
                     </Paper>
                   );
                 })}
@@ -567,7 +574,7 @@ function SeasonBoundaryEditor({
   }
 
   return (
-    <Group gap={6} wrap="nowrap" align="flex-end">
+    <Group gap={6} wrap="nowrap" align="flex-end" w={{ base: "100%", sm: "auto" }}>
       <NumberInput
         label={t("settings.seasons.day")}
         value={day}
@@ -589,7 +596,7 @@ function SeasonBoundaryEditor({
           setMonth(nextMonth);
           commit(nextMonth, day);
         }}
-        w={130}
+        flex={{ base: 1, sm: "0 0 130px" }}
         size="xs"
         disabled={disabled}
         allowDeselect={false}
