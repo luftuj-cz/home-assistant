@@ -26,11 +26,13 @@ import {
 import { APP_VERSION } from "@luftuj/config";
 import {
   IconAt,
+  IconBrandGithub,
   IconBug,
   IconDeviceFloppy,
   IconLayoutDashboard,
   IconPhone,
   IconSettings,
+  IconStar,
   IconTimeline,
 } from "@tabler/icons-react";
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
@@ -43,6 +45,8 @@ import logoFullDark from "@luftuj/assets/logo-full-dark.svg";
 import logoMarkLight from "@luftuj/assets/logo-mark-light.svg";
 import logoMarkDark from "@luftuj/assets/logo-mark-dark.svg";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
+
+const GITHUB_REPO_URL = "https://github.com/luftuj-cz/home-assistant";
 
 export function AppLayout() {
   const [mobileNavOpened, { toggle, close }] = useDisclosure(false);
@@ -508,16 +512,25 @@ export function AppLayout() {
                   </Text>
                 </Box>
 
-                <Box visibleFrom="md">
+                <Group gap="sm" justify="center" w={{ base: "100%", md: "auto" }}>
+                  <Button
+                    component="a"
+                    href={GITHUB_REPO_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    variant="light"
+                    color="gray"
+                    size="xs"
+                    radius="md"
+                    leftSection={<IconBrandGithub size={16} stroke={2} />}
+                    rightSection={<IconStar size={14} stroke={2} />}
+                  >
+                    {t("app.footer.github")}
+                  </Button>
                   <Badge variant="light" color="gray" size="sm" radius="sm">
                     v{APP_VERSION}
                   </Badge>
-                </Box>
-                <Box hiddenFrom="md" w="100%" style={{ display: "flex", justifyContent: "center" }}>
-                  <Badge variant="light" color="gray" size="sm" radius="sm">
-                    v{APP_VERSION}
-                  </Badge>
-                </Box>
+                </Group>
               </Group>
             </Stack>
           </Container>

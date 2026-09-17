@@ -32,7 +32,8 @@
       "copyright": "© {{year}} Luftuj. Všechna práva vyhrazena.",
       "contact": "Kontakt",
       "location": "Adresa",
-      "allRightsReserved": "Všechna práva vyhrazena."
+      "allRightsReserved": "Všechna práva vyhrazena.",
+      "github": "Dejte nám hvězdu na GitHubu"
     }
   },
   "hru": {
