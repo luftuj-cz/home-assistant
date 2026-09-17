@@ -68,4 +68,21 @@ describe("applying valve positions", () => {
     expect(error).toBeNull();
     expect(setValue).toHaveBeenCalledTimes(1);
   });
+
+  it("ignores non-valve entities with disambiguation suffixes during boost without failing", async () => {
+    const { apply, setValue } = makeScheduler(["number.a"]);
+
+    const error = await apply(
+      {
+        "number.a": 80,
+        "number.luftator_doba_manualniho_rezimu_2": 0,
+        "number.luftator_boost_duration_2": 0,
+      },
+      "boost",
+    );
+
+    expect(error).toBeNull();
+    expect(setValue).toHaveBeenCalledTimes(1);
+    expect(setValue).toHaveBeenCalledWith("number.a", 80);
+  });
 });

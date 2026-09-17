@@ -1,5 +1,5 @@
 import type { Logger } from "pino";
-import type { ValveController } from "../core/valveManager.js";
+import { isNonValveEntity, type ValveController } from "../core/valveManager.js";
 import type { HomeAssistantClient } from "./homeAssistantClient.js";
 import {
   getActiveSeasonId,
@@ -622,6 +622,13 @@ export class TimelineScheduler {
 
     for (const [entityId, opening] of Object.entries(luftatorConfig)) {
       if (opening === undefined || opening === null) continue;
+      if (isNonValveEntity(entityId)) {
+        this.logger.warn(
+          { entityId, source },
+          "Ignoring non-valve entity found in valve configuration",
+        );
+        continue;
+      }
       if (!activeEntityIds.has(entityId)) {
         // The mode keeps its configuration for this valve - but the apply did
         // not happen. For a boost that has to count as a failure: skipping

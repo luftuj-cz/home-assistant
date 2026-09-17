@@ -1,3 +1,4 @@
+import { isNonValveEntity } from "../../core/valveManager.js";
 import { TIMELINE_MODES_KEY, type TimelineMode } from "../../types/index.js";
 import { getDatabase, getModuleLogger, getStatements, setupDatabase } from "../database.js";
 import { cachedStatement } from "./statementCache.js";
@@ -34,6 +35,19 @@ export interface TimelineEventRecord {
   updated_at: string;
 }
 
+export function stripNonValveEntitiesFromConfig(
+  rawConfig: Record<string, number> | null | undefined,
+): Record<string, number> | undefined {
+  if (!rawConfig) return undefined;
+  const cleaned: Record<string, number> = {};
+  for (const [key, value] of Object.entries(rawConfig)) {
+    if (!isNonValveEntity(key)) {
+      cleaned[key] = value;
+    }
+  }
+  return Object.keys(cleaned).length > 0 ? cleaned : undefined;
+}
+
 export function normaliseTimelineEvent(
   event: TimelineEvent,
 ): Omit<TimelineEventRecord, "id" | "created_at" | "updated_at"> {
@@ -50,7 +64,8 @@ export function normaliseTimelineEvent(
   }
 
   try {
-    luftatorConfig = event.luftatorConfig ? JSON.stringify(event.luftatorConfig) : null;
+    const cleaned = stripNonValveEntitiesFromConfig(event.luftatorConfig);
+    luftatorConfig = cleaned ? JSON.stringify(cleaned) : null;
   } catch (err) {
     getModuleLogger()?.error(err as Error, "Failed to serialise luftatorConfig for timeline event");
   }
@@ -94,7 +109,7 @@ export function denormaliseTimelineEvent(record: TimelineEventRecord): TimelineE
     startTime: record.start_time,
     dayOfWeek: record.day_of_week,
     hruConfig,
-    luftatorConfig,
+    luftatorConfig: stripNonValveEntitiesFromConfig(luftatorConfig) ?? null,
     enabled: Boolean(record.enabled),
     priority: record.priority,
     hruId: record.hru_id,
@@ -241,7 +256,9 @@ export function getTimelineModes(hruId?: string, timelineId?: number): TimelineM
         temperature: source.temperature ?? undefined,
         nativeMode: source.native_mode ?? undefined,
         variables: parseJsonColumn(source.variables, r.id, "variables"),
-        luftatorConfig: parseJsonColumn(source.luftator_config, r.id, "luftator_config"),
+        luftatorConfig: stripNonValveEntitiesFromConfig(
+          parseJsonColumn(source.luftator_config, r.id, "luftator_config"),
+        ),
         scriptEntityIds: parseScriptEntityIds(source.script_entity_ids, r.id),
       };
 
@@ -286,7 +303,7 @@ export function getTimelineMode(id: number): TimelineMode | null {
     color: record.color ?? undefined,
     power: record.power ?? undefined,
     temperature: record.temperature ?? undefined,
-    luftatorConfig,
+    luftatorConfig: stripNonValveEntitiesFromConfig(luftatorConfig),
     isBoost: Boolean(record.is_boost),
     hruId: record.hru_id ?? undefined,
     nativeMode: record.native_mode ?? undefined,
@@ -380,8 +397,9 @@ type SerialisedModeValues = {
 };
 
 function serialiseModeValues(mode: TimelineMode): SerialisedModeValues {
+  const cleanedLuftator = stripNonValveEntitiesFromConfig(mode.luftatorConfig);
   return {
-    luftatorConfig: mode.luftatorConfig ? JSON.stringify(mode.luftatorConfig) : null,
+    luftatorConfig: cleanedLuftator ? JSON.stringify(cleanedLuftator) : null,
     variables: mode.variables ? JSON.stringify(mode.variables) : null,
     scriptEntityIds:
       mode.scriptEntityIds && mode.scriptEntityIds.length > 0
