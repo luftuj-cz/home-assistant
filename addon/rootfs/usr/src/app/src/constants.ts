@@ -1,4 +1,4 @@
-export const APP_VERSION = "1.1.0-stable";
+export const APP_VERSION = "1.1.1-dev";
 
 // Sentinel duration for an infinite boost override (minutes). Shared by the
 // timeline scheduler and the MQTT command handler so they can't drift apart.
