@@ -1,8 +1,8 @@
 # Changelog
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
-## [1.1.0-stable] - UNRELEASED
+## [1.1.0-stable] - 2026-09-24
 
 ### Added
 
@@ -10,6 +10,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   has its own schedule and its own mode values; a mode can be left unconfigured in a season it is not needed in.
   Off by default; enabling it clones the current schedule into every season so nothing changes until you edit it.
   Turning it off parks the other seasons and turning it back on restores exactly what was there.
+- **Astronomical season boundaries**: New seasons start on the current year's equinoxes and solstices rather than
+  fixed dates, and can be moved afterwards.
+- **Active season in Home Assistant**: MQTT sensor showing the running season's name in the add-on language. The
+  stable key (`spring`, `summer`, ...) is exposed as the `season_key` attribute for use in automations.
+- **New HRU units**: Brink (with a UWA2-B or UWA2-E Modbus board), Systemair SAVE, and Komfovent Domekt with a C6
+  or C6M controller (listed as Komfovent Domekt C6). Each comes with a Modbus simulator for development.
 - **Safe state**: With seasons enabled, a season with no applicable event drives the unit to a defined low state
   (minimum values, 20 °C) instead of leaving it on whatever was last written. Written once, retried after a
   failed write, and never applied to installs that have never had a schedule.
@@ -19,7 +25,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
   again after an add-on restart.
 - **Valve groups**: Group valves and drive them together from one slider.
 - **Debug tooling**: Copy and download actions on debug panels, server log download, links to Home Assistant
-  entities, HRU status age indicator.
+  entities, HRU status age indicator. The server log panel is now a table with text search, a level filter and a
+  button to pause auto-refresh.
+- **Help section**: Settings page section with a link to luftator.eu, common MQTT and Modbus setup mistakes, and
+  a support contact.
+- **Error pages**: A page that fails to load shows an error screen with retry and back-to-dashboard actions;
+  unknown routes show a "page not found" screen.
+- **Modbus request gap**: Unit definitions can set a minimum gap between Modbus requests (`modbusMinGapMs`),
+  applied once per read/write cycle. The dashboard shows live Modbus reconnect status.
+- **`modbus_write_command`**: Unit definition function that writes a holding register only when its current value
+  differs.
+- **GitHub link**: "Star us on GitHub" button in the footer.
 
 ### Changed
 
@@ -28,20 +44,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 - **Power validation**: Decimal power values are rounded instead of rejected, so modes saved by earlier versions
   stay editable.
 - **Connection errors**: Human-readable Modbus and MQTT connection errors surfaced as notifications.
+- **Modbus error reporting**: A failed Modbus operation now logs and reports the operation, register address,
+  value sent and unit ID with the Modbus exception code, so the failing step of a unit definition can be found.
+- **Seasons settings**: Better layout on mobile.
+- **Boost buttons**: Dashboard and mode editor boost buttons show that the mode is being applied or cancelled,
+  which can take a few seconds.
+- **Add-on stage**: The add-on is marked stable or experimental in the Home Assistant add-on store, following the
+  release channel.
+- **Logging**: Per-request and user-context log lines moved to the debug level.
 - **Toolchain**: Node 24 LTS, TypeScript 7, Alpine 3.24 base image, updated dependencies.
 
 ### Fixed
 
-- **Modbus**: Serialized reconnects and status probes under one lock, bounded handshake timeout, outage counting
-  once per connect attempt, stale clients retired when connection settings change.
+- **Modbus**: A unit that freezes on Modbus without closing the socket (seen on Atrea Duplex AM) no longer keeps
+  failing until the add-on is restarted: the client is reset after any failure and reconnects with exponential
+  backoff.
+  Serialized reconnects and status probes under one lock, bounded handshake timeout, outage counting once per
+  connect attempt, stale clients retired when connection settings change, no UI flicker on client reset.
+- **Scheduler**: A mode change is no longer reported as applied before the HRU write succeeds.
+- **Server**: A WebSocket request with a malformed Host header is rejected instead of crashing the add-on; errors
+  while stopping services no longer break shutdown. Validated query parameters (defaults, type conversion) now
+  reach the API handlers.
 - **MQTT**: Publish queue no longer stalls after a single failed publish; renaming a boost mode removes both of
   its old buttons; a boost button on a mode with no values for the running season is refused instead of doing
-  nothing; listener leak on restart fixed.
+  nothing; listener leak on restart fixed. Switching to a different HRU unit removes the previous unit's
+  discovery entities instead of leaving duplicates in Home Assistant. Select values such as the bypass state are
+  published translated instead of as raw translation keys.
 - **Database import**: Services are stopped and the database swap is guarded during import.
 - **Valve handling**: Unavailable valves are reported instead of crashing; a boost that could not move a
-  configured valve fails visibly instead of reporting success.
+  configured valve fails visibly instead of reporting success. Non-valve entities that ended up in a mode's or an
+  event's valve configuration are dropped and no longer driven. Concurrent valve changes no longer race.
 - **Timeline**: Editing an event without naming a season keeps it in its own season; day paste resolves modes
-  referenced by name; clearing the season day field no longer commits the 1st of the month.
+  referenced by name; clearing the season day field no longer commits the 1st of the month. The empty-season
+  warning appears only when the safe state would actually apply, and season names are no longer shown in dialogs
+  and notifications while seasons are turned off.
 - **Upgrade safety**: Pre-migration database backup; existing installs keep every mode configured after the
   first save, including boost-only and valve-only setups.
 
