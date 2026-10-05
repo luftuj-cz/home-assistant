@@ -1,3 +1,21 @@
 [tools]
 go = "1.27.1"
 node = "lts" # Must be current LTS version
+
+[tasks.backend]
+description = "Starts the backend server in dev mode"
+dir = "addon/rootfs/usr/src/app"
+run = "npm run dev"
+
+[tasks.frontend]
+description = "Starts the frontend in dev mode"
+run = "npm run dev"
+
+[tasks.simulator]
+description = "Starts the HRU simulator, e.g. `mise run simulator -t korado -p 1503` (see `mise run simulator --help`)"
+dir = "tools/simulator"
+usage = '''
+flag "-p --port <port>" env="HRU_PORT" default="1502" help="Modbus TCP port to listen on"
+flag "-t --type <type>" env="HRU_TYPE" default="xvent" help="HRU unit to simulate (see tools/simulator/hru_simulator.go)"
+'''
+run = 'go run . "${usage_port}" "${usage_type}"'
