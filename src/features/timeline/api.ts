@@ -183,11 +183,26 @@ export interface ModeSeasonUsage {
  * deletion started while viewing one season also removes events from the
  * others - off-screen, where the user cannot see what they are losing.
  */
-export async function fetchModeUsage(id: number, unitId?: string): Promise<ModeSeasonUsage[]> {
+export interface ModeCustomTimelineUsage {
+  customTimelineId: number;
+  name: string;
+  enabledEvents: number;
+  /** True when removing this mode would leave the timeline with no enabled event. */
+  wouldBeLeftEmpty: boolean;
+  /** True when the timeline is the active or scheduled override. */
+  isOverriding: boolean;
+}
+
+export interface ModeUsage {
+  seasons: ModeSeasonUsage[];
+  customTimelines: ModeCustomTimelineUsage[];
+}
+
+export async function fetchModeUsage(id: number, unitId?: string): Promise<ModeUsage> {
   const res = await fetch(withScope(`/api/timeline/modes/${id}/usage`, unitId));
   if (!res.ok) throw await parseApiError(res);
-  const data = (await res.json()) as { seasons?: ModeSeasonUsage[] };
-  return data.seasons ?? [];
+  const data = (await res.json()) as Partial<ModeUsage>;
+  return { seasons: data.seasons ?? [], customTimelines: data.customTimelines ?? [] };
 }
 
 /**

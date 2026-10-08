@@ -124,13 +124,32 @@ export function pickActiveEventWithContext(
   };
 }
 
+/**
+ * The same selection over events the caller already has - a custom timeline's,
+ * resolved against the active season's modes. The season path above keeps its
+ * own call shape, so the upgrade rehearsal still exercises exactly that code.
+ */
+export function pickActiveEventFrom(
+  events: TimelineEvent[],
+  modes: TimelineMode[],
+  nowMinutes: number,
+  today: number,
+): TimelineEvent | null {
+  return selectEvent(events, modes, nowMinutes, today);
+}
+
 function selectEvent(
   allEvents: TimelineEvent[],
   modes: TimelineMode[],
   nowMinutes: number,
   today: number,
 ): TimelineEvent | null {
-  for (let d = 0; d < 7; d++) {
+  // The schedule repeats weekly, so the look-back must cover a whole week.
+  // Today up to now plus six full days falls short by the rest of today: the
+  // latest event on today's weekday, started a week ago, sits at d = 7. Without
+  // it a timeline whose events are all on one weekday had nothing to apply
+  // before that day's first start.
+  for (let d = 0; d <= 7; d++) {
     const targetDay = (today - d + 7) % 7;
     const dayCandidates = allEvents.filter(
       (e) => e.enabled && (e.dayOfWeek === null || e.dayOfWeek === targetDay),

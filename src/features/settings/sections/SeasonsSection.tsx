@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Accordion,
+  ActionIcon,
   Badge,
   Button,
   Checkbox,
@@ -16,9 +17,10 @@ import {
   Select,
   Stack,
   Text,
+  TextInput,
   Tooltip,
 } from "@mantine/core";
-import { IconAlertTriangle, IconSunLow } from "@tabler/icons-react";
+import { IconAlertTriangle, IconPencil, IconSunLow } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
@@ -37,6 +39,8 @@ import {
   fetchSeasons,
   updateSeason,
 } from "@luftuj/features/settings/seasonsApi";
+import { seasonLabel } from "@luftuj/shared/utils/seasonLabel";
+import { CustomTimelinesPanel } from "@luftuj/features/settings/sections/CustomTimelinesPanel";
 
 const SEASON_COLORS: Record<SeasonKey, string> = {
   spring: "green",
@@ -127,7 +131,7 @@ function YearBar({ seasons, t }: Readonly<{ seasons: SeasonSummary[]; t: (k: str
     <Stack gap={4}>
       <Group gap={0} wrap="nowrap" style={{ width: "100%", height: 34 }}>
         {segments.map(({ season, length }) => {
-          const name = t(`settings.seasons.names.${season.seasonKey}`);
+          const name = seasonLabel(season, t);
           const span = `${formatMonthDay(season.spanStart)} - ${formatMonthDay(season.spanEnd)}`;
           return (
             <Tooltip key={season.id} label={`${name}: ${span}`}>
@@ -195,6 +199,13 @@ export function SeasonsSection() {
   const [disableOpen, setDisableOpen] = useState(false);
   const [keepSeasonKey, setKeepSeasonKey] = useState<SeasonKey>("spring");
   const [impact, setImpact] = useState<DisableImpact[]>([]);
+  const [renaming, setRenaming] = useState<SeasonSummary | null>(null);
+  const [renameValue, setRenameValue] = useState("");
+
+  /** A season's label by key, for rows that carry only the key. */
+  function labelOf(key: SeasonKey): string {
+    return seasonLabel(seasons.find((season) => season.seasonKey === key) ?? { seasonKey: key }, t);
+  }
 
   /**
    * Refreshes every surface a season change can affect: the season list itself,
@@ -275,7 +286,10 @@ export function SeasonsSection() {
   }, [keepSeasonKey, reload, reportFailure]);
 
   const patchSeason = useCallback(
-    async (key: SeasonKey, patch: { enabled?: boolean; spanStart?: string }) => {
+    async (
+      key: SeasonKey,
+      patch: { enabled?: boolean; spanStart?: string; name?: string | null },
+    ) => {
       setBusy(true);
       try {
         await updateSeason(key, patch);
@@ -306,7 +320,7 @@ export function SeasonsSection() {
     <Accordion.Item value="seasons">
       <Accordion.Control icon={<IconSunLow size={20} />}>
         <Group gap="xs">
-          <Text fw={600}>{t("settings.seasons.title")}</Text>
+          <Text fw={600}>{t("settings.plans.title")}</Text>
           {featureEnabled && (
             <Badge size="sm" variant="light" color="green">
               {enabledCount}
@@ -319,6 +333,9 @@ export function SeasonsSection() {
         <Stack gap="md">
           <Group justify="space-between" align="flex-start" wrap="nowrap">
             <Stack gap={2}>
+              <Text fw={600} size="sm">
+                {t("settings.seasons.title")}
+              </Text>
               <Text size="sm">{t("settings.seasons.description")}</Text>
               <Text size="xs" c="dimmed">
                 {t("settings.seasons.hint")}
@@ -377,8 +394,20 @@ export function SeasonsSection() {
                           <Stack gap={2}>
                             <Group gap={6}>
                               <Text fw={600} size="sm">
-                                {t(`settings.seasons.names.${season.seasonKey}`)}
+                                {seasonLabel(season, t)}
                               </Text>
+                              <ActionIcon
+                                size="sm"
+                                variant="subtle"
+                                aria-label={t("settings.seasons.rename")}
+                                onClick={() => {
+                                  setRenaming(season);
+                                  setRenameValue(seasonLabel(season, t));
+                                }}
+                                disabled={busy}
+                              >
+                                <IconPencil size={14} />
+                              </ActionIcon>
                               {season.isActive && (
                                 <Badge size="xs" color="green" variant="filled">
                                   {t("settings.seasons.active")}
@@ -413,7 +442,7 @@ export function SeasonsSection() {
                             {season.enabled && neighbour && (
                               <Text size="xs" c="dimmed">
                                 {t("settings.seasons.disablePreview", {
-                                  neighbour: t(`settings.seasons.names.${neighbour.seasonKey}`),
+                                  neighbour: seasonLabel(neighbour, t),
                                   start: formatMonthDay(season.spanStart),
                                   end: formatMonthDay(season.spanEnd),
                                 })}
@@ -437,8 +466,57 @@ export function SeasonsSection() {
               </Stack>
             </>
           )}
+
+          <Divider />
+          <CustomTimelinesPanel />
         </Stack>
       </Accordion.Panel>
+
+      <Modal
+        opened={renaming !== null}
+        onClose={() => setRenaming(null)}
+        title={t("settings.seasons.renameTitle")}
+        centered
+      >
+        <Stack gap="md">
+          <TextInput
+            label={t("settings.customTimelines.nameLabel")}
+            value={renameValue}
+            maxLength={60}
+            onChange={(event) => setRenameValue(event.currentTarget.value)}
+            data-autofocus
+          />
+          <Group justify="space-between">
+            <Button
+              variant="subtle"
+              disabled={busy || !renaming?.name}
+              onClick={() => {
+                if (!renaming) return;
+                void patchSeason(renaming.seasonKey, { name: null }).then(() => setRenaming(null));
+              }}
+            >
+              {t("settings.seasons.restoreName")}
+            </Button>
+            <Group gap="xs">
+              <Button variant="default" onClick={() => setRenaming(null)} disabled={busy}>
+                {t("settings.timeline.modal.cancel")}
+              </Button>
+              <Button
+                loading={busy}
+                disabled={!renameValue.trim()}
+                onClick={() => {
+                  if (!renaming) return;
+                  void patchSeason(renaming.seasonKey, { name: renameValue.trim() }).then(() =>
+                    setRenaming(null),
+                  );
+                }}
+              >
+                {t("settings.customTimelines.save")}
+              </Button>
+            </Group>
+          </Group>
+        </Stack>
+      </Modal>
 
       <Modal
         opened={enableOpen}
@@ -485,12 +563,7 @@ export function SeasonsSection() {
           >
             <Stack gap={4} mt="xs">
               {SEASON_KEYS.map((key) => (
-                <Radio
-                  key={key}
-                  value={key}
-                  label={t(`settings.seasons.names.${key}`)}
-                  disabled={busy}
-                />
+                <Radio key={key} value={key} label={labelOf(key)} disabled={busy} />
               ))}
             </Stack>
           </Radio.Group>
@@ -501,7 +574,7 @@ export function SeasonsSection() {
               .map((entry) => (
                 <Text key={entry.seasonKey} size="xs" c="dimmed">
                   {t("settings.seasons.disableParkedRow", {
-                    season: t(`settings.seasons.names.${entry.seasonKey}`),
+                    season: labelOf(entry.seasonKey),
                     count: entry.enabledEvents,
                   })}
                 </Text>

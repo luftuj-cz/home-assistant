@@ -6,6 +6,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 import type { SeasonSummary } from "@luftuj/shared/types/season";
 import { fetchSeasons } from "@luftuj/features/settings/seasonsApi";
+import { seasonLabel } from "@luftuj/shared/utils/seasonLabel";
 
 /**
  * Which season the timeline page is *looking at*.
@@ -66,6 +67,8 @@ interface SeasonSwitcherProps {
   onChange: (id: number) => void;
   /** Consulted before switching, so an unsaved dialog can block it. */
   canLeave?: () => boolean;
+  /** A custom timeline is on screen: no segment is shown as selected. */
+  inactive?: boolean;
 }
 
 /**
@@ -78,6 +81,7 @@ export function SeasonSwitcher({
   activeSeasonId,
   onChange,
   canLeave,
+  inactive = false,
 }: Readonly<SeasonSwitcherProps>) {
   const { t } = useTranslation();
   const [pending, setPending] = useState<string | undefined>(undefined);
@@ -90,7 +94,7 @@ export function SeasonSwitcher({
 
   return (
     <SegmentedControl
-      value={pending}
+      value={inactive ? "" : pending}
       onChange={(value) => {
         if (canLeave && !canLeave()) return;
         setPending(value);
@@ -101,7 +105,7 @@ export function SeasonSwitcher({
         value: String(season.id),
         label: (
           <Group gap={6} justify="center" wrap="nowrap">
-            <Text size="sm">{t(`settings.seasons.names.${season.seasonKey}`)}</Text>
+            <Text size="sm">{seasonLabel(season, t)}</Text>
             {season.id === activeSeasonId && (
               <Badge size="xs" color="green" variant="filled" circle>
                 {" "}
@@ -141,8 +145,8 @@ export function SeasonViewNotice({
       <Group gap="xs" wrap="wrap">
         <Text size="sm">
           {t("settings.timeline.seasonViewNotice", {
-            viewed: t(`settings.seasons.names.${viewedSeason.seasonKey}`),
-            active: t(`settings.seasons.names.${activeSeason.seasonKey}`),
+            viewed: seasonLabel(viewedSeason, t),
+            active: seasonLabel(activeSeason, t),
           })}
         </Text>
         <Button
@@ -187,7 +191,7 @@ export function EmptyActiveSeasonNotice({
   return (
     <Alert color="red" variant="light" icon={<IconAlertTriangle size={16} />}>
       {t("settings.timeline.seasonEmptyWarning", {
-        season: t(`settings.seasons.names.${activeSeason.seasonKey}`),
+        season: seasonLabel(activeSeason, t),
       })}
     </Alert>
   );

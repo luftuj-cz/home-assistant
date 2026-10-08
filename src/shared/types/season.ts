@@ -1,7 +1,7 @@
 /**
- * The four seasons are a fixed set: they cannot be created, deleted or renamed,
- * only enabled, disabled and re-bounded. The key is the stable identifier;
- * display names come from the translation catalogue.
+ * The four seasons are a fixed set: they cannot be created or deleted, only
+ * enabled, disabled, re-bounded and renamed. The key is the stable identifier;
+ * the display name is the user's own, or the translated default without one.
  */
 export const SEASON_KEYS = ["spring", "summer", "autumn", "winter"] as const;
 
@@ -17,10 +17,14 @@ export interface Season {
   spanEnd: string;
   enabled: boolean;
   sortOrder: number;
+  /** Name the user gave the season; null shows the translated default. */
+  name?: string | null;
 }
 
 /** A season as returned by `GET /api/seasons`, with progress information. */
 export interface SeasonSummary extends Season {
+  /** What the backend shows for the season in the current language. */
+  displayName?: string;
   isActive: boolean;
   unconfiguredModes: number;
   enabledEvents: number;

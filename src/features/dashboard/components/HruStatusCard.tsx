@@ -277,6 +277,13 @@ export function HruStatusCard({
       activeModeLabel = t("dashboard.activeMode.boost", {
         name: getModeText(activeMode.modeName || modeValue),
       });
+    } else if (activeMode?.source === "custom") {
+      activeModeLabel = t("dashboard.activeMode.custom", {
+        timeline: activeMode.customTimelineName ?? "?",
+        name: getModeText(activeMode.modeName || modeValue),
+      });
+    } else if (activeMode?.source === "fallback") {
+      activeModeLabel = t("dashboard.activeMode.fallback");
     }
 
     return (

@@ -4,20 +4,35 @@ import { useTranslation } from "react-i18next";
 import { notifications } from "@mantine/notifications";
 import type { Mode, TimelineEvent } from "@luftuj/shared/types/timeline";
 import * as api from "@luftuj/features/timeline/api";
+import * as customApi from "@luftuj/features/timeline/customTimelinesApi";
+import type { TimelineRef } from "@luftuj/shared/types/customTimeline";
 import { createLogger } from "@luftuj/shared/utils/logger";
 import { translateApiError } from "@luftuj/shared/utils/apiError";
 
 const logger = createLogger("useTimelineEventsQuery");
 
-export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string, seasonId?: number) {
+/**
+ * Events of the timeline being viewed - a season or a custom timeline. The kind
+ * is part of the cache key because event ids are only unique per kind: season
+ * event 7 and custom event 7 are different rows.
+ */
+export function useTimelineEventsQuery(
+  modes: Mode[],
+  activeUnitId: string | undefined,
+  ref: TimelineRef,
+) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
+  const queryKey = ["timeline-events", activeUnitId, ref.kind, ref.id];
 
   const query = useQuery({
-    queryKey: ["timeline-events", activeUnitId, seasonId],
+    queryKey,
     queryFn: async () => {
-      logger.debug("Fetching timeline events", { activeUnitId });
-      const loaded = await api.fetchTimelineEvents(activeUnitId, seasonId);
+      logger.debug("Fetching timeline events", { activeUnitId, ref });
+      const loaded =
+        ref.kind === "custom"
+          ? await customApi.fetchCustomTimelineEvents(ref.id, activeUnitId)
+          : await api.fetchTimelineEvents(activeUnitId, ref.id);
       logger.info("Timeline events loaded", { count: loaded.length, activeUnitId });
       return loaded;
     },
@@ -26,6 +41,9 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string, sea
 
   const saveEventMutation = useMutation({
     mutationFn: async (event: TimelineEvent) => {
+      if (ref.kind === "custom") {
+        return customApi.saveCustomTimelineEvent(ref.id, event, activeUnitId);
+      }
       const selectedMode =
         modes.find((m) => m.id?.toString() === event.hruConfig?.mode?.toString()) ?? null;
       const mergedHruConfig = {
@@ -44,33 +62,33 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string, sea
           luftatorConfig: mergedLuftatorConfig,
         },
         activeUnitId,
-        seasonId,
+        ref.id,
       );
     },
     onSuccess: (saved) => {
-      queryClient.setQueryData<TimelineEvent[]>(
-        ["timeline-events", activeUnitId, seasonId],
-        (prev) => {
-          if (!prev) return [saved];
-          const idx = prev.findIndex((e) => e.id === saved.id);
-          if (idx >= 0) {
-            logger.info("Timeline event updated", {
-              id: saved.id,
-              dayOfWeek: saved.dayOfWeek,
-              startTime: saved.startTime,
-            });
-            const next = [...prev];
-            next[idx] = { ...prev[idx], ...saved };
-            return next;
-          }
-          logger.info("Timeline event created", {
+      // Saving an event can change whether the override may apply.
+      if (ref.kind === "custom")
+        void queryClient.invalidateQueries({ queryKey: ["custom-timelines"] });
+      queryClient.setQueryData<TimelineEvent[]>(queryKey, (prev) => {
+        if (!prev) return [saved];
+        const idx = prev.findIndex((e) => e.id === saved.id);
+        if (idx >= 0) {
+          logger.info("Timeline event updated", {
             id: saved.id,
             dayOfWeek: saved.dayOfWeek,
             startTime: saved.startTime,
           });
-          return [...prev, saved];
-        },
-      );
+          const next = [...prev];
+          next[idx] = { ...prev[idx], ...saved };
+          return next;
+        }
+        logger.info("Timeline event created", {
+          id: saved.id,
+          dayOfWeek: saved.dayOfWeek,
+          startTime: saved.startTime,
+        });
+        return [...prev, saved];
+      });
     },
     onError: (err, event) => {
       logger.error("Failed to save timeline event", {
@@ -87,11 +105,15 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string, sea
   });
 
   const deleteEventMutation = useMutation({
-    mutationFn: (id: number) => api.deleteTimelineEvent(id),
+    mutationFn: (id: number) =>
+      ref.kind === "custom"
+        ? customApi.deleteCustomTimelineEvent(ref.id, id, activeUnitId)
+        : api.deleteTimelineEvent(id),
     onSuccess: (_, id) => {
-      queryClient.setQueryData<TimelineEvent[]>(
-        ["timeline-events", activeUnitId, seasonId],
-        (prev) => (prev ? prev.filter((e) => e.id !== id) : []),
+      if (ref.kind === "custom")
+        void queryClient.invalidateQueries({ queryKey: ["custom-timelines"] });
+      queryClient.setQueryData<TimelineEvent[]>(queryKey, (prev) =>
+        prev ? prev.filter((e) => e.id !== id) : [],
       );
       logger.info("Timeline event deleted", { id });
     },
@@ -112,9 +134,13 @@ export function useTimelineEventsQuery(modes: Mode[], activeUnitId?: string, sea
       map.set(d, []);
     }
     for (const ev of events) {
-      const list = map.get(ev.dayOfWeek) ?? [];
-      list.push(ev);
-      map.set(ev.dayOfWeek, list);
+      // An every-day event (custom timelines only) belongs in every column.
+      const days = ev.dayOfWeek === null ? [...map.keys()] : [ev.dayOfWeek];
+      for (const day of days) {
+        const list = map.get(day) ?? [];
+        list.push(ev);
+        map.set(day, list);
+      }
     }
     for (const [key, list] of map.entries()) {
       const sorted = list.toSorted((a, b) => a.startTime.localeCompare(b.startTime));

@@ -3,7 +3,10 @@ import { Alert, Button, Group, Loader, Modal, Stack, Text } from "@mantine/core"
 import { IconAlertTriangle } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 import type { Mode } from "@luftuj/shared/types/timeline";
-import { fetchModeUsage, type ModeSeasonUsage } from "@luftuj/features/timeline/api";
+import { useQuery } from "@tanstack/react-query";
+import { fetchModeUsage, type ModeUsage } from "@luftuj/features/timeline/api";
+import { fetchSeasons } from "@luftuj/features/settings/seasonsApi";
+import { seasonLabel } from "@luftuj/shared/utils/seasonLabel";
 
 interface ModeDeleteConfirmProps {
   mode: Mode | null;
@@ -25,7 +28,17 @@ export function ModeDeleteConfirm({
   onConfirm,
 }: Readonly<ModeDeleteConfirmProps>) {
   const { t } = useTranslation();
-  const [usage, setUsage] = useState<ModeSeasonUsage[] | null>(null);
+  const [usage, setUsage] = useState<ModeUsage | null>(null);
+  const { data: seasonsData } = useQuery({
+    queryKey: ["seasons"],
+    queryFn: fetchSeasons,
+    staleTime: 30 * 1000,
+  });
+  // The usage report carries season keys; the names the user gave them live here.
+  function nameOf(seasonKey: string): string {
+    const season = seasonsData?.seasons.find((candidate) => candidate.seasonKey === seasonKey);
+    return seasonLabel(season ?? { seasonKey }, t);
+  }
 
   useEffect(() => {
     if (!mode) {
@@ -39,15 +52,17 @@ export function ModeDeleteConfirm({
       })
       // A failed dry run must not block the deletion, only leave it unexplained.
       .catch(() => {
-        if (!cancelled) setUsage([]);
+        if (!cancelled) setUsage({ seasons: [], customTimelines: [] });
       });
     return () => {
       cancelled = true;
     };
   }, [mode, unitId]);
 
-  const affected = (usage ?? []).filter((entry) => entry.enabledEvents > 0);
-  const emptied = (usage ?? []).filter((entry) => entry.wouldBeLeftEmpty);
+  const affected = (usage?.seasons ?? []).filter((entry) => entry.enabledEvents > 0);
+  const emptied = (usage?.seasons ?? []).filter((entry) => entry.wouldBeLeftEmpty);
+  const customAffected = usage?.customTimelines ?? [];
+  const endsOverride = customAffected.find((entry) => entry.isOverriding && entry.wouldBeLeftEmpty);
 
   return (
     <Modal
@@ -63,18 +78,26 @@ export function ModeDeleteConfirm({
 
         {usage === null && <Loader size="sm" />}
 
-        {usage !== null && affected.length === 0 && (
+        {usage !== null && affected.length === 0 && customAffected.length === 0 && (
           <Text size="sm" c="dimmed">
             {t("settings.timeline.modeDeleteNoEvents")}
           </Text>
         )}
 
-        {affected.length > 0 && (
+        {(affected.length > 0 || customAffected.length > 0) && (
           <Stack gap={2}>
             {affected.map((entry) => (
               <Text key={entry.timelineId} size="sm">
                 {t("settings.timeline.modeDeleteSeasonRow", {
-                  season: t(`settings.seasons.names.${entry.seasonKey}`),
+                  season: nameOf(entry.seasonKey),
+                  count: entry.enabledEvents,
+                })}
+              </Text>
+            ))}
+            {customAffected.map((entry) => (
+              <Text key={`custom-${entry.customTimelineId}`} size="sm">
+                {t("settings.timeline.modeDeleteSeasonRow", {
+                  season: entry.name,
                   count: entry.enabledEvents,
                 })}
               </Text>
@@ -82,12 +105,16 @@ export function ModeDeleteConfirm({
           </Stack>
         )}
 
+        {endsOverride && (
+          <Alert color="grape" variant="light" icon={<IconAlertTriangle size={16} />}>
+            {t("settings.customTimelines.modeDeleteEndsOverride", { name: endsOverride.name })}
+          </Alert>
+        )}
+
         {emptied.length > 0 && (
           <Alert color="red" variant="light" icon={<IconAlertTriangle size={16} />}>
             {t("settings.timeline.modeDeleteEmptyWarning", {
-              seasons: emptied
-                .map((entry) => t(`settings.seasons.names.${entry.seasonKey}`))
-                .join(", "),
+              seasons: emptied.map((entry) => nameOf(entry.seasonKey)).join(", "),
             })}
           </Alert>
         )}

@@ -5,5 +5,7 @@ export {
   mapModeForUi,
   getDayLabels,
   calculatePowerConfig,
+  type ActiveEventRef,
+  findActiveEvent,
 } from "./utils";
 export { validateEvent } from "./validators";

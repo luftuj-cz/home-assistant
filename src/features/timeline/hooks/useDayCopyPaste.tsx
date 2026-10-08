@@ -10,11 +10,13 @@ const logger = createLogger("useDayCopyPaste");
 
 /**
  * A copied day, captured as data rather than as a pointer into the currently
- * loaded season. Holding a day index meant the source vanished the moment the
- * user switched season; carrying the events makes crossing seasons free.
+ * loaded plan. Holding a day index meant the source vanished the moment the
+ * user switched season; carrying the events makes crossing seasons - and
+ * custom timelines - free.
  */
 interface DayClipboard {
-  sourceSeasonId?: number;
+  /** Which plan the day came from, e.g. "season:3" or "custom:7". */
+  sourcePlanKey: string;
   sourceSeasonLabel?: string;
   sourceUnitId?: string;
   sourceDay: number;
@@ -27,8 +29,8 @@ interface PendingPaste {
 }
 
 interface CopyPasteContext {
-  /** Season currently being viewed; pasted events land here. */
-  seasonId?: number;
+  /** Plan currently being viewed; pasted events land here. */
+  planKey: string;
   seasonLabel?: string;
   unitId?: string;
   /** Modes resolved for the viewed season, so we know what is configured here. */
@@ -53,14 +55,14 @@ export function useDayCopyPaste(
         return;
       }
       setClipboard({
-        sourceSeasonId: context.seasonId,
+        sourcePlanKey: context.planKey,
         sourceSeasonLabel: context.seasonLabel,
         sourceUnitId: context.unitId,
         sourceDay: day,
         events: eventsByDay.get(day) ?? [],
       });
     },
-    [context.seasonId, context.seasonLabel, context.unitId, eventsByDay],
+    [context.planKey, context.seasonLabel, context.unitId, eventsByDay],
   );
 
   /**
@@ -69,9 +71,9 @@ export function useDayCopyPaste(
    */
   const copyDay = useMemo(() => {
     if (!clipboard) return null;
-    if (clipboard.sourceSeasonId !== context.seasonId) return null;
+    if (clipboard.sourcePlanKey !== context.planKey) return null;
     return clipboard.sourceDay;
-  }, [clipboard, context.seasonId]);
+  }, [clipboard, context.planKey]);
 
   useEffect(() => {
     if (!clipboard) {
@@ -80,7 +82,7 @@ export function useDayCopyPaste(
     }
 
     const crossSeason =
-      clipboard.sourceSeasonLabel !== undefined && clipboard.sourceSeasonId !== context.seasonId;
+      clipboard.sourceSeasonLabel !== undefined && clipboard.sourcePlanKey !== context.planKey;
 
     notifications.show({
       id: "copy-hint",
@@ -110,7 +112,7 @@ export function useDayCopyPaste(
       color: "blue",
       loading: true,
     });
-  }, [clipboard, context.seasonId, dayLabels, t]);
+  }, [clipboard, context.planKey, dayLabels, t]);
 
   const performPaste = useCallback(
     async (targetDay: number, source: DayClipboard) => {
@@ -152,7 +154,9 @@ export function useDayCopyPaste(
           {
             startTime: event.startTime,
             dayOfWeek: targetDay,
-            hruConfig: event.hruConfig,
+            // Normalised to the id: a custom timeline only accepts id references,
+            // and a legacy name reference means the same mode either way.
+            hruConfig: mode ? { ...event.hruConfig, mode: mode.id.toString() } : event.hruConfig,
             luftatorConfig: event.luftatorConfig,
             enabled: usable ? event.enabled : false,
           },

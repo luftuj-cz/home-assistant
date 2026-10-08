@@ -1,6 +1,6 @@
 import type { Request, Response, NextFunction } from "express";
 import type { Logger } from "pino";
-import { ApiError } from "../shared/errors/apiErrors.js";
+import { ApiError, DetailedConflictError } from "../shared/errors/apiErrors.js";
 
 export function createErrorHandler(logger: Logger) {
   return function errorHandler(
@@ -23,9 +23,13 @@ export function createErrorHandler(logger: Logger) {
       // has to travel in its own field or it never reaches the user - e.g. the
       // Modbus register and value behind a generic HRU_CONNECTION_ERROR.
       const cause = error.cause instanceof Error ? error.cause.message : undefined;
-      response
-        .status(error.statusCode)
-        .json({ detail: error.message, code: error.code, ...(cause ? { cause } : {}) });
+      const details = error instanceof DetailedConflictError ? error.details : undefined;
+      response.status(error.statusCode).json({
+        detail: error.message,
+        code: error.code,
+        ...(cause ? { cause } : {}),
+        ...(details === undefined ? {} : { details }),
+      });
       return;
     }
 

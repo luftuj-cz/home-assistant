@@ -559,6 +559,38 @@ export function deleteTimelineModeValues(modeId: number, timelineId: number): vo
 }
 
 /**
+ * Gives `toTimelineId` the values `fromTimelineId` holds for one mode,
+ * replacing whatever it had. Nothing happens when the source has none.
+ */
+export function copyTimelineModeValues(
+  modeId: number,
+  fromTimelineId: number,
+  toTimelineId: number,
+): boolean {
+  const db = getDatabase();
+  if (!db) throw new Error("Database not initialised");
+
+  const source = db
+    .prepare(`SELECT 1 FROM timeline_mode_values WHERE mode_id = ? AND timeline_id = ?`)
+    .get(modeId, fromTimelineId);
+  if (!source) return false;
+
+  db.prepare(`DELETE FROM timeline_mode_values WHERE mode_id = ? AND timeline_id = ?`).run(
+    modeId,
+    toTimelineId,
+  );
+  db.prepare(
+    `INSERT INTO timeline_mode_values
+       (mode_id, timeline_id, power, temperature, native_mode, variables, luftator_config,
+        script_entity_ids)
+     SELECT mode_id, ?, power, temperature, native_mode, variables, luftator_config,
+            script_entity_ids
+     FROM timeline_mode_values WHERE mode_id = ? AND timeline_id = ?`,
+  ).run(toTimelineId, modeId, fromTimelineId);
+  return true;
+}
+
+/**
  * Creates or updates a timeline mode.
  *
  * Identity (name, colour, boost) is shared across every season. Values are

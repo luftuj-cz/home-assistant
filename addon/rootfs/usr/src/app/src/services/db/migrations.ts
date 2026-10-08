@@ -277,6 +277,46 @@ export const migrations: Migration[] = [
         ON timelines(season_key, COALESCE(hru_id, ''))`,
     ],
   },
+  {
+    id: "016_custom_timelines",
+    statements: [
+      // Custom timelines live apart from the seasons on purpose: nothing that
+      // reads `timelines` or `timeline_events` can pick them up by accident.
+      // A unit is mandatory - there is no unit-less custom timeline to adopt.
+      // `name_key` is the name case-folded by the application: COLLATE NOCASE
+      // folds ASCII only, so "Dovolená" and "DOVOLENÁ" would both be accepted.
+      `CREATE TABLE IF NOT EXISTS custom_timelines (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        hru_id TEXT NOT NULL,
+        name TEXT NOT NULL,
+        name_key TEXT NOT NULL,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+      )`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS idx_custom_timelines_unit_name
+        ON custom_timelines(hru_id, name_key)`,
+      // Events reference their mode by a real foreign key, so deleting a mode
+      // removes its custom events without any application code - unlike season
+      // events, which carry the mode inside hru_config JSON.
+      `CREATE TABLE IF NOT EXISTS custom_timeline_events (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        custom_timeline_id INTEGER NOT NULL,
+        mode_id INTEGER NOT NULL,
+        day_of_week INTEGER,
+        start_time TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        priority INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (custom_timeline_id) REFERENCES custom_timelines(id) ON DELETE CASCADE,
+        FOREIGN KEY (mode_id) REFERENCES timeline_modes(id) ON DELETE CASCADE
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_custom_timeline_events_timeline
+        ON custom_timeline_events(custom_timeline_id)`,
+      // Optional display name for a season; NULL keeps the translated default.
+      `ALTER TABLE timelines ADD COLUMN name TEXT`,
+    ],
+  },
 ];
 
 export function applyMigrations(database: DatabaseType): void {

@@ -12,10 +12,22 @@ import {
 import { isSeasonsFeatureEnabled } from "./db/seasonsFeature.js";
 import {
   mapTodayToTimelineDay,
+  pickActiveEventFrom,
   pickActiveEventWithContext,
   timeToMinutes,
 } from "./timeline/eventPicker.js";
 import { findTimelineModeByReference } from "./timeline/modeReference.js";
+import {
+  getCustomTimeline,
+  getCustomTimelineEvents,
+  toTimelineEvent,
+} from "./db/customTimelines.js";
+import {
+  overridePhase,
+  readCustomOverride,
+  writeCustomOverride,
+  type CustomTimelineOverride,
+} from "./timeline/customOverride.js";
 import { resolveCurrentUnitId } from "./unitResolution.js";
 
 import type { HruService } from "../features/hru/hru.service.js";
@@ -26,8 +38,9 @@ import { INFINITE_BOOST_DURATION_MINUTES } from "../constants.js";
 /**
  * "fallback" is the automatic safe state: distinct from "manual" so the
  * dashboard and MQTT never present an automatic low state as user control.
+ * "custom" is a custom timeline overriding the season schedule.
  */
-export type TimelineSource = "manual" | "schedule" | "boost" | "fallback";
+export type TimelineSource = "manual" | "schedule" | "boost" | "fallback" | "custom";
 
 /** Setpoint written by the safe state, clamped into the unit's declared range. */
 export const SAFE_STATE_TEMPERATURE_C = 20;
@@ -39,6 +52,8 @@ type ModeValue = string | number | undefined;
 export interface ActiveState {
   source: TimelineSource;
   modeName: ModeValue;
+  /** Set when the source is "custom": the overriding timeline's name. */
+  customTimelineName?: string;
 }
 
 type ActivePayload = {
@@ -52,6 +67,7 @@ type ActivePayload = {
   source: TimelineSource;
   id?: number;
   friendlyModeName?: string;
+  customTimelineName?: string;
   scriptEntityIds?: string[];
   // Uniquely identifies a single activation instance, so scripts fire once per
   // real activation but re-fire when the user re-triggers the same mode.
@@ -81,6 +97,14 @@ export class TimelineScheduler {
    * leaving and re-entering the condition writes it again.
    */
   private safeStateApplied = false;
+  /**
+   * Set while a stored custom override cannot apply and the season schedule
+   * runs in its place. Reported once per occurrence, and exposed so the
+   * dashboard can say the override is not in effect.
+   */
+  private customOverrideDegraded = false;
+  /** Custom override last skipped for belonging to another unit, logged once. */
+  private customOverrideSkippedFor: string | null = null;
   private schedulerTimer: NodeJS.Timeout | null = null;
   private keepAliveTimer: NodeJS.Timeout | null = null;
   private lastActiveState: ActiveState | null = null;
@@ -143,6 +167,10 @@ export class TimelineScheduler {
     if (state.source === "fallback") {
       return translations.fallback;
     }
+    // The timeline's name is user data and is shown as typed.
+    if (state.source === "custom") {
+      return `${state.customTimelineName ?? "?"}: ${state.modeName || "?"}`;
+    }
 
     const prefix = state.source === "boost" ? translations.boost : translations.schedule;
     return `${prefix}: ${state.modeName || "?"}`;
@@ -156,6 +184,11 @@ export class TimelineScheduler {
     }
     const diff = new Date(override.endTime).getTime() - Date.now();
     return Math.max(0, Math.ceil(diff / 60000));
+  }
+
+  /** True while a stored custom override cannot apply and the season schedule runs instead. */
+  public isCustomOverrideDegraded(): boolean {
+    return this.customOverrideDegraded;
   }
 
   public getActiveBoostName(): string | null {
@@ -283,12 +316,115 @@ export class TimelineScheduler {
       `${new Date().getHours().toString().padStart(2, "0")}:${new Date().getMinutes().toString().padStart(2, "0")}`,
     );
     const today = mapTodayToTimelineDay();
+
+    const customPayload = this.resolveCustomOverridePayload(currentUnitId, nowMinutes, today);
+    if (customPayload) return customPayload;
+
     const { event, modes } = pickActiveEventWithContext(currentUnitId, nowMinutes, today);
     if (!event) {
       return this.resolveNoEventPayload(currentUnitId);
     }
 
     return this.buildScheduledEventPayload(event, modes);
+  }
+
+  /**
+   * A custom timeline overriding the season schedule, if one applies now.
+   *
+   * Its events decide which mode runs; the mode's values come from the season
+   * active by the calendar, resolved on every tick, so an override that crosses
+   * a season boundary switches values with it. Anything that stops it applying
+   * returns null and the season schedule runs - a known-good plan - rather than
+   * the safe state, which is for having no plan at all.
+   */
+  private resolveCustomOverridePayload(
+    currentUnitId: string | undefined,
+    nowMinutes: number,
+    today: number,
+  ): ActivePayload | null {
+    const override = readCustomOverride();
+    if (!override) {
+      this.customOverrideDegraded = false;
+      return null;
+    }
+
+    const phase = overridePhase(override);
+    if (phase === "expired") {
+      writeCustomOverride(null);
+      this.customOverrideDegraded = false;
+      this.logger.info({ override }, "TimelineScheduler: custom override ended, cleared");
+      return null;
+    }
+    if (phase === "scheduled") {
+      // Not running yet, so nothing is degraded: a flag left over from a
+      // previous override would otherwise swallow this one's first error log.
+      this.customOverrideDegraded = false;
+      return null;
+    }
+
+    const timeline = getCustomTimeline(override.customTimelineId);
+    if (!timeline) {
+      // Deletion is refused while overriding, so this is an imported or
+      // hand-edited database. Nothing can ever apply it again.
+      writeCustomOverride(null);
+      this.logger.warn(
+        { override },
+        "TimelineScheduler: overriding custom timeline no longer exists, override cleared",
+      );
+      return null;
+    }
+    if (timeline.hruId !== currentUnitId) {
+      // Kept, not cleared: returning to that unit resumes it.
+      const key = `${override.customTimelineId}|${override.activatedAt}|${currentUnitId ?? "-"}`;
+      if (this.customOverrideSkippedFor !== key) {
+        this.customOverrideSkippedFor = key;
+        this.logger.info(
+          { override, unitId: currentUnitId, timelineUnit: timeline.hruId },
+          "TimelineScheduler: custom override belongs to another unit, not applied",
+        );
+      }
+      return null;
+    }
+    this.customOverrideSkippedFor = null;
+
+    const activeSeasonId = getActiveSeasonId(currentUnitId ?? null);
+    const modes = getTimelineModes(currentUnitId, activeSeasonId);
+    const events = getCustomTimelineEvents(timeline.id).map((event) =>
+      toTimelineEvent(event, timeline.hruId),
+    );
+    const event = pickActiveEventFrom(events, modes, nowMinutes, today);
+    const mode = event ? findTimelineModeByReference(modes, event.hruConfig?.mode) : null;
+
+    // Write-side checks make this unreachable: every mode a custom timeline
+    // uses is configured in every enabled season. If it happens anyway, an
+    // unconfigured mode would be a silent no-op reported as running.
+    if (!event || !mode || mode.configured === false) {
+      if (!this.customOverrideDegraded) {
+        this.logger.error(
+          { override, eventId: event?.id, modeId: event?.hruConfig?.mode, activeSeasonId },
+          "TimelineScheduler: custom override resolves no usable event, running the season schedule",
+        );
+      }
+      this.customOverrideDegraded = true;
+      return null;
+    }
+    this.customOverrideDegraded = false;
+
+    return {
+      ...this.buildScheduledEventPayload(event, modes),
+      source: "custom",
+      friendlyModeName: mode.name,
+      customTimelineName: timeline.name,
+      activationToken: this.customActivationToken(override, event),
+    };
+  }
+
+  /**
+   * One activation per event of one override: a transition to another event
+   * fires its scripts, and so does activating the same timeline anew.
+   */
+  private customActivationToken(override: CustomTimelineOverride, event: TimelineEvent): string {
+    return `custom|${override.customTimelineId}|${override.activatedAt}|${event.id ?? "x"}|${event.dayOfWeek ?? "all"}|${event.startTime}`;
   }
 
   /**
@@ -746,7 +882,7 @@ export class TimelineScheduler {
     }
 
     let modeName: ModeValue;
-    if (source === "boost" || source === "schedule") {
+    if (source === "boost" || source === "schedule" || source === "custom") {
       modeName = activePayload.friendlyModeName || hruConfig?.mode;
       this.logger.info(
         { source, id, modeName, hruConfig },
@@ -762,9 +898,11 @@ export class TimelineScheduler {
     const hasValves = luftatorConfig && Object.keys(luftatorConfig).length > 0;
     const hasHru = Boolean(hruConfig);
 
+    const { customTimelineName } = activePayload;
+
     if (!hasValves && !hasHru) {
       this.logger.debug({ source, id }, "TimelineScheduler: active state has no HRU/valve payload");
-      this.lastActiveState = { source, modeName };
+      this.lastActiveState = { source, modeName, customTimelineName };
       return;
     }
 
@@ -809,7 +947,7 @@ export class TimelineScheduler {
     // modeName describes the HRU mode/boost, not individual valve positions, so
     // it shouldn't stay stuck on the old value just because one valve lagged.
     if (!hasHru || !hruApplyError) {
-      this.lastActiveState = { source, modeName };
+      this.lastActiveState = { source, modeName, customTimelineName };
     }
 
     if (throwOnApplyError && firstApplyError) {
