@@ -53,6 +53,8 @@ export interface HruVariable {
   max?: number;
   maxDefault?: number;
   step?: number;
+  /** Written in place of a value missing from a write payload. */
+  defaultValue?: number | boolean;
   options?: Array<{
     value: number;
     label: LocalizedText;

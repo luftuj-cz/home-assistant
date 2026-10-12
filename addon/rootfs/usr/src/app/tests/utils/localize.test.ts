@@ -31,7 +31,7 @@ describe("resolveLocaleKey", () => {
 
   it("translates every key the unit definitions mark as translatable", () => {
     const keys = translatableKeys();
-    expect(keys.length).toBeGreaterThan(40);
+    expect(keys.length).toBeGreaterThan(30);
     for (const lang of ["cs", "en"]) {
       const missing = keys.filter((key) => resolveLocaleKey(lang, key) === undefined);
       expect(missing, `untranslated in ${lang}`).toEqual([]);

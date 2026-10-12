@@ -73,6 +73,8 @@
     "bypassOpened": "Open",
     "boost": "Boost",
     "offset": "Disbalance offset",
+    "unitOn": "Unit on",
+    "heating": "Heating",
     "flowOut": "Flow out",
     "flowIn": "Flow in",
     "serialNo": "Serial number",
