@@ -15,6 +15,10 @@ import (
 // Supply and extract flow setpoints are 32-bit unsigned values in m3/h spread
 // over two registers, high word first (106-107 supply, 108-109 extract).
 //
+// Register numbers in the manual are 1-based: register N lives at Modbus
+// protocol address N-1 (ON/OFF, register 1, is address 0). The comments below
+// use the manual numbering; the switch cases use protocol addresses.
+//
 // Register 5 is asymmetric: it reads back the full state enumeration 0..10 but
 // only accepts writes of 1..4 (Away, Normal, Intensive, Boost).
 type DomektC6 struct {
@@ -54,29 +58,29 @@ func boolRegister(value bool) uint16 {
 
 func (d *DomektC6) read(register uint16) (uint16, *Exception) {
 	switch register {
-	case 1:
+	case 0:
 		return boolRegister(d.on), &Success
-	case 4:
+	case 3:
 		return boolRegister(d.autoMode), &Success
-	case 5:
+	case 4:
 		return uint16(d.mode), &Success
-	case 106:
+	case 105:
 		return uint16(d.supplyFlow >> 16), &Success
-	case 107:
+	case 106:
 		return uint16(d.supplyFlow & 0xFFFF), &Success
-	case 108:
+	case 107:
 		return uint16(d.extractFlow >> 16), &Success
-	case 109:
+	case 108:
 		return uint16(d.extractFlow & 0xFFFF), &Success
-	case 110:
+	case 109:
 		return uint16(int16(d.setpoint)), &Success
-	case 111:
+	case 110:
 		return boolRegister(d.heating), &Success
-	case 902:
+	case 901:
 		return uint16(int16(d.supplyTemperature)), &Success
-	case 903:
+	case 902:
 		return uint16(int16(d.extractTemperature)), &Success
-	case 917:
+	case 916:
 		return uint16(d.filterImpurity), &Success
 	}
 	return 0, &IllegalDataAddress
@@ -102,11 +106,11 @@ func setLowWord(target *uint32, value uint16) {
 
 func (d *DomektC6) write(register uint16, value uint16) *Exception {
 	switch register {
-	case 1:
+	case 0:
 		return writeBool("on", value, &d.on)
-	case 4:
+	case 3:
 		return writeBool("autoMode", value, &d.autoMode)
-	case 5:
+	case 4:
 		// Read range is 0..10 but only Away..Boost may be written.
 		if value < 1 || value > 4 {
 			log.Printf("rejected mode %d, only 1..4 (Away, Normal, Intensive, Boost) are writable\n", value)
@@ -115,21 +119,21 @@ func (d *DomektC6) write(register uint16, value uint16) *Exception {
 		d.mode = int(value)
 		log.Printf(">>> CHANGE: mode=%d\n", d.mode)
 		return &Success
-	case 106:
+	case 105:
 		setHighWord(&d.supplyFlow, value)
 		return &Success
-	case 107:
+	case 106:
 		setLowWord(&d.supplyFlow, value)
 		log.Printf(">>> CHANGE: supplyFlow=%d m3/h\n", d.supplyFlow)
 		return &Success
-	case 108:
+	case 107:
 		setHighWord(&d.extractFlow, value)
 		return &Success
-	case 109:
+	case 108:
 		setLowWord(&d.extractFlow, value)
 		log.Printf(">>> CHANGE: extractFlow=%d m3/h\n", d.extractFlow)
 		return &Success
-	case 110:
+	case 109:
 		if value < 50 || value > 400 {
 			log.Printf("rejected setpoint %d, outside 50..400\n", value)
 			return &IllegalDataValue
@@ -137,7 +141,7 @@ func (d *DomektC6) write(register uint16, value uint16) *Exception {
 		d.setpoint = int(value)
 		log.Printf(">>> CHANGE: setpoint=%d\n", d.setpoint)
 		return &Success
-	case 111:
+	case 110:
 		return writeBool("heating", value, &d.heating)
 	}
 	return &IllegalDataAddress

@@ -97,7 +97,7 @@
       {
         "type": "assignment",
         "variable": "$supplyHigh",
-        "value": { "function": "modbus_read_holding", "args": [106, 1] }
+        "value": { "function": "modbus_read_holding", "args": [105, 1] }
       },
       {
         "type": "assignment",
@@ -106,7 +106,7 @@
           "function": "sum",
           "args": [
             { "function": "multiply", "args": ["$supplyHigh", 65536] },
-            { "function": "modbus_read_holding", "args": [107, 1] }
+            { "function": "modbus_read_holding", "args": [106, 1] }
           ]
         }
       },
@@ -118,7 +118,7 @@
           "args": [
             {
               "function": "int16",
-              "args": [{ "function": "modbus_read_holding", "args": [110, 1] }]
+              "args": [{ "function": "modbus_read_holding", "args": [109, 1] }]
             },
             0.1
           ]
@@ -127,30 +127,16 @@
       {
         "type": "assignment",
         "variable": "$heating",
-        "value": { "function": "modbus_read_holding", "args": [111, 1] }
+        "value": { "function": "modbus_read_holding", "args": [110, 1] }
       },
       {
         "type": "assignment",
         "variable": "$unitOn",
-        "value": { "function": "modbus_read_holding", "args": [1, 1] }
+        "value": { "function": "modbus_read_holding", "args": [0, 1] }
       },
       {
         "type": "assignment",
         "variable": "$roomTemperature",
-        "value": {
-          "function": "multiply",
-          "args": [
-            {
-              "function": "int16",
-              "args": [{ "function": "modbus_read_holding", "args": [903, 1] }]
-            },
-            0.1
-          ]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$supplyTemperature",
         "value": {
           "function": "multiply",
           "args": [
@@ -164,8 +150,22 @@
       },
       {
         "type": "assignment",
+        "variable": "$supplyTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [{ "function": "modbus_read_holding", "args": [901, 1] }]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
         "variable": "$filterImpurity",
-        "value": { "function": "modbus_read_holding", "args": [917, 1] }
+        "value": { "function": "modbus_read_holding", "args": [916, 1] }
       }
     ],
     "write": [
@@ -192,7 +192,7 @@
         "expression": {
           "function": "modbus_write_holding_multi",
           "args": [
-            106,
+            105,
             { "function": "bit_rshift", "args": ["$supply", 16] },
             { "function": "bit_and", "args": ["$supply", 65535] }
           ]
@@ -203,7 +203,7 @@
         "expression": {
           "function": "modbus_write_holding_multi",
           "args": [
-            108,
+            107,
             { "function": "bit_rshift", "args": ["$extract", 16] },
             { "function": "bit_and", "args": ["$extract", 65535] }
           ]
@@ -214,7 +214,7 @@
         "expression": {
           "function": "modbus_write_holding",
           "args": [
-            110,
+            109,
             {
               "function": "round",
               "args": [{ "function": "multiply", "args": ["$temperature", 10] }]
@@ -224,19 +224,19 @@
       },
       {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [111, "$heating"] }
+        "expression": { "function": "modbus_write_holding", "args": [110, "$heating"] }
       },
       {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [5, 2] }
+        "expression": { "function": "modbus_write_holding", "args": [4, 2] }
       },
       {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [4, 0] }
+        "expression": { "function": "modbus_write_holding", "args": [3, 0] }
       },
       {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [1, "$unitOn"] }
+        "expression": { "function": "modbus_write_holding", "args": [0, "$unitOn"] }
       }
     ]
   }
