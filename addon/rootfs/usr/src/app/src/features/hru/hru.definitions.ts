@@ -9,6 +9,7 @@ export const ALLOWED_FUNCTIONS = [
   "modbus_write_command",
   "modbus_write_holding_multi",
   "modbus_read_holding",
+  "modbus_read_holding_uint32",
   "modbus_read_input",
   "modbus_write_coil",
   "modbus_read_discrete",

@@ -13,7 +13,8 @@ import (
 // registers, coils or discrete inputs.
 //
 // Supply and extract flow setpoints are 32-bit unsigned values in m3/h spread
-// over two registers, high word first (106-107 supply, 108-109 extract).
+// over two registers, high word first (106-107 supply, 108-109 extract). The
+// controller rejects any read that covers only one half of such a pair.
 //
 // Register numbers in the manual are 1-based: register N lives at Modbus
 // protocol address N-1 (ON/OFF, register 1, is address 0). The comments below
@@ -147,8 +148,31 @@ func (d *DomektC6) write(register uint16, value uint16) *Exception {
 	return &IllegalDataAddress
 }
 
+// pairStarts holds the protocol addresses of the high words of 32-bit values.
+var pairStarts = []uint16{105, 107}
+
+// splitsPair reports whether a read of numRegs registers from register covers
+// only one half of a 32-bit pair. The real C6 answers such a read with
+// exception 3 (Illegal data value).
+func splitsPair(register uint16, numRegs int) bool {
+	end := int(register) + numRegs // exclusive
+	for _, start := range pairStarts {
+		hasHigh := int(start) >= int(register) && int(start) < end
+		hasLow := int(start)+1 >= int(register) && int(start)+1 < end
+		if hasHigh != hasLow {
+			return true
+		}
+	}
+	return false
+}
+
 func (d *DomektC6) Configure(serv *Server) {
 	OnReadHoldingRegisters(serv, func(register uint16, numRegs int) ([]uint16, *Exception) {
+		// Like the real controller, refuse a read that splits a 32-bit pair.
+		if splitsPair(register, numRegs) {
+			log.Printf("rejected read %d+%d, splits a 32-bit register pair\n", register, numRegs)
+			return []uint16{}, &IllegalDataValue
+		}
 		values := make([]uint16, numRegs)
 		for i := range values {
 			value, err := d.read(register + uint16(i))

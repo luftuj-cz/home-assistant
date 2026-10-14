@@ -96,19 +96,8 @@
     "read": [
       {
         "type": "assignment",
-        "variable": "$supplyHigh",
-        "value": { "function": "modbus_read_holding", "args": [105, 1] }
-      },
-      {
-        "type": "assignment",
         "variable": "$power",
-        "value": {
-          "function": "sum",
-          "args": [
-            { "function": "multiply", "args": ["$supplyHigh", 65536] },
-            { "function": "modbus_read_holding", "args": [106, 1] }
-          ]
-        }
+        "value": { "function": "modbus_read_holding_uint32", "args": [105] }
       },
       {
         "type": "assignment",
