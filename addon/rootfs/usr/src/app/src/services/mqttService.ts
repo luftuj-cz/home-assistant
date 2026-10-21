@@ -4,12 +4,23 @@ import { randomUUID } from "node:crypto";
 import { inspect } from "node:util";
 import type { Logger } from "pino";
 import type { AppConfig } from "../config/options.js";
-import { getActiveSeasonId, getAppSetting } from "./database.js";
+import { getActiveSeasonId, getAppSetting, getSeasons } from "./database.js";
+import { seasonDisplayName } from "./db/seasons.js";
+import { getCustomTimeline, getCustomTimelines } from "./db/customTimelines.js";
+import {
+  activateCustomOverride,
+  CustomOverrideRejectedError,
+  endCustomOverride,
+  overridePhase,
+  readCustomOverride,
+} from "./timeline/customOverride.js";
 import type { HeatRecoveryUnit, LocalizedText } from "../features/hru/hru.definitions.js";
 import type { MqttSettings, TimelineMode, TimelineOverride } from "../types/index.js";
 import { LANGUAGE_SETTING_KEY } from "../types/index.js";
 import { INFINITE_BOOST_DURATION_MINUTES } from "../constants.js";
 import type { SettingsRepository } from "../features/settings/settings.repository.js";
+import type { HruService } from "../features/hru/hru.service.js";
+import { resolveCurrentUnitId } from "./unitResolution.js";
 import type { TimelineScheduler } from "./timelineScheduler.js";
 import { BoostModeNotConfiguredError, buildBoostOverride } from "./timeline/boostOverride.js";
 import { classifyConnectionError, type ConnectionErrorState } from "../shared/errorCodes.js";
@@ -153,6 +164,8 @@ export class MqttService extends EventEmitter {
   private publishQueue: Promise<void> = Promise.resolve();
 
   private cachedDiscoveryUnit: HeatRecoveryUnit | null = null;
+  /** Last state sent per custom timeline switch, so each tick only sends changes. */
+  private readonly customSwitchStates = new Map<number, "ON" | "OFF">();
   private messageQueue: Promise<void> = Promise.resolve();
 
   constructor(
@@ -160,6 +173,8 @@ export class MqttService extends EventEmitter {
     private readonly settingsRepo: SettingsRepository,
     private readonly timelineScheduler: TimelineScheduler,
     private readonly logger: Logger,
+    /** Supplies the fallback unit when none is selected in Settings. */
+    private readonly hruService: Pick<HruService, "getAllUnits"> = { getAllUnits: () => [] },
   ) {
     super();
   }
@@ -463,13 +478,12 @@ export class MqttService extends EventEmitter {
     // entity exposes as an attribute so automations keep something stable.
     const seasonKey = state.active_season;
     const seasonName =
-      seasonKey && seasonKey !== "-"
-        ? (resolveLocaleKey(lang, `settings.seasons.names.${seasonKey}`) ?? seasonKey)
-        : seasonKey;
+      seasonKey && seasonKey !== "-" ? this.resolveSeasonName(seasonKey, lang) : seasonKey;
 
     const payload = JSON.stringify({
       ...state,
       ...localizedVariables,
+      ...this.customOverrideStateFields(),
       active_season: seasonName,
       active_season_key: seasonKey,
       mode: resolvedRawMode,
@@ -484,6 +498,101 @@ export class MqttService extends EventEmitter {
       this.logger.debug({ topic, state }, "MQTT: State published successfully");
     } catch (err) {
       this.logger.error({ err }, "MQTT: Failed to publish state");
+    }
+
+    // Catches an override that expired on its own since the last publish.
+    await this.publishCustomOverrideState();
+  }
+
+  /**
+   * Unit id custom timelines and modes are stored under - the Settings one,
+   * not the topic slug. The same resolution the routes and the scheduler use:
+   * with a different fallback here, an install that never selected a unit had
+   * its timelines created under one unit and its switches published for
+   * another.
+   */
+  private settingsUnitId(): string | null {
+    try {
+      return resolveCurrentUnitId(this.hruService);
+    } catch {
+      return null;
+    }
+  }
+
+  /** The season's own name when the user gave it one, else the translated default. */
+  private resolveSeasonName(seasonKey: string, lang: string): string {
+    try {
+      const season = getSeasons(this.settingsUnitId()).find(
+        (candidate) => candidate.seasonKey === seasonKey,
+      );
+      if (season) return seasonDisplayName(season, lang);
+    } catch {
+      // A state publish must not fail over a display name.
+    }
+    return resolveLocaleKey(lang, `settings.seasons.names.${seasonKey}`) ?? seasonKey;
+  }
+
+  /** Override fields of the state payload. Empty when no override is pending or running. */
+  private customOverrideStateFields(): Record<string, string | number | null> {
+    try {
+      const override = readCustomOverride();
+      if (!override) return { custom_timeline_id: null, custom_timeline_name: "-" };
+      const phase = overridePhase(override);
+      if (phase === "expired") return { custom_timeline_id: null, custom_timeline_name: "-" };
+      return {
+        custom_timeline_id: override.customTimelineId,
+        custom_timeline_name: getCustomTimeline(override.customTimelineId)?.name ?? "-",
+        custom_timeline_until: override.endsAt,
+        ...(phase === "scheduled" ? { custom_timeline_starts: override.startsAt } : {}),
+      };
+    } catch {
+      return {};
+    }
+  }
+
+  /** Id of the custom timeline the override is applying right now on this unit, if any. */
+  private applyingCustomTimelineId(): number | null {
+    const override = readCustomOverride();
+    if (!override || overridePhase(override) !== "active") return null;
+    const timeline = getCustomTimeline(override.customTimelineId);
+    if (!timeline) return null;
+    return timeline.hruId === this.settingsUnitId() ? timeline.id : null;
+  }
+
+  /**
+   * One retained ON/OFF per published custom timeline switch: ON only for the
+   * timeline the override is applying now. Sends only what changed, unless
+   * `force` - after discovery, when Home Assistant may have lost the states.
+   */
+  public async publishCustomOverrideState(force = false): Promise<void> {
+    if (!this.client || !this.connected || !this.cachedDiscoveryUnit) return;
+    let ids: number[];
+    let applying: number | null;
+    try {
+      ids = this.settingsRepo.getDiscoveredCustomTimelines();
+      applying = this.applyingCustomTimelineId();
+    } catch (err) {
+      this.logger.warn({ err }, "MQTT: Could not resolve custom override state");
+      return;
+    }
+
+    const unitId = this.slugify(this.cachedDiscoveryUnit.code || this.cachedDiscoveryUnit.name);
+    for (const id of ids) {
+      const next = id === applying ? "ON" : "OFF";
+      if (!force && this.customSwitchStates.get(id) === next) continue;
+      try {
+        await this.client.publishAsync(
+          `${BASE_TOPIC}/${unitId}/custom_timeline/${id}/state`,
+          next,
+          {
+            qos: 1,
+            retain: true,
+          },
+        );
+        this.customSwitchStates.set(id, next);
+      } catch (err) {
+        this.logger.error({ err, id }, "MQTT: Failed to publish custom timeline switch state");
+      }
     }
   }
 
@@ -522,6 +631,7 @@ export class MqttService extends EventEmitter {
       await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/cancel`);
       await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/+/start`);
       await this.client.unsubscribeAsync(`${unitBaseTopic}/boost/+/start_infinite`);
+      await this.client.unsubscribeAsync(`${unitBaseTopic}/custom_timeline/+/set`);
       this.logger.info({ unitId }, "MQTT: Unsubscribed from old unit commands successfully");
     } catch (err) {
       this.logger.error({ err, unitId }, "MQTT: Failed to unsubscribe from commands");
@@ -718,6 +828,7 @@ export class MqttService extends EventEmitter {
       await this.client.subscribeAsync(`${unitBaseTopic}/boost/cancel`);
       await this.client.subscribeAsync(`${unitBaseTopic}/boost/+/start`);
       await this.client.subscribeAsync(`${unitBaseTopic}/boost/+/start_infinite`);
+      await this.client.subscribeAsync(`${unitBaseTopic}/custom_timeline/+/set`);
       this.logger.info({ unitId }, "MQTT: Subscribed to unit commands successfully");
     } catch (err) {
       this.logger.error({ err, unitId }, "MQTT: Failed to subscribe to commands");
@@ -810,8 +921,58 @@ export class MqttService extends EventEmitter {
         await this.applyBoostOverride(override);
         this.logger.info("MQTT: Infinite Boost activated successfully");
       }
+
+      const customSwitchMatch = new RegExp(
+        String.raw`^${this.escapeRegExp(unitBaseTopic)}/custom_timeline/(\d+)/set$`,
+      ).exec(topic);
+      if (customSwitchMatch?.[1] && (payload === "ON" || payload === "OFF")) {
+        await this.handleCustomTimelineSwitch(Number.parseInt(customSwitchMatch[1], 10), payload);
+      }
     } catch (err) {
       this.logger.error({ err, topic }, "MQTT: Error handling incoming message");
+    }
+  }
+
+  /**
+   * ON makes the timeline the override from now on, without an end - the shape
+   * an automation needs ("alarm armed" on, "disarmed" off). OFF ends the
+   * override only when it names this timeline, so switching off "Chata" cannot
+   * end "Dovolená". A switch has no reply channel: a rejection is logged and
+   * the switch state is republished, so Home Assistant shows it off again.
+   */
+  private async handleCustomTimelineSwitch(customTimelineId: number, payload: "ON" | "OFF") {
+    try {
+      if (payload === "ON") {
+        this.logger.info({ customTimelineId }, "MQTT: Execute custom timeline switch ON");
+        await activateCustomOverride(
+          { customTimelineId, endsAt: null },
+          this.settingsUnitId(),
+          this.timelineScheduler,
+          this.logger,
+        );
+      } else {
+        const override = readCustomOverride();
+        if (
+          override?.customTimelineId === customTimelineId &&
+          overridePhase(override) !== "expired"
+        ) {
+          this.logger.info({ customTimelineId }, "MQTT: Execute custom timeline switch OFF");
+          await endCustomOverride(this.timelineScheduler, this.logger);
+        }
+      }
+    } catch (err) {
+      if (err instanceof CustomOverrideRejectedError) {
+        this.logger.error(
+          { customTimelineId, code: err.code, missing: err.missing },
+          `MQTT: custom timeline switch rejected: ${err.message}`,
+        );
+      } else {
+        this.logger.error({ err, customTimelineId }, "MQTT: custom timeline switch failed");
+      }
+    } finally {
+      // Forced: a rejected ON must flip Home Assistant's optimistic state back.
+      await this.publishCustomOverrideState(true);
+      this.emit("command-received");
     }
   }
 
@@ -1105,6 +1266,8 @@ export class MqttService extends EventEmitter {
     const boostCount = await this.updateBoostDiscovery(unitId, unit, device, availability);
     entityCount += boostCount;
 
+    entityCount += await this.updateCustomTimelineDiscovery(unitId, device, availability);
+
     await this.publishAvailability(unitId, "online");
     this.logger.info({ unitId, stableId, entityCount }, "MQTT: Discovery cycle complete");
   }
@@ -1218,6 +1381,80 @@ export class MqttService extends EventEmitter {
     );
   }
 
+  private async publishSwitch(
+    unitId: string,
+    id: string,
+    name: string,
+    state_topic: string,
+    command_topic: string,
+    device: object,
+    availability: object[],
+    icon: string,
+  ) {
+    if (!this.client || !this.connected) return;
+    const payload = {
+      name,
+      unique_id: `luftuj_hru_${unitId}_${id}`,
+      object_id: `luftuj_hru_${unitId}_${id}`,
+      state_topic,
+      command_topic,
+      payload_on: "ON",
+      payload_off: "OFF",
+      icon,
+      device,
+      availability,
+    };
+    await this.throttledPublish(
+      `${DISCOVERY_PREFIX}/switch/luftuj_hru_${unitId}/${id}/config`,
+      JSON.stringify(payload),
+      { qos: 1, retain: true },
+    );
+  }
+
+  /**
+   * One switch per custom timeline of the active unit, identified by the
+   * timeline id - a rename changes the entity's name, never the entity. Switches
+   * of deleted timelines are removed.
+   */
+  private async updateCustomTimelineDiscovery(
+    unitId: string,
+    device: object,
+    availability: object[],
+  ): Promise<number> {
+    const settingsUnitId = this.settingsUnitId();
+    const timelines = settingsUnitId ? getCustomTimelines(settingsUnitId) : [];
+    const current = new Set(timelines.map((timeline) => timeline.id));
+
+    for (const id of this.settingsRepo.getDiscoveredCustomTimelines()) {
+      if (current.has(id)) continue;
+      this.logger.info({ id }, "MQTT: Removing custom timeline switch (timeline was deleted)");
+      await this.removeDiscoveryEntity(unitId, "switch", `custom_timeline_${id}`);
+      await this.throttledPublish(`${BASE_TOPIC}/${unitId}/custom_timeline/${id}/state`, "", {
+        qos: 1,
+        retain: true,
+      });
+      this.customSwitchStates.delete(id);
+    }
+
+    for (const timeline of timelines) {
+      await this.publishSwitch(
+        unitId,
+        `custom_timeline_${timeline.id}`,
+        timeline.name,
+        `${BASE_TOPIC}/${unitId}/custom_timeline/${timeline.id}/state`,
+        `${BASE_TOPIC}/${unitId}/custom_timeline/${timeline.id}/set`,
+        device,
+        availability,
+        "mdi:calendar-clock",
+      );
+    }
+
+    this.settingsRepo.setDiscoveredCustomTimelines([...current]);
+    await this.publishCustomOverrideState(true);
+    this.logger.info({ count: timelines.length }, "MQTT: Custom timeline discovery updated");
+    return timelines.length;
+  }
+
   private async removeDiscoveryEntity(unitId: string, outputType: string, id: string) {
     if (!this.client || !this.connected) return;
     await this.throttledPublish(
@@ -1241,6 +1478,11 @@ export class MqttService extends EventEmitter {
       await this.removeDiscoveryEntity(oldUnitId, "button", `boost_${oldSlug}`);
       await this.removeDiscoveryEntity(oldUnitId, "button", `boost_${oldSlug}_infinite`);
     }
+
+    for (const id of this.settingsRepo.getDiscoveredCustomTimelines()) {
+      await this.removeDiscoveryEntity(oldUnitId, "switch", `custom_timeline_${id}`);
+    }
+    this.settingsRepo.setDiscoveredCustomTimelines([]);
 
     for (const sensorId of [
       "active_season",

@@ -2,6 +2,52 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.1-stable] - 2026-10-21
+
+### Added
+
+- **Custom plans**: Create any number of weekly plans of your own ("Holiday", "Cottage", "Working from home") in
+  Settings › Plans and edit them on the timeline like a season. A custom plan only says when which mode runs; the
+  modes always use the values of the season active by the calendar, so one plan works in January and July. A mode
+  can be used in a custom plan only once it has values in every enabled season. New plans start empty; "Fill the
+  week with one mode" sets one up in a click.
+- **Switching to a custom plan**: From the dashboard, run a custom plan instead of the season plan, starting now
+  or at a set time and ending at a set time or when you end it. A boost still runs on top and hands back to the
+  custom plan when it finishes. The dashboard and MQTT show it as "Plan name: Mode".
+- **Custom plans in Home Assistant**: Each custom plan gets an MQTT switch. On runs it until switched off; off
+  ends it only if that plan is the one running. The state payload carries the running plan's id, name and end.
+- **Season names**: Seasons can be renamed in Settings, and the default name restored. The Home Assistant season
+  sensor shows the name; automations that need a stable value should match on the `season_key` attribute, which
+  never changes.
+- **Unit definitions**: `modbus_read_holding_uint32` reads an unsigned 32-bit value stored high word first in a
+  single request, for controllers that reject a read of either half on its own. A variable can set a
+  `defaultValue`, written when a mode leaves that variable out; before, the write script saw 0 there, which could
+  switch the unit off.
+
+### Changed
+
+- **Komfovent Domekt C6**: Power is set as airflow in m³/h (50–600, with a configurable maximum of 300 by default)
+  instead of a 1–4 level, and the extract airflow differs from the supply by a disbalance offset (−20 to +20 %).
+  Modes can also switch the unit on or off and turn heating on or off; a mode that leaves these out switches the
+  unit on and heating off. The add-on puts the unit in Normal mode with auto mode off and writes both airflows
+  directly. Outside temperature, fan intensity, heat exchanger efficiency, error state and the native mode are no
+  longer shown. **After upgrading, set power in m³/h in every mode that drives a Domekt C6**: values saved as 1–4
+  are below the new minimum and are rejected when the mode is applied.
+
+### Fixed
+
+- **Schedule gap on single-weekday plans**: The scheduler looked back only six days plus today, so a plan whose
+  events all sit on one weekday had nothing to apply between midnight and that day's first event. The unit was
+  reported as manual in that window, or, with seasons on, driven to the safe state every week. The scheduler now
+  looks back a full week. A plan with a single event is now one continuous activation, so its activation scripts
+  no longer re-run every week.
+- **Timeline highlights the running event**: Before the first event of the day, the timeline page highlighted
+  nothing while the scheduler was applying an event from an earlier day. It now marks that event, and marks
+  nothing when you are viewing a season that is not running.
+- **Komfovent Domekt C6**: Every register address was one too high, so the setpoint, temperatures and filter
+  impurity were read from the wrong register, and the setpoint was written to the wrong one. Airflow is read in a
+  single request, because the C6 rejects a read of either half of the 32-bit value with exception 3.
+
 ## [1.1.0-stable] - 2026-09-24
 
 ### Added

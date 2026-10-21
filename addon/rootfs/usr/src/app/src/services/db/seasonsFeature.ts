@@ -105,7 +105,18 @@ export function isSeasonsFeatureEnabled(): boolean {
  * events and mode values already survive the round trip - reseeding the
  * boundaries on top of them broke that promise for the partition itself.
  */
-export function enableSeasonsFeature(hruId: string | null, cloneCurrent = true): Season[] {
+/**
+ * `verify` runs inside the transaction, against the seasons exactly as enabling
+ * left them, and is handed the season the schedule was copied from; throwing
+ * from it rolls the whole enable back. It exists for rules that depend on the
+ * outcome - which seasons end up enabled comes from the parked partition, so it
+ * cannot be predicted cheaply beforehand.
+ */
+export function enableSeasonsFeature(
+  hruId: string | null,
+  cloneCurrent = true,
+  verify?: (source: Season) => void,
+): Season[] {
   const db = requireDatabase();
 
   const run = db.transaction(() => {
@@ -141,6 +152,7 @@ export function enableSeasonsFeature(hruId: string | null, cloneCurrent = true):
     }
 
     setAppSetting(SEASONS_ENABLED_KEY, "true");
+    verify?.(source);
   });
 
   run();
@@ -246,10 +258,15 @@ export function getDisableImpact(hruId: string | null, keepSeasonKey: SeasonKey)
  * every season's boundary and enabled flag - is parked in `app_settings`, since
  * the rows are about to be overwritten with the whole-year collapse and the
  * enable flow reads them back from there.
+ *
+ * `verify` runs inside the transaction once the kept season is the only enabled
+ * one; throwing from it rolls the whole disable back. The kept season can be a
+ * parked one, so which values apply all year is only known here.
  */
 export function disableSeasonsFeature(
   hruId: string | null,
   keepSeasonKey: SeasonKey = "spring",
+  verify?: () => void,
 ): void {
   const db = requireDatabase();
   const seasons = getSeasons(hruId);
@@ -289,6 +306,7 @@ export function disableSeasonsFeature(
     ).run(keeper.id);
 
     setAppSetting(SEASONS_ENABLED_KEY, "false");
+    verify?.();
   });
 
   run();

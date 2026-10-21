@@ -16,6 +16,8 @@ export type HruSettings = {
 export const MQTT_SETTINGS_KEY = "mqtt.settings";
 export const MQTT_LAST_DISCOVERY_KEY = "mqtt.last_discovery_sent";
 export const MQTT_DISCOVERED_BOOSTS_KEY = "mqtt.discovered_boosts";
+/** Ids of the custom timelines whose MQTT switches are published, for cleanup. */
+export const MQTT_DISCOVERED_CUSTOM_TIMELINES_KEY = "mqtt.discovered_custom_timelines";
 export const MQTT_LAST_UNIT_ID_KEY = "mqtt.last_unit_id";
 
 export type MqttSettings = {
@@ -34,6 +36,11 @@ export const TIMELINE_MODES_KEY = "timeline.modes";
 /** Opt-in flag for seasons. Off by default; gates the feature, never the schema. */
 export const SEASONS_ENABLED_KEY = "timeline.seasons_enabled";
 export const TIMELINE_OVERRIDE_KEY = "timeline.override";
+/**
+ * The custom timeline overriding the season schedule. Its own key, never the
+ * boost slot: boost, test mode and commissioning overwrite that one freely.
+ */
+export const CUSTOM_OVERRIDE_KEY = "timeline.custom_override";
 export const BOOST_DURATION_KEY = "boost.duration";
 export const DEBUG_MODE_KEY = "developer.debug_mode";
 export const LOG_LEVEL_KEY = "frontend.log_level";

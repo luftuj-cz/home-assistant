@@ -55,6 +55,12 @@ export class HruRepository {
             const data = await mb.readHolding(addr, count);
             return data[0] ?? 0;
           },
+          // 32-bit value spread over two registers, high word first. Some units
+          // (e.g. Komfovent C6) reject reading either half on its own.
+          modbus_read_holding_uint32: async ([addr = 0]) => {
+            const data = await mb.readHolding(addr, 2);
+            return (data[0] ?? 0) * 65536 + (data[1] ?? 0);
+          },
           modbus_read_input: async ([addr = 0, count = 1]) => {
             const data = await mb.readInput(addr, count);
             return data[0] ?? 0;

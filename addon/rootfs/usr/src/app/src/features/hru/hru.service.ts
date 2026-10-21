@@ -426,6 +426,19 @@ export class HruService {
       scriptVars[`$${key}`] = this.normaliseWriteValue(variable, value, settings);
     }
 
+    // Write scripts usually set every register at once, and a variable missing from
+    // the payload would evaluate to 0 there - e.g. switch the unit off. Fill such
+    // variables from the definition's defaultValue, capped at the effective max.
+    for (const variable of editableVariables.values()) {
+      if (variable.defaultValue === undefined || `$${variable.name}` in scriptVars) continue;
+      const maxValue = this.getEffectiveMax(variable, settings);
+      const defaultValue =
+        typeof variable.defaultValue === "number" && maxValue !== undefined
+          ? Math.min(variable.defaultValue, maxValue)
+          : variable.defaultValue;
+      scriptVars[`$${variable.name}`] = this.normaliseWriteValue(variable, defaultValue, settings);
+    }
+
     return scriptVars;
   }
 

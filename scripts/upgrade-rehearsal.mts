@@ -109,14 +109,19 @@ function timeToMinutes(value: string): number {
   return (Number.parseInt(hours ?? "0", 10) || 0) * 60 + (Number.parseInt(minutes ?? "0", 10) || 0);
 }
 
-/** pickActiveEvent as it was before seasons: identical, minus the season filter. */
+/**
+ * pickActiveEvent as it was before seasons: identical, minus the season filter.
+ * Includes the week-long look-back fix (back = 7), so this script keeps
+ * answering whether the seasons migration moved anything, not whether the
+ * picker changed.
+ */
 function pickActiveEventLegacy(
   events: EventRow[],
   modeIds: Set<string>,
   nowMinutes: number,
   today: number,
 ): EventRow | null {
-  for (let back = 0; back < 7; back++) {
+  for (let back = 0; back <= 7; back++) {
     const targetDay = (today - back + 7) % 7;
     const dayCandidates = events.filter(
       (event) => event.enabled && (event.day_of_week === null || event.day_of_week === targetDay),

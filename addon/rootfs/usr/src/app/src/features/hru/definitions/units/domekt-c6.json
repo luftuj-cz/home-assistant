@@ -8,12 +8,27 @@
       "editable": true,
       "onDashboard": true,
       "label": { "text": "hru.power", "translate": true },
-      "unit": { "text": "hru.level", "translate": true },
-      "min": 1,
-      "max": 4,
-      "maxConfigurable": false,
-      "step": 1,
+      "unit": "m³/h",
+      "min": 50,
+      "max": 600,
+      "maxDefault": 300,
+      "maxConfigurable": true,
+      "step": 10,
+      "defaultValue": 150,
       "class": "power"
+    },
+    {
+      "name": "offset",
+      "type": "number",
+      "editable": true,
+      "onDashboard": false,
+      "label": { "text": "hru.offset", "translate": true },
+      "unit": "%",
+      "min": -20,
+      "max": 20,
+      "step": 1,
+      "defaultValue": 0,
+      "class": "other"
     },
     {
       "name": "temperature",
@@ -24,29 +39,29 @@
       "unit": "˚C",
       "min": 5,
       "max": 40,
-      "step": 0.5,
+      "step": 1,
+      "defaultValue": 20,
       "class": "temperature"
     },
     {
-      "name": "operationMode",
-      "type": "select",
-      "editable": false,
+      "name": "heating",
+      "type": "boolean",
+      "editable": true,
       "onDashboard": true,
-      "label": { "text": "hru.nativeMode", "translate": true },
-      "class": "other",
-      "options": [
-        { "value": 0, "label": { "text": "hru.modes.standby", "translate": true } },
-        { "value": 1, "label": { "text": "hru.modes.away", "translate": true } },
-        { "value": 2, "label": { "text": "hru.modes.normal", "translate": true } },
-        { "value": 3, "label": { "text": "hru.modes.intensive", "translate": true } },
-        { "value": 4, "label": { "text": "hru.modes.boost", "translate": true } },
-        { "value": 5, "label": { "text": "hru.modes.kitchen", "translate": true } },
-        { "value": 6, "label": { "text": "hru.modes.fireplace", "translate": true } },
-        { "value": 7, "label": { "text": "hru.modes.override", "translate": true } },
-        { "value": 8, "label": { "text": "hru.modes.holiday", "translate": true } },
-        { "value": 9, "label": { "text": "hru.modes.airQuality", "translate": true } },
-        { "value": 10, "label": { "text": "hru.modes.off", "translate": true } }
-      ]
+      "label": { "text": "hru.heating", "translate": true },
+      "defaultValue": 0,
+      "class": "flag",
+      "flag": "positive"
+    },
+    {
+      "name": "unitOn",
+      "type": "boolean",
+      "editable": true,
+      "onDashboard": true,
+      "label": { "text": "hru.unitOn", "translate": true },
+      "defaultValue": 1,
+      "class": "flag",
+      "flag": "positive"
     },
     {
       "name": "roomTemperature",
@@ -54,15 +69,6 @@
       "editable": false,
       "onDashboard": true,
       "label": { "text": "hru.roomTemperature", "translate": true },
-      "unit": "˚C",
-      "class": "temperature"
-    },
-    {
-      "name": "outsideTemperature",
-      "type": "number",
-      "editable": false,
-      "onDashboard": true,
-      "label": { "text": "hru.outsideTemperature", "translate": true },
       "unit": "˚C",
       "class": "temperature"
     },
@@ -76,15 +82,6 @@
       "class": "temperature"
     },
     {
-      "name": "fanIntensivity",
-      "type": "number",
-      "editable": false,
-      "onDashboard": true,
-      "label": { "text": "hru.fanIntensivity", "translate": true },
-      "unit": "%",
-      "class": "other"
-    },
-    {
       "name": "filterImpurity",
       "type": "number",
       "editable": false,
@@ -92,24 +89,6 @@
       "label": { "text": "hru.filterImpurity", "translate": true },
       "unit": "%",
       "class": "other"
-    },
-    {
-      "name": "heatExchangerEfficiency",
-      "type": "number",
-      "editable": false,
-      "onDashboard": false,
-      "label": { "text": "hru.heatExchangerEfficiency", "translate": true },
-      "unit": "%",
-      "class": "other"
-    },
-    {
-      "name": "error",
-      "type": "boolean",
-      "editable": false,
-      "onDashboard": true,
-      "label": { "text": "hru.errorState", "translate": true },
-      "class": "flag",
-      "flag": "negative"
     }
   ],
   "interface-type": "modbus-tcp",
@@ -118,12 +97,7 @@
       {
         "type": "assignment",
         "variable": "$power",
-        "value": { "function": "modbus_read_holding", "args": [5, 1] }
-      },
-      {
-        "type": "assignment",
-        "variable": "$operationMode",
-        "value": { "function": "modbus_read_holding", "args": [5, 1] }
+        "value": { "function": "modbus_read_holding_uint32", "args": [105] }
       },
       {
         "type": "assignment",
@@ -133,43 +107,25 @@
           "args": [
             {
               "function": "int16",
-              "args": [{ "function": "modbus_read_holding", "args": [110, 1] }]
+              "args": [{ "function": "modbus_read_holding", "args": [109, 1] }]
             },
             0.1
           ]
         }
+      },
+      {
+        "type": "assignment",
+        "variable": "$heating",
+        "value": { "function": "modbus_read_holding", "args": [110, 1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$unitOn",
+        "value": { "function": "modbus_read_holding", "args": [0, 1] }
       },
       {
         "type": "assignment",
         "variable": "$roomTemperature",
-        "value": {
-          "function": "multiply",
-          "args": [
-            {
-              "function": "int16",
-              "args": [{ "function": "modbus_read_holding", "args": [903, 1] }]
-            },
-            0.1
-          ]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$outsideTemperature",
-        "value": {
-          "function": "multiply",
-          "args": [
-            {
-              "function": "int16",
-              "args": [{ "function": "modbus_read_holding", "args": [904, 1] }]
-            },
-            0.1
-          ]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$supplyTemperature",
         "value": {
           "function": "multiply",
           "args": [
@@ -183,45 +139,93 @@
       },
       {
         "type": "assignment",
-        "variable": "$fanIntensivity",
+        "variable": "$supplyTemperature",
         "value": {
           "function": "multiply",
-          "args": [{ "function": "modbus_read_holding", "args": [910, 1] }, 0.1]
+          "args": [
+            {
+              "function": "int16",
+              "args": [{ "function": "modbus_read_holding", "args": [901, 1] }]
+            },
+            0.1
+          ]
         }
       },
       {
         "type": "assignment",
         "variable": "$filterImpurity",
-        "value": { "function": "modbus_read_holding", "args": [917, 1] }
-      },
-      {
-        "type": "assignment",
-        "variable": "$heatExchangerEfficiency",
-        "value": { "function": "modbus_read_holding", "args": [924, 1] }
-      },
-      {
-        "type": "assignment",
-        "variable": "$error",
-        "value": { "function": "modbus_read_holding", "args": [958, 1] }
+        "value": { "function": "modbus_read_holding", "args": [916, 1] }
       }
     ],
     "write": [
       {
+        "type": "assignment",
+        "variable": "$supply",
+        "value": { "function": "round", "args": ["$power"] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$extract",
+        "value": {
+          "function": "round",
+          "args": [
+            {
+              "function": "multiply",
+              "args": ["$power", { "function": "subtract", "args": [100, "$offset"] }, 0.01]
+            }
+          ]
+        }
+      },
+      {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [5, "$power"] }
+        "expression": {
+          "function": "modbus_write_holding_multi",
+          "args": [
+            105,
+            { "function": "bit_rshift", "args": ["$supply", 16] },
+            { "function": "bit_and", "args": ["$supply", 65535] }
+          ]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_holding_multi",
+          "args": [
+            107,
+            { "function": "bit_rshift", "args": ["$extract", 16] },
+            { "function": "bit_and", "args": ["$extract", 65535] }
+          ]
+        }
       },
       {
         "type": "action",
         "expression": {
           "function": "modbus_write_holding",
           "args": [
-            110,
+            109,
             {
               "function": "round",
               "args": [{ "function": "multiply", "args": ["$temperature", 10] }]
             }
           ]
         }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [110, "$heating"] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [4, 2] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [3, 0] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [0, "$unitOn"] }
       }
     ]
   }

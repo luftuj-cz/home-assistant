@@ -6,6 +6,7 @@ import {
   deleteTimelineModeValues,
   ensureActiveSeasonId,
   getActiveSeasonId,
+  getEnabledSeasons,
   getModeUsage,
   ModeValuesEmptyError,
   ModeValuesInUseError,
@@ -56,9 +57,16 @@ import {
   ApiError,
   BadRequestError,
   ConflictError,
+  DetailedConflictError,
   NotFoundError,
   ServiceUnavailableError,
 } from "../shared/errors/apiErrors.js";
+import { getCustomModeUsage } from "../services/db/customTimelines.js";
+import {
+  isOverridingTimeline,
+  readCustomOverride,
+  writeCustomOverride,
+} from "../services/timeline/customOverride.js";
 
 type HruValue = number | string | boolean;
 
@@ -484,6 +492,21 @@ export function createTimelineRouter(
         return next(new BadRequestError("No season to remove values from", "UNKNOWN_SEASON"));
       }
 
+      // A custom timeline may run in any enabled season, so values its modes
+      // rely on cannot be removed from one.
+      if (hruId && getEnabledSeasons(hruId).some((season) => season.id === seasonId)) {
+        const usedBy = getCustomModeUsage(hruId, id);
+        if (usedBy.length > 0) {
+          return next(
+            new DetailedConflictError(
+              "Custom timelines use this mode; its values cannot be removed from an enabled season",
+              "MODE_VALUES_IN_USE_BY_CUSTOM_TIMELINE",
+              { customTimelines: usedBy },
+            ),
+          );
+        }
+      }
+
       deleteTimelineModeValues(id, seasonId);
       logger.info({ id, seasonId }, "Removed mode values for season");
       response.status(204).end();
@@ -506,7 +529,13 @@ export function createTimelineRouter(
         return next(new BadRequestError("Invalid mode id", "INVALID_MODE_ID"));
       }
       const hruId = getCurrentUnitId(request.query.unitId as string);
-      response.json({ modeId: id, seasons: getModeUsage(id, hruId) });
+      const customTimelines = hruId
+        ? getCustomModeUsage(hruId, id).map((usage) => ({
+            ...usage,
+            isOverriding: isOverridingTimeline(usage.customTimelineId),
+          }))
+        : [];
+      response.json({ modeId: id, seasons: getModeUsage(id, hruId), customTimelines });
     } catch (error) {
       if (error instanceof ApiError) return next(error);
       logger.error({ error }, "Failed to compute mode usage");
@@ -545,7 +574,29 @@ export function createTimelineRouter(
         logger.warn({ error }, "Failed to check/clear boost during mode deletion");
       }
 
+      // Deleting the mode removes its custom events through the foreign key. If
+      // that empties the overriding timeline the override could never apply
+      // again, so it ends here - the confirmation said it would.
+      const hruId = getCurrentUnitId(request.query.unitId as string);
+      const override = readCustomOverride();
+      const endsOverride =
+        hruId !== null &&
+        override !== null &&
+        isOverridingTimeline(override.customTimelineId) &&
+        getCustomModeUsage(hruId, id).some(
+          (usage) => usage.customTimelineId === override.customTimelineId && usage.wouldBeLeftEmpty,
+        );
+
       deleteTimelineMode(id);
+
+      if (endsOverride) {
+        writeCustomOverride(null);
+        logger.info({ id, override }, "Ended custom override: its timeline lost its last event");
+        void timelineScheduler.executeScheduledEvent();
+        mqttService.publishCustomOverrideState().catch((error) => {
+          logger.warn({ error }, "Failed to publish custom override state after mode deletion");
+        });
+      }
 
       // Trigger MQTT discovery refresh to remove buttons for deleted mode
       mqttService.refreshDiscovery().catch((error) => {

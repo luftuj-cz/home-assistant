@@ -3,7 +3,7 @@ import { Button, Container, Divider, Group, Modal, Stack, Text, Title } from "@m
 import { DndContext, type DragEndEvent, DragOverlay, type DragStartEvent } from "@dnd-kit/core";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { IconCalendar } from "@tabler/icons-react";
+import { IconCalendar, IconCalendarRepeat } from "@tabler/icons-react";
 import { translateApiError } from "@luftuj/shared/utils/apiError";
 
 import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimelineModesQuery";
@@ -27,6 +27,7 @@ import {
 import {
   DAY_ORDER,
   DEFAULT_START_TIME,
+  findActiveEvent,
   getDayLabels,
   getModeOptions,
 } from "@luftuj/features/timeline/utils";
@@ -39,8 +40,19 @@ import {
   EmptyActiveSeasonNotice,
   SeasonSwitcher,
   SeasonViewNotice,
-  useSeasonView,
 } from "@luftuj/features/timeline/components/SeasonSwitcher";
+import {
+  CustomTimelineSelect,
+  DefaultPlanButton,
+  isOverrideApplying,
+  PlanViewNotice,
+  usePlanView,
+} from "@luftuj/features/timeline/components/PlanSwitcher";
+import { ModeCoverageModal } from "@luftuj/features/timeline/components/ModeCoverageModal";
+import { FillWeekModal } from "@luftuj/features/timeline/components/FillWeekModal";
+import { useModeCoverage } from "@luftuj/features/timeline/hooks/useModeCoverage";
+import { fillCustomTimeline } from "@luftuj/features/timeline/customTimelinesApi";
+import { seasonLabel } from "@luftuj/shared/utils/seasonLabel";
 
 const logger = createLogger("TimelinePage");
 
@@ -52,6 +64,10 @@ export function TimelinePage() {
   // Deleting a mode removes events from every season, including ones off-screen,
   // so it goes through a confirmation that shows the per-season damage first.
   const [modePendingDelete, setModePendingDelete] = useState<Mode | null>(null);
+  // On a custom timeline a mode opens as its per-season coverage, not its values.
+  const [coverageMode, setCoverageMode] = useState<Mode | null>(null);
+  const [fillOpen, setFillOpen] = useState(false);
+  const [filling, setFilling] = useState(false);
 
   const { valves, valveGroups, hruVariables, powerUnit, maxPower, activeUnitId, loading } =
     useHruContext();
@@ -65,29 +81,47 @@ export function TimelinePage() {
     setViewedSeason,
     viewedSeason,
     activeSeason,
-  } = useSeasonView();
+    customTimelines,
+    override,
+    viewedCustom,
+    setViewedCustom,
+    clearCustomView,
+    ref,
+  } = usePlanView(activeUnitId);
+  const viewingCustom = viewedCustom !== undefined;
 
   // With the feature off there is still one season row behind the scenes, but
   // the user has no seasons: naming one in a dialog title or a paste toast is
   // vocabulary they never opted into.
   const viewedSeasonLabel =
-    seasonsEnabled && viewedSeason
-      ? t(`settings.seasons.names.${viewedSeason.seasonKey}`)
-      : undefined;
+    seasonsEnabled && viewedSeason && !viewingCustom ? seasonLabel(viewedSeason, t) : undefined;
+  const viewedPlanLabel = viewingCustom ? viewedCustom.name : viewedSeasonLabel;
 
+  // A custom timeline has no values of its own: its modes run with the values
+  // of the season active at the time, so that is what its mode list shows.
   const {
-    modes,
+    modes: seasonModes,
     saveMode,
     deleteMode,
     isMutating: isModesMutating,
-  } = useTimelineModesQuery(activeUnitId, viewedSeasonId);
+  } = useTimelineModesQuery(activeUnitId, viewingCustom ? activeSeasonId : viewedSeasonId);
+  const coverage = useModeCoverage(activeUnitId, seasons, viewingCustom);
+  // Usable on a custom timeline only when every enabled season can supply the
+  // values - so "configured" means covered there, reusing the unconfigured state.
+  const modes = useMemo(
+    () =>
+      viewingCustom
+        ? seasonModes.map((mode) => ({ ...mode, configured: coverage.isCovered(mode.id) }))
+        : seasonModes,
+    [coverage, seasonModes, viewingCustom],
+  );
   const {
     eventsByDay,
     saveEvent,
     deleteEvent,
     refetch: refetchEvents,
     isMutating,
-  } = useTimelineEventsQuery(modes, activeUnitId, viewedSeasonId);
+  } = useTimelineEventsQuery(modes, activeUnitId, ref);
 
   const {
     eventModalOpen,
@@ -155,13 +189,82 @@ export function TimelinePage() {
     confirmPaste,
     cancelPaste,
   } = useDayCopyPaste(t, eventsByDay, deleteEvent, saveEvent, dayLabels, {
-    seasonId: viewedSeasonId,
-    seasonLabel: viewedSeasonLabel,
+    planKey: `${ref.kind}:${ref.id ?? "-"}`,
+    seasonLabel: viewedPlanLabel,
     unitId: activeUnitId,
     modes,
   });
 
   const modeOptions = useMemo(() => getModeOptions(modes), [modes]);
+
+  // Only the plan actually running has a running event: the overriding custom
+  // timeline, or else the active season. Marking one in a plan the user is
+  // merely browsing would claim it is applied.
+  const overrideApplying = isOverrideApplying(override);
+  const showsRunningPlan = viewingCustom
+    ? overrideApplying && override?.customTimelineId === viewedCustom.id
+    : !overrideApplying && viewedSeasonId === activeSeasonId;
+  const activeEvent = showsRunningPlan
+    ? findActiveEvent(eventsByDay, modes, new Date())
+    : undefined;
+
+  const eventCount = useMemo(
+    () => [...eventsByDay.values()].reduce((total, list) => total + list.length, 0),
+    [eventsByDay],
+  );
+
+  const canLeave = useCallback(() => {
+    // A mode or event dialog is scoped to the plan it was opened in.
+    // Switching underneath it would silently retarget the save.
+    if (!eventModalOpen && !modeModalOpen) return true;
+    notifications.show({
+      color: "yellow",
+      title: t("settings.timeline.seasonSwitchBlockedTitle"),
+      message: t("settings.timeline.seasonSwitchBlocked"),
+    });
+    return false;
+  }, [eventModalOpen, modeModalOpen, t]);
+
+  const handleEditModeInView = useCallback(
+    (mode: Mode) => {
+      if (viewingCustom) {
+        setCoverageMode(mode);
+        return;
+      }
+      handleEditMode(mode);
+    },
+    [handleEditMode, viewingCustom],
+  );
+
+  const handleFillWeek = useCallback(
+    async (modeId: number) => {
+      if (!viewedCustom) return;
+      setFilling(true);
+      try {
+        await fillCustomTimeline(viewedCustom.id, modeId, activeUnitId);
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["timeline-events"] }),
+          queryClient.invalidateQueries({ queryKey: ["custom-timelines"] }),
+        ]);
+        setFillOpen(false);
+        notifications.show({
+          color: "green",
+          title: t("settings.timeline.notifications.saveSuccessTitle"),
+          message: t("settings.customTimelines.filled", { name: viewedCustom.name }),
+        });
+      } catch (err) {
+        logger.error("Failed to fill custom timeline", { error: err });
+        notifications.show({
+          color: "red",
+          title: t("settings.timeline.notifications.saveFailedTitle"),
+          message: translateApiError(err, t),
+        });
+      } finally {
+        setFilling(false);
+      }
+    },
+    [activeUnitId, queryClient, t, viewedCustom],
+  );
 
   const handleToggleEvent = useCallback(
     (event: TimelineEvent, enabled: boolean) => {
@@ -209,7 +312,15 @@ export function TimelinePage() {
         notifications.show({
           color: "yellow",
           title: t("settings.timeline.modeUnconfigured"),
-          message: t("settings.timeline.modeUnconfiguredDrop", { mode: mode.name }),
+          message: viewingCustom
+            ? t("settings.customTimelines.modeNotEverywhereDrop", {
+                mode: mode.name,
+                seasons: coverage
+                  .missingSeasons(mode.id)
+                  .map((season) => seasonLabel(season, t))
+                  .join(", "),
+              })
+            : t("settings.timeline.modeUnconfiguredDrop", { mode: mode.name }),
         });
         return;
       }
@@ -219,7 +330,7 @@ export function TimelinePage() {
       if (!Number.isFinite(day)) return;
       handleDropAndEdit(day, mode);
     },
-    [handleDropAndEdit],
+    [coverage, handleDropAndEdit, t, viewingCustom],
   );
 
   return (
@@ -236,36 +347,58 @@ export function TimelinePage() {
         </Stack>
 
         <Stack gap="sm">
-          <SeasonSwitcher
-            seasons={seasons}
-            viewedSeasonId={viewedSeasonId}
-            activeSeasonId={activeSeasonId}
-            onChange={setViewedSeason}
-            canLeave={() => {
-              // A mode or event dialog is scoped to the season it was opened
-              // in. Switching underneath it would silently retarget the save.
-              if (!eventModalOpen && !modeModalOpen) return true;
-              notifications.show({
-                color: "yellow",
-                title: t("settings.timeline.seasonSwitchBlockedTitle"),
-                message: t("settings.timeline.seasonSwitchBlocked"),
-              });
-              return false;
-            }}
-          />
-          <SeasonViewNotice viewedSeason={viewedSeason} activeSeason={activeSeason} />
-          <EmptyActiveSeasonNotice
-            featureEnabled={seasonsEnabled}
-            unitHasEnabledEvents={unitHasEnabledEvents}
+          <Group gap="sm" wrap="wrap" align="center">
+            {seasons.length >= 2 && (
+              <div style={{ flex: "1 1 320px", minWidth: 0 }}>
+                <SeasonSwitcher
+                  seasons={seasons}
+                  viewedSeasonId={viewedSeasonId}
+                  activeSeasonId={activeSeasonId}
+                  onChange={setViewedSeason}
+                  canLeave={canLeave}
+                  inactive={viewingCustom}
+                />
+              </div>
+            )}
+            {seasons.length < 2 && customTimelines.length > 0 && (
+              <DefaultPlanButton
+                active={!viewingCustom}
+                onSelect={() => {
+                  if (canLeave()) clearCustomView();
+                }}
+              />
+            )}
+            <CustomTimelineSelect
+              timelines={customTimelines}
+              viewedId={viewedCustom?.id}
+              onChange={setViewedCustom}
+              canLeave={canLeave}
+            />
+          </Group>
+          <PlanViewNotice
+            viewedCustom={viewedCustom}
+            viewedSeason={viewedSeason}
             activeSeason={activeSeason}
+            seasonsEnabled={seasonsEnabled}
+            override={override}
           />
+          {!viewingCustom && (
+            <SeasonViewNotice viewedSeason={viewedSeason} activeSeason={activeSeason} />
+          )}
+          {!viewingCustom && (
+            <EmptyActiveSeasonNotice
+              featureEnabled={seasonsEnabled}
+              unitHasEnabledEvents={unitHasEnabledEvents}
+              activeSeason={activeSeason}
+            />
+          )}
         </Stack>
 
         <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
           <TimelineModeList
             modes={modes}
-            onAdd={handleAddMode}
-            onEdit={handleEditMode}
+            onAdd={viewingCustom ? undefined : handleAddMode}
+            onEdit={handleEditModeInView}
             onDelete={(id) => setModePendingDelete(modes.find((m) => m.id === id) ?? null)}
             t={t}
             powerUnit={powerUnit}
@@ -282,12 +415,24 @@ export function TimelinePage() {
                   }}
                 >
                   <Text fw={700} size="sm">
-                    {t("schedule.title")}
+                    {viewingCustom ? viewedCustom.name : t("schedule.title")}
                   </Text>
                 </div>
               }
               labelPosition="left"
             />
+            {viewingCustom && (
+              <Group justify="flex-end">
+                <Button
+                  size="xs"
+                  variant="light"
+                  leftSection={<IconCalendarRepeat size={14} />}
+                  onClick={() => setFillOpen(true)}
+                >
+                  {t("settings.customTimelines.fillAction")}
+                </Button>
+              </Group>
+            )}
             <div
               style={{
                 display: "grid",
@@ -302,6 +447,7 @@ export function TimelinePage() {
                   dayIdx={dayIdx}
                   label={dayLabels[dayIdx]}
                   events={eventsByDay.get(dayIdx) ?? []}
+                  activeEvent={activeEvent}
                   modes={modes}
                   copyDay={copyDay}
                   copyActive={copyActive}
@@ -323,7 +469,7 @@ export function TimelinePage() {
             {activeMode ? (
               <ModeCard
                 mode={activeMode}
-                onEdit={handleEditMode}
+                onEdit={handleEditModeInView}
                 onDelete={(id) => setModePendingDelete(modes.find((m) => m.id === id) ?? null)}
                 t={t}
                 powerUnit={powerUnit}
@@ -365,7 +511,7 @@ export function TimelinePage() {
                   .filter((season) => season.id !== viewedSeasonId)
                   .map((season) => ({
                     id: season.id,
-                    label: t(`settings.seasons.names.${season.seasonKey}`),
+                    label: seasonLabel(season, t),
                   }))
               : []
           }
@@ -410,6 +556,27 @@ export function TimelinePage() {
           </Group>
         </Stack>
       </Modal>
+
+      <ModeCoverageModal
+        mode={coverageMode}
+        seasons={seasons}
+        missingSeasons={coverageMode ? coverage.missingSeasons(coverageMode.id) : []}
+        seasonsEnabled={seasonsEnabled}
+        onClose={() => setCoverageMode(null)}
+        onOpenSeason={(seasonId) => {
+          setCoverageMode(null);
+          setViewedSeason(seasonId);
+        }}
+      />
+
+      <FillWeekModal
+        opened={fillOpen}
+        modes={modes.filter((mode) => mode.configured !== false)}
+        existingEvents={eventCount}
+        saving={filling}
+        onClose={() => setFillOpen(false)}
+        onConfirm={(modeId) => void handleFillWeek(modeId)}
+      />
 
       <ModeDeleteConfirm
         mode={modePendingDelete}

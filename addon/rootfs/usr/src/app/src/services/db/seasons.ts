@@ -1,12 +1,14 @@
+import { resolveLocaleKey } from "../../utils/localize.js";
 import { solarEvent } from "../../utils/solarSeasons.js";
 import { getDatabase, getModuleLogger, setupDatabase } from "../database.js";
 import { cachedStatement } from "./statementCache.js";
 
 /**
- * The four seasons are a fixed set. They cannot be created, deleted or renamed
- * - only enabled, disabled and re-bounded - so their keys are stable
+ * The four seasons are a fixed set. They cannot be created or deleted - only
+ * enabled, disabled, re-bounded and renamed - so their keys are stable
  * identifiers that Home Assistant automations can compare against and that no
- * user action can change. Display names come from i18n.
+ * user action can change. A rename sets a display name only; without one the
+ * name comes from i18n.
  */
 export const SEASON_KEYS = ["spring", "summer", "autumn", "winter"] as const;
 
@@ -40,6 +42,8 @@ export interface Season {
   spanEnd: string;
   enabled: boolean;
   sortOrder: number;
+  /** Name the user gave the season; null shows the translated default. */
+  name?: string | null;
 }
 
 interface SeasonRecord {
@@ -50,6 +54,7 @@ interface SeasonRecord {
   span_end: string;
   enabled: number;
   sort_order: number;
+  name?: string | null;
 }
 
 function requireDatabase() {
@@ -76,7 +81,20 @@ function denormalise(record: SeasonRecord): Season {
     spanEnd: record.span_end,
     enabled: Boolean(record.enabled),
     sortOrder: record.sort_order,
+    name: record.name ?? null,
   };
+}
+
+/** What the user sees for a season: their own name, else the translated one. */
+export function seasonDisplayName(
+  season: Pick<Season, "seasonKey" | "name">,
+  lang: string,
+): string {
+  return (
+    season.name ??
+    resolveLocaleKey(lang, `settings.seasons.names.${season.seasonKey}`) ??
+    season.seasonKey
+  );
 }
 
 /**
@@ -439,6 +457,28 @@ export function updateSeason(
  * logic - they exist so an operator inspecting the database, or a support
  * bundle, sees spans that make sense.
  */
+/**
+ * Sets or clears a season's display name. The key - what Home Assistant
+ * automations match on - never changes.
+ */
+export function renameSeason(hruId: string | null, key: SeasonKey, name: string | null): Season[] {
+  const db = requireDatabase();
+  const statement =
+    hruId === null
+      ? cachedStatement(
+          db,
+          `UPDATE timelines SET name = ?, updated_at = datetime('now')
+           WHERE season_key = ? AND hru_id IS NULL`,
+        )
+      : cachedStatement(
+          db,
+          `UPDATE timelines SET name = ?, updated_at = datetime('now')
+           WHERE season_key = ? AND hru_id = ?`,
+        );
+  statement.run(name, key, ...(hruId === null ? [] : [hruId]));
+  return getSeasons(hruId);
+}
+
 export function persistDerivedSpanEnds(hruId: string | null): void {
   const db = requireDatabase();
   const update = db.prepare(

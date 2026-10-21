@@ -1,7 +1,8 @@
 export interface TimelineEvent {
   id?: number;
   startTime: string;
-  dayOfWeek: number;
+  /** 0 = Monday … 6 = Sunday. Null on a custom timeline: the event applies every day. */
+  dayOfWeek: number | null;
   hruConfig?: Record<string, unknown> | null;
   luftatorConfig?: Record<string, number> | null;
   enabled: boolean;

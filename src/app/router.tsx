@@ -132,15 +132,21 @@ const timelineRoute = createRoute({
   path: "/timeline",
   component: TimelinePage,
   /**
-   * Which season is being *viewed*. Deliberately separate from which season is
-   * active: browsing another season must never change what the unit is doing.
-   * Keeping it in the URL means the selection survives a reload and the back
-   * button, and can be linked to.
+   * Which season - or which custom timeline - is being *viewed*. Deliberately
+   * separate from what is running: browsing another plan must never change what
+   * the unit is doing. Keeping it in the URL means the selection survives a
+   * reload and the back button, and can be linked to. A custom timeline wins
+   * when both are given; the two are never viewed at once.
    */
-  validateSearch: (search: Record<string, unknown>): { season?: number } => {
-    const raw = search.season;
-    const parsed = typeof raw === "string" ? Number.parseInt(raw, 10) : Number(raw);
-    return Number.isFinite(parsed) && parsed > 0 ? { season: parsed } : {};
+  validateSearch: (search: Record<string, unknown>): { season?: number; custom?: number } => {
+    function positive(raw: unknown): number | undefined {
+      const parsed = typeof raw === "string" ? Number.parseInt(raw, 10) : Number(raw);
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+    }
+    const custom = positive(search.custom);
+    if (custom !== undefined) return { custom };
+    const season = positive(search.season);
+    return season === undefined ? {} : { season };
   },
 });
 

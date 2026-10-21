@@ -22,6 +22,7 @@ import {
 } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { TimelineEvent, Mode } from "@luftuj/shared/types/timeline";
+import type { ActiveEventRef } from "@luftuj/features/timeline/utils";
 import { MotionSwitch } from "@luftuj/shared/ui";
 
 export const DAY_DROP_PREFIX = "day:";
@@ -30,6 +31,8 @@ interface TimelineDayCardProps {
   dayIdx: number;
   label: string;
   events: TimelineEvent[];
+  /** The event the scheduler applies now, which may belong to an earlier day. */
+  activeEvent?: ActiveEventRef;
   modes: Mode[];
   copyDay: number | null;
   /** True while a day is on the clipboard, including one copied from another season. */
@@ -45,38 +48,11 @@ interface TimelineDayCardProps {
   t: TFunction;
 }
 
-function toMins(time: string) {
-  const [h, m] = time.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function isEventActive(ev: TimelineEvent, allDayEvents: TimelineEvent[], dayIdx: number): boolean {
-  const now = new Date();
-  const jsDay = now.getDay();
-  const currentDayIdx = jsDay === 0 ? 6 : jsDay - 1;
-  const nowMinutes = now.getHours() * 60 + now.getMinutes();
-
-  if (dayIdx === currentDayIdx) {
-    const startedEvents = allDayEvents.filter((e) => toMins(e.startTime) <= nowMinutes);
-    if (startedEvents.length === 0) return false;
-    const latest = startedEvents.at(-1)!;
-    return ev.id === latest.id && ev.startTime === latest.startTime;
-  }
-
-  const yesterdayIdx = (currentDayIdx - 1 + 7) % 7;
-  if (dayIdx === yesterdayIdx) {
-    const isLastOfItsDay = ev === allDayEvents.at(-1);
-    if (!isLastOfItsDay) return false;
-    return false;
-  }
-
-  return false;
-}
-
 export function TimelineDayCard({
   dayIdx,
   label,
   events,
+  activeEvent,
   modes,
   copyDay,
   copyActive,
@@ -182,7 +158,12 @@ export function TimelineDayCard({
       ) : (
         <Timeline active={-1} bulletSize={24} lineWidth={2}>
           {sortedEvents.map((ev) => {
-            const active = isEventActive(ev, sortedEvents, dayIdx);
+            // An every-day event appears in all seven columns; it runs only in
+            // the one the scheduler picked it from.
+            const active =
+              ev.id !== undefined &&
+              ev.id === activeEvent?.id &&
+              (ev.dayOfWeek !== null || dayIdx === activeEvent.day);
             const mode = modes.find((m) => m.id.toString() === ev.hruConfig?.mode?.toString());
             const highlightColor = mode?.color || "blue";
             const modeLabel =

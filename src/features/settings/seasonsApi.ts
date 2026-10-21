@@ -20,7 +20,7 @@ export async function fetchSeasons(): Promise<SeasonsResponse> {
  */
 export async function updateSeason(
   key: SeasonKey,
-  patch: { enabled?: boolean; spanStart?: string },
+  patch: { enabled?: boolean; spanStart?: string; name?: string | null },
 ): Promise<Season[]> {
   const res = await fetch(resolveApiUrl(`/api/seasons/${key}`), {
     method: "PATCH",

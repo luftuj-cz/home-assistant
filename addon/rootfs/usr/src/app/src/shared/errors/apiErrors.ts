@@ -83,3 +83,17 @@ export class OfflineModeError extends ServiceUnavailableError {
     super(message, "OFFLINE_MODE");
   }
 }
+
+/**
+ * A 409 whose cause is structured - which modes, which seasons, which plans -
+ * so the client can list them instead of showing only the translated code.
+ */
+export class DetailedConflictError extends ConflictError {
+  constructor(
+    message: string,
+    code: string,
+    public readonly details: unknown,
+  ) {
+    super(message, code);
+  }
+}

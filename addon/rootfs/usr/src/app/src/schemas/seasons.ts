@@ -12,10 +12,20 @@ export const seasonUpdateInputSchema = z
   .object({
     enabled: z.boolean().optional(),
     spanStart: monthDaySchema.optional(),
+    /** A display name, or null to go back to the translated default. */
+    name: z
+      .string()
+      .trim()
+      .min(1, "Name is required")
+      .max(60, "Name must be at most 60 characters")
+      .nullable()
+      .optional(),
   })
-  .refine((value) => value.enabled !== undefined || value.spanStart !== undefined, {
-    message: "Provide enabled, spanStart, or both",
-  });
+  .refine(
+    (value) =>
+      value.enabled !== undefined || value.spanStart !== undefined || value.name !== undefined,
+    { message: "Provide enabled, spanStart, name, or a combination" },
+  );
 
 export const seasonsEnableInputSchema = z.object({
   /**

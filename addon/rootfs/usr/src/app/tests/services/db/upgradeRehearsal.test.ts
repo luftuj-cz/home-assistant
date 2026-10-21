@@ -68,13 +68,17 @@ function seedLegacyInstall(db: DatabaseType, withEvents: boolean): void {
   insertEvent.run("15:00", 6, JSON.stringify({ mode: "2" }), null, 0, 0, UNIT);
 }
 
-/** The 1.0.9 pick, over the raw rows: latest event at or before now, searching back through the week. */
 function toMinutes(time: string): number {
   return Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
 }
 
+/**
+ * The 1.0.9 pick, over the raw rows: latest event at or before now, searching
+ * back through the week. Carries the later week-long look-back fix (d = 7) so
+ * that it compares migration behaviour, not the picker change.
+ */
 function legacyPick(events: LegacyEvent[], nowMinutes: number, today: number): LegacyEvent | null {
-  for (let d = 0; d < 7; d++) {
+  for (let d = 0; d <= 7; d++) {
     const targetDay = (today - d + 7) % 7;
     let candidates = events.filter(
       (e) => e.enabled === 1 && (e.day_of_week === null || e.day_of_week === targetDay),

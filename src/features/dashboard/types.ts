@@ -17,8 +17,11 @@ export interface ModbusLiveStatus extends ConnectionErrorInfo {
 export type MqttLiveStatus = ConnectionErrorInfo;
 
 export interface ActiveMode {
-  source: "manual" | "schedule" | "boost";
+  /** "fallback" is the automatic safe state; "custom" a custom timeline override. */
+  source: "manual" | "schedule" | "boost" | "fallback" | "custom";
   modeName?: string;
+  /** Set when the source is "custom". */
+  customTimelineName?: string;
 }
 
 export type LocalizedText = string | { text: string; translate: boolean };

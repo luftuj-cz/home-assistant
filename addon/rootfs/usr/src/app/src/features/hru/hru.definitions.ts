@@ -9,6 +9,7 @@ export const ALLOWED_FUNCTIONS = [
   "modbus_write_command",
   "modbus_write_holding_multi",
   "modbus_read_holding",
+  "modbus_read_holding_uint32",
   "modbus_read_input",
   "modbus_write_coil",
   "modbus_read_discrete",
@@ -53,6 +54,8 @@ export interface HruVariable {
   max?: number;
   maxDefault?: number;
   step?: number;
+  /** Written in place of a value missing from a write payload. */
+  defaultValue?: number | boolean;
   options?: Array<{
     value: number;
     label: LocalizedText;

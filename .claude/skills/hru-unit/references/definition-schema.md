@@ -89,6 +89,7 @@ Anything not in this list makes `HruLoader.validateExpression` throw and the ent
 | Function                     | Modbus FC | Semantics                                                 |
 | ---------------------------- | --------- | --------------------------------------------------------- |
 | `modbus_read_holding`        | **3**     | `args: [addr, count=1]` → returns `data[0]` only          |
+| `modbus_read_holding_uint32` | **3**     | `args: [addr]` — reads 2 registers, `hi * 65536 + lo`     |
 | `modbus_read_input`          | **4**     | `args: [addr, count=1]` → returns `data[0]` only          |
 | `modbus_read_discrete`       | **2**     | `args: [addr, count=1]` → `1` or `0`                      |
 | `modbus_read_coil`           | **1**     | `args: [addr, count=1]` → `1` or `0`                      |
@@ -97,8 +98,11 @@ Anything not in this list makes `HruLoader.validateExpression` throw and the ent
 | `modbus_write_holding_multi` | **16**    | `args: [addr, v1, v2, ...]` — variadic value list         |
 | `modbus_write_coil`          | **5**     | `args: [addr, val]` — any non-zero ⇒ ON                   |
 
-All reads return **only the first register**, whatever `count` says. There is no 32-bit, float, string or
-word-swap support: anything wider than one 16-bit register must be assembled by hand with `bit_lshift` + `sum`.
+All reads except `modbus_read_holding_uint32` return **only the first register**, whatever `count` says. For an
+unsigned 32-bit value stored high word first, use `modbus_read_holding_uint32` - some controllers (Komfovent C6)
+reject reading either half of a 32-bit pair on its own with exception 3, so it cannot be assembled from two
+single-register reads. There is no float, string or word-swap support: anything else wider than one 16-bit
+register must be assembled by hand with `bit_lshift` + `sum`.
 
 `modbus_write_command` is the read-before-write variant of `modbus_write_holding`, for command registers that
 re-trigger an action on every write, or that reject a redundant one with exception 3. It issues FC3 first and

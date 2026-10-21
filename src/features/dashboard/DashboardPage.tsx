@@ -6,6 +6,7 @@ import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimeli
 import { StatusCard } from "@luftuj/features/dashboard/components/StatusCard";
 import { HruStatusCard } from "@luftuj/features/dashboard/components/HruStatusCard";
 import { BoostButtons } from "@luftuj/features/dashboard/components/BoostButtons";
+import { CustomOverrideCard } from "@luftuj/features/dashboard/components/CustomOverrideCard";
 import { translateConnectionError } from "@luftuj/shared/utils/connectionError";
 
 export function DashboardPage() {
@@ -83,6 +84,8 @@ export function DashboardPage() {
         </Stack>
 
         <BoostButtons modes={modes} t={t} activeUnitId={unitId} />
+
+        <CustomOverrideCard unitId={unitId} />
 
         <HruStatusCard
           status={hruStatus}

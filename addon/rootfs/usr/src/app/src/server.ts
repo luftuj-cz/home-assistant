@@ -31,6 +31,7 @@ import { SettingsRepository } from "./features/settings/settings.repository.js";
 import { HruService } from "./features/hru/hru.service.js";
 import { HruController } from "./features/hru/hru.controller.js";
 
+import { createCustomTimelinesRouter } from "./routes/customTimelines.js";
 import { createSeasonsRouter } from "./routes/seasons.js";
 import { createTimelineRouter } from "./routes/timeline.js";
 import { createSettingsRouter } from "./routes/settings.js";
@@ -114,7 +115,13 @@ const timelineScheduler = new TimelineScheduler(
   haClient,
 );
 
-const mqttService = new MqttService(config.mqtt, settingsRepo, timelineScheduler, logger);
+const mqttService = new MqttService(
+  config.mqtt,
+  settingsRepo,
+  timelineScheduler,
+  logger,
+  hruService,
+);
 const hruMonitor = new HruMonitor(hruService, mqttService, timelineScheduler, logger);
 const commissioningRunner = new CommissioningRunner(settingsRepo, timelineScheduler, logger);
 
@@ -150,6 +157,10 @@ app.use("/api/hru", createHruRouter(hruController));
 app.use("/api/commissioning", createCommissioningRouter(commissioningRunner, hruService, logger));
 app.use("/api/timeline", createTimelineRouter(logger, timelineScheduler, hruService, mqttService));
 app.use("/api/seasons", createSeasonsRouter(logger, hruService, timelineScheduler));
+app.use(
+  "/api/custom-timelines",
+  createCustomTimelinesRouter(logger, hruService, timelineScheduler, mqttService),
+);
 app.use("/api/settings", createSettingsRouter(hruService, mqttService, haClient, logger));
 app.use(
   "/api/database",

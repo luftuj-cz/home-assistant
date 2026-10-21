@@ -22,7 +22,8 @@ export const MODE_DRAG_PREFIX = "mode:";
 
 interface TimelineModeListProps {
   modes: Mode[];
-  onAdd: () => void;
+  /** Omitted where modes cannot be created, e.g. on a custom timeline. */
+  onAdd?: () => void;
   onEdit: (mode: Mode) => void;
   onDelete: (id: number) => void;
   t: TFunction;
@@ -210,9 +211,16 @@ export function TimelineModeList({
               {modes.length}
             </Badge>
           </Group>
-          <Button size="xs" variant="outline" leftSection={<IconPlus size={14} />} onClick={onAdd}>
-            {t("settings.timeline.addMode")}
-          </Button>
+          {onAdd && (
+            <Button
+              size="xs"
+              variant="outline"
+              leftSection={<IconPlus size={14} />}
+              onClick={onAdd}
+            >
+              {t("settings.timeline.addMode")}
+            </Button>
+          )}
         </Group>
 
         {modes.length === 0 ? (
@@ -229,14 +237,16 @@ export function TimelineModeList({
               <Text size="sm" c="dimmed">
                 {t("settings.timeline.noModes")}
               </Text>
-              <Button
-                size="xs"
-                variant="subtle"
-                leftSection={<IconPlus size={14} />}
-                onClick={onAdd}
-              >
-                {t("settings.timeline.addMode")}
-              </Button>
+              {onAdd && (
+                <Button
+                  size="xs"
+                  variant="subtle"
+                  leftSection={<IconPlus size={14} />}
+                  onClick={onAdd}
+                >
+                  {t("settings.timeline.addMode")}
+                </Button>
+              )}
             </Stack>
           </Card>
         ) : (

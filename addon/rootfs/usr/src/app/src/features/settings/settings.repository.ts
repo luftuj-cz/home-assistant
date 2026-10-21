@@ -5,6 +5,7 @@ import {
   type HruSettings,
   LANGUAGE_SETTING_KEY,
   MQTT_DISCOVERED_BOOSTS_KEY,
+  MQTT_DISCOVERED_CUSTOM_TIMELINES_KEY,
   MQTT_LAST_DISCOVERY_KEY,
   MQTT_LAST_UNIT_ID_KEY,
   MQTT_SETTINGS_KEY,
@@ -126,6 +127,25 @@ export class SettingsRepository {
       setAppSetting(MQTT_DISCOVERED_BOOSTS_KEY, JSON.stringify(map));
     } catch (err) {
       this.logger.error({ err }, "Failed to set discovered boosts");
+    }
+  }
+
+  getDiscoveredCustomTimelines(): number[] {
+    try {
+      const raw = getAppSetting(MQTT_DISCOVERED_CUSTOM_TIMELINES_KEY);
+      const parsed: unknown = raw ? JSON.parse(String(raw)) : [];
+      return Array.isArray(parsed) ? parsed.filter((id) => typeof id === "number") : [];
+    } catch (err) {
+      this.logger.error({ err }, "Failed to get discovered custom timelines");
+      return [];
+    }
+  }
+
+  setDiscoveredCustomTimelines(ids: number[]): void {
+    try {
+      setAppSetting(MQTT_DISCOVERED_CUSTOM_TIMELINES_KEY, JSON.stringify(ids));
+    } catch (err) {
+      this.logger.error({ err }, "Failed to set discovered custom timelines");
     }
   }
 
