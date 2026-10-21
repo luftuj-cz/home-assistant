@@ -39,6 +39,7 @@ const __dirname = dirname(__filename);
 const ROOT_DIR = join(__dirname, "..");
 
 const ROOT_PKG_PATH = join(ROOT_DIR, "package.json");
+const ROOT_LOCK_PATH = join(ROOT_DIR, "package-lock.json");
 const CONSTANTS_PATH = join(
   ROOT_DIR,
   "addon",
@@ -57,6 +58,12 @@ const pkg = JSON.parse(readFileSync(ROOT_PKG_PATH, "utf-8"));
 pkg.version = fullVersion;
 writeFileSync(ROOT_PKG_PATH, JSON.stringify(pkg, null, 2) + "\n");
 console.log(`Updated ${ROOT_PKG_PATH}`);
+
+const lock = JSON.parse(readFileSync(ROOT_LOCK_PATH, "utf-8"));
+lock.version = fullVersion;
+lock.packages[""].version = fullVersion;
+writeFileSync(ROOT_LOCK_PATH, JSON.stringify(lock, null, 2) + "\n");
+console.log(`Updated ${ROOT_LOCK_PATH}`);
 
 let constantsContent = readFileSync(CONSTANTS_PATH, "utf-8");
 const constantsRegex = /export const APP_VERSION = ".*";/;
