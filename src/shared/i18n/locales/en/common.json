@@ -65,7 +65,9 @@
       "boost": "Boost",
       "kitchen": "Kitchen",
       "override": "Override",
-      "airQuality": "Air quality"
+      "airQuality": "Air quality",
+      "soft": "Soft",
+      "hard": "Hard"
     },
     "bypass": "Bypass",
     "bypassAuto": "Automatic",
@@ -90,7 +92,10 @@
     "temperatureProfile": "Temperature profile",
     "fanIntensivity": "Fan intensity",
     "filterImpurity": "Filter impurity",
-    "heatExchangerEfficiency": "Heat exchanger efficiency"
+    "heatExchangerEfficiency": "Heat exchanger efficiency",
+    "defrosting": "Defrosting",
+    "defrostingMode": "Defrosting mode",
+    "extractTemperature": "Extract temperature"
   },
   "valves": {
     "title": "LUFTaTOR Zones",
