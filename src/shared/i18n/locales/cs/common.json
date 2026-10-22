@@ -65,7 +65,9 @@
       "boost": "Boost",
       "kitchen": "Kuchyně",
       "override": "Ruční override",
-      "airQuality": "Kvalita vzduchu"
+      "airQuality": "Kvalita vzduchu",
+      "soft": "Mírný",
+      "hard": "Intenzivní"
     },
     "bypass": "Noční předchlazení",
     "bypassAuto": "Automaticky",
@@ -90,7 +92,10 @@
     "temperatureProfile": "Teplotní profil",
     "fanIntensivity": "Výkon ventilátoru",
     "filterImpurity": "Zanesení filtru",
-    "heatExchangerEfficiency": "Účinnost rekuperace"
+    "heatExchangerEfficiency": "Účinnost rekuperace",
+    "defrosting": "Odmrazování",
+    "defrostingMode": "Režim odmrazování",
+    "extractTemperature": "Odváděná teplota"
   },
   "settings": {
     "title": "Nastavení",

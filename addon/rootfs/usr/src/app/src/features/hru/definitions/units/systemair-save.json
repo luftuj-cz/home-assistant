@@ -8,12 +8,26 @@
       "editable": true,
       "onDashboard": true,
       "label": { "text": "hru.power", "translate": true },
-      "unit": { "text": "hru.level", "translate": true },
-      "min": 2,
-      "max": 4,
+      "unit": "%",
+      "min": 0,
+      "max": 100,
       "maxConfigurable": false,
-      "step": 1,
+      "step": 5,
+      "defaultValue": 50,
       "class": "power"
+    },
+    {
+      "name": "offset",
+      "type": "number",
+      "editable": true,
+      "onDashboard": false,
+      "label": { "text": "hru.offset", "translate": true },
+      "unit": "%",
+      "min": -20,
+      "max": 20,
+      "step": 1,
+      "defaultValue": 0,
+      "class": "other"
     },
     {
       "name": "temperature",
@@ -28,21 +42,36 @@
       "class": "temperature"
     },
     {
-      "name": "mode",
+      "name": "defrostingMode",
       "type": "select",
       "editable": true,
-      "onDashboard": true,
-      "label": { "text": "hru.nativeMode", "translate": true },
-      "class": "mode",
+      "onDashboard": false,
+      "label": { "text": "hru.defrostingMode", "translate": true },
+      "defaultValue": 1,
+      "class": "other",
       "options": [
-        { "value": 1, "label": { "text": "hru.modes.auto", "translate": true } },
-        { "value": 2, "label": { "text": "hru.modes.manual", "translate": true } },
-        { "value": 3, "label": { "text": "hru.modes.crowded", "translate": true } },
-        { "value": 4, "label": { "text": "hru.modes.refresh", "translate": true } },
-        { "value": 5, "label": { "text": "hru.modes.fireplace", "translate": true } },
-        { "value": 6, "label": { "text": "hru.modes.away", "translate": true } },
-        { "value": 7, "label": { "text": "hru.modes.holiday", "translate": true } }
+        { "value": 0, "label": { "text": "hru.modes.soft", "translate": true } },
+        { "value": 1, "label": { "text": "hru.modes.normal", "translate": true } },
+        { "value": 2, "label": { "text": "hru.modes.hard", "translate": true } }
       ]
+    },
+    {
+      "name": "defrosting",
+      "type": "boolean",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.defrosting", "translate": true },
+      "class": "flag",
+      "flag": "positive"
+    },
+    {
+      "name": "heating",
+      "type": "boolean",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.heating", "translate": true },
+      "class": "flag",
+      "flag": "positive"
     },
     {
       "name": "roomTemperature",
@@ -68,6 +97,15 @@
       "editable": false,
       "onDashboard": true,
       "label": { "text": "hru.supplyTemperature", "translate": true },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "extractTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.extractTemperature", "translate": true },
       "unit": "˚C",
       "class": "temperature"
     },
@@ -105,7 +143,7 @@
       {
         "type": "assignment",
         "variable": "$power",
-        "value": { "function": "modbus_read_holding", "args": [1131, 1] }
+        "value": { "function": "modbus_read_holding", "args": [12979, 1] }
       },
       {
         "type": "assignment",
@@ -123,11 +161,18 @@
       },
       {
         "type": "assignment",
-        "variable": "$mode",
-        "value": {
-          "function": "sum",
-          "args": [{ "function": "modbus_read_input", "args": [1161, 1] }, 1]
-        }
+        "variable": "$defrostingMode",
+        "value": { "function": "modbus_read_holding", "args": [4001, 1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$defrosting",
+        "value": { "function": "modbus_read_input", "args": [3104, 1] }
+      },
+      {
+        "type": "assignment",
+        "variable": "$heating",
+        "value": { "function": "modbus_read_input", "args": [3103, 1] }
       },
       {
         "type": "assignment",
@@ -173,6 +218,20 @@
       },
       {
         "type": "assignment",
+        "variable": "$extractTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [{ "function": "modbus_read_input", "args": [12105, 1] }]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
         "variable": "$roomHumidity",
         "value": { "function": "modbus_read_input", "args": [12136, 1] }
       },
@@ -190,7 +249,7 @@
                   "args": [
                     {
                       "function": "multiply",
-                      "args": [{ "function": "modbus_read_input", "args": [7006, 1] }, 65535]
+                      "args": [{ "function": "modbus_read_input", "args": [7006, 1] }, 65536]
                     },
                     { "function": "modbus_read_input", "args": [7005, 1] }
                   ]
@@ -209,8 +268,52 @@
     ],
     "write": [
       {
+        "type": "assignment",
+        "variable": "$supply",
+        "value": {
+          "function": "clamp",
+          "args": [{ "function": "round", "args": ["$power"] }, 0, 100]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$extract",
+        "value": {
+          "function": "clamp",
+          "args": [
+            {
+              "function": "round",
+              "args": [
+                {
+                  "function": "multiply",
+                  "args": ["$power", { "function": "subtract", "args": [100, "$offset"] }, 0.01]
+                }
+              ]
+            },
+            0,
+            100
+          ]
+        }
+      },
+      {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [1131, "$power"] }
+        "expression": { "function": "modbus_write_holding", "args": [1162, 1] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [12929, 1] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [12930, 1] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [12979, "$supply"] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [12980, "$extract"] }
       },
       {
         "type": "action",
@@ -227,7 +330,7 @@
       },
       {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [1162, "$mode"] }
+        "expression": { "function": "modbus_write_holding", "args": [4001, "$defrostingMode"] }
       }
     ]
   }
