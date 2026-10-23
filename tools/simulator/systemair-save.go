@@ -30,7 +30,6 @@ type SystemairSave struct {
 	defrostingMode     int // 4000: 0 Soft, 1 Normal, 2 Hard
 	outsideTemperature int // 12101: tenths of degC
 	supplyTemperature  int // 12102: tenths of degC
-	extractTemperature int // 12104: tenths of degC
 	pdmTemperature     int // 12543: in-built extract air sensor, tenths of degC
 	humidity           int // 12135: percent
 	filterRemaining    int // 7004/7005: remaining filter time in seconds
@@ -48,7 +47,6 @@ func NewSystemairSave() *SystemairSave {
 		defrostingMode:     1,   // Normal
 		outsideTemperature: -35, // -3.5 degC
 		supplyTemperature:  188,
-		extractTemperature: 219,
 		pdmTemperature:     216,
 		humidity:           38,
 		filterRemaining:    7776000, // 90 days
@@ -121,8 +119,6 @@ func (s *SystemairSave) Configure(serv *Server) {
 			return []uint16{uint16(int16(s.outsideTemperature))}, &Success
 		case 12102:
 			return []uint16{uint16(int16(s.supplyTemperature))}, &Success
-		case 12104:
-			return []uint16{uint16(int16(s.extractTemperature))}, &Success
 		case 12135:
 			return []uint16{uint16(s.humidity)}, &Success
 		case 12543:

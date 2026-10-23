@@ -101,15 +101,6 @@
       "class": "temperature"
     },
     {
-      "name": "extractTemperature",
-      "type": "number",
-      "editable": false,
-      "onDashboard": true,
-      "label": { "text": "hru.extractTemperature", "translate": true },
-      "unit": "˚C",
-      "class": "temperature"
-    },
-    {
       "name": "roomHumidity",
       "type": "number",
       "editable": false,
@@ -211,20 +202,6 @@
             {
               "function": "int16",
               "args": [{ "function": "modbus_read_input", "args": [12102, 1] }]
-            },
-            0.1
-          ]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$extractTemperature",
-        "value": {
-          "function": "multiply",
-          "args": [
-            {
-              "function": "int16",
-              "args": [{ "function": "modbus_read_input", "args": [12104, 1] }]
             },
             0.1
           ]
