@@ -1,8 +1,10 @@
-import type { Logger } from "vite";
+import type { Logger } from "vite-plus";
 import { defineConfig } from "vite-plus";
+import type { Oxfmtrc } from "vite-plus/fmt";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import oxfmtConfig from "./.oxfmtrc.json" with { type: "json" };
 import oxlintConfig from "./oxlint.config";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -56,6 +58,10 @@ export default defineConfig({
   // The rules stay in oxlint.config.ts because the backend package runs Oxlint
   // directly against it (see addon/rootfs/usr/src/app package scripts).
   lint: oxlintConfig,
+  // Vite+ 1.x formats from this block and ignores .oxfmtrc.json. The settings stay
+  // in that file because the backend package runs Oxfmt directly, which reads it.
+  // JSON imports widen string literals, hence the cast; Oxfmt validates the values itself.
+  fmt: oxfmtConfig as Oxfmtrc,
   // MPA mode disables Vite's SPA history fallback. The app uses hash-based
   // routing, so the dev server only needs to serve index.html at "/". Junk
   // pathnames (e.g. /wdawd/) then return 404 instead of booting the app at a
@@ -76,6 +82,9 @@ export default defineConfig({
     minify: true,
     sourcemap: false,
     rollupOptions: {
+      // Mantine and TanStack mark their modules "use client", which only means something
+      // to React Server Components; in this client-only SPA it produced ~970 warnings.
+      checks: { moduleLevelDirective: false },
       output: {
         manualChunks: (id) => {
           if (id.includes("node_modules")) {

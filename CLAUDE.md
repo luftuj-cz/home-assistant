@@ -33,6 +33,10 @@ The frontend communicates with the backend via REST API (`/api/*`) and WebSocket
 - Replaces: Vite + esbuild + ESLint + Prettier
 - Uses: Vite 8 (dev server) + Rolldown (bundler) + Oxlint (linter) + Oxfmt (formatter)
 - Config: `vite.config.ts`, `oxlint.config.ts`, `.oxfmtrc.json`
+- Vite+ 1.x reads lint and format settings only from the `lint` and `fmt` blocks in `vite.config.ts`;
+  both import the two config files above, so edit rules there. Oxlint and Oxfmt are nested inside
+  `vite-plus`: there is no root `oxlint`/`oxfmt` binary or importable `oxlint` package (types come from
+  `vite-plus/lint` and `vite-plus/fmt`)
 
 ### Backend (addon/rootfs/usr/src/app)
 
@@ -42,6 +46,8 @@ The frontend communicates with the backend via REST API (`/api/*`) and WebSocket
 - `npm test` – Run Vitest tests
 - `npm run lint` – Run Oxlint on backend code (uses root oxlint.config.ts)
 - `npm run format` / `npm run format:check` – Format with Oxfmt (uses root .oxfmtrc.json)
+- The backend pins its own `oxlint` and `oxfmt` devDependencies to the versions bundled in the root
+  `vite-plus`. When upgrading `vite-plus`, bump them to match (`npm view vite-plus@<ver> dependencies`)
 
 ### Common Workflows
 
@@ -155,6 +161,16 @@ The frontend communicates with the backend via REST API (`/api/*`) and WebSocket
 
 - `src/shared/errors/apiErrors.ts` – Centralized error definitions
 - Middleware error handler catches and formats errors consistently
+
+### Workspace Packages (`addon/rootfs/usr/src/app/packages/`)
+
+npm workspaces of the backend; they live under `addon/rootfs` so the add-on image picks them up.
+
+- `packages/algo-co2/` – **LUFTaTOR Algo CO2** (`@luftator/algo-co2`): automatic mode that drives valves
+  and HRU power from per-room CO2. Standalone by design: no runtime dependencies, `"types": []`, and an
+  Oxlint override rejects imports from outside the package. The backend may import it, never the reverse.
+  Own `vitest.config.ts`; `npm test` in its directory runs only its tests, the backend `npm test` runs it as
+  the `algo-co2` Vitest project. Not wired into the application yet. See its README.
 
 ### Home Assistant Integration
 
