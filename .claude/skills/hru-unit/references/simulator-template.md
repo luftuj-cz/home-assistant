@@ -53,15 +53,19 @@ Requests are serialised through a single goroutine inside `mbserver`, so **no lo
 
 The simulator must serve exactly the addresses the definition references.
 
-| JSON function                | Simulator helper          |
-| ---------------------------- | ------------------------- |
-| `modbus_read_holding`        | `OnReadHoldingRegisters`  |
-| `modbus_read_input`          | `OnReadInputRegisters`    |
-| `modbus_read_coil`           | `OnReadCoils`             |
-| `modbus_read_discrete`       | `OnReadDiscreteInputs`    |
-| `modbus_write_holding`       | `OnWriteHoldingRegister`  |
-| `modbus_write_holding_multi` | `OnWriteHoldingRegisters` |
-| `modbus_write_coil`          | `OnWriteCoil`             |
+| JSON function                   | Simulator helper                          |
+| ------------------------------- | ----------------------------------------- |
+| `modbus_read_holding`           | `OnReadHoldingRegisters`                  |
+| `modbus_read_holding_uint32_le` | `OnReadHoldingRegisters` (`numRegs == 2`) |
+| `modbus_read_holding_uint32_be` | `OnReadHoldingRegisters` (`numRegs == 2`) |
+| `modbus_read_input`             | `OnReadInputRegisters`                    |
+| `modbus_read_input_uint32_le`   | `OnReadInputRegisters` (`numRegs == 2`)   |
+| `modbus_read_input_uint32_be`   | `OnReadInputRegisters` (`numRegs == 2`)   |
+| `modbus_read_coil`              | `OnReadCoils`                             |
+| `modbus_read_discrete`          | `OnReadDiscreteInputs`                    |
+| `modbus_write_holding`          | `OnWriteHoldingRegister`                  |
+| `modbus_write_holding_multi`    | `OnWriteHoldingRegisters`                 |
+| `modbus_write_coil`             | `OnWriteCoil`                             |
 
 ## Skeleton
 

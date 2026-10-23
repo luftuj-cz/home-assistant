@@ -80,28 +80,36 @@ Inside `value` and `args`:
 | `"42"`                               | numeric string → `42`; a non-numeric string → `0`                           |
 | `{ "function": ..., "args": [...] }` | nested expression                                                           |
 
-## All 21 allowed functions
+## All 25 allowed functions
 
 Anything not in this list makes `HruLoader.validateExpression` throw and the entire unit is dropped.
 
 ### Modbus
 
-| Function                     | Modbus FC | Semantics                                                 |
-| ---------------------------- | --------- | --------------------------------------------------------- |
-| `modbus_read_holding`        | **3**     | `args: [addr, count=1]` → returns `data[0]` only          |
-| `modbus_read_holding_uint32` | **3**     | `args: [addr]` — reads 2 registers, `hi * 65536 + lo`     |
-| `modbus_read_input`          | **4**     | `args: [addr, count=1]` → returns `data[0]` only          |
-| `modbus_read_discrete`       | **2**     | `args: [addr, count=1]` → `1` or `0`                      |
-| `modbus_read_coil`           | **1**     | `args: [addr, count=1]` → `1` or `0`                      |
-| `modbus_write_holding`       | **6**     | `args: [addr, val]` → returns `val`                       |
-| `modbus_write_command`       | **3 + 6** | `args: [addr, val]` — writes only if the register differs |
-| `modbus_write_holding_multi` | **16**    | `args: [addr, v1, v2, ...]` — variadic value list         |
-| `modbus_write_coil`          | **5**     | `args: [addr, val]` — any non-zero ⇒ ON                   |
+| Function                        | Modbus FC | Semantics                                                         |
+| ------------------------------- | --------- | ----------------------------------------------------------------- |
+| `modbus_read_holding`           | **3**     | `args: [addr, count=1]` → returns `data[0]` only                  |
+| `modbus_read_holding_uint32_le` | **3**     | `args: [addr]` — reads 2 registers, `lo` first: `hi * 65536 + lo` |
+| `modbus_read_holding_uint32_be` | **3**     | `args: [addr]` — reads 2 registers, `hi` first: `hi * 65536 + lo` |
+| `modbus_read_input`             | **4**     | `args: [addr, count=1]` → returns `data[0]` only                  |
+| `modbus_read_input_uint32_le`   | **4**     | `args: [addr]` — reads 2 registers, `lo` first: `hi * 65536 + lo` |
+| `modbus_read_input_uint32_be`   | **4**     | `args: [addr]` — reads 2 registers, `hi` first: `hi * 65536 + lo` |
+| `modbus_read_discrete`          | **2**     | `args: [addr, count=1]` → `1` or `0`                              |
+| `modbus_read_coil`              | **1**     | `args: [addr, count=1]` → `1` or `0`                              |
+| `modbus_write_holding`          | **6**     | `args: [addr, val]` → returns `val`                               |
+| `modbus_write_command`          | **3 + 6** | `args: [addr, val]` — writes only if the register differs         |
+| `modbus_write_holding_multi`    | **16**    | `args: [addr, v1, v2, ...]` — variadic value list                 |
+| `modbus_write_coil`             | **5**     | `args: [addr, val]` — any non-zero ⇒ ON                           |
 
-All reads except `modbus_read_holding_uint32` return **only the first register**, whatever `count` says. For an
-unsigned 32-bit value stored high word first, use `modbus_read_holding_uint32` - some controllers (Komfovent C6)
-reject reading either half of a 32-bit pair on its own with exception 3, so it cannot be assembled from two
-single-register reads. There is no float, string or word-swap support: anything else wider than one 16-bit
+All reads except the `*_uint32*` ones return **only the first register**, whatever `count` says. For an
+unsigned 32-bit value use the matching `*_uint32*` function, which reads both halves in one request: some
+controllers (Komfovent C6) reject reading either half of a 32-bit pair on its own with exception 3. Do not
+assemble a pair from two single-register reads either: the halves come from separate requests, so the value can
+tear between them. `_le` means low word first (Systemair SAVE filter time), `_be` high word first (Komfovent
+C6).
+
+Arguments of an expression are evaluated one at a time, left to right, so a definition never has two Modbus
+requests in flight at once; units such as Systemair SAVE drop or mismatch overlapping requests. There is no float, string or word-swap support: anything else wider than one 16-bit
 register must be assembled by hand with `bit_lshift` + `sum`.
 
 `modbus_write_command` is the read-before-write variant of `modbus_write_holding`, for command registers that

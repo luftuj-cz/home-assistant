@@ -55,15 +55,30 @@ export class HruRepository {
             const data = await mb.readHolding(addr, count);
             return data[0] ?? 0;
           },
-          // 32-bit value spread over two registers, high word first. Some units
-          // (e.g. Komfovent C6) reject reading either half on its own.
-          modbus_read_holding_uint32: async ([addr = 0]) => {
+          // 32-bit value spread over two holding registers, read in one request.
+          // Some units (e.g. Komfovent C6) reject reading either half on its own.
+          // _le: low word first, _be: high word first (e.g. Komfovent C6).
+          modbus_read_holding_uint32_le: async ([addr = 0]) => {
+            const data = await mb.readHolding(addr, 2);
+            return (data[1] ?? 0) * 65536 + (data[0] ?? 0);
+          },
+          modbus_read_holding_uint32_be: async ([addr = 0]) => {
             const data = await mb.readHolding(addr, 2);
             return (data[0] ?? 0) * 65536 + (data[1] ?? 0);
           },
           modbus_read_input: async ([addr = 0, count = 1]) => {
             const data = await mb.readInput(addr, count);
             return data[0] ?? 0;
+          },
+          // 32-bit value spread over two input registers, read in one request.
+          // _le: low word first (e.g. Systemair SAVE), _be: high word first.
+          modbus_read_input_uint32_le: async ([addr = 0]) => {
+            const data = await mb.readInput(addr, 2);
+            return (data[1] ?? 0) * 65536 + (data[0] ?? 0);
+          },
+          modbus_read_input_uint32_be: async ([addr = 0]) => {
+            const data = await mb.readInput(addr, 2);
+            return (data[0] ?? 0) * 65536 + (data[1] ?? 0);
           },
           modbus_read_discrete: async ([addr = 0, count = 1]) => {
             const data = await mb.readDiscrete(addr, count);
@@ -98,7 +113,13 @@ export class HruRepository {
 
         async function evaluateExpression(expr: CommandExpression): Promise<number> {
           const { function: fn, args } = expr;
-          const evaluatedArgs = await Promise.all(args.map(evaluate));
+          // One argument at a time: evaluating them in parallel puts several
+          // Modbus requests in flight on one connection, which some units
+          // (Systemair SAVE) answer out of order or drop.
+          const evaluatedArgs: number[] = [];
+          for (const arg of args) {
+            evaluatedArgs.push(await evaluate(arg));
+          }
 
           const handler = handlers[fn];
           if (handler) {

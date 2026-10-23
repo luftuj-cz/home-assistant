@@ -99,6 +99,10 @@ func (s *SystemairSave) Configure(serv *Server) {
 	})
 
 	OnReadInputRegisters(serv, func(register uint16, numRegs int) ([]uint16, *Exception) {
+		// The filter time is read as one 32-bit pair, low word first.
+		if register == 7004 && numRegs == 2 {
+			return []uint16{uint16(s.filterRemaining & 0xFFFF), uint16(s.filterRemaining >> 16)}, &Success
+		}
 		if numRegs != 1 {
 			return []uint16{}, &IllegalDataValue
 		}
