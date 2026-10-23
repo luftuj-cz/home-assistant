@@ -143,7 +143,7 @@
       {
         "type": "assignment",
         "variable": "$power",
-        "value": { "function": "modbus_read_holding", "args": [12979, 1] }
+        "value": { "function": "modbus_read_holding", "args": [12978, 1] }
       },
       {
         "type": "assignment",
@@ -153,7 +153,7 @@
           "args": [
             {
               "function": "int16",
-              "args": [{ "function": "modbus_read_holding", "args": [2001, 1] }]
+              "args": [{ "function": "modbus_read_holding", "args": [2000, 1] }]
             },
             0.1
           ]
@@ -162,17 +162,17 @@
       {
         "type": "assignment",
         "variable": "$defrostingMode",
-        "value": { "function": "modbus_read_holding", "args": [4001, 1] }
+        "value": { "function": "modbus_read_holding", "args": [4000, 1] }
       },
       {
         "type": "assignment",
         "variable": "$defrosting",
-        "value": { "function": "modbus_read_input", "args": [3104, 1] }
+        "value": { "function": "modbus_read_input", "args": [3103, 1] }
       },
       {
         "type": "assignment",
         "variable": "$heating",
-        "value": { "function": "modbus_read_input", "args": [3103, 1] }
+        "value": { "function": "modbus_read_input", "args": [3102, 1] }
       },
       {
         "type": "assignment",
@@ -182,7 +182,7 @@
           "args": [
             {
               "function": "int16",
-              "args": [{ "function": "modbus_read_input", "args": [12544, 1] }]
+              "args": [{ "function": "modbus_read_input", "args": [12543, 1] }]
             },
             0.1
           ]
@@ -196,7 +196,7 @@
           "args": [
             {
               "function": "int16",
-              "args": [{ "function": "modbus_read_input", "args": [12102, 1] }]
+              "args": [{ "function": "modbus_read_input", "args": [12101, 1] }]
             },
             0.1
           ]
@@ -210,7 +210,7 @@
           "args": [
             {
               "function": "int16",
-              "args": [{ "function": "modbus_read_input", "args": [12103, 1] }]
+              "args": [{ "function": "modbus_read_input", "args": [12102, 1] }]
             },
             0.1
           ]
@@ -224,7 +224,7 @@
           "args": [
             {
               "function": "int16",
-              "args": [{ "function": "modbus_read_input", "args": [12105, 1] }]
+              "args": [{ "function": "modbus_read_input", "args": [12104, 1] }]
             },
             0.1
           ]
@@ -233,7 +233,7 @@
       {
         "type": "assignment",
         "variable": "$roomHumidity",
-        "value": { "function": "modbus_read_input", "args": [12136, 1] }
+        "value": { "function": "modbus_read_input", "args": [12135, 1] }
       },
       {
         "type": "assignment",
@@ -249,9 +249,9 @@
                   "args": [
                     {
                       "function": "multiply",
-                      "args": [{ "function": "modbus_read_input", "args": [7006, 1] }, 65536]
+                      "args": [{ "function": "modbus_read_input", "args": [7005, 1] }, 65536]
                     },
-                    { "function": "modbus_read_input", "args": [7005, 1] }
+                    { "function": "modbus_read_input", "args": [7004, 1] }
                   ]
                 },
                 0.000011574074074074073
@@ -263,7 +263,7 @@
       {
         "type": "assignment",
         "variable": "$error",
-        "value": { "function": "modbus_read_input", "args": [15901, 1] }
+        "value": { "function": "modbus_read_input", "args": [15900, 1] }
       }
     ],
     "write": [
@@ -297,7 +297,11 @@
       },
       {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [1162, 1] }
+        "expression": { "function": "modbus_write_holding", "args": [1161, 1] }
+      },
+      {
+        "type": "action",
+        "expression": { "function": "modbus_write_holding", "args": [12928, 1] }
       },
       {
         "type": "action",
@@ -305,22 +309,18 @@
       },
       {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [12930, 1] }
+        "expression": { "function": "modbus_write_holding", "args": [12978, "$supply"] }
       },
       {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [12979, "$supply"] }
-      },
-      {
-        "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [12980, "$extract"] }
+        "expression": { "function": "modbus_write_holding", "args": [12979, "$extract"] }
       },
       {
         "type": "action",
         "expression": {
           "function": "modbus_write_holding",
           "args": [
-            2001,
+            2000,
             {
               "function": "round",
               "args": [{ "function": "multiply", "args": ["$temperature", 10] }]
@@ -330,7 +330,7 @@
       },
       {
         "type": "action",
-        "expression": { "function": "modbus_write_holding", "args": [4001, "$defrostingMode"] }
+        "expression": { "function": "modbus_write_holding", "args": [4000, "$defrostingMode"] }
       }
     ]
   }
