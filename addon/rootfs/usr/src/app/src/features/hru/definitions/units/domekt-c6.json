@@ -97,7 +97,7 @@
       {
         "type": "assignment",
         "variable": "$power",
-        "value": { "function": "modbus_read_holding_uint32", "args": [105] }
+        "value": { "function": "modbus_read_holding_uint32_be", "args": [105] }
       },
       {
         "type": "assignment",

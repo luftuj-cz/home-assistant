@@ -244,16 +244,7 @@
             {
               "function": "multiply",
               "args": [
-                {
-                  "function": "sum",
-                  "args": [
-                    {
-                      "function": "multiply",
-                      "args": [{ "function": "modbus_read_input", "args": [7005, 1] }, 65536]
-                    },
-                    { "function": "modbus_read_input", "args": [7004, 1] }
-                  ]
-                },
+                { "function": "modbus_read_input_uint32_le", "args": [7004] },
                 0.000011574074074074073
               ]
             }
