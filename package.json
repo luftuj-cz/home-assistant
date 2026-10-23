@@ -22,29 +22,32 @@
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@emotion/is-prop-valid": "^1.4.0",
-    "@mantine/core": "9.6.1",
-    "@mantine/dates": "9.6.1",
-    "@mantine/form": "9.6.1",
-    "@mantine/hooks": "9.6.1",
-    "@mantine/notifications": "9.6.1",
-    "@tabler/icons-react": "^3.46.0",
-    "@tanstack/react-query": "^5.102.8",
-    "@tanstack/react-router": "^1.170.33",
+    "@mantine/core": "9.7.3",
+    "@mantine/dates": "9.7.3",
+    "@mantine/form": "9.7.3",
+    "@mantine/hooks": "9.7.3",
+    "@mantine/notifications": "9.7.3",
+    "@tabler/icons-react": "^3.49.0",
+    "@tanstack/react-query": "^5.104.5",
+    "@tanstack/react-router": "^1.170.46",
     "date-fns": "^4.4.0",
-    "i18next": "^26.4.2",
+    "i18next": "^26.5.6",
     "i18next-browser-languagedetector": "^8.2.1",
-    "react": "^19.2.8",
-    "react-dom": "^19.2.8",
-    "react-i18next": "^17.0.13",
-    "zod": "^4.5.4"
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-i18next": "^17.1.4",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/node": "^25.7.0",
-    "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.7",
-    "baseline-browser-mapping": "^2.11.21",
+    "@types/node": "^25.9.9",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "baseline-browser-mapping": "^2.11.31",
     "typescript": "^7.0.2",
-    "vite-plus": "^0.3.1"
+    "vite-plus": "1.4.0"
+  },
+  "overrides": {
+    "vite": "npm:@voidzero-dev/vite-plus-core@1.4.0"
   },
   "devEngines": {
     "packageManager": {

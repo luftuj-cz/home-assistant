@@ -1,0 +1,17 @@
+{
+  "name": "@luftator/algo-co2",
+  "private": true,
+  "description": "LUFTaTOR Algo CO2 - automatic ventilation driven by per-room CO2 levels",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "build": "tsc --project tsconfig.json",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5"
+  }
+}
