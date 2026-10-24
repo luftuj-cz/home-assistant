@@ -123,4 +123,22 @@ describe("HruRepository.executeScript", () => {
     expect(calls).toEqual(["readHolding 105 2"]);
     expect(vars.$value).toBe(3 * 65536 + 400);
   });
+
+  it("divides, returning 0 for a zero divisor", async () => {
+    reset();
+    const vars = await repo.executeScript(config, [
+      {
+        type: "assignment",
+        variable: "$ratio",
+        value: {
+          function: "divide",
+          args: [{ function: "modbus_read_holding", args: [106, 1] }, 8],
+        },
+      },
+      { type: "assignment", variable: "$zero", value: { function: "divide", args: [5, 0] } },
+    ]);
+
+    expect(vars.$ratio).toBe(50);
+    expect(vars.$zero).toBe(0);
+  });
 });

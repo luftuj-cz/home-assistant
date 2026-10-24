@@ -44,6 +44,8 @@ export class HruRepository {
           sum: (args) => args.reduce((a, b) => a + b, 0),
           multiply: (args) => args.reduce((a, b) => a * b, 1),
           subtract: ([a = 0, b = 0]) => a - b,
+          // Division by zero yields 0 rather than Infinity, e.g. while a register reads 0.
+          divide: ([a = 0, b = 0]) => (b === 0 ? 0 : a / b),
           clamp: ([a = 0, min = 0, max = 100]) => Math.min(Math.max(a, min), max),
           delay: async ([ms = 0]) => {
             await new Promise((resolve) => setTimeout(resolve, ms));

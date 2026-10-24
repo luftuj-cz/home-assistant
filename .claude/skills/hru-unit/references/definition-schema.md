@@ -80,7 +80,7 @@ Inside `value` and `args`:
 | `"42"`                               | numeric string → `42`; a non-numeric string → `0`                           |
 | `{ "function": ..., "args": [...] }` | nested expression                                                           |
 
-## All 25 allowed functions
+## All 26 allowed functions
 
 Anything not in this list makes `HruLoader.validateExpression` throw and the entire unit is dropped.
 
@@ -132,6 +132,7 @@ latency but no additional inter-session delay.
 | `sum`        | variadic `a + b + ...`                                                               |
 | `multiply`   | variadic `a * b * ...`                                                               |
 | `subtract`   | `a - b`                                                                              |
+| `divide`     | `a / b`, `0` when `b` is `0`                                                         |
 | `clamp`      | `args: [a, min=0, max=100]`                                                          |
 | `int16`      | reinterpret a raw register as signed 16-bit — **required for negative temperatures** |
 | `uint16`     | reinterpret as unsigned 16-bit                                                       |
