@@ -27,9 +27,6 @@ type SpSabik struct {
 	lastAlarm          int  // IR 30059: 0 no alarm .. 22
 	alarm              bool // DI 10001
 	filterAlarm        bool // DI 10002
-	bypassMinOutside   int  // HR 40064: tenths of degC, 120..200
-	bypassMinRoom      int  // HR 40066: tenths of degC, 210..300
-	bypassMinDiff      int  // HR 40068: tenths of degC, 30..60
 	nominalFlow        int  // HR 40129: m3/h, minFlow..maxFlow
 	speedSelect        int  // HR 40133: 0 humidity prevention, 1 reduced, 2 nominal, 3 auto, 4 snooze
 	reducedPercent     int  // HR 40130
@@ -54,9 +51,6 @@ func NewSpSabik() *SpSabik {
 		exhaustHumidity:    47,
 		outsideHumidity:    47,
 		supplyHumidity:     48,
-		bypassMinOutside:   130,
-		bypassMinRoom:      230,
-		bypassMinDiff:      30,
 		nominalFlow:        250,
 		speedSelect:        0,
 		reducedPercent:     70,
@@ -98,15 +92,23 @@ func (s *SpSabik) setpointFlow() int {
 	}
 }
 
+// Automatic bypass thresholds in tenths of degC: vendor defaults of HR 40064,
+// 40066 and 40068, which the definition does not expose.
+const (
+	sabikBypassMinOutside = 130
+	sabikBypassMinRoom    = 230
+	sabikBypassMinDiff    = 30
+)
+
 // bypassPosition is IR 30064: 0 closed, 1 open.
 func (s *SpSabik) bypassPosition() uint16 {
 	if s.manualBypass {
 		return 1
 	}
 	if s.autoBypass &&
-		s.outsideTemperature >= s.bypassMinOutside &&
-		s.roomTemperature >= s.bypassMinRoom &&
-		s.roomTemperature-s.outsideTemperature >= s.bypassMinDiff {
+		s.outsideTemperature >= sabikBypassMinOutside &&
+		s.roomTemperature >= sabikBypassMinRoom &&
+		s.roomTemperature-s.outsideTemperature >= sabikBypassMinDiff {
 		return 1
 	}
 	return 0
@@ -166,12 +168,6 @@ func (s *SpSabik) Configure(serv *Server) {
 			return []uint16{}, &IllegalDataAddress
 		}
 		switch register {
-		case 63:
-			return []uint16{uint16(s.bypassMinOutside)}, &Success
-		case 65:
-			return []uint16{uint16(s.bypassMinRoom)}, &Success
-		case 67:
-			return []uint16{uint16(s.bypassMinDiff)}, &Success
 		case 128:
 			return []uint16{uint16(s.nominalFlow)}, &Success
 		case 132:
@@ -188,24 +184,6 @@ func (s *SpSabik) Configure(serv *Server) {
 		v := int(value)
 		inRange := func(min, max int) bool { return v >= min && v <= max }
 		switch register {
-		case 63:
-			if !inRange(120, 200) {
-				return &IllegalDataValue
-			}
-			s.bypassMinOutside = v
-			log.Printf(">>> CHANGE: bypassMinOutside=%d\n", v)
-		case 65:
-			if !inRange(210, 300) {
-				return &IllegalDataValue
-			}
-			s.bypassMinRoom = v
-			log.Printf(">>> CHANGE: bypassMinRoom=%d\n", v)
-		case 67:
-			if !inRange(30, 60) {
-				return &IllegalDataValue
-			}
-			s.bypassMinDiff = v
-			log.Printf(">>> CHANGE: bypassMinDiff=%d\n", v)
 		case 128:
 			if !inRange(s.minFlow, s.maxFlow) {
 				return &IllegalDataValue
@@ -229,8 +207,6 @@ func (s *SpSabik) Configure(serv *Server) {
 			return []bool{}, &IllegalDataAddress
 		}
 		switch address {
-		case 0:
-			return []bool{false}, &Success // reset is a one-shot command, reads back as 0
 		case 7:
 			return []bool{s.manualBypass}, &Success
 		case 8:
@@ -245,12 +221,6 @@ func (s *SpSabik) Configure(serv *Server) {
 
 	OnWriteCoil(serv, func(address uint16, value bool) *Exception {
 		switch address {
-		case 0:
-			if value {
-				s.filterDays = 365
-				s.filterAlarm = false
-				log.Printf(">>> CHANGE: filter reset\n")
-			}
 		case 7:
 			s.manualBypass = value
 			log.Printf(">>> CHANGE: manualBypass=%v\n", value)
