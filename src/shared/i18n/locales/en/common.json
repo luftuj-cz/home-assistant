@@ -116,10 +116,6 @@
     "bypassError": "Error",
     "manualBypass": "Manual bypass",
     "autoBypassAllowed": "Automatic bypass allowed",
-    "bypassMinOutsideTemperature": "Bypass: minimum outside temperature",
-    "bypassMinRoomTemperature": "Bypass: minimum room temperature",
-    "bypassMinTemperatureDifference": "Bypass: minimum room-outside difference",
-    "resetFilter": "Reset filter alarm",
     "lastAlarm": "Last alarm",
     "alarms": {
       "none": "No alarm",

@@ -329,51 +329,6 @@
       "flag": "positive"
     },
     {
-      "name": "bypassMinOutsideTemperature",
-      "type": "number",
-      "editable": true,
-      "onDashboard": false,
-      "label": {
-        "text": "hru.bypassMinOutsideTemperature",
-        "translate": true
-      },
-      "unit": "˚C",
-      "min": 12,
-      "max": 20,
-      "step": 0.1,
-      "class": "other"
-    },
-    {
-      "name": "bypassMinRoomTemperature",
-      "type": "number",
-      "editable": true,
-      "onDashboard": false,
-      "label": {
-        "text": "hru.bypassMinRoomTemperature",
-        "translate": true
-      },
-      "unit": "˚C",
-      "min": 21,
-      "max": 30,
-      "step": 0.1,
-      "class": "other"
-    },
-    {
-      "name": "bypassMinTemperatureDifference",
-      "type": "number",
-      "editable": true,
-      "onDashboard": false,
-      "label": {
-        "text": "hru.bypassMinTemperatureDifference",
-        "translate": true
-      },
-      "unit": "˚C",
-      "min": 3,
-      "max": 6,
-      "step": 0.1,
-      "class": "other"
-    },
-    {
       "name": "replaceFilterDays",
       "type": "number",
       "editable": false,
@@ -399,18 +354,6 @@
       },
       "class": "flag",
       "flag": "negative"
-    },
-    {
-      "name": "resetFilter",
-      "type": "boolean",
-      "editable": true,
-      "onDashboard": false,
-      "label": {
-        "text": "hru.resetFilter",
-        "translate": true
-      },
-      "defaultValue": 0,
-      "class": "other"
     },
     {
       "name": "error",
@@ -811,63 +754,6 @@
       },
       {
         "type": "assignment",
-        "variable": "$bypassMinOutsideTemperature",
-        "value": {
-          "function": "multiply",
-          "args": [
-            {
-              "function": "int16",
-              "args": [
-                {
-                  "function": "modbus_read_holding",
-                  "args": [63, 1]
-                }
-              ]
-            },
-            0.1
-          ]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$bypassMinRoomTemperature",
-        "value": {
-          "function": "multiply",
-          "args": [
-            {
-              "function": "int16",
-              "args": [
-                {
-                  "function": "modbus_read_holding",
-                  "args": [65, 1]
-                }
-              ]
-            },
-            0.1
-          ]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$bypassMinTemperatureDifference",
-        "value": {
-          "function": "multiply",
-          "args": [
-            {
-              "function": "int16",
-              "args": [
-                {
-                  "function": "modbus_read_holding",
-                  "args": [67, 1]
-                }
-              ]
-            },
-            0.1
-          ]
-        }
-      },
-      {
-        "type": "assignment",
         "variable": "$replaceFilterDays",
         "value": {
           "function": "modbus_read_input",
@@ -880,14 +766,6 @@
         "value": {
           "function": "modbus_read_discrete",
           "args": [1, 1]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$resetFilter",
-        "value": {
-          "function": "modbus_read_coil",
-          "args": [0, 1]
         }
       },
       {
@@ -988,153 +866,6 @@
         }
       },
       {
-        "type": "assignment",
-        "variable": "$threshold",
-        "value": {
-          "function": "modbus_read_holding",
-          "args": [63, 1]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$threshold",
-        "value": {
-          "function": "sum",
-          "args": [
-            "$threshold",
-            {
-              "function": "multiply",
-              "args": [
-                {
-                  "function": "non_zero",
-                  "args": ["$bypassMinOutsideTemperature"]
-                },
-                {
-                  "function": "subtract",
-                  "args": [
-                    {
-                      "function": "round",
-                      "args": [
-                        {
-                          "function": "multiply",
-                          "args": ["$bypassMinOutsideTemperature", 10]
-                        }
-                      ]
-                    },
-                    "$threshold"
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      },
-      {
-        "type": "action",
-        "expression": {
-          "function": "modbus_write_command",
-          "args": [63, "$threshold"]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$threshold",
-        "value": {
-          "function": "modbus_read_holding",
-          "args": [65, 1]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$threshold",
-        "value": {
-          "function": "sum",
-          "args": [
-            "$threshold",
-            {
-              "function": "multiply",
-              "args": [
-                {
-                  "function": "non_zero",
-                  "args": ["$bypassMinRoomTemperature"]
-                },
-                {
-                  "function": "subtract",
-                  "args": [
-                    {
-                      "function": "round",
-                      "args": [
-                        {
-                          "function": "multiply",
-                          "args": ["$bypassMinRoomTemperature", 10]
-                        }
-                      ]
-                    },
-                    "$threshold"
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      },
-      {
-        "type": "action",
-        "expression": {
-          "function": "modbus_write_command",
-          "args": [65, "$threshold"]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$threshold",
-        "value": {
-          "function": "modbus_read_holding",
-          "args": [67, 1]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$threshold",
-        "value": {
-          "function": "sum",
-          "args": [
-            "$threshold",
-            {
-              "function": "multiply",
-              "args": [
-                {
-                  "function": "non_zero",
-                  "args": ["$bypassMinTemperatureDifference"]
-                },
-                {
-                  "function": "subtract",
-                  "args": [
-                    {
-                      "function": "round",
-                      "args": [
-                        {
-                          "function": "multiply",
-                          "args": ["$bypassMinTemperatureDifference", 10]
-                        }
-                      ]
-                    },
-                    "$threshold"
-                  ]
-                }
-              ]
-            }
-          ]
-        }
-      },
-      {
-        "type": "action",
-        "expression": {
-          "function": "modbus_write_command",
-          "args": [67, "$threshold"]
-        }
-      },
-      {
         "type": "action",
         "expression": {
           "function": "modbus_write_coil",
@@ -1160,13 +891,6 @@
         "expression": {
           "function": "modbus_write_coil",
           "args": [8, "$autoBypass"]
-        }
-      },
-      {
-        "type": "action",
-        "expression": {
-          "function": "modbus_write_coil",
-          "args": [0, "$resetFilter"]
         }
       }
     ]
