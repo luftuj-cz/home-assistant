@@ -9,7 +9,7 @@ import (
 )
 
 // Every unit the switch in main() knows about, in the order they were added.
-const supportedUnits = "xvent, meltem, atrea-rd5, atrea-am, korado, zehnder, brink, systemair-save, domekt-c6"
+const supportedUnits = "xvent, meltem, atrea-rd5, atrea-am, korado, zehnder, brink, systemair-save, domekt-c6, sp-sabik"
 
 type HRULogic interface {
 	Configure(serv *mbserver.Server)
@@ -41,6 +41,8 @@ func main() {
 		logic = NewSystemairSave()
 	case "domekt-c6":
 		logic = NewDomektC6()
+	case "sp-sabik":
+		logic = NewSpSabik()
 	default:
 		fmt.Fprintf(os.Stderr, "Error: unknown HRU type '%s'. Valid options: %s\n", os.Args[2], supportedUnits)
 		os.Exit(1)

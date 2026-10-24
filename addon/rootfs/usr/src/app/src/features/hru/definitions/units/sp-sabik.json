@@ -1,0 +1,1174 @@
+{
+  "code": "sp-sabik",
+  "name": "Elektrodesign S&P Sabik",
+  "variables": [
+    {
+      "name": "power",
+      "type": "number",
+      "editable": true,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.power",
+        "translate": true
+      },
+      "unit": "%",
+      "min": 54,
+      "max": 100,
+      "maxConfigurable": false,
+      "step": 1,
+      "class": "power"
+    },
+    {
+      "name": "roomTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.roomTemperature",
+        "translate": true
+      },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "exhaustTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.exhaustTemperature",
+        "translate": true
+      },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "outsideTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.outsideTemperature",
+        "translate": true
+      },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "supplyTemperature",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.supplyTemperature",
+        "translate": true
+      },
+      "unit": "˚C",
+      "class": "temperature"
+    },
+    {
+      "name": "roomHumidity",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.roomHumidity",
+        "translate": true
+      },
+      "unit": "%",
+      "class": "other"
+    },
+    {
+      "name": "exhaustHumidity",
+      "type": "number",
+      "editable": false,
+      "onDashboard": false,
+      "label": {
+        "text": "hru.exhaustHumidity",
+        "translate": true
+      },
+      "unit": "%",
+      "class": "other"
+    },
+    {
+      "name": "outsideHumidity",
+      "type": "number",
+      "editable": false,
+      "onDashboard": false,
+      "label": {
+        "text": "hru.outsideHumidity",
+        "translate": true
+      },
+      "unit": "%",
+      "class": "other"
+    },
+    {
+      "name": "supplyHumidity",
+      "type": "number",
+      "editable": false,
+      "onDashboard": false,
+      "label": {
+        "text": "hru.supplyHumidity",
+        "translate": true
+      },
+      "unit": "%",
+      "class": "other"
+    },
+    {
+      "name": "flowOut",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.flowOut",
+        "translate": true
+      },
+      "unit": "m³/h",
+      "class": "other"
+    },
+    {
+      "name": "flowIn",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.flowIn",
+        "translate": true
+      },
+      "unit": "m³/h",
+      "class": "other"
+    },
+    {
+      "name": "activeMode",
+      "type": "select",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.nativeMode",
+        "translate": true
+      },
+      "class": "other",
+      "options": [
+        {
+          "value": 0,
+          "label": {
+            "text": "hru.modes.snooze",
+            "translate": true
+          }
+        },
+        {
+          "value": 1,
+          "label": {
+            "text": "hru.modes.humidityPrevention",
+            "translate": true
+          }
+        },
+        {
+          "value": 2,
+          "label": {
+            "text": "hru.modes.reduced",
+            "translate": true
+          }
+        },
+        {
+          "value": 3,
+          "label": {
+            "text": "hru.modes.nominal",
+            "translate": true
+          }
+        },
+        {
+          "value": 4,
+          "label": {
+            "text": "hru.modes.boost",
+            "translate": true
+          }
+        },
+        {
+          "value": 5,
+          "label": {
+            "text": "hru.modes.autoHumidity",
+            "translate": true
+          }
+        },
+        {
+          "value": 6,
+          "label": {
+            "text": "hru.modes.autoVoc",
+            "translate": true
+          }
+        },
+        {
+          "value": 7,
+          "label": {
+            "text": "hru.modes.autoVoltage",
+            "translate": true
+          }
+        },
+        {
+          "value": 8,
+          "label": {
+            "text": "hru.modes.autoBoost",
+            "translate": true
+          }
+        },
+        {
+          "value": 9,
+          "label": {
+            "text": "hru.modes.weeklyProgram1",
+            "translate": true
+          }
+        },
+        {
+          "value": 10,
+          "label": {
+            "text": "hru.modes.weeklyProgram2",
+            "translate": true
+          }
+        },
+        {
+          "value": 11,
+          "label": {
+            "text": "hru.modes.weeklyProgram3",
+            "translate": true
+          }
+        },
+        {
+          "value": 12,
+          "label": {
+            "text": "hru.modes.weeklyProgram4",
+            "translate": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "boost",
+      "type": "boolean",
+      "editable": true,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.boost",
+        "translate": true
+      },
+      "defaultValue": 0,
+      "class": "flag",
+      "flag": "positive"
+    },
+    {
+      "name": "snooze",
+      "type": "boolean",
+      "editable": true,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.snooze",
+        "translate": true
+      },
+      "defaultValue": 0,
+      "class": "flag",
+      "flag": "positive"
+    },
+    {
+      "name": "bypassPosition",
+      "type": "select",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.bypassPosition",
+        "translate": true
+      },
+      "class": "other",
+      "options": [
+        {
+          "value": 0,
+          "label": {
+            "text": "hru.bypassClosed",
+            "translate": true
+          }
+        },
+        {
+          "value": 1,
+          "label": {
+            "text": "hru.bypassOpened",
+            "translate": true
+          }
+        },
+        {
+          "value": 2,
+          "label": {
+            "text": "hru.bypassError",
+            "translate": true
+          }
+        }
+      ]
+    },
+    {
+      "name": "manualBypass",
+      "type": "boolean",
+      "editable": true,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.manualBypass",
+        "translate": true
+      },
+      "defaultValue": 0,
+      "class": "flag",
+      "flag": "positive"
+    },
+    {
+      "name": "autoBypass",
+      "type": "boolean",
+      "editable": true,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.autoBypassAllowed",
+        "translate": true
+      },
+      "defaultValue": 1,
+      "class": "flag",
+      "flag": "positive"
+    },
+    {
+      "name": "bypassMinOutsideTemperature",
+      "type": "number",
+      "editable": true,
+      "onDashboard": false,
+      "label": {
+        "text": "hru.bypassMinOutsideTemperature",
+        "translate": true
+      },
+      "unit": "˚C",
+      "min": 12,
+      "max": 20,
+      "step": 0.1,
+      "class": "other"
+    },
+    {
+      "name": "bypassMinRoomTemperature",
+      "type": "number",
+      "editable": true,
+      "onDashboard": false,
+      "label": {
+        "text": "hru.bypassMinRoomTemperature",
+        "translate": true
+      },
+      "unit": "˚C",
+      "min": 21,
+      "max": 30,
+      "step": 0.1,
+      "class": "other"
+    },
+    {
+      "name": "bypassMinTemperatureDifference",
+      "type": "number",
+      "editable": true,
+      "onDashboard": false,
+      "label": {
+        "text": "hru.bypassMinTemperatureDifference",
+        "translate": true
+      },
+      "unit": "˚C",
+      "min": 3,
+      "max": 6,
+      "step": 0.1,
+      "class": "other"
+    },
+    {
+      "name": "replaceFilterDays",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.changeFiltersIn",
+        "translate": true
+      },
+      "unit": {
+        "text": "hru.days",
+        "translate": true
+      },
+      "class": "other"
+    },
+    {
+      "name": "filterAlarm",
+      "type": "boolean",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.changeFilters",
+        "translate": true
+      },
+      "class": "flag",
+      "flag": "negative"
+    },
+    {
+      "name": "resetFilter",
+      "type": "boolean",
+      "editable": true,
+      "onDashboard": false,
+      "label": {
+        "text": "hru.resetFilter",
+        "translate": true
+      },
+      "defaultValue": 0,
+      "class": "other"
+    },
+    {
+      "name": "error",
+      "type": "boolean",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.errorState",
+        "translate": true
+      },
+      "class": "flag",
+      "flag": "negative"
+    },
+    {
+      "name": "lastAlarm",
+      "type": "select",
+      "editable": false,
+      "onDashboard": true,
+      "label": {
+        "text": "hru.lastAlarm",
+        "translate": true
+      },
+      "class": "other",
+      "options": [
+        {
+          "value": 0,
+          "label": {
+            "text": "hru.alarms.none",
+            "translate": true
+          }
+        },
+        {
+          "value": 1,
+          "label": {
+            "text": "hru.alarms.fire",
+            "translate": true
+          }
+        },
+        {
+          "value": 2,
+          "label": {
+            "text": "hru.alarms.extractFan",
+            "translate": true
+          }
+        },
+        {
+          "value": 3,
+          "label": {
+            "text": "hru.alarms.supplyFan",
+            "translate": true
+          }
+        },
+        {
+          "value": 4,
+          "label": {
+            "text": "hru.alarms.supplyTemperatureLow",
+            "translate": true
+          }
+        },
+        {
+          "value": 5,
+          "label": {
+            "text": "hru.alarms.servoflowSensor1",
+            "translate": true
+          }
+        },
+        {
+          "value": 6,
+          "label": {
+            "text": "hru.alarms.servoflowSensor2",
+            "translate": true
+          }
+        },
+        {
+          "value": 7,
+          "label": {
+            "text": "hru.alarms.constantPressure",
+            "translate": true
+          }
+        },
+        {
+          "value": 8,
+          "label": {
+            "text": "hru.alarms.condensatePump",
+            "translate": true
+          }
+        },
+        {
+          "value": 9,
+          "label": {
+            "text": "hru.alarms.dirtyFilter",
+            "translate": true
+          }
+        },
+        {
+          "value": 10,
+          "label": {
+            "text": "hru.alarms.humiditySensor",
+            "translate": true
+          }
+        },
+        {
+          "value": 11,
+          "label": {
+            "text": "hru.alarms.vocSensor",
+            "translate": true
+          }
+        },
+        {
+          "value": 12,
+          "label": {
+            "text": "hru.alarms.bypass",
+            "translate": true
+          }
+        },
+        {
+          "value": 13,
+          "label": {
+            "text": "hru.alarms.communication",
+            "translate": true
+          }
+        },
+        {
+          "value": 14,
+          "label": {
+            "text": "hru.alarms.outsideSensor",
+            "translate": true
+          }
+        },
+        {
+          "value": 15,
+          "label": {
+            "text": "hru.alarms.supplySensor",
+            "translate": true
+          }
+        },
+        {
+          "value": 16,
+          "label": {
+            "text": "hru.alarms.roomSensor",
+            "translate": true
+          }
+        },
+        {
+          "value": 17,
+          "label": {
+            "text": "hru.alarms.exhaustSensor",
+            "translate": true
+          }
+        },
+        {
+          "value": 18,
+          "label": {
+            "text": "hru.alarms.defrost",
+            "translate": true
+          }
+        },
+        {
+          "value": 19,
+          "label": {
+            "text": "hru.alarms.preheaterSensor",
+            "translate": true
+          }
+        },
+        {
+          "value": 20,
+          "label": {
+            "text": "hru.alarms.calibrationSlow",
+            "translate": true
+          }
+        },
+        {
+          "value": 21,
+          "label": {
+            "text": "hru.alarms.calibrationFailed",
+            "translate": true
+          }
+        },
+        {
+          "value": 22,
+          "label": {
+            "text": "hru.alarms.preheaterTest",
+            "translate": true
+          }
+        }
+      ]
+    }
+  ],
+  "interface-type": "modbus-tcp",
+  "integration": {
+    "read": [
+      {
+        "type": "assignment",
+        "variable": "$nominalFlow",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [128, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$maxFlow",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [1070, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$power",
+        "value": {
+          "function": "round",
+          "args": [
+            {
+              "function": "multiply",
+              "args": [
+                {
+                  "function": "divide",
+                  "args": ["$nominalFlow", "$maxFlow"]
+                },
+                100
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$roomTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [25, 1]
+                }
+              ]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$exhaustTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [26, 1]
+                }
+              ]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$outsideTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [27, 1]
+                }
+              ]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$supplyTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_input",
+                  "args": [28, 1]
+                }
+              ]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$roomHumidity",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [29, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$exhaustHumidity",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [30, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$outsideHumidity",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [31, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$supplyHumidity",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [32, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$flowOut",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [106, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$flowIn",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [107, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$activeMode",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [90, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$boost",
+        "value": {
+          "function": "modbus_read_coil",
+          "args": [16, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$snooze",
+        "value": {
+          "function": "modbus_read_coil",
+          "args": [17, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$bypassPosition",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [63, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$manualBypass",
+        "value": {
+          "function": "modbus_read_coil",
+          "args": [7, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$autoBypass",
+        "value": {
+          "function": "modbus_read_coil",
+          "args": [8, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$bypassMinOutsideTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_holding",
+                  "args": [63, 1]
+                }
+              ]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$bypassMinRoomTemperature",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_holding",
+                  "args": [65, 1]
+                }
+              ]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$bypassMinTemperatureDifference",
+        "value": {
+          "function": "multiply",
+          "args": [
+            {
+              "function": "int16",
+              "args": [
+                {
+                  "function": "modbus_read_holding",
+                  "args": [67, 1]
+                }
+              ]
+            },
+            0.1
+          ]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$replaceFilterDays",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [2, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$filterAlarm",
+        "value": {
+          "function": "modbus_read_discrete",
+          "args": [1, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$resetFilter",
+        "value": {
+          "function": "modbus_read_coil",
+          "args": [0, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$error",
+        "value": {
+          "function": "modbus_read_discrete",
+          "args": [0, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$lastAlarm",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [58, 1]
+        }
+      }
+    ],
+    "write": [
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_command",
+          "args": [132, 2]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$minFlow",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [1069, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$maxFlow",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [1070, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$nominalFlow",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [128, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$nominalFlow",
+        "value": {
+          "function": "sum",
+          "args": [
+            "$nominalFlow",
+            {
+              "function": "multiply",
+              "args": [
+                {
+                  "function": "non_zero",
+                  "args": ["$power"]
+                },
+                {
+                  "function": "subtract",
+                  "args": [
+                    {
+                      "function": "clamp",
+                      "args": [
+                        {
+                          "function": "round",
+                          "args": [
+                            {
+                              "function": "multiply",
+                              "args": ["$power", "$maxFlow", 0.01]
+                            }
+                          ]
+                        },
+                        "$minFlow",
+                        "$maxFlow"
+                      ]
+                    },
+                    "$nominalFlow"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_command",
+          "args": [128, "$nominalFlow"]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$threshold",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [63, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$threshold",
+        "value": {
+          "function": "sum",
+          "args": [
+            "$threshold",
+            {
+              "function": "multiply",
+              "args": [
+                {
+                  "function": "non_zero",
+                  "args": ["$bypassMinOutsideTemperature"]
+                },
+                {
+                  "function": "subtract",
+                  "args": [
+                    {
+                      "function": "round",
+                      "args": [
+                        {
+                          "function": "multiply",
+                          "args": ["$bypassMinOutsideTemperature", 10]
+                        }
+                      ]
+                    },
+                    "$threshold"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_command",
+          "args": [63, "$threshold"]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$threshold",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [65, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$threshold",
+        "value": {
+          "function": "sum",
+          "args": [
+            "$threshold",
+            {
+              "function": "multiply",
+              "args": [
+                {
+                  "function": "non_zero",
+                  "args": ["$bypassMinRoomTemperature"]
+                },
+                {
+                  "function": "subtract",
+                  "args": [
+                    {
+                      "function": "round",
+                      "args": [
+                        {
+                          "function": "multiply",
+                          "args": ["$bypassMinRoomTemperature", 10]
+                        }
+                      ]
+                    },
+                    "$threshold"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_command",
+          "args": [65, "$threshold"]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$threshold",
+        "value": {
+          "function": "modbus_read_holding",
+          "args": [67, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$threshold",
+        "value": {
+          "function": "sum",
+          "args": [
+            "$threshold",
+            {
+              "function": "multiply",
+              "args": [
+                {
+                  "function": "non_zero",
+                  "args": ["$bypassMinTemperatureDifference"]
+                },
+                {
+                  "function": "subtract",
+                  "args": [
+                    {
+                      "function": "round",
+                      "args": [
+                        {
+                          "function": "multiply",
+                          "args": ["$bypassMinTemperatureDifference", 10]
+                        }
+                      ]
+                    },
+                    "$threshold"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_command",
+          "args": [67, "$threshold"]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_coil",
+          "args": [16, "$boost"]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_coil",
+          "args": [17, "$snooze"]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_coil",
+          "args": [7, "$manualBypass"]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_coil",
+          "args": [8, "$autoBypass"]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
+          "function": "modbus_write_coil",
+          "args": [0, "$resetFilter"]
+        }
+      }
+    ]
+  }
+}

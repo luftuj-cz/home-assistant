@@ -21,6 +21,7 @@ export const ALLOWED_FUNCTIONS = [
   "multiply",
   "sum",
   "subtract",
+  "divide",
   "clamp",
   "int16",
   "uint16",
