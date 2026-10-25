@@ -62,5 +62,5 @@ export type HruState =
         temperature?: { unit?: string; scale?: number; precision?: number };
       };
     }
-  | { error: string }
+  | { error: string; errorCode?: string }
   | null;

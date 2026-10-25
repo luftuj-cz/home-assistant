@@ -30,6 +30,7 @@ import type {
 } from "@luftuj/features/dashboard/types";
 import type { TFunction } from "i18next";
 import { TickingAgeLabel } from "@luftuj/features/dashboard/components/TickingAgeLabel";
+import { translateConnectionError } from "@luftuj/shared/utils/connectionError";
 
 interface HruStatusCardProps {
   status: HruState;
@@ -144,7 +145,9 @@ export function HruStatusCard({
           </Badge>
         </Group>
         <Text size="sm" c="red" mt="sm">
-          {status.error}
+          {status.errorCode
+            ? translateConnectionError("modbusErrors", status.errorCode, status.error, t)
+            : status.error}
         </Text>
       </Card>
     );

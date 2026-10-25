@@ -241,6 +241,19 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
     }
   }, [selectedUnit, requiresMinPower, defaultMinPower, minPower]);
 
+  const selectUnit = useCallback(
+    (unit: string | null) => {
+      // minPower and maxPower were entered for the previous unit; clearing them
+      // lets the effects above start the new unit from its own defaults.
+      if (unit !== selectedUnit) {
+        setMinPower(undefined);
+        setMaxPower(undefined);
+      }
+      setSelectedUnit(unit);
+    },
+    [selectedUnit],
+  );
+
   const systemInfoQuery = useQuery({
     queryKey: ["system-info"],
     queryFn: async () => {
@@ -461,7 +474,7 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
       prevStep,
       setStep: setCurrentStep,
       selectedUnit,
-      setSelectedUnit,
+      setSelectedUnit: selectUnit,
       minPower,
       setMinPower,
       maxPower,
@@ -506,6 +519,7 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
       nextStep,
       prevStep,
       selectedUnit,
+      selectUnit,
       minPower,
       maxPower,
       fullUnits,

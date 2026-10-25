@@ -38,6 +38,7 @@ export class HruController {
       ...(cached?.result ?? emptyResult),
       fetchedAt: cached?.fetchedAt ?? null,
       isRefreshing: this.service.isRefreshing(),
+      readError: this.service.getReadFailure(),
     });
     this.logger.info({ hasCache: cached !== null }, "HRU cached values served");
   };

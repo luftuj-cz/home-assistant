@@ -92,7 +92,7 @@ function modbusOpFields(err: unknown): Record<string, unknown> {
  * local to this module rather than in the shared classifier so Modbus and
  * MQTT don't have to import each other's protocol-specific patterns.
  */
-function classifyModbusError(err: unknown): string {
+export function classifyModbusError(err: unknown): string {
   // A protocol exception carries no string `.code`, so the generic classifier
   // would report "UNKNOWN" for the most diagnosable failures there are.
   const modbusCode = err instanceof ModbusOperationError ? err.modbusCode : readModbusCode(err);

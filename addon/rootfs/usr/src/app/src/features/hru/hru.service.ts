@@ -11,6 +11,7 @@ import {
 } from "../../shared/errors/apiErrors.js";
 import { resolveModeValue } from "../../utils/hruWrite.js";
 import { getDemoState, setDemoState } from "../../services/demoState.js";
+import { classifyModbusError } from "../../shared/modbus/client.js";
 
 export type DisplayValue = string | number | boolean;
 export type NullableDisplayValue = DisplayValue | null;
@@ -31,6 +32,13 @@ export interface HruReadResult {
 export interface CachedHruRead {
   result: HruReadResult;
   fetchedAt: number;
+}
+
+/** Why the latest monitoring read of the configured unit failed. */
+export interface HruReadFailure {
+  message: string;
+  code: string;
+  at: number;
 }
 
 type PowerLimits = Pick<HruSettings, "minPower" | "maxPower"> | null | undefined;
@@ -57,6 +65,7 @@ export class HruService {
   private readonly units: HeatRecoveryUnit[];
   private readValuesInFlight: Promise<HruReadResult> | null = null;
   private cachedRead: CachedHruRead | null = null;
+  private readFailure: HruReadFailure | null = null;
   private refreshing = false;
 
   constructor(
@@ -70,10 +79,32 @@ export class HruService {
 
   setCachedResult(result: HruReadResult): void {
     this.cachedRead = { result, fetchedAt: Date.now() };
+    this.readFailure = null;
   }
 
   getCachedRead(): CachedHruRead | null {
     return this.cachedRead;
+  }
+
+  /** Forget the last read and its failure, both of which belong to the previous unit or address. */
+  clearCachedRead(): void {
+    this.cachedRead = null;
+    this.readFailure = null;
+  }
+
+  setReadFailure(err: unknown): void {
+    // HruConnectionError only says "Failed to read HRU values"; the transport
+    // error it wraps says why.
+    const cause = err instanceof Error && err.cause !== undefined ? err.cause : err;
+    this.readFailure = {
+      message: cause instanceof Error ? cause.message : String(cause),
+      code: classifyModbusError(cause),
+      at: Date.now(),
+    };
+  }
+
+  getReadFailure(): HruReadFailure | null {
+    return this.readFailure;
   }
 
   setRefreshing(value: boolean): void {
