@@ -29,11 +29,20 @@ export function useHruPoll(onModbusStatus?: (s: ModbusState) => void): HruState 
           variables?: HruVariable[] | null;
           fetchedAt?: number | null;
           isRefreshing?: boolean;
+          readError?: { message: string; code: string } | null;
           registers?: {
             power?: { unit?: string; scale?: number; precision?: number };
             temperature?: { unit?: string; scale?: number; precision?: number };
           };
         } | null;
+
+        if (data?.fetchedAt == null && data?.readError) {
+          // Nothing read yet because the reads fail (wrong address, unit off):
+          // an error, not a read that is still on its way.
+          setHruStatus({ error: data.readError.message, errorCode: data.readError.code });
+          onModbusStatusRef.current?.("unreachable");
+          return;
+        }
 
         if (data?.fetchedAt == null) {
           // No cached read yet (backend just started, or the cache was lost

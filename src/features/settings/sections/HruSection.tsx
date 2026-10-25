@@ -1,4 +1,4 @@
-import { startTransition, useCallback, useEffect, useMemo, useState } from "react";
+import { startTransition, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Accordion,
   Badge,
@@ -14,6 +14,7 @@ import {
 } from "@mantine/core";
 import { IconServer } from "@tabler/icons-react";
 import { notifications } from "@mantine/notifications";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
 
 import type { HruUnit } from "@luftuj/shared/api/hru";
@@ -43,11 +44,13 @@ const initial: HruSettings = {
 
 export function HruSection() {
   const { t } = useTranslation();
+  const queryClient = useQueryClient();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [probing, setProbing] = useState(false);
   const [units, setUnits] = useState<HruUnit[]>([]);
   const [settings, setSettings] = useState<HruSettings>(initial);
+  const savedSettings = useRef<HruSettings | null>(null);
   const [probeStatus, setProbeStatus] = useState<"success" | "error" | null>(null);
   const [probeError, setProbeError] = useState<string | null>(null);
 
@@ -63,7 +66,11 @@ export function HruSection() {
         ]);
         if (canceled) return;
         if (unitsRes.ok) setUnits(await unitsRes.json());
-        if (settingsRes.ok) setSettings(await settingsRes.json());
+        if (settingsRes.ok) {
+          const loaded = (await settingsRes.json()) as HruSettings;
+          savedSettings.current = loaded;
+          setSettings(loaded);
+        }
       } catch (err) {
         logger.error("Failed to load HRU settings", { error: err });
       } finally {
@@ -93,6 +100,28 @@ export function HruSection() {
     clearProbe();
   }
 
+  function defaultPowerLimits(unitId: string | null): Pick<HruSettings, "minPower" | "maxPower"> {
+    const powerVar = units
+      .find((u) => u.id === unitId)
+      ?.variables?.find((v) => v.class === "power");
+    return {
+      minPower: powerVar?.minConfigurable ? (powerVar.minDefault ?? powerVar.min) : undefined,
+      maxPower: powerVar?.maxConfigurable ? (powerVar.maxDefault ?? powerVar.max) : undefined,
+    };
+  }
+
+  function selectUnit(unitId: string | null) {
+    // minPower and maxPower are per unit (m³/h on one, % on another): back on the
+    // saved unit its saved limits apply, any other unit starts from its own defaults.
+    const saved = savedSettings.current;
+    const limits =
+      unitId === saved?.unit
+        ? { minPower: saved.minPower, maxPower: saved.maxPower }
+        : defaultPowerLimits(unitId);
+    setSettings((prev) => (prev.unit === unitId ? prev : { ...prev, unit: unitId, ...limits }));
+    clearProbe();
+  }
+
   const save = useCallback(async () => {
     setSaving(true);
     try {
@@ -110,6 +139,13 @@ export function HruSection() {
         });
         return;
       }
+      savedSettings.current = settings;
+      // Almost every cached query is about the configured unit - modes, seasons,
+      // plans - so none of it may outlive a change. The dashboard's host and unit
+      // are dropped outright: merely stale, they would still be rendered on the
+      // next visit and probe the old address once before the refetch lands.
+      queryClient.removeQueries({ queryKey: ["hru-config"] });
+      void queryClient.invalidateQueries();
       notifications.show({
         title: t("settings.hru.notifications.saveSuccessTitle"),
         message: t("settings.hru.notifications.saveSuccessMessage"),
@@ -125,7 +161,7 @@ export function HruSection() {
     } finally {
       setSaving(false);
     }
-  }, [settings, t]);
+  }, [queryClient, settings, t]);
 
   const probe = useCallback(async () => {
     if (!settings.unit) {
@@ -214,7 +250,7 @@ export function HruSection() {
                 required
                 data={unitOptions}
                 value={settings.unit ?? ""}
-                onChange={(v) => update("unit", v === "" ? null : v)}
+                onChange={(v) => selectUnit(v === "" ? null : v)}
                 label={t("settings.hru.unitLabel")}
                 placeholder={t("settings.hru.unitPlaceholder")}
                 error={unitMissing ? t("settings.hru.unitRequired") : undefined}

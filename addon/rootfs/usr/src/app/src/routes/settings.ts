@@ -367,7 +367,7 @@ export function createSettingsRouter(
       next: NextFunction,
     ) => {
       try {
-        const { unit, host, port, unitId, minPower, maxPower } = request.body;
+        const { unit, host, port, unitId } = request.body;
 
         const trimmedHost = host.trim();
         if (!trimmedHost) {
@@ -389,10 +389,18 @@ export function createSettingsRouter(
             ? undefined
             : hruService.getAllUnits().find((u) => u.id === resolvedUnit);
 
+        // Only a unit with a configurable minimum or maximum uses minPower or
+        // maxPower. Right after a unit switch a form can still carry the previous
+        // unit's values, which must be neither checked against nor stored for a
+        // unit they were never meant for.
+        const powerVar = selectedUnit?.variables.find((v) => v.class === "power");
+        if (!powerVar?.maxConfigurable) request.body.maxPower = undefined;
+        if (!powerVar?.minConfigurable) request.body.minPower = undefined;
+
         if (selectedUnit) {
           const powerValidationError = validateHruMaxPower(
             selectedUnit,
-            maxPower,
+            request.body.maxPower,
             request.body,
             logger,
           );
@@ -401,7 +409,7 @@ export function createSettingsRouter(
           }
           const minPowerValidationError = validateHruMinPower(
             selectedUnit,
-            minPower,
+            request.body.minPower,
             request.body,
             logger,
           );
@@ -418,11 +426,13 @@ export function createSettingsRouter(
           port: 502,
           unitId: 1,
         };
+        let previousUnit: string | null = null;
         const rawPrevious = getAppSetting(HRU_SETTINGS_KEY);
         if (rawPrevious) {
           try {
             const prev = JSON.parse(String(rawPrevious)) as HruSettings;
             previousCfg = { host: prev.host, port: prev.port, unitId: prev.unitId ?? 1 };
+            previousUnit = prev.unit;
           } catch {
             logger.warn(
               "Failed to parse previous HRU settings; falling back to default tuple for cleanup",
@@ -440,19 +450,27 @@ export function createSettingsRouter(
         };
         setAppSetting(HRU_SETTINGS_KEY, JSON.stringify(settings));
 
-        // Retire the old client off the response path (don't block the 204), and only
-        // when the tuple actually changed.
-        if (
+        const connectionChanged =
           previousCfg.host !== trimmedHost ||
           previousCfg.port !== port ||
-          previousCfg.unitId !== resolvedUnitId
-        ) {
+          previousCfg.unitId !== resolvedUnitId;
+
+        // Retire the old client off the response path (don't block the 204), and only
+        // when the tuple actually changed.
+        if (connectionChanged) {
           void releaseSharedModbusClient(previousCfg).catch((err) => {
             logger.warn(
               { err, previousCfg },
               "Failed to release stale Modbus client after HRU settings change",
             );
           });
+        }
+
+        // The cached read came from the previous unit or address. Served on, it shows
+        // that unit as connected until the next successful read - and for good if the
+        // new address does not answer.
+        if (connectionChanged || previousUnit !== resolvedUnit) {
+          hruService.clearCachedRead();
         }
 
         try {
@@ -464,7 +482,10 @@ export function createSettingsRouter(
           logger.warn({ err }, "Failed to update MQTT discovery after HRU settings change");
         }
 
-        logger.info({ unit, host, port, unitId, minPower, maxPower }, "HRU settings updated");
+        logger.info(
+          { unit, host, port, unitId, minPower: settings.minPower, maxPower: settings.maxPower },
+          "HRU settings updated",
+        );
         response.status(204).end();
       } catch (error) {
         logger.error({ error }, "Failed to update HRU settings");

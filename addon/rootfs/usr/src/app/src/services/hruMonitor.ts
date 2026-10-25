@@ -7,6 +7,13 @@ import type { TimelineScheduler } from "./timelineScheduler.js";
 
 const POLLING_INTERVAL_MS = 10_000; // 10 seconds
 
+/** What a read depends on: the unit's script and the address it runs against. */
+function readTargetKey(config: ReturnType<HruService["getResolvedConfiguration"]>): string {
+  if (!config) return "";
+  const { unit, settings } = config;
+  return JSON.stringify([unit.code, settings.host, settings.port, settings.unitId]);
+}
+
 export class HruMonitor {
   private timer: NodeJS.Timeout | null = null;
   private isRunning = false;
@@ -93,7 +100,15 @@ export class HruMonitor {
       }
 
       try {
-        const result = await this.hruService.readValues();
+        const readTarget = readTargetKey(this.hruService.getResolvedConfiguration());
+        const result = await this.hruService.readValues().catch((err: unknown) => {
+          if (!this.readTargetChanged(readTarget)) this.hruService.setReadFailure(err);
+          throw err;
+        });
+        if (this.readTargetChanged(readTarget)) {
+          this.logger.info("HRU Monitor: HRU settings changed during the read, discarding it");
+          return;
+        }
         this.hruService.setCachedResult(result);
         const addonMode = this.timelineScheduler.getFormattedActiveMode();
         const boostRemaining = this.timelineScheduler.getBoostRemainingMinutes();
@@ -120,6 +135,14 @@ export class HruMonitor {
     } finally {
       this.hruService.setRefreshing(false);
     }
+  }
+
+  /**
+   * Settings saved while a read was on the wire make it a read of the previous
+   * unit or address: neither its values nor its failure apply to the new one.
+   */
+  private readTargetChanged(readTarget: string): boolean {
+    return readTargetKey(this.hruService.getResolvedConfiguration()) !== readTarget;
   }
 
   /**
