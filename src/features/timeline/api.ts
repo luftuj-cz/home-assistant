@@ -7,8 +7,13 @@ import type { ApiTimelineEvent, Mode, TimelineEvent } from "@luftuj/shared/types
  * being viewed. Omitting the season lets the backend fall back to the active
  * one, which is what a client that predates seasons sends.
  */
-function withScope(path: string, unitId?: string, seasonId?: number): string {
-  const params = new URLSearchParams();
+function withScope(
+  path: string,
+  unitId?: string,
+  seasonId?: number,
+  extraParams: Record<string, string> = {},
+): string {
+  const params = new URLSearchParams(extraParams);
   if (unitId) params.set("unitId", unitId);
   if (seasonId !== undefined) params.set("seasonId", String(seasonId));
   const query = params.toString();
@@ -34,12 +39,19 @@ export async function fetchTimelineModes(unitId?: string, seasonId?: number): Pr
   return data.modes ?? [];
 }
 
+/**
+ * With `duplicateOf`, the new mode also takes that mode's values in every season
+ * other than `seasonId` - the one whose values `mode` carries.
+ */
 export async function createTimelineMode(
   mode: Omit<Mode, "id">,
   unitId?: string,
   seasonId?: number,
+  duplicateOf?: number,
 ): Promise<Mode> {
-  const res = await fetch(withScope("/api/timeline/modes", unitId, seasonId), {
+  const extraParams: Record<string, string> =
+    duplicateOf === undefined ? {} : { duplicateOf: String(duplicateOf) };
+  const res = await fetch(withScope("/api/timeline/modes", unitId, seasonId, extraParams), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(mode),

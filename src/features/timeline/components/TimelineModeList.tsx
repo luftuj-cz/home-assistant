@@ -13,7 +13,7 @@ import {
   Tooltip,
 } from "@mantine/core";
 import { useDraggable } from "@dnd-kit/core";
-import { IconAlertTriangle, IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
+import { IconAlertTriangle, IconCopy, IconEdit, IconPlus, IconTrash } from "@tabler/icons-react";
 import type { TFunction } from "i18next";
 import type { Mode } from "@luftuj/shared/types/timeline";
 import { formatTemperature, getTemperatureLabel } from "@luftuj/shared/utils/temperature";
@@ -25,6 +25,8 @@ interface TimelineModeListProps {
   /** Omitted where modes cannot be created, e.g. on a custom timeline. */
   onAdd?: () => void;
   onEdit: (mode: Mode) => void;
+  /** Omitted where modes cannot be created, like `onAdd`. */
+  onDuplicate?: (mode: Mode) => void;
   onDelete: (id: number) => void;
   t: TFunction;
   powerUnit?: string;
@@ -33,6 +35,7 @@ interface TimelineModeListProps {
 interface ModeCardProps {
   mode: Mode;
   onEdit: (mode: Mode) => void;
+  onDuplicate?: (mode: Mode) => void;
   onDelete: (id: number) => void;
   t: TFunction;
   powerUnit: string;
@@ -44,6 +47,7 @@ interface ModeCardProps {
 export function ModeCard({
   mode: m,
   onEdit,
+  onDuplicate,
   onDelete,
   t,
   powerUnit,
@@ -75,14 +79,16 @@ export function ModeCard({
       }}
     >
       <Stack gap="md">
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <Stack gap={4}>
+        <Group justify="space-between" align="flex-start" wrap="nowrap" gap="xs">
+          {/* The name gives way to the action icons: it is cut short with an
+              ellipsis rather than pushing the icons out of a narrow card. */}
+          <Stack gap={4} style={{ minWidth: 0 }}>
             <Group gap={8} wrap="nowrap">
-              <ColorSwatch color={m.color || "blue"} size={16} />
+              <ColorSwatch color={m.color || "blue"} size={16} style={{ flexShrink: 0 }} />
               <Title
                 order={5}
+                title={m.name}
                 style={{
-                  maxWidth: 140,
                   overflow: "hidden",
                   textOverflow: "ellipsis",
                   whiteSpace: "nowrap",
@@ -123,7 +129,7 @@ export function ModeCard({
             </Group>
           </Stack>
 
-          <Group gap={4} wrap="nowrap">
+          <Group gap={2} wrap="nowrap" style={{ flexShrink: 0 }}>
             <Tooltip
               label={t("settings.timeline.modeUnconfiguredHint")}
               disabled={!unconfigured}
@@ -131,7 +137,7 @@ export function ModeCard({
               w={240}
             >
               <ActionIcon
-                size="lg"
+                size="md"
                 variant={unconfigured ? "filled" : "subtle"}
                 color={unconfigured ? "yellow" : undefined}
                 aria-label={
@@ -142,18 +148,29 @@ export function ModeCard({
                 onClick={() => onEdit(m)}
                 radius="md"
               >
-                <IconEdit size={20} />
+                <IconEdit size={18} />
               </ActionIcon>
             </Tooltip>
+            {onDuplicate && (
+              <ActionIcon
+                size="md"
+                variant="subtle"
+                aria-label={t("settings.timeline.duplicate")}
+                onClick={() => onDuplicate(m)}
+                radius="md"
+              >
+                <IconCopy size={18} />
+              </ActionIcon>
+            )}
             <ActionIcon
-              size="lg"
+              size="md"
               variant="subtle"
               color="red"
               aria-label={t("settings.timeline.delete")}
               onClick={() => onDelete(m.id)}
               radius="md"
             >
-              <IconTrash size={20} />
+              <IconTrash size={18} />
             </ActionIcon>
           </Group>
         </Group>
@@ -165,6 +182,7 @@ export function ModeCard({
 function DraggableModeCard({
   mode,
   onEdit,
+  onDuplicate,
   onDelete,
   t,
   powerUnit,
@@ -181,6 +199,7 @@ function DraggableModeCard({
     <ModeCard
       mode={mode}
       onEdit={onEdit}
+      onDuplicate={onDuplicate}
       onDelete={onDelete}
       t={t}
       powerUnit={powerUnit}
@@ -195,6 +214,7 @@ export function TimelineModeList({
   modes,
   onAdd,
   onEdit,
+  onDuplicate,
   onDelete,
   t,
   powerUnit = "%",
@@ -256,6 +276,7 @@ export function TimelineModeList({
                 key={m.id}
                 mode={m}
                 onEdit={onEdit}
+                onDuplicate={onDuplicate}
                 onDelete={onDelete}
                 t={t}
                 powerUnit={powerUnit}

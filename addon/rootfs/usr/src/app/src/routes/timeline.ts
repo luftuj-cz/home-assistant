@@ -4,6 +4,7 @@ import type { Logger } from "pino";
 import {
   assignLegacyEventsToUnit,
   deleteTimelineModeValues,
+  duplicateTimelineMode,
   ensureActiveSeasonId,
   getActiveSeasonId,
   getEnabledSeasons,
@@ -378,6 +379,24 @@ export function createTimelineRouter(
         const currentUnitId = getCurrentUnitId(request.query.unitId as string);
         const modeData = mapTimelineModeInput(payload);
 
+        // A duplicate takes the source's values in the seasons the dialog did not
+        // show, so the source has to be a mode this unit can see.
+        let duplicateOf: number | undefined;
+        const rawDuplicateOf = request.query.duplicateOf;
+        if (rawDuplicateOf !== undefined) {
+          // A repeated parameter arrives as an array: refused, not one of them picked.
+          duplicateOf =
+            typeof rawDuplicateOf === "string" ? Number.parseInt(rawDuplicateOf, 10) : Number.NaN;
+          if (!Number.isFinite(duplicateOf)) {
+            return next(new BadRequestError("Invalid mode id", "INVALID_MODE_ID"));
+          }
+          const source = getTimelineMode(duplicateOf);
+          // Same rule as the mode list: no unit ("" or NULL) means shared.
+          if (!source || (source.hruId && source.hruId !== currentUnitId)) {
+            return next(new NotFoundError("Mode not found", "MODE_NOT_FOUND"));
+          }
+        }
+
         if (!validatePowerAndValves(payload, response, currentUnitId)) {
           return;
         }
@@ -389,13 +408,14 @@ export function createTimelineRouter(
           ...modeData,
           hruId: currentUnitId || "",
         };
+        const seasonId = getWriteSeasonId(request.query.seasonId, currentUnitId);
 
         // We need to pass undefined ID for creation, but type expects number.
         // upsertTimelineMode handles null/undefined ID for creation logic.
-        const created = upsertTimelineMode(
-          { ...newMode, id: undefined as unknown as number },
-          getWriteSeasonId(request.query.seasonId, currentUnitId),
-        );
+        const created =
+          duplicateOf === undefined
+            ? upsertTimelineMode({ ...newMode, id: undefined as unknown as number }, seasonId)
+            : duplicateTimelineMode(newMode, seasonId, duplicateOf);
 
         // Trigger MQTT discovery refresh to publish new boost buttons if needed
         mqttService.refreshDiscovery().catch((error) => {

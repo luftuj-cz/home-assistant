@@ -220,6 +220,9 @@
       "modeColorPlaceholder": "#228be6 nebo modrá",
       "modeDialogTitle": "Vytvořit režim",
       "modeEditTitle": "Upravit režim",
+      "modeDuplicateTitle": "Duplikovat režim",
+      "modeCopyName": "{{name}} (kopie)",
+      "modeCopyNameNumbered": "{{name}} (kopie {{number}})",
       "modeCreateAction": "Vytvořit",
       "modeUpdateAction": "Aktualizovat",
       "modeIsBoost": "Zobrazit jako tlačítko manuální akce",
@@ -239,6 +242,7 @@
       "noModesCreatedDescription": "Před plánováním událostí v časové ose musíte vytvořit alespoň jeden režim větrání.",
       "noModes": "Zatím žádné režimy.",
       "edit": "Upravit",
+      "duplicate": "Duplikovat",
       "delete": "Smazat",
       "enabled": "Povoleno",
       "disabled": "Zakázáno",
@@ -377,7 +381,12 @@
         "maxPowerLabel": "Maximální průtok/výkon",
         "maxPowerDescription": "Tato hodnota přepíše výchozí limit pro tuto jednotku. Užitečné pro objemové jednotky (m3/h) pro přizpůsobení vaší konkrétní instalaci.",
         "maxPowerHint": "Výchozí: {{default}} {{unit}}",
-        "maxPowerRequired": "Maximální průtok/výkon je povinný pro tuto jednotku"
+        "maxPowerRequired": "Maximální průtok/výkon je povinný pro tuto jednotku",
+        "limitsDescription": "Tyto hodnoty přepíší výchozí limity pro tuto jednotku. Užitečné pro objemové jednotky (m3/h) pro přizpůsobení vaší konkrétní instalaci.",
+        "minPowerLabel": "Minimální průtok/výkon",
+        "minPowerHint": "Výchozí: {{default}} {{unit}}",
+        "minPowerRequired": "Minimální průtok/výkon je povinný pro tuto jednotku",
+        "minPowerAboveMax": "Minimum nesmí být vyšší než maximum"
       }
     },
     "mqtt": {
@@ -866,6 +875,9 @@
     "UNKNOWN_HRU_UNIT": "Neznámá rekuperační jednotka",
     "MAX_POWER_REQUIRED": "Maximální výkon je povinný pro vybranou jednotku",
     "MAX_POWER_EXCEEDED": "Maximální výkon překračuje povolený limit pro tuto jednotku",
+    "MIN_POWER_REQUIRED": "Minimální výkon je povinný pro vybranou jednotku",
+    "MIN_POWER_TOO_LOW": "Minimální výkon je nižší než povolený limit pro tuto jednotku",
+    "MIN_POWER_ABOVE_MAX": "Minimální výkon nesmí být vyšší než maximální",
     "MODE_NOT_CONFIGURED_FOR_SEASON": "Tento mód nemá pro dané období nastavené hodnoty. Nejdřív je nastav, pak ho tam půjde použít.",
     "MODE_VALUES_EMPTY": "Mód musí mít pro toto období aspoň jednu hodnotu nebo jeden aktivační skript.",
     "MODE_VALUES_IN_USE": "Události v tomto období tento mód pořád používají. Nejdřív je smaž nebo vypni.",
@@ -984,7 +996,8 @@
       "error": "Vyberte prosím jednotku",
       "loadFailed": "Nepodařilo se načíst modely jednotek. Zkuste prosím obnovit stránku.",
       "saveFailed": "Nepodařilo se uložit nastavení jednotky",
-      "maxPowerRequired": "Maximální průtok/výkon je povinný pro tuto jednotku"
+      "maxPowerRequired": "Maximální průtok/výkon je povinný pro tuto jednotku",
+      "minPowerRequired": "Minimální průtok/výkon je povinný pro tuto jednotku"
     },
     "status": {
       "label": "Status",

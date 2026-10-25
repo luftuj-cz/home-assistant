@@ -14,6 +14,21 @@ export function getModeOptions(modes: Mode[]): ModeOption[] {
   return modes.map((m) => ({ value: m.id?.toString() ?? "", label: m.name }));
 }
 
+/**
+ * Name for a copy of `name` that no mode uses yet: "Komfort (kopie)", then
+ * "Komfort (kopie 2)" and so on. Names are unique per unit, case-insensitively.
+ */
+export function duplicateModeName(name: string, modes: Mode[], t: TFunction): string {
+  const taken = new Set(modes.map((m) => m.name.toLowerCase()));
+  let candidate = t("settings.timeline.modeCopyName", { name });
+  let number = 2;
+  while (taken.has(candidate.toLowerCase())) {
+    candidate = t("settings.timeline.modeCopyNameNumbered", { name, number });
+    number++;
+  }
+  return candidate;
+}
+
 export function mapModeForUi(mode: Mode): Mode {
   if (mode.variables && Object.keys(mode.variables).length > 0) return mode;
 

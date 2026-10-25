@@ -27,6 +27,7 @@ import {
 import {
   DAY_ORDER,
   DEFAULT_START_TIME,
+  duplicateModeName,
   findActiveEvent,
   getDayLabels,
   getModeOptions,
@@ -144,9 +145,11 @@ export function TimelinePage() {
   const {
     modeModalOpen,
     editingMode,
+    duplicateTemplate,
     modeNameError,
     handleAddMode,
     handleEditMode,
+    handleDuplicateMode,
     handleSaveMode,
     handleDeleteMode,
     handleNameChange,
@@ -242,6 +245,11 @@ export function TimelinePage() {
       handleEditMode(mode);
     },
     [handleEditMode, viewingCustom],
+  );
+
+  const handleDuplicateModeInView = useCallback(
+    (mode: Mode) => handleDuplicateMode({ ...mode, name: duplicateModeName(mode.name, modes, t) }),
+    [handleDuplicateMode, modes, t],
   );
 
   const handleFillWeek = useCallback(
@@ -407,6 +415,7 @@ export function TimelinePage() {
             modes={modes}
             onAdd={viewingCustom ? undefined : handleAddMode}
             onEdit={handleEditModeInView}
+            onDuplicate={viewingCustom ? undefined : handleDuplicateModeInView}
             onDelete={(id) => setModePendingDelete(modes.find((m) => m.id === id) ?? null)}
             t={t}
             powerUnit={powerUnit}
@@ -478,6 +487,7 @@ export function TimelinePage() {
               <ModeCard
                 mode={activeMode}
                 onEdit={handleEditModeInView}
+                onDuplicate={viewingCustom ? undefined : handleDuplicateModeInView}
                 onDelete={(id) => setModePendingDelete(modes.find((m) => m.id === id) ?? null)}
                 t={t}
                 powerUnit={powerUnit}
@@ -502,6 +512,7 @@ export function TimelinePage() {
         <TimelineModeModal
           opened={modeModalOpen}
           mode={editingMode}
+          template={duplicateTemplate}
           valves={valves}
           valveGroups={valveGroups}
           saving={isModesMutating}
@@ -514,8 +525,10 @@ export function TimelinePage() {
           existingModes={modes}
           seasonLabel={viewedSeasonLabel}
           copyFromSeasons={
-            // Only worth offering while this mode has nothing here yet.
-            editingMode?.configured === false
+            // Only worth offering while this mode has nothing here yet. A
+            // duplicate of such a mode starts just as empty, so it gets the
+            // offer too - from the source's seasons.
+            (editingMode ?? duplicateTemplate)?.configured === false
               ? seasons
                   .filter((season) => season.id !== viewedSeasonId)
                   .map((season) => ({
@@ -524,11 +537,12 @@ export function TimelinePage() {
                   }))
               : []
           }
-          onCopyFromSeason={(seasonId) =>
-            editingMode
-              ? api.fetchModeInSeason(editingMode.id, seasonId, activeUnitId)
-              : Promise.resolve(undefined)
-          }
+          onCopyFromSeason={(seasonId) => {
+            const source = editingMode ?? duplicateTemplate;
+            return source
+              ? api.fetchModeInSeason(source.id, seasonId, activeUnitId)
+              : Promise.resolve(undefined);
+          }}
           onClearSeasonValues={
             // "Clear the values for this season" only means something when
             // other seasons hold values of their own; on a feature-off install

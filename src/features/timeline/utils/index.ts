@@ -1,6 +1,7 @@
 export {
   DAY_ORDER,
   DEFAULT_START_TIME,
+  duplicateModeName,
   getModeOptions,
   mapModeForUi,
   getDayLabels,

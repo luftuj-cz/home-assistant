@@ -12,6 +12,7 @@ import {
 } from "@mantine/core";
 import {
   IconAlertTriangle,
+  IconCopy,
   IconEdit,
   IconFileText,
   IconPalette,
@@ -37,6 +38,8 @@ import { ModeScriptFields } from "@luftuj/features/timeline/components/ModeScrip
 interface TimelineModeModalProps {
   opened: boolean;
   mode: Mode | null;
+  /** Fills the form of a new mode, e.g. from the mode being duplicated. Ignored when editing. */
+  template?: Mode | null;
   valves: Valve[];
   valveGroups?: ValveGroup[];
   saving: boolean;
@@ -66,6 +69,7 @@ interface TimelineModeModalProps {
 export function TimelineModeModal({
   opened,
   mode,
+  template = null,
   valves,
   valveGroups = [],
   saving,
@@ -84,7 +88,8 @@ export function TimelineModeModal({
   onClearSeasonValues,
 }: Readonly<TimelineModeModalProps>) {
   const isMobile = useMediaQuery("(max-width: 48em)");
-  const form = useModeForm(opened, mode, valves);
+  const form = useModeForm(opened, mode ?? template, valves);
+  const duplicating = !mode && template !== null;
   const [testRemainingSeconds, setTestRemainingSeconds] = useState<number | null>(null);
   const [isActivatingTest, setIsActivatingTest] = useState(false);
   const testTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -238,16 +243,15 @@ export function TimelineModeModal({
       onClose={onClose}
       title={
         <Group gap="xs">
-          {mode ? (
-            <IconEdit size={20} color="var(--mantine-primary-color-5)" />
-          ) : (
-            <IconPlus size={20} color="var(--mantine-primary-color-5)" />
-          )}
+          {mode && <IconEdit size={20} color="var(--mantine-primary-color-5)" />}
+          {duplicating && <IconCopy size={20} color="var(--mantine-primary-color-5)" />}
+          {!mode && !duplicating && <IconPlus size={20} color="var(--mantine-primary-color-5)" />}
           <Text fw={600}>
             {(() => {
-              const base = t(
-                mode ? "settings.timeline.modeEditTitle" : "settings.timeline.modeDialogTitle",
-              );
+              let titleKey = "settings.timeline.modeDialogTitle";
+              if (mode) titleKey = "settings.timeline.modeEditTitle";
+              else if (duplicating) titleKey = "settings.timeline.modeDuplicateTitle";
+              const base = t(titleKey);
               // The dialog is unchanged otherwise: the only difference is which
               // season the values land in, so it has to say which one.
               return seasonLabel
