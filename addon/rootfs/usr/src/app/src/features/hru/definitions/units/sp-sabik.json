@@ -763,6 +763,13 @@
       {
         "type": "action",
         "expression": {
+          "function": "modbus_write_coil",
+          "args": [21, 0]
+        }
+      },
+      {
+        "type": "action",
+        "expression": {
           "function": "modbus_write_command",
           "args": [132, 2]
         }

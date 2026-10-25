@@ -25,6 +25,7 @@ type SpSabik struct {
 	outsideHumidity    int  // IR 30032: ODA, %
 	supplyHumidity     int  // IR 30033: SUP, %
 	lastAlarm          int  // IR 30059: 0 no alarm .. 22
+	potentiometerFlow  int  // IR 30089: nominal airflow set by potentiometer 1 on the main PCB, m3/h
 	alarm              bool // DI 10001
 	filterAlarm        bool // DI 10002
 	nominalFlow        int  // HR 40129: m3/h, minFlow..maxFlow
@@ -36,6 +37,7 @@ type SpSabik struct {
 	maxFlow            int  // HR 41071: model maximum of HR 40129
 	manualBypass       bool // coil 8
 	autoBypass         bool // coil 9
+	pcbControls        bool // coil 22: main PCB dip switches and potentiometers active
 	boost              bool // coil 17
 	snooze             bool // coil 18
 }
@@ -58,7 +60,9 @@ func NewSpSabik() *SpSabik {
 		boostPercent:       130,
 		minFlow:            140,
 		maxFlow:            260,
+		potentiometerFlow:  171,
 		autoBypass:         true,
+		pcbControls:        true,
 	}
 }
 
@@ -76,19 +80,29 @@ func (s *SpSabik) activeMode() int {
 	}
 }
 
+// effectiveNominalFlow is the nominal airflow the unit runs on: while the main PCB
+// controls are active (coil 22), potentiometer 1 overrides HR 40129.
+func (s *SpSabik) effectiveNominalFlow() int {
+	if s.pcbControls {
+		return s.potentiometerFlow
+	}
+	return s.nominalFlow
+}
+
 // setpointFlow is the airflow requested from both fans (IR 30107 / 30108).
 func (s *SpSabik) setpointFlow() int {
+	nominal := s.effectiveNominalFlow()
 	switch s.activeMode() {
 	case 0:
 		return 0
 	case 1:
-		return s.nominalFlow * s.humidityPercent / 100
+		return nominal * s.humidityPercent / 100
 	case 2:
-		return s.nominalFlow * s.reducedPercent / 100
+		return nominal * s.reducedPercent / 100
 	case 4:
-		return s.nominalFlow * s.boostPercent / 100
+		return nominal * s.boostPercent / 100
 	default:
-		return s.nominalFlow
+		return nominal
 	}
 }
 
@@ -142,6 +156,8 @@ func (s *SpSabik) Configure(serv *Server) {
 			return []uint16{uint16(s.lastAlarm)}, &Success
 		case 63:
 			return []uint16{s.bypassPosition()}, &Success
+		case 88:
+			return []uint16{uint16(s.potentiometerFlow)}, &Success
 		case 90:
 			return []uint16{uint16(s.activeMode())}, &Success
 		case 106, 107:
@@ -215,6 +231,8 @@ func (s *SpSabik) Configure(serv *Server) {
 			return []bool{s.boost}, &Success
 		case 17:
 			return []bool{s.snooze}, &Success
+		case 21:
+			return []bool{s.pcbControls}, &Success
 		}
 		return []bool{}, &IllegalDataAddress
 	})
@@ -233,6 +251,9 @@ func (s *SpSabik) Configure(serv *Server) {
 		case 17:
 			s.snooze = value
 			log.Printf(">>> CHANGE: snooze=%v\n", value)
+		case 21:
+			s.pcbControls = value
+			log.Printf(">>> CHANGE: pcbControls=%v\n", value)
 		default:
 			return &IllegalDataAddress
 		}
