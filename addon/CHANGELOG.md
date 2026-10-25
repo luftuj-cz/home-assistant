@@ -2,6 +2,56 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.2-stable] - 2026-10-25
+
+### Added
+
+- **Duplicating a mode**: Mode cards on the timeline have a Duplicate button. It opens the mode editor filled in
+  from the source mode (values, valves, scripts, colour, boost) under a free name such as "Comfort (copy)". The
+  values in the editor go to the season being viewed; every other season the source is set up for gets the
+  source's values, so the copy works all year round. If the source has no values in the season being viewed, the
+  editor offers to copy them from another season. Not offered on custom plans, where modes cannot be created.
+- **New HRU unit**: Elektrodesign S&P Sabik, with airflow set in m³/h (80–400 m³/h, with a configurable minimum
+  and maximum). Modes can switch boost, snooze, manual bypass and automatic bypass; the dashboard shows the
+  temperatures, humidity, supply and extract airflow, the active mode, the bypass position, the filter state and
+  the last alarm. Comes with a Modbus simulator for development.
+- **Configurable minimum power**: A unit definition can let the user set a minimum airflow or power next to the
+  maximum (`minConfigurable`, `minDefault`), in Settings and in the onboarding wizard. The mode editor and every
+  write keep to that range, and the safe state uses the configured minimum.
+- **Unit definitions**: 32-bit reads of input registers (`modbus_read_input_uint32_le` and `_be`) and a
+  low-word-first read of holding registers (`modbus_read_holding_uint32_le`), each in a single request.
+
+### Changed
+
+- **Systemair SAVE**: Power is set as fan speed in % (0–100) instead of a 2–4 level, and the extract fan speed
+  differs from the supply by an offset (−20 to +20 %). Modes can also set the defrosting mode (soft, normal,
+  hard); the dashboard shows when the unit is defrosting or heating. The unit's own modes (auto, crowded,
+  fireplace, ...) can no longer be selected: the add-on switches the unit to manual and writes both fan speeds
+  directly. **After upgrading, set power in % in every mode that drives a Systemair SAVE**: values saved as 2–4
+  now mean a fan speed of 2–4 %.
+- **Meltem**: The minimum power is 10 instead of 0. A mode set lower is rejected when it is applied, so raise it
+  after upgrading.
+- **Unit definitions**: `modbus_read_holding_uint32` is renamed `modbus_read_holding_uint32_be` (high word first),
+  next to the new low-word-first variant. A definition using the old name has to be updated.
+- **Dependencies**: Updated, including Vite+ 1.4, React 19.3, Mantine 9.7 and Express 5.3.
+
+### Fixed
+
+- **Changing the unit or its address**: After switching the unit model or changing its address or port in
+  Settings, the dashboard kept probing the old address and showed the previous unit's values until the add-on
+  was restarted. It now switches straight away. When the new address does not answer, the dashboard reports the
+  connection error instead of loading forever.
+- **Power limits on a unit switch**: Switching to a model without a configurable maximum or minimum no longer
+  fails with "maximum power exceeds the limit for this unit" because the form still carried the previous unit's
+  value. Settings and the onboarding wizard start a newly selected unit from its own defaults, and going back to
+  the saved unit restores its saved limits.
+- **Systemair SAVE**: Every register address was one too high, so the temperatures, humidity, filter time and
+  alarm were read from the wrong registers and the setpoint was written to the wrong one. The remaining filter
+  time is read as one 32-bit value, low word first.
+- **Unit scripts**: The arguments of a function in a unit definition are evaluated one after another. They were
+  read in parallel, which put several Modbus requests in flight on one connection; some units (Systemair SAVE)
+  answered them out of order or dropped them.
+
 ## [1.1.1-stable] - 2026-10-21
 
 ### Added
