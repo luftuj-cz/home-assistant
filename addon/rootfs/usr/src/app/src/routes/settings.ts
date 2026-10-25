@@ -38,7 +38,11 @@ import {
   type ThemeSettingInput,
   themeSettingInputSchema,
 } from "../schemas/settings.js";
-import type { HruService, HruUnitDefinition } from "../features/hru/hru.service.js";
+import {
+  getEffectiveMax,
+  type HruService,
+  type HruUnitDefinition,
+} from "../features/hru/hru.service.js";
 import { validateRequest } from "../middleware/validateRequest.js";
 import { releaseSharedModbusClient } from "../shared/modbus/client.js";
 import {
@@ -77,6 +81,50 @@ function validateHruMaxPower(
   // Normalize undefined to default when unit provides one
   if (isConfigurable && maxPower === undefined && defaultValue !== undefined) {
     requestBody.maxPower = defaultValue;
+  }
+
+  return null;
+}
+
+/** Runs after validateHruMaxPower, so requestBody.maxPower is already normalised. */
+function validateHruMinPower(
+  selectedUnit: HruUnitDefinition,
+  minPower: number | undefined,
+  requestBody: HruSettingsInput,
+  logger: Logger,
+): BadRequestError | null {
+  const powerVar = selectedUnit.variables.find((v) => v.class === "power");
+  const isConfigurable = powerVar?.minConfigurable ?? false;
+  const unitMinValue = powerVar?.min;
+  const defaultValue = powerVar?.minDefault ?? unitMinValue;
+  const effectiveMax = powerVar ? getEffectiveMax(powerVar, requestBody) : undefined;
+  const controlUnit =
+    typeof powerVar?.unit === "string" ? powerVar.unit : (powerVar?.unit?.text ?? "");
+
+  if (isConfigurable && minPower === undefined) {
+    logger.warn({ unit: selectedUnit.id }, "Attempted to set configurable HRU without minPower");
+    return new BadRequestError("Min power is required for the selected unit", "MIN_POWER_REQUIRED");
+  }
+
+  if (minPower !== undefined && unitMinValue !== undefined && minPower < unitMinValue) {
+    logger.warn({ minPower, unitMinValue }, "Attempted to set minPower lower than unit allows");
+    return new BadRequestError(
+      `Minimum power cannot be lower than ${unitMinValue} ${controlUnit}. The selected unit supports a minimum of ${unitMinValue}.`,
+      "MIN_POWER_TOO_LOW",
+    );
+  }
+
+  if (minPower !== undefined && effectiveMax !== undefined && minPower > effectiveMax) {
+    logger.warn({ minPower, effectiveMax }, "Attempted to set minPower above maxPower");
+    return new BadRequestError(
+      `Minimum power cannot exceed the maximum of ${effectiveMax} ${controlUnit}.`,
+      "MIN_POWER_ABOVE_MAX",
+    );
+  }
+
+  // Normalize undefined to default when unit provides one
+  if (isConfigurable && minPower === undefined && defaultValue !== undefined) {
+    requestBody.minPower = defaultValue;
   }
 
   return null;
@@ -292,6 +340,18 @@ export function createSettingsRouter(
         } else if (value.maxPower !== undefined && maxValue !== undefined) {
           value.maxPower = Math.min(value.maxPower, maxValue);
         }
+
+        const isMinConfigurable = powerVar?.minConfigurable ?? false;
+        const minValue = powerVar?.min;
+        const minDefaultValue = powerVar?.minDefault ?? minValue;
+
+        if (!isMinConfigurable) {
+          value.minPower = undefined;
+        } else if (value.minPower === undefined && minDefaultValue !== undefined) {
+          value.minPower = minDefaultValue;
+        } else if (value.minPower !== undefined && minValue !== undefined) {
+          value.minPower = Math.max(value.minPower, minValue);
+        }
       }
     }
 
@@ -307,7 +367,7 @@ export function createSettingsRouter(
       next: NextFunction,
     ) => {
       try {
-        const { unit, host, port, unitId, maxPower } = request.body;
+        const { unit, host, port, unitId, minPower, maxPower } = request.body;
 
         const trimmedHost = host.trim();
         if (!trimmedHost) {
@@ -339,6 +399,15 @@ export function createSettingsRouter(
           if (powerValidationError) {
             return next(powerValidationError);
           }
+          const minPowerValidationError = validateHruMinPower(
+            selectedUnit,
+            minPower,
+            request.body,
+            logger,
+          );
+          if (minPowerValidationError) {
+            return next(minPowerValidationError);
+          }
         }
 
         // Capture the previous tuple before overwriting so we can retire its Modbus
@@ -366,7 +435,8 @@ export function createSettingsRouter(
           host: trimmedHost,
           port,
           unitId: resolvedUnitId,
-          maxPower,
+          minPower: request.body.minPower,
+          maxPower: request.body.maxPower,
         };
         setAppSetting(HRU_SETTINGS_KEY, JSON.stringify(settings));
 
@@ -394,7 +464,7 @@ export function createSettingsRouter(
           logger.warn({ err }, "Failed to update MQTT discovery after HRU settings change");
         }
 
-        logger.info({ unit, host, port, unitId, maxPower }, "HRU settings updated");
+        logger.info({ unit, host, port, unitId, minPower, maxPower }, "HRU settings updated");
         response.status(204).end();
       } catch (error) {
         logger.error({ error }, "Failed to update HRU settings");

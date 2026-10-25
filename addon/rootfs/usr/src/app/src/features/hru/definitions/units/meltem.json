@@ -10,7 +10,7 @@
       "onDashboard": true,
       "label": { "text": "hru.power", "translate": true },
       "unit": "m³/h",
-      "min": 0,
+      "min": 10,
       "max": 100,
       "maxConfigurable": false,
       "step": 1,

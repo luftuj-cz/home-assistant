@@ -40,16 +40,20 @@ export function getDayLabels(t: TFunction): string[] {
 export function calculatePowerConfig(
   powerVar: HruVariable | undefined,
   settingsMaxPower?: number,
-): { powerUnit: string; maxPower: number } {
+  settingsMinPower?: number,
+): { powerUnit: string; minPower: number | undefined; maxPower: number } {
   if (!powerVar) {
-    return { powerUnit: "%", maxPower: 100 };
+    return { powerUnit: "%", minPower: undefined, maxPower: 100 };
   }
 
   const powerUnit = typeof powerVar.unit === "string" ? powerVar.unit : powerVar.unit?.text || "%";
   const effectiveMaxPower =
     powerVar.maxConfigurable && settingsMaxPower != null ? settingsMaxPower : (powerVar.max ?? 100);
 
-  return { powerUnit, maxPower: effectiveMaxPower };
+  const effectiveMinPower =
+    powerVar.minConfigurable && settingsMinPower != null ? settingsMinPower : powerVar.min;
+
+  return { powerUnit, minPower: effectiveMinPower, maxPower: effectiveMaxPower };
 }
 
 function toMinutes(time: string): number {

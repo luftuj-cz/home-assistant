@@ -44,6 +44,7 @@ interface TimelineModeModalProps {
   onSave: (mode: Partial<Mode>) => void;
   t: TFunction;
   hruVariables?: HruVariable[];
+  minPower?: number;
   maxPower?: number;
   existingModes?: Mode[];
   unitId?: string;
@@ -72,6 +73,7 @@ export function TimelineModeModal({
   onSave,
   t,
   hruVariables = [],
+  minPower,
   maxPower,
   existingModes = [],
   nameError,
@@ -310,6 +312,7 @@ export function TimelineModeModal({
           hruVariables={hruVariables}
           values={form.variableValues}
           onChange={form.setVariableValues}
+          minPower={minPower}
           maxPower={maxPower}
           submitted={form.submitted}
           t={t}

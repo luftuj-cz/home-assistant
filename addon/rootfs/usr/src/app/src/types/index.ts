@@ -10,6 +10,7 @@ export type HruSettings = {
   host: string;
   port: number;
   unitId: number;
+  minPower?: number;
   maxPower?: number;
 };
 

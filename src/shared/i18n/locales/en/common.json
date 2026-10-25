@@ -423,7 +423,12 @@
         "maxPowerLabel": "Maximum Airflow/Power",
         "maxPowerDescription": "This value overrides the default limit for this unit. Useful for volumetric units (m3/h) to match your specific installation.",
         "maxPowerHint": "Default: {{default}} {{unit}}",
-        "maxPowerRequired": "Max power is required for this unit"
+        "maxPowerRequired": "Max power is required for this unit",
+        "limitsDescription": "These values override the default limits for this unit. Useful for volumetric units (m3/h) to match your specific installation.",
+        "minPowerLabel": "Minimum Airflow/Power",
+        "minPowerHint": "Default: {{default}} {{unit}}",
+        "minPowerRequired": "Min power is required for this unit",
+        "minPowerAboveMax": "Minimum must not exceed the maximum"
       }
     },
     "mqtt": {
@@ -856,6 +861,9 @@
     "UNKNOWN_HRU_UNIT": "Unknown HRU unit",
     "MAX_POWER_REQUIRED": "Max power is required for the selected unit",
     "MAX_POWER_EXCEEDED": "Maximum power exceeds the allowed limit for this unit",
+    "MIN_POWER_REQUIRED": "Min power is required for the selected unit",
+    "MIN_POWER_TOO_LOW": "Minimum power is below the allowed limit for this unit",
+    "MIN_POWER_ABOVE_MAX": "Minimum power must not exceed the maximum power",
     "MODE_NOT_CONFIGURED_FOR_SEASON": "This mode has no values set for that season. Set them first, then use it there.",
     "MODE_VALUES_EMPTY": "A mode has to set at least one value or one activation script for this season.",
     "MODE_VALUES_IN_USE": "Events in this season still use this mode. Remove or switch them off first.",
@@ -983,7 +991,8 @@
       "error": "Please select a unit",
       "loadFailed": "Failed to load units. Please try refreshing.",
       "saveFailed": "Failed to save Unit settings",
-      "maxPowerRequired": "Maximum airflow/power is required for this unit"
+      "maxPowerRequired": "Maximum airflow/power is required for this unit",
+      "minPowerRequired": "Minimum airflow/power is required for this unit"
     },
     "status": {
       "label": "Status",

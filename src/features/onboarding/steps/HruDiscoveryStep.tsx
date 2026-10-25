@@ -21,8 +21,12 @@ export function HruDiscoveryStep() {
     prevStep,
     selectedUnit,
     setSelectedUnit,
+    minPower,
+    setMinPower,
     maxPower,
     setMaxPower,
+    requiresMinPower,
+    defaultMinPower,
     requiresMaxPower,
     defaultMaxPower,
     powerVariable,
@@ -31,6 +35,13 @@ export function HruDiscoveryStep() {
     saveHruMutation,
     modbusForm,
   } = useOnboardingWizard();
+
+  const minPowerMissing = requiresMinPower && (minPower === undefined || minPower === null);
+  const maxPowerMissing = requiresMaxPower && (maxPower === undefined || maxPower === null);
+  const powerUnitLabel =
+    typeof powerVariable?.unit === "string"
+      ? powerVariable.unit
+      : (powerVariable?.unit?.text ?? "%");
 
   async function handleSubmit() {
     if (!selectedUnit) {
@@ -41,7 +52,15 @@ export function HruDiscoveryStep() {
       });
       return;
     }
-    if (requiresMaxPower && (maxPower === undefined || maxPower === null)) {
+    if (minPowerMissing) {
+      notifications.show({
+        title: t("valves.alertTitle"),
+        message: t("onboarding.unit.minPowerRequired"),
+        color: "red",
+      });
+      return;
+    }
+    if (maxPowerMissing) {
       notifications.show({
         title: t("valves.alertTitle"),
         message: t("onboarding.unit.maxPowerRequired"),
@@ -55,6 +74,7 @@ export function HruDiscoveryStep() {
         await saveHruMutation.mutateAsync({
           ...modbusForm.values,
           unit: selectedUnit,
+          minPower: requiresMinPower ? minPower : undefined,
           maxPower: requiresMaxPower ? maxPower : undefined,
         });
         nextStep();
@@ -100,34 +120,53 @@ export function HruDiscoveryStep() {
       <Text size="sm" c="dimmed">
         {t("onboarding.unit.hint")}
       </Text>
-      {requiresMaxPower && (
+      {(requiresMinPower || requiresMaxPower) && (
         <Paper p="sm" withBorder radius="md" bg="var(--mantine-color-blue-light)">
           <Stack gap="xs">
             <Text fw={500} size="sm">
               {t("settings.hru.configuration.title")}
             </Text>
             <Text size="xs" c="dimmed">
-              {t("settings.hru.configuration.maxPowerDescription")}
+              {requiresMinPower
+                ? t("settings.hru.configuration.limitsDescription")
+                : t("settings.hru.configuration.maxPowerDescription")}
             </Text>
-            <NumberInput
-              required
-              value={maxPower ?? defaultMaxPower}
-              onChange={(value) => {
-                const numericValue = typeof value === "number" ? value : undefined;
-                setMaxPower(numericValue);
-              }}
-              label={t("settings.hru.configuration.maxPowerLabel")}
-              description={t("settings.hru.configuration.maxPowerHint", {
-                default: defaultMaxPower,
-                unit:
-                  typeof powerVariable?.unit === "string"
-                    ? powerVariable.unit
-                    : (powerVariable?.unit?.text ?? "%"),
-              })}
-              min={1}
-              max={powerVariable?.max ?? 10000}
-              size="md"
-            />
+            {requiresMinPower && (
+              <NumberInput
+                required
+                value={minPower ?? defaultMinPower}
+                onChange={(value) => {
+                  const numericValue = typeof value === "number" ? value : undefined;
+                  setMinPower(numericValue);
+                }}
+                label={t("settings.hru.configuration.minPowerLabel")}
+                description={t("settings.hru.configuration.minPowerHint", {
+                  default: defaultMinPower,
+                  unit: powerUnitLabel,
+                })}
+                min={powerVariable?.min ?? 0}
+                max={maxPower ?? powerVariable?.max ?? 10000}
+                size="md"
+              />
+            )}
+            {requiresMaxPower && (
+              <NumberInput
+                required
+                value={maxPower ?? defaultMaxPower}
+                onChange={(value) => {
+                  const numericValue = typeof value === "number" ? value : undefined;
+                  setMaxPower(numericValue);
+                }}
+                label={t("settings.hru.configuration.maxPowerLabel")}
+                description={t("settings.hru.configuration.maxPowerHint", {
+                  default: defaultMaxPower,
+                  unit: powerUnitLabel,
+                })}
+                min={1}
+                max={powerVariable?.max ?? 10000}
+                size="md"
+              />
+            )}
           </Stack>
         </Paper>
       )}
@@ -138,9 +177,7 @@ export function HruDiscoveryStep() {
         <Button
           onClick={handleSubmit}
           loading={saveHruMutation.isPending}
-          disabled={
-            !selectedUnit || (requiresMaxPower && (maxPower === undefined || maxPower === null))
-          }
+          disabled={!selectedUnit || minPowerMissing || maxPowerMissing}
         >
           {t("onboarding.next")}
         </Button>
