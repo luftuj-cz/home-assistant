@@ -25,16 +25,24 @@ export function useTimelineModesQuery(unitId?: string, seasonId?: number) {
   });
 
   const saveModeMutation = useMutation({
-    mutationFn: async (mode: Partial<Mode>) => {
+    mutationFn: async ({ mode, duplicateOf }: { mode: Partial<Mode>; duplicateOf?: number }) => {
       const isEdit = typeof mode.id === "number";
       if (isEdit) {
         return api.updateTimelineMode(mode as Mode, unitId, seasonId);
       }
-      return api.createTimelineMode(mode as Omit<Mode, "id">, unitId, seasonId);
+      return api.createTimelineMode(mode as Omit<Mode, "id">, unitId, seasonId, duplicateOf);
     },
-    onSuccess: (saved, variables) => {
+    onSuccess: (saved, { mode, duplicateOf }) => {
       const mappedSaved = mapModeForUi(saved);
-      const isEdit = typeof variables.id === "number";
+      const isEdit = typeof mode.id === "number";
+      if (duplicateOf !== undefined) {
+        // The duplicate also got values in seasons other than the one in view;
+        // the one in view is updated in place below.
+        void queryClient.invalidateQueries({
+          queryKey: ["timeline-modes", unitId],
+          predicate: (query) => query.queryKey[2] !== seasonId,
+        });
+      }
       queryClient.setQueryData<Mode[]>(["timeline-modes", unitId, seasonId], (prev) => {
         if (!prev) return [mappedSaved];
         if (isEdit) {
@@ -54,7 +62,7 @@ export function useTimelineModesQuery(unitId?: string, seasonId?: number) {
         color: "green",
       });
     },
-    onError: (err, mode) => {
+    onError: (err, { mode }) => {
       logger.error("Failed to save timeline mode", {
         error: err,
         modeId: mode.id,
@@ -91,9 +99,9 @@ export function useTimelineModesQuery(unitId?: string, seasonId?: number) {
     },
   });
 
-  async function saveMode(mode: Partial<Mode>): Promise<boolean> {
+  async function saveMode(mode: Partial<Mode>, duplicateOf?: number): Promise<boolean> {
     try {
-      await saveModeMutation.mutateAsync(mode);
+      await saveModeMutation.mutateAsync({ mode, duplicateOf });
       return true;
     } catch (err) {
       if (err instanceof ApiResponseError && err.code === "DUPLICATE_MODE_NAME") {

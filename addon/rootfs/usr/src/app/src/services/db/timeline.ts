@@ -664,6 +664,63 @@ export function upsertTimelineMode(mode: TimelineMode, timelineId?: number): Tim
 }
 
 /**
+ * Creates a mode as a duplicate of `sourceModeId`. The season it is created in
+ * gets `mode`'s values - what the user saw and adjusted in the dialog - and every
+ * other season of the unit that the source is set up for gets the source's
+ * values, so the copy works all year round. All of it or nothing.
+ *
+ * A copied default season is mirrored into the legacy columns, like any other
+ * write to that season - see `upsertTimelineMode`.
+ */
+export function duplicateTimelineMode(
+  mode: Omit<TimelineMode, "id">,
+  timelineId: number | undefined,
+  sourceModeId: number,
+): TimelineMode {
+  const db = getDatabase();
+  if (!db) throw new Error("Database not initialised");
+
+  return db.transaction(() => {
+    const created = upsertTimelineMode({ ...mode, id: undefined as unknown as number }, timelineId);
+    // Without a season the dialog's values went to the legacy columns only, and
+    // copying the default season would overwrite them with the source's.
+    if (timelineId === undefined) return created;
+
+    const copied = db
+      .prepare(
+        `INSERT INTO timeline_mode_values
+           (mode_id, timeline_id, power, temperature, native_mode, variables, luftator_config,
+            script_entity_ids)
+         SELECT ?, timeline_id, power, temperature, native_mode, variables, luftator_config,
+                script_entity_ids
+         FROM timeline_mode_values
+         WHERE mode_id = ?
+           AND timeline_id IN (SELECT id FROM timelines WHERE hru_id IS ?)
+           AND timeline_id NOT IN (SELECT timeline_id FROM timeline_mode_values WHERE mode_id = ?)
+         RETURNING timeline_id`,
+      )
+      // A mode without a unit carries "", its seasons NULL.
+      .all(created.id, sourceModeId, mode.hruId || null, created.id) as Array<{
+      timeline_id: number;
+    }>;
+
+    const defaultSeason = copied.find((row) => isDefaultSeason(row.timeline_id));
+    if (defaultSeason) {
+      db.prepare(
+        `UPDATE timeline_modes
+         SET (power, temperature, native_mode, variables, luftator_config, script_entity_ids) =
+             (SELECT power, temperature, native_mode, variables, luftator_config, script_entity_ids
+              FROM timeline_mode_values
+              WHERE mode_id = ? AND timeline_id = ?)
+         WHERE id = ?`,
+      ).run(created.id, defaultSeason.timeline_id, created.id);
+    }
+
+    return created;
+  })();
+}
+
+/**
  * Deletes a timeline mode by ID.
  *
  * Its per-season values go with it: `timeline_mode_values` declares
