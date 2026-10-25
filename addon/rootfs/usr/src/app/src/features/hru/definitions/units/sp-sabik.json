@@ -11,10 +11,11 @@
         "text": "hru.power",
         "translate": true
       },
-      "unit": "%",
-      "min": 54,
-      "max": 100,
-      "maxConfigurable": false,
+      "unit": "m³/h",
+      "min": 80,
+      "max": 400,
+      "maxConfigurable": true,
+      "minConfigurable": true,
       "step": 1,
       "class": "power"
     },
@@ -547,37 +548,10 @@
     "read": [
       {
         "type": "assignment",
-        "variable": "$nominalFlow",
+        "variable": "$power",
         "value": {
           "function": "modbus_read_holding",
           "args": [128, 1]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$maxFlow",
-        "value": {
-          "function": "modbus_read_holding",
-          "args": [1070, 1]
-        }
-      },
-      {
-        "type": "assignment",
-        "variable": "$power",
-        "value": {
-          "function": "round",
-          "args": [
-            {
-              "function": "multiply",
-              "args": [
-                {
-                  "function": "divide",
-                  "args": ["$nominalFlow", "$maxFlow"]
-                },
-                100
-              ]
-            }
-          ]
         }
       },
       {
@@ -839,12 +813,7 @@
                       "args": [
                         {
                           "function": "round",
-                          "args": [
-                            {
-                              "function": "multiply",
-                              "args": ["$power", "$maxFlow", 0.01]
-                            }
-                          ]
+                          "args": ["$power"]
                         },
                         "$minFlow",
                         "$maxFlow"

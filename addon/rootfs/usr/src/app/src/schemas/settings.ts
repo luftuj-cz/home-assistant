@@ -6,6 +6,12 @@ export const hruSettingsInputSchema = z.object({
   port: z.number().int().min(1).max(65535, "Port must be between 1 and 65535"),
   unitId: z.number().int().min(0).max(255, "Unit ID must be between 0 and 255"),
   unit: z.string().trim().min(1, "Unit is required"),
+  minPower: z
+    .number()
+    .int()
+    .min(0, "Min power must be at least 0")
+    .max(65535, "Min power must be at most 65535")
+    .optional(),
   maxPower: z
     .number()
     .int()

@@ -33,6 +33,26 @@ export interface CachedHruRead {
   fetchedAt: number;
 }
 
+type PowerLimits = Pick<HruSettings, "minPower" | "maxPower"> | null | undefined;
+
+/** Lower bound of a variable, honouring the user's minPower when the unit lets them set it. */
+export function getEffectiveMin(variable: HruVariable, settings: PowerLimits): number | undefined {
+  if (variable.minConfigurable) {
+    return settings?.minPower ?? variable.minDefault ?? variable.min;
+  }
+
+  return variable.min;
+}
+
+/** Upper bound of a variable, honouring the user's maxPower when the unit lets them set it. */
+export function getEffectiveMax(variable: HruVariable, settings: PowerLimits): number | undefined {
+  if (variable.maxConfigurable) {
+    return settings?.maxPower ?? variable.maxDefault ?? variable.max;
+  }
+
+  return variable.max;
+}
+
 export class HruService {
   private readonly units: HeatRecoveryUnit[];
   private readValuesInFlight: Promise<HruReadResult> | null = null;
@@ -377,14 +397,15 @@ export class HruService {
 
     const numericValue = this.normaliseNumberValue(variable.name, value);
 
-    if (variable.min !== undefined && numericValue < variable.min) {
+    const minValue = getEffectiveMin(variable, settings);
+    if (minValue !== undefined && numericValue < minValue) {
       throw new BadRequestError(
-        `HRU variable "${variable.name}" must be at least ${variable.min}`,
+        `HRU variable "${variable.name}" must be at least ${minValue}`,
         "HRU_INVALID_VARIABLE_VALUE",
       );
     }
 
-    const maxValue = this.getEffectiveMax(variable, settings);
+    const maxValue = getEffectiveMax(variable, settings);
     if (maxValue !== undefined && numericValue > maxValue) {
       throw new BadRequestError(
         `HRU variable "${variable.name}" must be at most ${maxValue}`,
@@ -428,14 +449,18 @@ export class HruService {
 
     // Write scripts usually set every register at once, and a variable missing from
     // the payload would evaluate to 0 there - e.g. switch the unit off. Fill such
-    // variables from the definition's defaultValue, capped at the effective max.
+    // variables from the definition's defaultValue, kept within the effective range.
     for (const variable of editableVariables.values()) {
       if (variable.defaultValue === undefined || `$${variable.name}` in scriptVars) continue;
-      const maxValue = this.getEffectiveMax(variable, settings);
-      const defaultValue =
-        typeof variable.defaultValue === "number" && maxValue !== undefined
-          ? Math.min(variable.defaultValue, maxValue)
-          : variable.defaultValue;
+      const minValue = getEffectiveMin(variable, settings);
+      const maxValue = getEffectiveMax(variable, settings);
+      let defaultValue = variable.defaultValue;
+      if (typeof defaultValue === "number" && minValue !== undefined) {
+        defaultValue = Math.max(defaultValue, minValue);
+      }
+      if (typeof defaultValue === "number" && maxValue !== undefined) {
+        defaultValue = Math.min(defaultValue, maxValue);
+      }
       scriptVars[`$${variable.name}`] = this.normaliseWriteValue(variable, defaultValue, settings);
     }
 
@@ -508,14 +533,6 @@ export class HruService {
       `HRU variable "${variableName}" expects a numeric value`,
       "HRU_INVALID_VARIABLE_VALUE",
     );
-  }
-
-  private getEffectiveMax(variable: HruVariable, settings: HruSettings): number | undefined {
-    if (variable.maxConfigurable) {
-      return settings.maxPower ?? variable.maxDefault ?? variable.max;
-    }
-
-    return variable.max;
   }
 
   private toDisplayValue(variable: HruVariable, value: number): DisplayValue {

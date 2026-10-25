@@ -14,12 +14,14 @@ export interface HruVariable {
   class?: VariableClass;
   min?: number;
   max?: number;
+  minDefault?: number;
   maxDefault?: number;
   step?: number;
   options?: Array<{
     value: number;
     label: LocalizedText;
   }>;
+  minConfigurable?: boolean;
   maxConfigurable?: boolean;
 }
 

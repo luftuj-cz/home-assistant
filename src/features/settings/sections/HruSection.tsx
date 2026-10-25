@@ -28,6 +28,7 @@ interface HruSettings {
   host: string;
   port: number;
   unitId: number;
+  minPower: number | undefined;
   maxPower: number | undefined;
 }
 
@@ -36,6 +37,7 @@ const initial: HruSettings = {
   host: "localhost",
   port: 502,
   unitId: 1,
+  minPower: undefined,
   maxPower: undefined,
 };
 
@@ -165,7 +167,32 @@ export function HruSection() {
   const portMissing = !Number.isFinite(settings.port) || settings.port <= 0;
   const unitIdMissing = !Number.isFinite(settings.unitId) || settings.unitId <= 0;
 
-  const powerVar = selectedUnit?.variables?.find((v) => v.class === "power" && v.maxConfigurable);
+  const powerVar = selectedUnit?.variables?.find(
+    (v) => v.class === "power" && (v.maxConfigurable || v.minConfigurable),
+  );
+  const powerUnitLabel =
+    typeof powerVar?.unit === "string" ? powerVar.unit : (powerVar?.unit?.text ?? "%");
+  const effectiveMaxPower = powerVar?.maxConfigurable
+    ? (settings.maxPower ?? powerVar.maxDefault ?? powerVar.max)
+    : powerVar?.max;
+  const minPowerMissing =
+    powerVar?.minConfigurable === true &&
+    (settings.minPower === undefined || settings.minPower === null);
+  const maxPowerMissing =
+    powerVar?.maxConfigurable === true &&
+    (settings.maxPower === undefined || settings.maxPower === null);
+  const minAboveMax =
+    powerVar?.minConfigurable === true &&
+    settings.minPower != null &&
+    effectiveMaxPower !== undefined &&
+    settings.minPower > effectiveMaxPower;
+
+  let minPowerError: string | undefined;
+  if (minPowerMissing) {
+    minPowerError = t("settings.hru.configuration.minPowerRequired");
+  } else if (minAboveMax) {
+    minPowerError = t("settings.hru.configuration.minPowerAboveMax");
+  }
 
   return (
     <Accordion.Item value="hru">
@@ -245,29 +272,48 @@ export function HruSection() {
                     {t("settings.hru.configuration.title")}
                   </Text>
                   <Text size="xs" c="dimmed">
-                    {t("settings.hru.configuration.maxPowerDescription")}
+                    {powerVar.minConfigurable
+                      ? t("settings.hru.configuration.limitsDescription")
+                      : t("settings.hru.configuration.maxPowerDescription")}
                   </Text>
-                  <NumberInput
-                    required
-                    value={settings.maxPower ?? powerVar.maxDefault ?? powerVar.max}
-                    onChange={(v) => update("maxPower", typeof v === "number" ? v : undefined)}
-                    label={t("settings.hru.configuration.maxPowerLabel")}
-                    description={t("settings.hru.configuration.maxPowerHint", {
-                      default: powerVar.maxDefault ?? powerVar.max,
-                      unit:
-                        typeof powerVar.unit === "string"
-                          ? powerVar.unit
-                          : (powerVar.unit?.text ?? "%"),
-                    })}
-                    error={
-                      settings.maxPower === undefined || settings.maxPower === null
-                        ? t("settings.hru.configuration.maxPowerRequired")
-                        : undefined
-                    }
-                    min={1}
-                    max={10000}
-                    size="md"
-                  />
+                  <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
+                    {powerVar.minConfigurable && (
+                      <NumberInput
+                        required
+                        value={settings.minPower ?? powerVar.minDefault ?? powerVar.min}
+                        onChange={(v) => update("minPower", typeof v === "number" ? v : undefined)}
+                        label={t("settings.hru.configuration.minPowerLabel")}
+                        description={t("settings.hru.configuration.minPowerHint", {
+                          default: powerVar.minDefault ?? powerVar.min,
+                          unit: powerUnitLabel,
+                        })}
+                        error={minPowerError}
+                        min={powerVar.min ?? 0}
+                        max={effectiveMaxPower ?? 10000}
+                        size="md"
+                      />
+                    )}
+                    {powerVar.maxConfigurable && (
+                      <NumberInput
+                        required
+                        value={settings.maxPower ?? powerVar.maxDefault ?? powerVar.max}
+                        onChange={(v) => update("maxPower", typeof v === "number" ? v : undefined)}
+                        label={t("settings.hru.configuration.maxPowerLabel")}
+                        description={t("settings.hru.configuration.maxPowerHint", {
+                          default: powerVar.maxDefault ?? powerVar.max,
+                          unit: powerUnitLabel,
+                        })}
+                        error={
+                          maxPowerMissing
+                            ? t("settings.hru.configuration.maxPowerRequired")
+                            : undefined
+                        }
+                        min={1}
+                        max={10000}
+                        size="md"
+                      />
+                    )}
+                  </SimpleGrid>
                 </Stack>
               </Paper>
             )}
@@ -276,7 +322,7 @@ export function HruSection() {
               <Button
                 onClick={save}
                 loading={saving}
-                disabled={loading || hostMissing}
+                disabled={loading || hostMissing || minAboveMax}
                 size="md"
                 variant="filled"
               >

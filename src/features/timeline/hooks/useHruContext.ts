@@ -13,6 +13,7 @@ export function useHruContext() {
   const [valveGroups, setValveGroups] = useState<ValveGroup[]>([]);
   const [hruVariables, setHruVariables] = useState<hruApi.HruVariable[]>([]);
   const [powerUnit, setPowerUnit] = useState<string>("%");
+  const [minPower, setMinPower] = useState<number | undefined>(undefined);
   const [maxPower, setMaxPower] = useState<number>(100);
   const [activeUnitId, setActiveUnitId] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
@@ -32,7 +33,7 @@ export function useHruContext() {
           hruApi.fetchHruUnits().catch(() => []),
         ]);
 
-        const settings: { unit?: string; maxPower?: number } = settingsRes.ok
+        const settings: { unit?: string; minPower?: number; maxPower?: number } = settingsRes.ok
           ? await settingsRes.json()
           : {};
         const activeUnit = units.find((u) => u.id === settings.unit) || units[0];
@@ -43,8 +44,13 @@ export function useHruContext() {
           setHruVariables(activeUnit.variables || []);
           const powerVar = activeUnit.variables.find((v) => v.class === "power");
           if (powerVar) {
-            const { powerUnit, maxPower } = calculatePowerConfig(powerVar, settings.maxPower);
+            const { powerUnit, minPower, maxPower } = calculatePowerConfig(
+              powerVar,
+              settings.maxPower,
+              settings.minPower,
+            );
             setPowerUnit(powerUnit);
+            setMinPower(minPower);
             setMaxPower(maxPower);
           }
         }
@@ -64,6 +70,7 @@ export function useHruContext() {
     valveGroups,
     hruVariables,
     powerUnit,
+    minPower,
     maxPower,
     activeUnitId,
     loading,

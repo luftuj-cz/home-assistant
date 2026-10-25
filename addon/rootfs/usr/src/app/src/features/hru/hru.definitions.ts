@@ -56,6 +56,7 @@ export interface HruVariable {
   class?: VariableClass;
   min?: number;
   max?: number;
+  minDefault?: number;
   maxDefault?: number;
   step?: number;
   /** Written in place of a value missing from a write payload. */
@@ -64,6 +65,7 @@ export interface HruVariable {
     value: number;
     label: LocalizedText;
   }>;
+  minConfigurable?: boolean;
   maxConfigurable?: boolean;
 }
 

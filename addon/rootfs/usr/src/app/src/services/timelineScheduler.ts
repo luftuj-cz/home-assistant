@@ -30,7 +30,8 @@ import {
 } from "./timeline/customOverride.js";
 import { resolveCurrentUnitId } from "./unitResolution.js";
 
-import type { HruService } from "../features/hru/hru.service.js";
+import type { HruVariable } from "../features/hru/hru.definitions.js";
+import { getEffectiveMin, type HruService } from "../features/hru/hru.service.js";
 import { LANGUAGE_SETTING_KEY, type TimelineMode, type TimelineOverride } from "../types/index.js";
 import type { SettingsRepository } from "../features/settings/settings.repository.js";
 import { INFINITE_BOOST_DURATION_MINUTES } from "../constants.js";
@@ -537,6 +538,8 @@ export class TimelineScheduler {
             editable: boolean;
             min?: number;
             max?: number;
+            minConfigurable?: boolean;
+            minDefault?: number;
           }>;
         }
       | undefined;
@@ -552,8 +555,12 @@ export class TimelineScheduler {
         values.temperature = Math.min(Math.max(SAFE_STATE_TEMPERATURE_C, min), max);
         continue;
       }
-      if (variable.min !== undefined) {
-        values[variable.name] = variable.min;
+      // A user-configured minimum (minConfigurable) is the lowest value a write accepts.
+      const min = variable.minConfigurable
+        ? getEffectiveMin(variable as HruVariable, this.settingsRepo.getHruSettings())
+        : variable.min;
+      if (min !== undefined) {
+        values[variable.name] = min;
       }
     }
     return values;

@@ -25,9 +25,11 @@ export interface HruVariable {
   class?: "power" | "temperature" | "mode" | "other";
   min?: number;
   max?: number;
+  minDefault?: number;
   maxDefault?: number;
   step?: number;
   options?: Array<{ value: number; label: LocalizedText }>;
+  minConfigurable?: boolean;
   maxConfigurable?: boolean;
 }
 
@@ -250,6 +252,12 @@ For units whose power is airflow in m³/h and whose ceiling depends on the insta
 `getEffectiveMax` resolves to `maxConfigurable ? (settings.maxPower ?? maxDefault ?? max) : max`. With
 `maxConfigurable: true`, `maxDefault` is effectively required — otherwise `POST /api/settings/hru` rejects with
 `MAX_POWER_REQUIRED` and the write bound is unbounded.
+
+`minConfigurable: true` works the same way for the lower bound (`sp-sabik`): the user sets `minPower` in
+Settings / onboarding, and `getEffectiveMin` resolves to
+`minConfigurable ? (settings.minPower ?? minDefault ?? min) : min`. Here `min` is the hard floor: `minPower`
+below it is rejected with `MIN_POWER_TOO_LOW`, above the effective max with `MIN_POWER_ABOVE_MAX`. Writes
+below the effective min are rejected, and the scheduler's safe state uses the effective min.
 
 ## Worked example — `korado.json` (keep-alive + signed scaling)
 

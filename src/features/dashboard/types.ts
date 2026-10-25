@@ -42,6 +42,7 @@ export interface HruVariable {
   min?: number;
   max?: number;
   step?: number;
+  minConfigurable?: boolean;
   maxConfigurable?: boolean;
   options?: Array<{
     value: number;

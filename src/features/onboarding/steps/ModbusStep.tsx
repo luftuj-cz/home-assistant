@@ -12,7 +12,9 @@ export function ModbusStep() {
     testModbusMutation,
     saveHruMutation,
     selectedUnit,
+    minPower,
     maxPower,
+    requiresMinPower,
     requiresMaxPower,
   } = useOnboardingWizard();
 
@@ -37,6 +39,7 @@ export function ModbusStep() {
       await saveHruMutation.mutateAsync({
         ...modbusForm.values,
         unit: selectedUnit,
+        minPower: requiresMinPower ? minPower : undefined,
         maxPower: requiresMaxPower ? maxPower : undefined,
       });
       nextStep();

@@ -69,8 +69,16 @@ export function TimelinePage() {
   const [fillOpen, setFillOpen] = useState(false);
   const [filling, setFilling] = useState(false);
 
-  const { valves, valveGroups, hruVariables, powerUnit, maxPower, activeUnitId, loading } =
-    useHruContext();
+  const {
+    valves,
+    valveGroups,
+    hruVariables,
+    powerUnit,
+    minPower,
+    maxPower,
+    activeUnitId,
+    loading,
+  } = useHruContext();
 
   const {
     featureEnabled: seasonsEnabled,
@@ -501,6 +509,7 @@ export function TimelinePage() {
           onSave={handleSaveMode}
           t={t}
           hruVariables={hruVariables}
+          minPower={minPower}
           maxPower={maxPower}
           existingModes={modes}
           seasonLabel={viewedSeasonLabel}

@@ -65,10 +65,14 @@ interface StepsContextValue {
   setStep: (step: number) => void;
   selectedUnit: string | null;
   setSelectedUnit: (unit: string | null) => void;
+  minPower: number | undefined;
+  setMinPower: (power: number | undefined) => void;
   maxPower: number | undefined;
   setMaxPower: (power: number | undefined) => void;
   fullUnits: HruUnit[];
   selectedUnitDef: HruUnit | undefined;
+  requiresMinPower: boolean;
+  defaultMinPower: number | undefined;
   requiresMaxPower: boolean;
   defaultMaxPower: number | undefined;
   powerVariable: HruVariable | undefined;
@@ -89,7 +93,14 @@ interface StepsContextValue {
     typeof useMutation<
       unknown,
       Error,
-      { host: string; port: number; unitId: number; unit: string; maxPower?: number }
+      {
+        host: string;
+        port: number;
+        unitId: number;
+        unit: string;
+        minPower?: number;
+        maxPower?: number;
+      }
     >
   >;
   saveLanguageMutation: ReturnType<typeof useMutation<unknown, Error, string>>;
@@ -136,6 +147,7 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
     colorScheme === "auto" ? "dark" : colorScheme,
   );
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  const [minPower, setMinPower] = useState<number | undefined>(undefined);
   const [maxPower, setMaxPower] = useState<number | undefined>(undefined);
   const [fullUnits, setFullUnits] = useState<HruUnit[]>([]);
   const importInputRef = useRef<HTMLInputElement>(null);
@@ -215,6 +227,20 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
     }
   }, [selectedUnit, requiresMaxPower, defaultMaxPower, maxPower]);
 
+  const requiresMinPower = powerVariable?.minConfigurable ?? false;
+  const defaultMinPower = powerVariable?.minDefault ?? powerVariable?.min;
+
+  useEffect(() => {
+    if (
+      selectedUnit &&
+      requiresMinPower &&
+      minPower === undefined &&
+      defaultMinPower !== undefined
+    ) {
+      setMinPower(defaultMinPower);
+    }
+  }, [selectedUnit, requiresMinPower, defaultMinPower, minPower]);
+
   const systemInfoQuery = useQuery({
     queryKey: ["system-info"],
     queryFn: async () => {
@@ -238,6 +264,7 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
       port: number;
       unitId: number;
       unit: string;
+      minPower?: number;
       maxPower?: number;
     }) => {
       const res = await fetch(resolveApiUrl("/api/settings/hru"), {
@@ -435,10 +462,14 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
       setStep: setCurrentStep,
       selectedUnit,
       setSelectedUnit,
+      minPower,
+      setMinPower,
       maxPower,
       setMaxPower,
       fullUnits,
       selectedUnitDef,
+      requiresMinPower,
+      defaultMinPower,
       requiresMaxPower,
       defaultMaxPower,
       powerVariable,
@@ -475,9 +506,12 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
       nextStep,
       prevStep,
       selectedUnit,
+      minPower,
       maxPower,
       fullUnits,
       selectedUnitDef,
+      requiresMinPower,
+      defaultMinPower,
       requiresMaxPower,
       defaultMaxPower,
       powerVariable,

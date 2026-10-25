@@ -11,6 +11,7 @@ interface ModeVariableFieldsProps {
   onChange: (
     updater: (prev: Record<string, VariableValue>) => Record<string, VariableValue>,
   ) => void;
+  minPower?: number;
   maxPower?: number;
   submitted: boolean;
   t: TFunction;
@@ -27,6 +28,7 @@ interface VariableFieldProps {
   val: VariableValue;
   onChange: ModeVariableFieldsProps["onChange"];
   submitted: boolean;
+  minPower?: number;
   maxPower?: number;
   t: TFunction;
 }
@@ -87,12 +89,17 @@ function NumberVariableField({
   val,
   onChange,
   submitted,
+  minPower,
   maxPower,
   t,
 }: Readonly<VariableFieldProps>) {
   const label = localized(variable.label, t);
   const unit = variable.unit ? localized(variable.unit, t) : "";
 
+  const effectiveMin =
+    variable.class === "power" && variable.minConfigurable && minPower != null
+      ? minPower
+      : variable.min;
   const effectiveMax =
     variable.class === "power" && variable.maxConfigurable && maxPower != null
       ? maxPower
@@ -118,7 +125,7 @@ function NumberVariableField({
           [variable.name]: typeof v === "number" ? v : 0,
         }))
       }
-      min={variable.min}
+      min={effectiveMin}
       max={effectiveMax}
       step={variable.step}
       leftSection={leftSection}
@@ -133,6 +140,7 @@ function VariableField({
   val,
   onChange,
   submitted,
+  minPower,
   maxPower,
   t,
 }: Readonly<VariableFieldProps>) {
@@ -158,6 +166,7 @@ function VariableField({
       val={val}
       onChange={onChange}
       submitted={submitted}
+      minPower={minPower}
       maxPower={maxPower}
       t={t}
     />
@@ -168,6 +177,7 @@ export function ModeVariableFields({
   hruVariables,
   values,
   onChange,
+  minPower,
   maxPower,
   submitted,
   t,
@@ -195,6 +205,7 @@ export function ModeVariableFields({
             val={values[variable.name]}
             onChange={onChange}
             submitted={submitted}
+            minPower={minPower}
             maxPower={maxPower}
             t={t}
           />
