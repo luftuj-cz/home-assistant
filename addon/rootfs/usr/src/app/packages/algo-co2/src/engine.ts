@@ -56,6 +56,30 @@ export interface OnValveChange {
   updateValves(valves: Map<string, number>): void;
 }
 
+/** The branch of `run()` that applied; `none` is the hysteresis band or a wait for the time limit. */
+export type DecisionBranch = "th2" | "th1" | "allBelow" | "none";
+
+/** What one `run()` saw and did. Room-id lists are unique and in `building.rooms` order. */
+export interface RunReport {
+  branch: DecisionBranch;
+  roomsWithReading: string[];
+  /** Above TH2 for `thresholdTimeLimit`. */
+  roomsAboveTh2: string[];
+  /** Above TH1 for `thresholdTimeLimit`. */
+  roomsAboveTh1: string[];
+  /** Below TH1 - hysteresis for `thresholdTimeLimit`. */
+  roomsBelowTh1: string[];
+  /** With a reading and acted on within `thresholdTimeLimit`. */
+  roomsInCooldown: string[];
+  /** The rooms the engine marked as changed in this run. */
+  roomsActedOn: string[];
+  valvesChanged: boolean;
+  powerBefore: number;
+  powerAfter: number;
+  /** The day or night HRU maximum at this timestamp. */
+  maxPower: number;
+}
+
 /** The only logging the engine needs; a pino logger satisfies it as is. */
 export interface Logger {
   info(message: string): void;
@@ -111,7 +135,7 @@ export class AutomaticModeEngine {
     }
   }
 
-  run(timestamp: Timestamp): void {
+  run(timestamp: Timestamp): RunReport {
     this.updateFilteredCO2Values(timestamp);
 
     const roomsWithValidMeasurement = this.model.rooms.filter((r) => r.getCO2() !== null);
@@ -151,32 +175,65 @@ export class AutomaticModeEngine {
       this.thresholdTimeLimit,
     );
 
+    const powerBefore = this.hru.getPower();
+    let branch: DecisionBranch = "none";
+    let roomsActedOn: Room[] = [];
+    let valvesChanged = false;
+
     if (roomsAboveThreshold2ForTimeLimit.length > 0) {
+      branch = "th2";
       const roomWithAtLeastThreshold1 = [
         ...roomsAboveThreshold1ForTimeLimit,
         ...roomsAboveThreshold2ForTimeLimit,
       ];
-      this.applyValveStrategy(roomWithAtLeastThreshold1, timestamp);
+      valvesChanged = this.applyValveStrategy(roomWithAtLeastThreshold1, timestamp);
       const roomsToUpdate = roomWithAtLeastThreshold1.filter((r) =>
         roomsWithoutActionForTimeLimit.has(r.id),
       );
       if (roomsToUpdate.length > 0) {
         this.increasePower(timestamp);
         this.markChanged(roomsToUpdate, timestamp);
+        roomsActedOn = roomsToUpdate;
       }
     } else if (roomsAboveThreshold1ForTimeLimit.length > 0) {
+      branch = "th1";
       const roomsToUpdate = roomsAboveThreshold1ForTimeLimit.filter((r) =>
         roomsWithoutActionForTimeLimit.has(r.id),
       );
       if (roomsToUpdate.length > 0) {
-        this.applyValveStrategy(roomsToUpdate, timestamp);
+        valvesChanged = this.applyValveStrategy(roomsToUpdate, timestamp);
         this.markChanged(roomsToUpdate, timestamp);
+        roomsActedOn = roomsToUpdate;
       }
     } else if (roomsBelowThreshold1ForTimeLimit.length === roomsWithValidMeasurement.length) {
-      this.resetValvesToDefault(timestamp);
+      branch = "allBelow";
+      valvesChanged = this.resetValvesToDefault(timestamp);
       this.decreasePowerIfPossible(timestamp);
       this.markChanged(roomsWithValidMeasurement, timestamp);
+      roomsActedOn = roomsWithValidMeasurement;
     }
+
+    return {
+      branch,
+      roomsWithReading: this.toRoomIds(roomsWithValidMeasurement),
+      roomsAboveTh2: this.toRoomIds(roomsAboveThreshold2ForTimeLimit),
+      roomsAboveTh1: this.toRoomIds(roomsAboveThreshold1ForTimeLimit),
+      roomsBelowTh1: this.toRoomIds(roomsBelowThreshold1ForTimeLimit),
+      roomsInCooldown: this.toRoomIds(
+        roomsWithValidMeasurement.filter((r) => !roomsWithoutActionForTimeLimit.has(r.id)),
+      ),
+      roomsActedOn: this.toRoomIds(roomsActedOn),
+      valvesChanged,
+      powerBefore,
+      powerAfter: this.hru.getPower(),
+      maxPower: this.getHruMaxPower(timestamp),
+    };
+  }
+
+  /** The ids of the given rooms, without repeats, in the order of `building.rooms`. */
+  private toRoomIds(rooms: Room[]): string[] {
+    const ids = new Set(rooms.map((r) => r.id));
+    return this.model.rooms.filter((r) => ids.has(r.id)).map((r) => r.id);
   }
 
   private getState(room: Room): RoomState {
@@ -283,7 +340,7 @@ export class AutomaticModeEngine {
     return rooms;
   }
 
-  private applyValveStrategy(affectedRooms: Room[], timestamp: Timestamp): void {
+  private applyValveStrategy(affectedRooms: Room[], timestamp: Timestamp): boolean {
     const affectedRoomIds = new Set(affectedRooms.map((r) => r.id));
     const allValves = this.model.getAllValves();
 
@@ -310,9 +367,10 @@ export class AutomaticModeEngine {
       );
       this.recordJournalEntry(timestamp);
     }
+    return changed;
   }
 
-  private resetValvesToDefault(timestamp: Timestamp): void {
+  private resetValvesToDefault(timestamp: Timestamp): boolean {
     const allValves = this.model.getAllValves();
     let changed: boolean = false;
     for (const valve of allValves) {
@@ -324,6 +382,7 @@ export class AutomaticModeEngine {
       this.logger.info(`[${this.formatDayTime(timestamp)}] opening all valves`);
       this.recordJournalEntry(timestamp);
     }
+    return changed;
   }
 
   private recordJournalEntry(timestamp: Timestamp): void {

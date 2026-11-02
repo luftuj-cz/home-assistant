@@ -37,12 +37,25 @@ const engine = new AutomaticModeEngine(building, hru, logger); // logger: anythi
 
 // once per tick
 sensor.co2 = latestReading; // null when the sensor has no value
-engine.run(Timestamp.now());
+const report = engine.run(Timestamp.now());
 // read valve.value for the new positions
 ```
 
 `HRU` is synchronous, and the engine writes positions straight into `Valve.value`. The
 `onValveChange` callback exists but the engine does not call it yet.
+
+`run()` returns a `RunReport` describing how it decided; the engine behaves the same whether or
+not the caller reads it. Besides the `branch` (see Algorithm), it lists the rooms by id, unique
+and in `building.rooms` order:
+
+- `roomsWithReading`: rooms with a CO2 value.
+- `roomsAboveTh2`, `roomsAboveTh1`, `roomsBelowTh1`: rooms that have been above TH2, above TH1 or
+  below TH1 - hysteresis for `thresholdTimeLimit`.
+- `roomsInCooldown`: rooms with a reading that the engine acted on within `thresholdTimeLimit`.
+- `roomsActedOn`: rooms the engine marked as changed in this run.
+
+It also reports `valvesChanged` (whether any valve moved), `powerBefore` and `powerAfter` (the HRU
+power around the run) and `maxPower` (the day or night maximum at that timestamp).
 
 ## Model
 
@@ -63,16 +76,19 @@ Every `run(timestamp)`:
 2. Tracks, per room and threshold (TH1, TH2), since when the smoothed CO2 has been at or above
    the threshold, and since when it has been below `threshold - co2Hysteresis`.
 3. Counts a room as above or below a threshold only after `thresholdTimeLimit` seconds there.
-4. Acts on the first branch that applies:
-   - **A room above TH2**: rooms above TH1 or TH2 open fully, all other rooms close partially,
+4. Acts on the first branch that applies, and reports it as `RunReport.branch`:
+   - **A room above TH2** (`th2`): rooms above TH1 or TH2 open fully, all other rooms close partially,
      and the HRU power rises by one step (capped by the day or night maximum). The power step
      happens at most once per `thresholdTimeLimit` for the rooms involved.
-   - **A room above TH1** that the engine has not acted on within `thresholdTimeLimit`: those
-     rooms open fully and every other room closes partially, including rooms above TH1 that
-     were acted on more recently.
-   - **Every room with a reading below TH1 - hysteresis**: valves return to their defaults and
-     the HRU power drops by one step on every tick, down to `hruMinPower`.
-   - Otherwise nothing changes (the hysteresis band).
+   - **A room above TH1** (`th1`) that the engine has not acted on within `thresholdTimeLimit`:
+     those rooms open fully and every other room closes partially, including rooms above TH1 that
+     were acted on more recently. When every room above TH1 is still within that window the branch
+     is `th1` all the same, but nothing changes.
+   - **Every room with a reading below TH1 - hysteresis** (`allBelow`): valves return to their
+     defaults and the HRU power drops by one step on every tick, down to `hruMinPower`. This also
+     applies when no room has a reading.
+   - Otherwise (`none`) nothing changes: the hysteresis band, or a state that has not yet lasted
+     `thresholdTimeLimit`.
 
 ## Parameters
 
