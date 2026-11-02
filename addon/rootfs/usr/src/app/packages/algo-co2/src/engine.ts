@@ -69,7 +69,10 @@ export interface RunReport {
   roomsAboveTh1: string[];
   /** Below TH1 - hysteresis for `thresholdTimeLimit`. */
   roomsBelowTh1: string[];
-  /** With a reading and acted on within `thresholdTimeLimit`. */
+  /**
+   * With a reading and acted on within `thresholdTimeLimit` before this run: the state at the start
+   * of the run, so a room acted on in this run is not listed in the same report.
+   */
   roomsInCooldown: string[];
   /** The rooms the engine marked as changed in this run. */
   roomsActedOn: string[];

@@ -51,7 +51,8 @@ and in `building.rooms` order:
 - `roomsWithReading`: rooms with a CO2 value.
 - `roomsAboveTh2`, `roomsAboveTh1`, `roomsBelowTh1`: rooms that have been above TH2, above TH1 or
   below TH1 - hysteresis for `thresholdTimeLimit`.
-- `roomsInCooldown`: rooms with a reading that the engine acted on within `thresholdTimeLimit`.
+- `roomsInCooldown`: rooms with a reading that the engine acted on within `thresholdTimeLimit` before
+  this run. It is the state before the run: a room acted on in this run is not listed in the same report.
 - `roomsActedOn`: rooms the engine marked as changed in this run.
 
 It also reports `valvesChanged` (whether any valve moved), `powerBefore` and `powerAfter` (the HRU

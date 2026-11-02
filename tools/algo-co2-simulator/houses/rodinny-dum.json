@@ -1,0 +1,143 @@
+{
+  "name": "Rodinný dům",
+  "hru": { "nominalFlowM3h": 350, "initialPowerPct": null },
+  "rooms": [
+    {
+      "id": "obyvak",
+      "name": "Obývák s kuchyní",
+      "rect": { "x": 0, "y": 0, "w": 7, "d": 5 },
+      "heightM": 2.6,
+      "sensors": ["sensor_obyvak"]
+    },
+    {
+      "id": "pracovna",
+      "name": "Pracovna",
+      "rect": { "x": 7, "y": 0, "w": 3.5, "d": 3 },
+      "heightM": 2.6,
+      "sensors": ["sensor_pracovna"]
+    },
+    {
+      "id": "wc",
+      "name": "WC",
+      "rect": { "x": 7, "y": 3, "w": 1.5, "d": 2 },
+      "heightM": 2.6,
+      "sensors": []
+    },
+    {
+      "id": "koupelna",
+      "name": "Koupelna",
+      "rect": { "x": 8.5, "y": 3, "w": 2, "d": 2 },
+      "heightM": 2.6,
+      "sensors": []
+    },
+    {
+      "id": "chodba",
+      "name": "Chodba",
+      "rect": { "x": 0, "y": 5, "w": 10.5, "d": 1.5 },
+      "heightM": 2.6,
+      "sensors": []
+    },
+    {
+      "id": "loznice",
+      "name": "Ložnice",
+      "rect": { "x": 0, "y": 6.5, "w": 4.5, "d": 4 },
+      "heightM": 2.6,
+      "sensors": ["sensor_loznice"]
+    },
+    {
+      "id": "detsky_1",
+      "name": "Dětský pokoj 1",
+      "rect": { "x": 4.5, "y": 6.5, "w": 3.5, "d": 4 },
+      "heightM": 2.6,
+      "sensors": ["sensor_detsky_1"]
+    },
+    {
+      "id": "detsky_2",
+      "name": "Dětský pokoj 2",
+      "rect": { "x": 8, "y": 6.5, "w": 3, "d": 4 },
+      "heightM": 2.6,
+      "sensors": ["sensor_detsky_2"]
+    }
+  ],
+  "boxes": [
+    {
+      "id": "box",
+      "valves": [
+        { "id": "obyvak_privod_1", "room": "obyvak", "type": "supply", "defaultPosition": 0 },
+        { "id": "obyvak_privod_2", "room": "obyvak", "type": "supply", "defaultPosition": 0 },
+        { "id": "loznice_privod", "room": "loznice", "type": "supply", "defaultPosition": 0 },
+        { "id": "detsky_1_privod", "room": "detsky_1", "type": "supply", "defaultPosition": 0 },
+        { "id": "detsky_2_privod", "room": "detsky_2", "type": "supply", "defaultPosition": 0 },
+        { "id": "pracovna_privod", "room": "pracovna", "type": "supply", "defaultPosition": 0 },
+        { "id": "koupelna_odtah", "room": "koupelna", "type": "exhaust", "defaultPosition": 0 },
+        { "id": "wc_odtah", "room": "wc", "type": "exhaust", "defaultPosition": 0 }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "pracovni-den",
+      "name": "Pracovní den",
+      "initialCo2Ppm": { "obyvak": 550, "loznice": 900, "detsky_1": 800, "detsky_2": 800 },
+      "steps": [
+        { "at": "06:30", "room": "loznice", "people": 0, "activity": "sitting" },
+        { "at": "06:30", "room": "detsky_1", "people": 0, "activity": "sitting" },
+        { "at": "06:30", "room": "detsky_2", "people": 0, "activity": "sitting" },
+        { "at": "06:30", "room": "koupelna", "people": 1, "activity": "active" },
+        { "at": "06:30", "room": "obyvak", "people": 3, "activity": "sitting" },
+        { "at": "07:00", "room": "koupelna", "people": 0, "activity": "sitting" },
+        { "at": "07:00", "room": "obyvak", "people": 4, "activity": "sitting" },
+        { "at": "08:00", "room": "obyvak", "people": 0, "activity": "sitting" },
+        { "at": "16:00", "room": "obyvak", "people": 2, "activity": "sitting" },
+        { "at": "16:00", "room": "detsky_1", "people": 1, "activity": "sitting" },
+        { "at": "16:00", "room": "detsky_2", "people": 1, "activity": "sitting" },
+        { "at": "17:30", "room": "obyvak", "people": 2, "activity": "active" },
+        { "at": "18:30", "room": "obyvak", "people": 4, "activity": "sitting" },
+        { "at": "18:30", "room": "detsky_1", "people": 0, "activity": "sitting" },
+        { "at": "18:30", "room": "detsky_2", "people": 0, "activity": "sitting" },
+        { "at": "19:30", "room": "obyvak", "people": 2, "activity": "sitting" },
+        { "at": "19:30", "room": "detsky_1", "people": 1, "activity": "sitting" },
+        { "at": "19:30", "room": "detsky_2", "people": 1, "activity": "sitting" },
+        { "at": "20:30", "room": "koupelna", "people": 1, "activity": "active" },
+        { "at": "20:30", "room": "obyvak", "people": 1, "activity": "sitting" },
+        { "at": "21:00", "room": "koupelna", "people": 0, "activity": "sitting" },
+        { "at": "21:00", "room": "obyvak", "people": 2, "activity": "sitting" },
+        { "at": "21:30", "room": "detsky_1", "people": 1, "activity": "sleeping" },
+        { "at": "21:30", "room": "detsky_2", "people": 1, "activity": "sleeping" },
+        { "at": "22:30", "room": "obyvak", "people": 0, "activity": "sitting" },
+        { "at": "22:30", "room": "loznice", "people": 2, "activity": "sleeping" }
+      ]
+    },
+    {
+      "id": "navsteva",
+      "name": "Večerní návštěva",
+      "initialCo2Ppm": { "obyvak": 550, "loznice": 900, "detsky_1": 800, "detsky_2": 800 },
+      "steps": [
+        { "at": "06:30", "room": "loznice", "people": 0, "activity": "sitting" },
+        { "at": "06:30", "room": "detsky_1", "people": 0, "activity": "sitting" },
+        { "at": "06:30", "room": "detsky_2", "people": 0, "activity": "sitting" },
+        { "at": "06:30", "room": "obyvak", "people": 4, "activity": "sitting" },
+        { "at": "08:00", "room": "obyvak", "people": 0, "activity": "sitting" },
+        { "at": "16:00", "room": "obyvak", "people": 2, "activity": "sitting" },
+        { "at": "16:00", "room": "detsky_1", "people": 1, "activity": "sitting" },
+        { "at": "16:00", "room": "detsky_2", "people": 1, "activity": "sitting" },
+        { "at": "17:30", "room": "obyvak", "people": 2, "activity": "active" },
+        { "at": "18:30", "room": "obyvak", "people": 6, "activity": "sitting" },
+        { "at": "21:30", "room": "detsky_1", "people": 1, "activity": "sleeping" },
+        { "at": "21:30", "room": "detsky_2", "people": 1, "activity": "sleeping" },
+        { "at": "22:30", "room": "obyvak", "people": 2, "activity": "sitting" },
+        { "at": "23:30", "room": "obyvak", "people": 0, "activity": "sitting" },
+        { "at": "23:30", "room": "loznice", "people": 2, "activity": "sleeping" }
+      ]
+    },
+    {
+      "id": "noc-dva",
+      "name": "Noc – dva v ložnici",
+      "initialCo2Ppm": { "loznice": 900 },
+      "steps": [
+        { "at": "06:30", "room": "loznice", "people": 0, "activity": "sitting" },
+        { "at": "22:00", "room": "loznice", "people": 2, "activity": "sleeping" }
+      ]
+    }
+  ]
+}

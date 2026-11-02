@@ -1,0 +1,84 @@
+{
+  "name": "Testovací dům",
+  "hru": { "nominalFlowM3h": 200, "initialPowerPct": 20 },
+  "rooms": [
+    {
+      "id": "obyvak",
+      "name": "Obývák",
+      "rect": { "x": 0, "y": 0, "w": 6, "d": 5 },
+      "heightM": 2.6,
+      "sensors": ["sensor_obyvak"]
+    },
+    {
+      "id": "pracovna",
+      "name": "Pracovna",
+      "rect": { "x": 6, "y": 0, "w": 3, "d": 3.3 },
+      "heightM": 2.6,
+      "sensors": ["sensor_pracovna"]
+    },
+    {
+      "id": "loznice",
+      "name": "Ložnice",
+      "rect": { "x": 0, "y": 5, "w": 4, "d": 3.5 },
+      "heightM": 2.6,
+      "sensors": ["sensor_loznice"]
+    }
+  ],
+  "boxes": [
+    {
+      "id": "box",
+      "valves": [
+        { "id": "obyvak_privod_1", "room": "obyvak", "type": "supply", "defaultPosition": 0 },
+        { "id": "obyvak_privod_2", "room": "obyvak", "type": "supply", "defaultPosition": 0 },
+        { "id": "loznice_privod_1", "room": "loznice", "type": "supply", "defaultPosition": 0 },
+        { "id": "loznice_privod_2", "room": "loznice", "type": "supply", "defaultPosition": 0 },
+        { "id": "pracovna_privod", "room": "pracovna", "type": "supply", "defaultPosition": 0 }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "pracovni-den",
+      "name": "Pracovní den",
+      "initialCo2Ppm": { "loznice": 900 },
+      "steps": [
+        { "at": "06:30", "room": "loznice", "people": 0, "activity": "sitting" },
+        { "at": "06:30", "room": "obyvak", "people": 2, "activity": "sitting" },
+        { "at": "08:00", "room": "obyvak", "people": 0, "activity": "sitting" },
+        { "at": "16:00", "room": "obyvak", "people": 2, "activity": "sitting" },
+        { "at": "17:30", "room": "obyvak", "people": 2, "activity": "active" },
+        { "at": "18:30", "room": "obyvak", "people": 2, "activity": "sitting" },
+        { "at": "19:30", "room": "obyvak", "people": 1, "activity": "sitting" },
+        { "at": "19:30", "room": "pracovna", "people": 1, "activity": "sitting" },
+        { "at": "21:30", "room": "obyvak", "people": 2, "activity": "sitting" },
+        { "at": "21:30", "room": "pracovna", "people": 0, "activity": "sitting" },
+        { "at": "22:30", "room": "obyvak", "people": 0, "activity": "sitting" },
+        { "at": "22:30", "room": "loznice", "people": 2, "activity": "sleeping" }
+      ]
+    },
+    {
+      "id": "navsteva",
+      "name": "Večerní návštěva",
+      "initialCo2Ppm": { "loznice": 900 },
+      "steps": [
+        { "at": "06:30", "room": "loznice", "people": 0, "activity": "sitting" },
+        { "at": "06:30", "room": "obyvak", "people": 2, "activity": "sitting" },
+        { "at": "08:00", "room": "obyvak", "people": 0, "activity": "sitting" },
+        { "at": "17:00", "room": "obyvak", "people": 2, "activity": "active" },
+        { "at": "18:00", "room": "obyvak", "people": 5, "activity": "sitting" },
+        { "at": "22:30", "room": "obyvak", "people": 2, "activity": "sitting" },
+        { "at": "23:30", "room": "obyvak", "people": 0, "activity": "sitting" },
+        { "at": "23:30", "room": "loznice", "people": 2, "activity": "sleeping" }
+      ]
+    },
+    {
+      "id": "noc-dva",
+      "name": "Noc – dva v ložnici",
+      "initialCo2Ppm": { "loznice": 900 },
+      "steps": [
+        { "at": "06:30", "room": "loznice", "people": 0, "activity": "sitting" },
+        { "at": "22:00", "room": "loznice", "people": 2, "activity": "sleeping" }
+      ]
+    }
+  ]
+}
