@@ -72,6 +72,14 @@ describe("sanitizeEngineParams", () => {
     });
   });
 
+  test("sanitizeEngineParams keeps Pmove within the minimum and 100 % and the offset non-negative", () => {
+    expect(
+      sanitizeEngineParams(engineWith({ hruMinPower: 30, hruMovePower: 10 })).hruMovePower,
+    ).toBe(30);
+    expect(sanitizeEngineParams(engineWith({ hruMovePower: 130 })).hruMovePower).toBe(100);
+    expect(sanitizeEngineParams(engineWith({ fluctuationOffset: -20 })).fluctuationOffset).toBe(0);
+  });
+
   test("sanitizeEngineParams keeps the day boundaries within one day", () => {
     const sanitized = sanitizeEngineParams(engineWith({ dayStart: -10, dayEnd: 90000 }));
 

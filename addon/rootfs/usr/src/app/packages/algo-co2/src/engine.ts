@@ -43,6 +43,10 @@ export interface RoomState {
   filteredCO2: number | null;
   aboveThresholdSince: Map<ThresholdType, number | null>;
   belowThresholdSince: Map<ThresholdType, number | null>;
+  /** Since when the filtered CO2 has been at or above the fluctuation level, without a break. */
+  fluctuationAboveSince: number | null;
+  /** Since when the filtered CO2 has been below the fluctuation level, without a break. */
+  fluctuationBelowSince: number | null;
   lastChangeTimestamp: Timestamp | null;
 }
 
@@ -57,7 +61,7 @@ export interface OnValveChange {
 }
 
 /** The branch of `run()` that applied; `none` is the hysteresis band or a wait for the time limit. */
-export type DecisionBranch = "th2" | "th1" | "allBelow" | "none";
+export type DecisionBranch = "th2" | "th1" | "fluctuation" | "allBelow" | "none";
 
 /** What one `run()` saw and did. Room-id lists are unique and in `building.rooms` order. */
 export interface RunReport {
@@ -81,6 +85,10 @@ export interface RunReport {
   powerAfter: number;
   /** The day or night HRU maximum at this timestamp. */
   maxPower: number;
+  /** Whether fluctuation is active after this run. */
+  fluctuationActive: boolean;
+  /** At or above the fluctuation level (`TH1 - fluctuationOffset`) for `thresholdTimeLimit`. */
+  roomsAboveFluctuation: string[];
 }
 
 /** The only logging the engine needs; a pino logger satisfies it as is. */
@@ -101,6 +109,13 @@ export class AutomaticModeEngine {
   hruMaxPowerDay: number = 100;
   hruMaxPowerNight: number = 50;
   hruPowerStep: number = 10;
+  /** HRU power held while fluctuation is active (Pmove). */
+  hruMovePower: number = 40;
+
+  /** Fluctuation: several rooms slightly raised by people moving around the house. */
+  fluctuationEnabled: boolean = true;
+  /** How far below TH1 the fluctuation level lies, in ppm. */
+  fluctuationOffset: number = 100;
 
   partialCloseValue: number = 45;
   fullyOpenValue: number = 0;
@@ -112,6 +127,7 @@ export class AutomaticModeEngine {
   private journal: JournalEntry[] = [];
 
   private readonly roomStates: Map<string, RoomState> = new Map();
+  private fluctuationActive: boolean = false;
 
   onValveChange: (valves: Map<string, number>) => void = () => {
     // No listener until the application registers one.
@@ -133,6 +149,8 @@ export class AutomaticModeEngine {
         filteredCO2: null,
         aboveThresholdSince: thresholdTimes,
         belowThresholdSince: belowThresholdTimes,
+        fluctuationAboveSince: null,
+        fluctuationBelowSince: null,
         lastChangeTimestamp: null,
       });
     }
@@ -177,6 +195,15 @@ export class AutomaticModeEngine {
       timestamp.epochSecond,
       this.thresholdTimeLimit,
     );
+    const roomsAboveFluctuationForTimeLimit = roomsWithValidMeasurement.filter((r) =>
+      this.isPastTimeLimit(this.getState(r).fluctuationAboveSince, timestamp),
+    );
+    this.updateFluctuationState(
+      roomsWithValidMeasurement,
+      roomsAboveFluctuationForTimeLimit,
+      roomsAboveThreshold1ForTimeLimit.length > 0 || roomsAboveThreshold2ForTimeLimit.length > 0,
+      timestamp,
+    );
 
     const powerBefore = this.hru.getPower();
     let branch: DecisionBranch = "none";
@@ -209,6 +236,11 @@ export class AutomaticModeEngine {
         this.markChanged(roomsToUpdate, timestamp);
         roomsActedOn = roomsToUpdate;
       }
+    } else if (this.fluctuationActive) {
+      // No markChanged: a room that crosses TH1 next must not start in cooldown.
+      branch = "fluctuation";
+      valvesChanged = this.resetValvesToDefault(timestamp);
+      this.movePowerTowardsMovePower(timestamp);
     } else if (roomsBelowThreshold1ForTimeLimit.length === roomsWithValidMeasurement.length) {
       branch = "allBelow";
       valvesChanged = this.resetValvesToDefault(timestamp);
@@ -231,7 +263,46 @@ export class AutomaticModeEngine {
       powerBefore,
       powerAfter: this.hru.getPower(),
       maxPower: this.getHruMaxPower(timestamp),
+      fluctuationActive: this.fluctuationActive,
+      roomsAboveFluctuation: this.toRoomIds(roomsAboveFluctuationForTimeLimit),
     };
+  }
+
+  private isPastTimeLimit(since: number | null, timestamp: Timestamp): boolean {
+    return since !== null && timestamp.epochSecond - since >= this.thresholdTimeLimit;
+  }
+
+  /**
+   * Switches fluctuation on when two or more rooms have been at the fluctuation level for the time
+   * limit and no room is above TH1 or TH2; keeps it on until every room has been below the level for
+   * the time limit, so it does not flap around the level.
+   */
+  private updateFluctuationState(
+    roomsWithReading: Room[],
+    roomsAboveFluctuation: Room[],
+    anyRoomAboveThreshold: boolean,
+    timestamp: Timestamp,
+  ): void {
+    const wasActive = this.fluctuationActive;
+    if (!this.fluctuationEnabled || roomsWithReading.length === 0) {
+      this.fluctuationActive = false;
+    } else if (wasActive) {
+      this.fluctuationActive = !roomsWithReading.every((r) =>
+        this.isPastTimeLimit(this.getState(r).fluctuationBelowSince, timestamp),
+      );
+    } else {
+      this.fluctuationActive = roomsAboveFluctuation.length >= 2 && !anyRoomAboveThreshold;
+    }
+    if (this.fluctuationActive !== wasActive) {
+      this.logger.info(
+        `[${this.formatDayTime(timestamp)}] fluctuation ${this.fluctuationActive ? "on" : "off"}`,
+      );
+    }
+  }
+
+  /** `TH1 - fluctuationOffset`; without a TH1 no room can reach it. */
+  private getFluctuationLevel(): number {
+    return (this.thresholds.get(ThresholdType.TH1) ?? Infinity) - this.fluctuationOffset;
   }
 
   /** The ids of the given rooms, without repeats, in the order of `building.rooms`. */
@@ -261,6 +332,8 @@ export class AutomaticModeEngine {
 
       if (rawCO2 === null) {
         state.filteredCO2 = null;
+        state.fluctuationAboveSince = null;
+        state.fluctuationBelowSince = null;
         continue;
       }
 
@@ -273,6 +346,21 @@ export class AutomaticModeEngine {
       }
 
       this.updateThresholdTimers(room, state, timestamp);
+      this.updateFluctuationTimers(state, timestamp);
+    }
+  }
+
+  /** Unlike the TH timers there is no hysteresis: crossing the level restarts the other timer. */
+  private updateFluctuationTimers(state: RoomState, timestamp: Timestamp): void {
+    const co2 = state.filteredCO2;
+    if (co2 === null) return;
+
+    if (co2 >= this.getFluctuationLevel()) {
+      state.fluctuationBelowSince = null;
+      state.fluctuationAboveSince ??= timestamp.epochSecond;
+    } else {
+      state.fluctuationAboveSince = null;
+      state.fluctuationBelowSince ??= timestamp.epochSecond;
     }
   }
 
@@ -428,6 +516,27 @@ export class AutomaticModeEngine {
       this.hru.setPower(newPower);
       this.recordJournalEntry(timestamp);
     }
+  }
+
+  /**
+   * Raises the power to Pmove in one write, or lowers it by one step without going below Pmove. Pmove
+   * is kept at or above `hruMinPower` and capped by the day or night maximum.
+   */
+  private movePowerTowardsMovePower(timestamp: Timestamp): void {
+    const target = Math.min(
+      Math.max(this.hruMovePower, this.hruMinPower),
+      this.getHruMaxPower(timestamp),
+    );
+    const hruCurrentPower = this.hru.getPower();
+    const newPower =
+      hruCurrentPower < target ? target : Math.max(hruCurrentPower - this.hruPowerStep, target);
+    if (newPower === hruCurrentPower) return;
+
+    this.logger.info(
+      `[${this.formatDayTime(timestamp)}] moving HRU power from ${hruCurrentPower} to ${newPower} (fluctuation)`,
+    );
+    this.hru.setPower(newPower);
+    this.recordJournalEntry(timestamp);
   }
 
   getHruCurrentPower(): number {

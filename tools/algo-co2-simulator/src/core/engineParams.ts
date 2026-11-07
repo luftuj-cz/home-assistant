@@ -11,6 +11,9 @@ export interface EngineParams {
   hruMaxPowerDay: number;
   hruMaxPowerNight: number;
   hruPowerStep: number;
+  hruMovePower: number;
+  fluctuationEnabled: boolean;
+  fluctuationOffset: number;
   partialCloseValue: number;
   fullyOpenValue: number;
   dayStart: number;
@@ -36,6 +39,9 @@ export function readEngineParams(engine: AutomaticModeEngine): EngineParams {
     hruMaxPowerDay: engine.hruMaxPowerDay,
     hruMaxPowerNight: engine.hruMaxPowerNight,
     hruPowerStep: engine.hruPowerStep,
+    hruMovePower: engine.hruMovePower,
+    fluctuationEnabled: engine.fluctuationEnabled,
+    fluctuationOffset: engine.fluctuationOffset,
     partialCloseValue: engine.partialCloseValue,
     fullyOpenValue: engine.fullyOpenValue,
     dayStart: engine.dayStart,
@@ -53,6 +59,9 @@ export function applyEngineParams(engine: AutomaticModeEngine, params: EnginePar
   engine.hruMaxPowerDay = params.hruMaxPowerDay;
   engine.hruMaxPowerNight = params.hruMaxPowerNight;
   engine.hruPowerStep = params.hruPowerStep;
+  engine.hruMovePower = params.hruMovePower;
+  engine.fluctuationEnabled = params.fluctuationEnabled;
+  engine.fluctuationOffset = params.fluctuationOffset;
   engine.partialCloseValue = params.partialCloseValue;
   engine.fullyOpenValue = params.fullyOpenValue;
   engine.dayStart = params.dayStart;

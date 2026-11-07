@@ -38,6 +38,11 @@ export function HruPanel({ controls }: Readonly<{ controls: SimulationControls }
           Poslední rozhodnutí:{" "}
           {snapshot.lastReport === null ? NO_VALUE : branchLabel(snapshot.lastReport.branch)}
         </Text>
+        {engineParams.fluctuationEnabled && (
+          <Text size="sm">
+            Pohyb osob: {snapshot.lastReport?.fluctuationActive === true ? "aktivní" : "neaktivní"}
+          </Text>
+        )}
       </Stack>
     </Paper>
   );

@@ -53,6 +53,8 @@ export function branchLabel(branch: DecisionBranch): string {
       return "TH2";
     case "th1":
       return "TH1";
+    case "fluctuation":
+      return "Pohyb osob";
     case "allBelow":
       return "Vše pod TH1";
     case "none":

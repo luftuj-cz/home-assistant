@@ -86,6 +86,30 @@ describe("run() report", () => {
       powerBefore: 20,
       powerAfter: 30,
       maxPower: 100,
+      fluctuationActive: false,
+      roomsAboveFluctuation: ["a"],
+    });
+  });
+
+  test("reports the fluctuation branch and Pmove", () => {
+    const house = createHouse();
+    house.engine.hruMovePower = 40;
+    const report = runUntil(house, { a: 720, b: 720 }, 120);
+
+    expect(report).toEqual({
+      branch: "fluctuation",
+      roomsWithReading: ["a", "b"],
+      roomsAboveTh2: [],
+      roomsAboveTh1: [],
+      roomsBelowTh1: ["a", "b"],
+      roomsInCooldown: [],
+      roomsActedOn: [],
+      valvesChanged: false,
+      powerBefore: 20,
+      powerAfter: 40,
+      maxPower: 100,
+      fluctuationActive: true,
+      roomsAboveFluctuation: ["a", "b"],
     });
   });
 
@@ -134,7 +158,10 @@ describe("run() report", () => {
   });
 
   test("reports the hysteresis band as none", () => {
-    const report = runUntil(createHouse(), { a: 780, b: 780 }, 200);
+    const house = createHouse();
+    // Two rooms at 780 ppm would otherwise be a fluctuation.
+    house.engine.fluctuationEnabled = false;
+    const report = runUntil(house, { a: 780, b: 780 }, 200);
 
     expect(report.branch).toBe("none");
   });

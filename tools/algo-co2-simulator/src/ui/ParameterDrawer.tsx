@@ -276,6 +276,30 @@ export function ParameterDrawer({
               min={1}
               step={1}
             />
+            <Switch
+              label="Pohyb osob (Fluctuation)"
+              checked={engineParams.fluctuationEnabled}
+              onChange={(event) =>
+                changeEngine({ fluctuationEnabled: event.currentTarget.checked })
+              }
+              style={{ alignSelf: "end", paddingBottom: "var(--mantine-spacing-xs)" }}
+            />
+            <NumberField
+              label="Výkon při pohybu osob (%)"
+              value={engineParams.hruMovePower}
+              onCommit={(hruMovePower) => changeEngine({ hruMovePower })}
+              min={engineParams.hruMinPower}
+              max={MAX_POWER_PCT}
+              step={5}
+            />
+            <NumberField
+              label="Pohyb osob od TH1 − (ppm)"
+              value={engineParams.fluctuationOffset}
+              onCommit={(fluctuationOffset) => changeEngine({ fluctuationOffset })}
+              min={0}
+              step={10}
+              description={`Hranice ${engineParams.th1 - engineParams.fluctuationOffset} ppm`}
+            />
             <NumberField
               label="Poloha při částečném zavření"
               value={engineParams.partialCloseValue}

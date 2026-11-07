@@ -51,10 +51,11 @@ describe("formatDuration", () => {
 });
 
 describe("branchLabel", () => {
-  test("branchLabel maps all four values", () => {
+  test("branchLabel maps all five values", () => {
     const labels: Record<DecisionBranch, string> = {
       th2: "TH2",
       th1: "TH1",
+      fluctuation: "Pohyb osob",
       allBelow: "Vše pod TH1",
       none: "Beze změny",
     };
