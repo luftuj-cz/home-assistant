@@ -82,9 +82,9 @@ Every `run(timestamp)`:
      and the HRU power rises by one step (capped by the day or night maximum). The power step
      happens at most once per `thresholdTimeLimit` for the rooms involved.
    - **A room above TH1** (`th1`) that the engine has not acted on within `thresholdTimeLimit`:
-     those rooms open fully and every other room closes partially, including rooms above TH1 that
-     were acted on more recently. When every room above TH1 is still within that window the branch
-     is `th1` all the same, but nothing changes.
+     every room above TH1 opens fully, including rooms acted on more recently, and every other room
+     closes partially. Only the rooms out of that window are marked as acted on. When every room
+     above TH1 is still within the window the branch is `th1` all the same, but nothing changes.
    - **Every room with a reading below TH1 - hysteresis** (`allBelow`): valves return to their
      defaults and the HRU power drops by one step on every tick, down to `hruMinPower`. This also
      applies when no room has a reading.

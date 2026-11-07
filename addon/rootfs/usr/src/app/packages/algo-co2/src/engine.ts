@@ -204,7 +204,8 @@ export class AutomaticModeEngine {
         roomsWithoutActionForTimeLimit.has(r.id),
       );
       if (roomsToUpdate.length > 0) {
-        valvesChanged = this.applyValveStrategy(roomsToUpdate, timestamp);
+        // Every room above TH1 stays open; closing the ones in cooldown made them take turns.
+        valvesChanged = this.applyValveStrategy(roomsAboveThreshold1ForTimeLimit, timestamp);
         this.markChanged(roomsToUpdate, timestamp);
         roomsActedOn = roomsToUpdate;
       }
