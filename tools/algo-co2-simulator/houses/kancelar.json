@@ -1,0 +1,252 @@
+{
+  "name": "Kancelář",
+  "hru": { "nominalFlowM3h": 1000, "initialPower": null },
+  "rooms": [
+    {
+      "id": "open_space",
+      "name": "Open space",
+      "rect": { "x": 0, "y": 0, "w": 12, "d": 8 },
+      "heightM": 3,
+      "sensors": ["sensor_open_space_okno", "sensor_open_space_dvere"]
+    },
+    {
+      "id": "zasedacka_velka",
+      "name": "Velká zasedačka",
+      "rect": { "x": 12, "y": 0, "w": 6, "d": 5 },
+      "heightM": 3,
+      "sensors": ["sensor_zasedacka_velka"]
+    },
+    {
+      "id": "zasedacka_mala",
+      "name": "Malá zasedačka",
+      "rect": { "x": 18, "y": 0, "w": 4, "d": 5 },
+      "heightM": 3,
+      "sensors": ["sensor_zasedacka_mala"]
+    },
+    {
+      "id": "reditel",
+      "name": "Ředitel",
+      "rect": { "x": 12, "y": 5, "w": 5, "d": 3 },
+      "heightM": 3,
+      "sensors": ["sensor_reditel"]
+    },
+    {
+      "id": "ucetni",
+      "name": "Účetní",
+      "rect": { "x": 17, "y": 5, "w": 5, "d": 3 },
+      "heightM": 3,
+      "sensors": ["sensor_ucetni"]
+    },
+    {
+      "id": "chodba",
+      "name": "Chodba",
+      "rect": { "x": 0, "y": 8, "w": 22, "d": 2 },
+      "heightM": 3,
+      "sensors": []
+    },
+    {
+      "id": "kuchynka",
+      "name": "Kuchyňka",
+      "rect": { "x": 0, "y": 10, "w": 5, "d": 4 },
+      "heightM": 3,
+      "sensors": ["sensor_kuchynka"]
+    },
+    {
+      "id": "wc_muzi",
+      "name": "WC muži",
+      "rect": { "x": 5, "y": 10, "w": 2.5, "d": 4 },
+      "heightM": 3,
+      "sensors": []
+    },
+    {
+      "id": "wc_zeny",
+      "name": "WC ženy",
+      "rect": { "x": 7.5, "y": 10, "w": 2.5, "d": 4 },
+      "heightM": 3,
+      "sensors": []
+    },
+    {
+      "id": "it",
+      "name": "IT oddělení",
+      "rect": { "x": 10, "y": 10, "w": 6, "d": 4 },
+      "heightM": 3,
+      "sensors": ["sensor_it"]
+    },
+    {
+      "id": "obchod",
+      "name": "Obchod",
+      "rect": { "x": 16, "y": 10, "w": 6, "d": 4 },
+      "heightM": 3,
+      "sensors": ["sensor_obchod"]
+    }
+  ],
+  "boxes": [
+    {
+      "id": "box_sever",
+      "valves": [
+        {
+          "id": "open_space_privod_1",
+          "room": "open_space",
+          "type": "supply",
+          "defaultPosition": 0
+        },
+        {
+          "id": "open_space_privod_2",
+          "room": "open_space",
+          "type": "supply",
+          "defaultPosition": 0
+        },
+        {
+          "id": "open_space_privod_3",
+          "room": "open_space",
+          "type": "supply",
+          "defaultPosition": 0
+        },
+        {
+          "id": "open_space_privod_4",
+          "room": "open_space",
+          "type": "supply",
+          "defaultPosition": 0
+        },
+        {
+          "id": "zasedacka_velka_privod_1",
+          "room": "zasedacka_velka",
+          "type": "supply",
+          "defaultPosition": 0
+        },
+        {
+          "id": "zasedacka_velka_privod_2",
+          "room": "zasedacka_velka",
+          "type": "supply",
+          "defaultPosition": 0
+        },
+        {
+          "id": "zasedacka_mala_privod",
+          "room": "zasedacka_mala",
+          "type": "supply",
+          "defaultPosition": 0
+        },
+        { "id": "reditel_privod", "room": "reditel", "type": "supply", "defaultPosition": 0 },
+        { "id": "ucetni_privod", "room": "ucetni", "type": "supply", "defaultPosition": 0 }
+      ]
+    },
+    {
+      "id": "box_jih",
+      "valves": [
+        { "id": "it_privod", "room": "it", "type": "supply", "defaultPosition": 0 },
+        { "id": "obchod_privod", "room": "obchod", "type": "supply", "defaultPosition": 0 },
+        { "id": "kuchynka_odtah", "room": "kuchynka", "type": "exhaust", "defaultPosition": 0 },
+        { "id": "wc_muzi_odtah", "room": "wc_muzi", "type": "exhaust", "defaultPosition": 0 },
+        { "id": "wc_zeny_odtah", "room": "wc_zeny", "type": "exhaust", "defaultPosition": 0 }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "pracovni-den",
+      "name": "Pracovní den",
+      "initialCo2Ppm": {
+        "open_space": 450,
+        "zasedacka_velka": 450,
+        "zasedacka_mala": 450,
+        "reditel": 450,
+        "ucetni": 450,
+        "kuchynka": 450,
+        "it": 450,
+        "obchod": 450
+      },
+      "steps": [
+        { "at": "07:30", "room": "open_space", "people": 4, "activity": "sitting" },
+        { "at": "07:30", "room": "it", "people": 1, "activity": "sitting" },
+        { "at": "08:00", "room": "open_space", "people": 12, "activity": "sitting" },
+        { "at": "08:00", "room": "reditel", "people": 1, "activity": "sitting" },
+        { "at": "08:00", "room": "ucetni", "people": 2, "activity": "sitting" },
+        { "at": "08:00", "room": "it", "people": 3, "activity": "sitting" },
+        { "at": "08:00", "room": "obchod", "people": 3, "activity": "sitting" },
+        { "at": "08:30", "room": "kuchynka", "people": 4, "activity": "active" },
+        { "at": "08:45", "room": "kuchynka", "people": 0, "activity": "sitting" },
+        { "at": "09:00", "room": "zasedacka_velka", "people": 10, "activity": "sitting" },
+        { "at": "09:00", "room": "open_space", "people": 6, "activity": "sitting" },
+        { "at": "09:00", "room": "reditel", "people": 0, "activity": "sitting" },
+        { "at": "09:00", "room": "obchod", "people": 1, "activity": "sitting" },
+        { "at": "10:00", "room": "zasedacka_velka", "people": 0, "activity": "sitting" },
+        { "at": "10:00", "room": "open_space", "people": 12, "activity": "sitting" },
+        { "at": "10:00", "room": "reditel", "people": 1, "activity": "sitting" },
+        { "at": "10:00", "room": "obchod", "people": 3, "activity": "sitting" },
+        { "at": "10:30", "room": "zasedacka_mala", "people": 4, "activity": "sitting" },
+        { "at": "10:30", "room": "it", "people": 1, "activity": "sitting" },
+        { "at": "10:30", "room": "open_space", "people": 10, "activity": "sitting" },
+        { "at": "11:30", "room": "zasedacka_mala", "people": 0, "activity": "sitting" },
+        { "at": "11:30", "room": "it", "people": 3, "activity": "sitting" },
+        { "at": "11:30", "room": "open_space", "people": 12, "activity": "sitting" },
+        { "at": "12:00", "room": "kuchynka", "people": 8, "activity": "active" },
+        { "at": "12:00", "room": "open_space", "people": 6, "activity": "sitting" },
+        { "at": "12:00", "room": "it", "people": 1, "activity": "sitting" },
+        { "at": "12:00", "room": "obchod", "people": 1, "activity": "sitting" },
+        { "at": "12:45", "room": "kuchynka", "people": 2, "activity": "active" },
+        { "at": "12:45", "room": "open_space", "people": 12, "activity": "sitting" },
+        { "at": "12:45", "room": "it", "people": 3, "activity": "sitting" },
+        { "at": "12:45", "room": "obchod", "people": 3, "activity": "sitting" },
+        { "at": "13:00", "room": "kuchynka", "people": 0, "activity": "sitting" },
+        { "at": "14:00", "room": "zasedacka_velka", "people": 14, "activity": "sitting" },
+        { "at": "14:00", "room": "open_space", "people": 7, "activity": "sitting" },
+        { "at": "14:00", "room": "reditel", "people": 0, "activity": "sitting" },
+        { "at": "14:00", "room": "obchod", "people": 0, "activity": "sitting" },
+        { "at": "15:30", "room": "zasedacka_velka", "people": 0, "activity": "sitting" },
+        { "at": "15:30", "room": "kuchynka", "people": 5, "activity": "active" },
+        { "at": "15:45", "room": "kuchynka", "people": 0, "activity": "sitting" },
+        { "at": "15:45", "room": "open_space", "people": 12, "activity": "sitting" },
+        { "at": "15:45", "room": "reditel", "people": 1, "activity": "sitting" },
+        { "at": "15:45", "room": "obchod", "people": 3, "activity": "sitting" },
+        { "at": "16:30", "room": "open_space", "people": 6, "activity": "sitting" },
+        { "at": "16:30", "room": "ucetni", "people": 0, "activity": "sitting" },
+        { "at": "16:30", "room": "it", "people": 1, "activity": "sitting" },
+        { "at": "16:30", "room": "obchod", "people": 1, "activity": "sitting" },
+        { "at": "17:30", "room": "open_space", "people": 0, "activity": "sitting" },
+        { "at": "17:30", "room": "reditel", "people": 0, "activity": "sitting" },
+        { "at": "17:30", "room": "it", "people": 0, "activity": "sitting" },
+        { "at": "17:30", "room": "obchod", "people": 0, "activity": "sitting" }
+      ]
+    },
+    {
+      "id": "skoleni",
+      "name": "Celodenní školení",
+      "initialCo2Ppm": {
+        "open_space": 450,
+        "zasedacka_velka": 450,
+        "zasedacka_mala": 450,
+        "reditel": 450,
+        "ucetni": 450,
+        "kuchynka": 450,
+        "it": 450,
+        "obchod": 450
+      },
+      "steps": [
+        { "at": "08:00", "room": "open_space", "people": 5, "activity": "sitting" },
+        { "at": "08:00", "room": "ucetni", "people": 2, "activity": "sitting" },
+        { "at": "08:00", "room": "it", "people": 1, "activity": "sitting" },
+        { "at": "08:30", "room": "zasedacka_velka", "people": 16, "activity": "sitting" },
+        { "at": "10:15", "room": "zasedacka_velka", "people": 0, "activity": "sitting" },
+        { "at": "10:15", "room": "kuchynka", "people": 10, "activity": "active" },
+        { "at": "10:30", "room": "kuchynka", "people": 0, "activity": "sitting" },
+        { "at": "10:30", "room": "zasedacka_velka", "people": 16, "activity": "sitting" },
+        { "at": "12:00", "room": "zasedacka_velka", "people": 0, "activity": "sitting" },
+        { "at": "12:00", "room": "kuchynka", "people": 8, "activity": "active" },
+        { "at": "12:00", "room": "zasedacka_mala", "people": 5, "activity": "sitting" },
+        { "at": "12:00", "room": "open_space", "people": 8, "activity": "sitting" },
+        { "at": "13:00", "room": "kuchynka", "people": 0, "activity": "sitting" },
+        { "at": "13:00", "room": "zasedacka_mala", "people": 0, "activity": "sitting" },
+        { "at": "13:00", "room": "open_space", "people": 5, "activity": "sitting" },
+        { "at": "13:00", "room": "zasedacka_velka", "people": 16, "activity": "sitting" },
+        { "at": "14:30", "room": "zasedacka_velka", "people": 0, "activity": "sitting" },
+        { "at": "14:30", "room": "kuchynka", "people": 10, "activity": "active" },
+        { "at": "14:45", "room": "kuchynka", "people": 0, "activity": "sitting" },
+        { "at": "14:45", "room": "zasedacka_velka", "people": 16, "activity": "sitting" },
+        { "at": "16:00", "room": "zasedacka_velka", "people": 0, "activity": "sitting" },
+        { "at": "16:30", "room": "ucetni", "people": 0, "activity": "sitting" },
+        { "at": "17:00", "room": "open_space", "people": 0, "activity": "sitting" },
+        { "at": "17:00", "room": "it", "people": 0, "activity": "sitting" }
+      ]
+    }
+  ]
+}

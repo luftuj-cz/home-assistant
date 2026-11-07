@@ -35,14 +35,18 @@ function presetById(id: string) {
 
 describe("presets", () => {
   test("every preset parses", () => {
-    expect(PRESET_HOUSES.map((house) => house.id)).toEqual(["testovaci-dum", "rodinny-dum"]);
+    const homeScenarios = ["pracovni-den", "navsteva", "noc-dva"];
+    const expectedScenarios: Record<string, string[]> = {
+      "testovaci-dum": homeScenarios,
+      "rodinny-dum": homeScenarios,
+      kancelar: ["pracovni-den", "skoleni"],
+      "kancelar-tymy": ["pracovni-den", "plne-obsazeni"],
+    };
+
+    expect(PRESET_HOUSES.map((house) => house.id)).toEqual(Object.keys(expectedScenarios));
     for (const house of PRESET_HOUSES) {
       expect(house.rooms.length).toBeGreaterThan(0);
-      expect(house.scenarios.map((scenario) => scenario.id)).toEqual([
-        "pracovni-den",
-        "navsteva",
-        "noc-dva",
-      ]);
+      expect(house.scenarios.map((scenario) => scenario.id)).toEqual(expectedScenarios[house.id]);
     }
   });
 

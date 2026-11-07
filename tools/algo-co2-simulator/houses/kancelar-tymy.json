@@ -1,0 +1,220 @@
+{
+  "name": "Kancelář – týmové místnosti",
+  "hru": { "nominalFlowM3h": 1000, "initialPower": null },
+  "rooms": [
+    {
+      "id": "vyvoj",
+      "name": "Tým vývoj",
+      "rect": { "x": 0, "y": 0, "w": 8, "d": 5 },
+      "heightM": 3,
+      "sensors": ["sensor_vyvoj"]
+    },
+    {
+      "id": "podpora",
+      "name": "Tým podpora",
+      "rect": { "x": 8, "y": 0, "w": 6, "d": 5 },
+      "heightM": 3,
+      "sensors": ["sensor_podpora"]
+    },
+    {
+      "id": "marketing",
+      "name": "Tým marketing",
+      "rect": { "x": 14, "y": 0, "w": 5, "d": 5 },
+      "heightM": 3,
+      "sensors": ["sensor_marketing"]
+    },
+    {
+      "id": "zasedacka_velka",
+      "name": "Velká zasedačka",
+      "rect": { "x": 19, "y": 0, "w": 6, "d": 5 },
+      "heightM": 3,
+      "sensors": ["sensor_zasedacka_velka"]
+    },
+    {
+      "id": "chodba",
+      "name": "Chodba",
+      "rect": { "x": 0, "y": 5, "w": 25, "d": 2 },
+      "heightM": 3,
+      "sensors": []
+    },
+    {
+      "id": "obchod",
+      "name": "Tým obchod",
+      "rect": { "x": 0, "y": 7, "w": 6, "d": 5 },
+      "heightM": 3,
+      "sensors": ["sensor_obchod"]
+    },
+    {
+      "id": "finance",
+      "name": "Tým finance",
+      "rect": { "x": 6, "y": 7, "w": 5, "d": 5 },
+      "heightM": 3,
+      "sensors": ["sensor_finance"]
+    },
+    {
+      "id": "zasedacka_mala",
+      "name": "Malá zasedačka",
+      "rect": { "x": 11, "y": 7, "w": 4, "d": 5 },
+      "heightM": 3,
+      "sensors": ["sensor_zasedacka_mala"]
+    },
+    {
+      "id": "kuchynka",
+      "name": "Kuchyňka",
+      "rect": { "x": 15, "y": 7, "w": 5, "d": 5 },
+      "heightM": 3,
+      "sensors": ["sensor_kuchynka"]
+    },
+    {
+      "id": "wc_muzi",
+      "name": "WC muži",
+      "rect": { "x": 20, "y": 7, "w": 2.5, "d": 5 },
+      "heightM": 3,
+      "sensors": []
+    },
+    {
+      "id": "wc_zeny",
+      "name": "WC ženy",
+      "rect": { "x": 22.5, "y": 7, "w": 2.5, "d": 5 },
+      "heightM": 3,
+      "sensors": []
+    }
+  ],
+  "boxes": [
+    {
+      "id": "box_sever",
+      "valves": [
+        { "id": "vyvoj_privod_1", "room": "vyvoj", "type": "supply", "defaultPosition": 0 },
+        { "id": "vyvoj_privod_2", "room": "vyvoj", "type": "supply", "defaultPosition": 0 },
+        { "id": "podpora_privod_1", "room": "podpora", "type": "supply", "defaultPosition": 0 },
+        { "id": "podpora_privod_2", "room": "podpora", "type": "supply", "defaultPosition": 0 },
+        { "id": "marketing_privod", "room": "marketing", "type": "supply", "defaultPosition": 0 },
+        {
+          "id": "zasedacka_velka_privod_1",
+          "room": "zasedacka_velka",
+          "type": "supply",
+          "defaultPosition": 0
+        },
+        {
+          "id": "zasedacka_velka_privod_2",
+          "room": "zasedacka_velka",
+          "type": "supply",
+          "defaultPosition": 0
+        }
+      ]
+    },
+    {
+      "id": "box_jih",
+      "valves": [
+        { "id": "obchod_privod", "room": "obchod", "type": "supply", "defaultPosition": 0 },
+        { "id": "finance_privod", "room": "finance", "type": "supply", "defaultPosition": 0 },
+        {
+          "id": "zasedacka_mala_privod",
+          "room": "zasedacka_mala",
+          "type": "supply",
+          "defaultPosition": 0
+        },
+        { "id": "kuchynka_odtah", "room": "kuchynka", "type": "exhaust", "defaultPosition": 0 },
+        { "id": "wc_muzi_odtah", "room": "wc_muzi", "type": "exhaust", "defaultPosition": 0 },
+        { "id": "wc_zeny_odtah", "room": "wc_zeny", "type": "exhaust", "defaultPosition": 0 }
+      ]
+    }
+  ],
+  "scenarios": [
+    {
+      "id": "pracovni-den",
+      "name": "Pracovní den",
+      "initialCo2Ppm": {
+        "vyvoj": 450,
+        "podpora": 450,
+        "marketing": 450,
+        "zasedacka_velka": 450,
+        "obchod": 450,
+        "finance": 450,
+        "zasedacka_mala": 450,
+        "kuchynka": 450
+      },
+      "steps": [
+        { "at": "07:30", "room": "podpora", "people": 3, "activity": "sitting" },
+        { "at": "08:00", "room": "podpora", "people": 6, "activity": "sitting" },
+        { "at": "08:00", "room": "vyvoj", "people": 7, "activity": "sitting" },
+        { "at": "08:00", "room": "finance", "people": 3, "activity": "sitting" },
+        { "at": "08:30", "room": "marketing", "people": 4, "activity": "sitting" },
+        { "at": "08:30", "room": "obchod", "people": 5, "activity": "sitting" },
+        { "at": "09:00", "room": "vyvoj", "people": 9, "activity": "active" },
+        { "at": "09:15", "room": "vyvoj", "people": 8, "activity": "sitting" },
+        { "at": "10:00", "room": "zasedacka_velka", "people": 9, "activity": "sitting" },
+        { "at": "10:00", "room": "marketing", "people": 0, "activity": "sitting" },
+        { "at": "10:00", "room": "obchod", "people": 0, "activity": "sitting" },
+        { "at": "11:00", "room": "zasedacka_velka", "people": 0, "activity": "sitting" },
+        { "at": "11:00", "room": "marketing", "people": 4, "activity": "sitting" },
+        { "at": "11:00", "room": "obchod", "people": 5, "activity": "sitting" },
+        { "at": "11:30", "room": "kuchynka", "people": 6, "activity": "active" },
+        { "at": "11:30", "room": "podpora", "people": 3, "activity": "sitting" },
+        { "at": "11:30", "room": "finance", "people": 0, "activity": "sitting" },
+        { "at": "12:15", "room": "kuchynka", "people": 8, "activity": "active" },
+        { "at": "12:15", "room": "podpora", "people": 6, "activity": "sitting" },
+        { "at": "12:15", "room": "finance", "people": 3, "activity": "sitting" },
+        { "at": "12:15", "room": "vyvoj", "people": 2, "activity": "sitting" },
+        { "at": "12:15", "room": "marketing", "people": 1, "activity": "sitting" },
+        { "at": "13:00", "room": "kuchynka", "people": 0, "activity": "sitting" },
+        { "at": "13:00", "room": "vyvoj", "people": 8, "activity": "sitting" },
+        { "at": "13:00", "room": "marketing", "people": 4, "activity": "sitting" },
+        { "at": "14:00", "room": "zasedacka_velka", "people": 12, "activity": "sitting" },
+        { "at": "14:00", "room": "vyvoj", "people": 0, "activity": "sitting" },
+        { "at": "14:00", "room": "podpora", "people": 4, "activity": "sitting" },
+        { "at": "14:00", "room": "zasedacka_mala", "people": 4, "activity": "sitting" },
+        { "at": "14:00", "room": "finance", "people": 0, "activity": "sitting" },
+        { "at": "15:00", "room": "zasedacka_mala", "people": 0, "activity": "sitting" },
+        { "at": "15:00", "room": "finance", "people": 3, "activity": "sitting" },
+        { "at": "15:30", "room": "zasedacka_velka", "people": 0, "activity": "sitting" },
+        { "at": "15:30", "room": "vyvoj", "people": 8, "activity": "sitting" },
+        { "at": "15:30", "room": "podpora", "people": 6, "activity": "sitting" },
+        { "at": "16:30", "room": "vyvoj", "people": 4, "activity": "sitting" },
+        { "at": "16:30", "room": "podpora", "people": 3, "activity": "sitting" },
+        { "at": "16:30", "room": "finance", "people": 0, "activity": "sitting" },
+        { "at": "16:30", "room": "obchod", "people": 2, "activity": "sitting" },
+        { "at": "17:30", "room": "vyvoj", "people": 0, "activity": "sitting" },
+        { "at": "17:30", "room": "podpora", "people": 0, "activity": "sitting" },
+        { "at": "17:30", "room": "marketing", "people": 0, "activity": "sitting" },
+        { "at": "17:30", "room": "obchod", "people": 0, "activity": "sitting" }
+      ]
+    },
+    {
+      "id": "plne-obsazeni",
+      "name": "Uzávěrka – všichni v kanceláři",
+      "initialCo2Ppm": {
+        "vyvoj": 450,
+        "podpora": 450,
+        "marketing": 450,
+        "zasedacka_velka": 450,
+        "obchod": 450,
+        "finance": 450,
+        "zasedacka_mala": 450,
+        "kuchynka": 450
+      },
+      "steps": [
+        { "at": "07:30", "room": "vyvoj", "people": 10, "activity": "sitting" },
+        { "at": "07:30", "room": "podpora", "people": 7, "activity": "sitting" },
+        { "at": "07:30", "room": "marketing", "people": 5, "activity": "sitting" },
+        { "at": "07:30", "room": "obchod", "people": 6, "activity": "sitting" },
+        { "at": "07:30", "room": "finance", "people": 4, "activity": "sitting" },
+        { "at": "09:00", "room": "zasedacka_mala", "people": 5, "activity": "sitting" },
+        { "at": "09:00", "room": "zasedacka_velka", "people": 8, "activity": "sitting" },
+        { "at": "12:00", "room": "kuchynka", "people": 10, "activity": "active" },
+        { "at": "12:30", "room": "kuchynka", "people": 4, "activity": "active" },
+        { "at": "13:00", "room": "kuchynka", "people": 0, "activity": "sitting" },
+        { "at": "18:00", "room": "zasedacka_mala", "people": 0, "activity": "sitting" },
+        { "at": "18:00", "room": "zasedacka_velka", "people": 0, "activity": "sitting" },
+        { "at": "19:00", "room": "vyvoj", "people": 3, "activity": "sitting" },
+        { "at": "19:00", "room": "podpora", "people": 2, "activity": "sitting" },
+        { "at": "19:00", "room": "marketing", "people": 0, "activity": "sitting" },
+        { "at": "19:00", "room": "obchod", "people": 0, "activity": "sitting" },
+        { "at": "19:00", "room": "finance", "people": 2, "activity": "sitting" },
+        { "at": "20:00", "room": "vyvoj", "people": 0, "activity": "sitting" },
+        { "at": "20:00", "room": "podpora", "people": 0, "activity": "sitting" },
+        { "at": "20:00", "room": "finance", "people": 0, "activity": "sitting" }
+      ]
+    }
+  ]
+}
