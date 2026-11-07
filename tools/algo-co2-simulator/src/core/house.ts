@@ -50,7 +50,7 @@ export interface Scenario {
 export interface House {
   id: string;
   name: string;
-  hru: { nominalFlowM3h: number; initialPowerPct: number | null };
+  hru: { nominalFlowM3h: number; initialPower: number | null };
   rooms: HouseRoom[];
   boxes: HouseBox[];
   scenarios: Scenario[];
@@ -65,7 +65,7 @@ const houseSchema = z.strictObject({
   name: z.string(),
   hru: z.strictObject({
     nominalFlowM3h: z.number().positive(),
-    initialPowerPct: z.number().min(0).max(100).nullable().default(null),
+    initialPower: z.number().min(0).max(10).nullable().default(null),
   }),
   rooms: z.array(
     z.strictObject({

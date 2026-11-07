@@ -101,7 +101,7 @@ describe("engine fidelity", () => {
     sim.advance(1000);
 
     expect(sim.engine.getJournalString()).toBe(
-      "256,20,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0;694,20,obyvak_privod_1:0,obyvak_privod_2:0,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
+      "256,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0;694,2,obyvak_privod_1:0,obyvak_privod_2:0,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
     );
   });
 
@@ -123,7 +123,7 @@ describe("engine fidelity", () => {
     sim.advance(1000);
 
     expect(sim.engine.getJournalString()).toBe(
-      "120,20,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;480,30,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;600,40,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;720,50,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
+      "120,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;480,3,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;600,4,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;720,5,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
     );
   });
 
@@ -241,7 +241,7 @@ describe("schedules", () => {
 
     const evening = createSimulation({ startSecondOfDay: 22 * HOUR - 60 });
     evening.advance(62);
-    expect(evening.snapshot().maxPowerPct).toBe(50);
+    expect(evening.snapshot().maxPower).toBe(5);
   });
 
   test("samples history every 10 s for 24 h", () => {
@@ -264,7 +264,7 @@ describe("schedules", () => {
     expect(sample?.epochSecond).toBe(10);
     expect(Object.keys(sample?.co2Ppm ?? {})).toEqual(["obyvak", "pracovna", "loznice"]);
     expect(sample?.filteredCo2Ppm.loznice).toBe(900);
-    expect(sample?.powerPct).toBe(sim.snapshot().powerPct);
+    expect(sample?.power).toBe(sim.snapshot().power);
   });
 });
 
@@ -326,7 +326,7 @@ describe("initial state", () => {
 
     const snapshot = sim.snapshot();
     expect(snapshot.epochSecond).toBe(0);
-    expect(snapshot.powerPct).toBe(20);
+    expect(snapshot.power).toBe(2);
     expect(snapshot.rooms.find((room) => room.id === "loznice")?.co2Ppm).toBe(900);
     expect(snapshot.rooms.find((room) => room.id === "obyvak")?.co2Ppm).toBe(500);
     expect(snapshot.rooms.flatMap((room) => room.valves.map((valve) => valve.position))).toEqual([
@@ -371,16 +371,16 @@ describe("initial state", () => {
   test("the HRU starts at the engine's minimum power when the house gives none", () => {
     const sim = createSimulation({ house: presetHouse("rodinny-dum") });
 
-    expect(sim.snapshot().powerPct).toBe(engineDefaults().hruMinPower);
+    expect(sim.snapshot().power).toBe(engineDefaults().hruMinPower);
   });
 
   test("the HRU minimum power comes from the engine params given at the start", () => {
     const sim = createSimulation({
       house: presetHouse("rodinny-dum"),
-      engineParams: { ...engineDefaults(), hruMinPower: 35 },
+      engineParams: { ...engineDefaults(), hruMinPower: 3.5 },
     });
 
-    expect(sim.snapshot().powerPct).toBe(35);
+    expect(sim.snapshot().power).toBe(3.5);
   });
 
   test("rooms without sensors are rooms without a reading, and the run keeps going", () => {
@@ -492,14 +492,16 @@ describe("engine params", () => {
     const changed = {
       th1: 700,
       th2: 1100,
-      co2Hysteresis: 30,
+      th1Hysteresis: 30,
+      th2Hysteresis: 60,
       thresholdTimeLimit: 60,
+      belowTimeLimit: 90,
       co2FilterAlpha: 0.5,
-      hruMinPower: 25,
-      hruMaxPowerDay: 90,
-      hruMaxPowerNight: 40,
-      hruPowerStep: 5,
-      hruMovePower: 35,
+      hruMinPower: 2.5,
+      hruMaxPowerDay: 9,
+      hruMaxPowerNight: 4,
+      hruPowerStep: 0.5,
+      hruMovePower: 3.5,
       fluctuationEnabled: true,
       fluctuationOffset: 80,
       partialCloseValue: 50,
@@ -579,22 +581,22 @@ describe("closed loop", () => {
   test("a higher HRU power leaves less CO2 in the room", () => {
     const lowPower = twoSleepersForTwoHours(startingAtMinimumPower(), {
       ...NEUTRAL_ENGINE,
-      hruMinPower: 20,
+      hruMinPower: 2,
     });
     const highPower = twoSleepersForTwoHours(startingAtMinimumPower(), {
       ...NEUTRAL_ENGINE,
-      hruMinPower: 80,
+      hruMinPower: 8,
     });
 
-    expect(lowPower.snapshot().powerPct).toBe(20);
-    expect(highPower.snapshot().powerPct).toBe(80);
+    expect(lowPower.snapshot().power).toBe(2);
+    expect(highPower.snapshot().power).toBe(8);
     expect(roomSnapshot(highPower, "loznice").co2Ppm).toBeLessThan(
       roomSnapshot(lowPower, "loznice").co2Ppm,
     );
   });
 
   test("the total flow is the nominal flow scaled by the current power", () => {
-    const flows = [20, 80].map(
+    const flows = [2, 8].map(
       (hruMinPower) =>
         createSimulation({
           house: startingAtMinimumPower(),
@@ -603,7 +605,7 @@ describe("closed loop", () => {
     );
 
     expect(flows).toEqual([40, 160]);
-    expect(flows).toEqual([hruFlowM3h(200, 20), hruFlowM3h(200, 80)]);
+    expect(flows).toEqual([hruFlowM3h(200, 2), hruFlowM3h(200, 8)]);
   });
 
   test("a supply room stays fresh while the exhaust room that draws from it fills", () => {

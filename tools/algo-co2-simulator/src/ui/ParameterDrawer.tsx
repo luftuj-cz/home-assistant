@@ -12,7 +12,8 @@ import { formatHhMm, parseHhMm } from "./format.ts";
 import { sanitizeEngineParams, sanitizeSettings } from "./params.ts";
 import type { SimulationControls } from "./useSimulation.ts";
 
-const MAX_POWER_PCT = 100;
+/** The engine's power scale is 0–10. */
+const MAX_POWER = 10;
 const PERCENT = 100;
 
 interface NumberFieldProps {
@@ -223,16 +224,30 @@ export function ParameterDrawer({
               step={50}
             />
             <NumberField
-              label="Hystereze CO2 (ppm)"
-              value={engineParams.co2Hysteresis}
-              onCommit={(co2Hysteresis) => changeEngine({ co2Hysteresis })}
+              label="TH1diff – hystereze TH1 (ppm)"
+              value={engineParams.th1Hysteresis}
+              onCommit={(th1Hysteresis) => changeEngine({ th1Hysteresis })}
               min={0}
               step={10}
             />
             <NumberField
-              label="Časový limit (s)"
+              label="TH2diff – hystereze TH2 (ppm)"
+              value={engineParams.th2Hysteresis}
+              onCommit={(th2Hysteresis) => changeEngine({ th2Hysteresis })}
+              min={0}
+              step={10}
+            />
+            <NumberField
+              label="Tzone – čas nad prahem (s)"
               value={engineParams.thresholdTimeLimit}
               onCommit={(thresholdTimeLimit) => changeEngine({ thresholdTimeLimit })}
+              min={0}
+              step={10}
+            />
+            <NumberField
+              label="Topen – čas pod prahem (s)"
+              value={engineParams.belowTimeLimit}
+              onCommit={(belowTimeLimit) => changeEngine({ belowTimeLimit })}
               min={0}
               step={10}
             />
@@ -246,35 +261,39 @@ export function ParameterDrawer({
               decimalScale={2}
             />
             <NumberField
-              label="Minimální výkon rekuperace (%)"
+              label="Minimální výkon rekuperace (0–10)"
               value={engineParams.hruMinPower}
               onCommit={(hruMinPower) => changeEngine({ hruMinPower })}
               min={0}
-              max={MAX_POWER_PCT}
-              step={5}
+              max={MAX_POWER}
+              step={0.5}
+              decimalScale={2}
             />
             <NumberField
-              label="Maximální výkon ve dne (%)"
+              label="Maximální výkon ve dne (0–10)"
               value={engineParams.hruMaxPowerDay}
               onCommit={(hruMaxPowerDay) => changeEngine({ hruMaxPowerDay })}
               min={engineParams.hruMinPower}
-              max={MAX_POWER_PCT}
-              step={5}
+              max={MAX_POWER}
+              step={0.5}
+              decimalScale={2}
             />
             <NumberField
-              label="Maximální výkon v noci (%)"
+              label="Maximální výkon v noci (0–10)"
               value={engineParams.hruMaxPowerNight}
               onCommit={(hruMaxPowerNight) => changeEngine({ hruMaxPowerNight })}
               min={engineParams.hruMinPower}
-              max={MAX_POWER_PCT}
-              step={5}
+              max={MAX_POWER}
+              step={0.5}
+              decimalScale={2}
             />
             <NumberField
-              label="Krok výkonu (%)"
+              label="Krok výkonu (0–10)"
               value={engineParams.hruPowerStep}
               onCommit={(hruPowerStep) => changeEngine({ hruPowerStep })}
-              min={1}
-              step={1}
+              min={0.01}
+              step={0.5}
+              decimalScale={2}
             />
             <Switch
               label="Pohyb osob (Fluctuation)"
@@ -285,12 +304,13 @@ export function ParameterDrawer({
               style={{ alignSelf: "end", paddingBottom: "var(--mantine-spacing-xs)" }}
             />
             <NumberField
-              label="Výkon při pohybu osob (%)"
+              label="Výkon při pohybu osob (0–10)"
               value={engineParams.hruMovePower}
               onCommit={(hruMovePower) => changeEngine({ hruMovePower })}
               min={engineParams.hruMinPower}
-              max={MAX_POWER_PCT}
-              step={5}
+              max={MAX_POWER}
+              step={0.5}
+              decimalScale={2}
             />
             <NumberField
               label="Pohyb osob od TH1 − (ppm)"

@@ -39,7 +39,7 @@ interface House {
 }
 
 /** Rooms a and b, each with one sensor and one supply valve at default 0. */
-function createHouse(hruPower = 20): House {
+function createHouse(hruPower = 2): House {
   const a = new Sensor("sensor_a");
   const b = new Sensor("sensor_b");
   const roomA = new Room("a", [a]);
@@ -83,9 +83,9 @@ describe("run() report", () => {
       roomsInCooldown: [],
       roomsActedOn: ["a"],
       valvesChanged: true,
-      powerBefore: 20,
-      powerAfter: 30,
-      maxPower: 100,
+      powerBefore: 2,
+      powerAfter: 3,
+      maxPower: 10,
       fluctuationActive: false,
       roomsAboveFluctuation: ["a"],
     });
@@ -93,7 +93,7 @@ describe("run() report", () => {
 
   test("reports the fluctuation branch and Pmove", () => {
     const house = createHouse();
-    house.engine.hruMovePower = 40;
+    house.engine.hruMovePower = 4;
     const report = runUntil(house, { a: 720, b: 720 }, 120);
 
     expect(report).toEqual({
@@ -105,9 +105,9 @@ describe("run() report", () => {
       roomsInCooldown: [],
       roomsActedOn: [],
       valvesChanged: false,
-      powerBefore: 20,
-      powerAfter: 40,
-      maxPower: 100,
+      powerBefore: 2,
+      powerAfter: 4,
+      maxPower: 10,
       fluctuationActive: true,
       roomsAboveFluctuation: ["a", "b"],
     });
@@ -135,17 +135,17 @@ describe("run() report", () => {
     expect(cooldown.roomsActedOn).toEqual([]);
     expect(cooldown.roomsInCooldown).toEqual(["a"]);
     expect(cooldown.valvesChanged).toBe(false);
-    expect(cooldown.powerBefore).toBe(20);
-    expect(cooldown.powerAfter).toBe(20);
+    expect(cooldown.powerBefore).toBe(2);
+    expect(cooldown.powerAfter).toBe(2);
   });
 
   test("reports allBelow and lowers power", () => {
-    const report = runUntil(createHouse(40), { a: 500, b: 500 }, 120);
+    const report = runUntil(createHouse(4), { a: 500, b: 500 }, 120);
 
     expect(report.branch).toBe("allBelow");
     expect(report.roomsActedOn).toEqual(["a", "b"]);
-    expect(report.powerBefore).toBe(40);
-    expect(report.powerAfter).toBe(30);
+    expect(report.powerBefore).toBe(4);
+    expect(report.powerAfter).toBe(3);
     expect(report.valvesChanged).toBe(false);
   });
 
@@ -171,8 +171,8 @@ describe("run() report", () => {
       return createHouse().engine.run(timestamp).maxPower;
     }
 
-    expect(maxPowerAt(new Timestamp(0, 79200))).toBe(100);
-    expect(maxPowerAt(new Timestamp(0, 79201))).toBe(50);
-    expect(maxPowerAt(new Timestamp(0, 21600))).toBe(50);
+    expect(maxPowerAt(new Timestamp(0, 79200))).toBe(10);
+    expect(maxPowerAt(new Timestamp(0, 79201))).toBe(5);
+    expect(maxPowerAt(new Timestamp(0, 21600))).toBe(5);
   });
 });

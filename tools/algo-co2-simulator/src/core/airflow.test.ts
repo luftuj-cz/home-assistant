@@ -60,6 +60,6 @@ describe("splitValveFlows", () => {
 
 describe("hruFlowM3h", () => {
   test("scales nominal flow by power", () => {
-    expect(hruFlowM3h(300, 40)).toBeCloseTo(120, 10);
+    expect(hruFlowM3h(300, 4)).toBeCloseTo(120, 10);
   });
 });

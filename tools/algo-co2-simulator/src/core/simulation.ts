@@ -59,7 +59,8 @@ export interface HistorySample {
   epochSecond: number;
   co2Ppm: Record<string, number>;
   filteredCo2Ppm: Record<string, number | null>;
-  powerPct: number;
+  /** On the engine's 0–10 scale. */
+  power: number;
 }
 
 export interface RoomSnapshot {
@@ -80,8 +81,9 @@ export interface SimSnapshot {
   secondOfDay: number;
   day: number;
   rooms: RoomSnapshot[];
-  powerPct: number;
-  maxPowerPct: number | null;
+  /** On the engine's 0–10 scale. */
+  power: number;
+  maxPower: number | null;
   totalFlowM3h: number;
   lastReport: RunReport | null;
 }
@@ -223,7 +225,7 @@ export class Simulation {
     if (options.engineParams !== undefined) {
       applyEngineParams(this.engine, options.engineParams);
     }
-    this.hru.setPower(options.house.hru.initialPowerPct ?? this.engine.hruMinPower);
+    this.hru.setPower(options.house.hru.initialPower ?? this.engine.hruMinPower);
     this.engine.useJournal = options.journal ?? false;
 
     const occupancy = occupancyAt(
@@ -286,8 +288,8 @@ export class Simulation {
       secondOfDay: this.secondOfDay,
       day: Math.floor((this.startSecondOfDay + this.epoch) / SECONDS_PER_DAY) + 1,
       rooms: this.rooms.map((room) => this.snapshotRoom(room)),
-      powerPct: this.hru.getPower(),
-      maxPowerPct: this.lastReport?.maxPower ?? null,
+      power: this.hru.getPower(),
+      maxPower: this.lastReport?.maxPower ?? null,
       totalFlowM3h: this.totalFlowM3h(),
       lastReport: this.lastReport,
     };
@@ -481,7 +483,7 @@ export class Simulation {
       epochSecond: this.epoch,
       co2Ppm,
       filteredCo2Ppm,
-      powerPct: this.hru.getPower(),
+      power: this.hru.getPower(),
     });
     if (this.history.length > HISTORY_LENGTH) {
       this.history.splice(0, this.history.length - HISTORY_LENGTH);

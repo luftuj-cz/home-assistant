@@ -40,7 +40,7 @@ function simulate(
   const valves = rooms.map((room) => new Valve(`valve_${room.id}`, 0, room, ValveType.Supply));
   const engine = new AutomaticModeEngine(
     new Building(rooms, [new Box(valves)]),
-    new SimulatedHRU(20),
+    new SimulatedHRU(2),
     logger,
   );
   engine.co2FilterAlpha = 1;

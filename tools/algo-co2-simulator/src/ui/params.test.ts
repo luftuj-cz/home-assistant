@@ -33,30 +33,32 @@ describe("sanitizeEngineParams", () => {
 
   test("sanitizeEngineParams keeps both maximums at or above the minimum", () => {
     const sanitized = sanitizeEngineParams(
-      engineWith({ hruMinPower: 60, hruMaxPowerDay: 40, hruMaxPowerNight: 30 }),
+      engineWith({ hruMinPower: 6, hruMaxPowerDay: 4, hruMaxPowerNight: 3 }),
     );
 
-    expect(sanitized).toMatchObject({ hruMinPower: 60, hruMaxPowerDay: 60, hruMaxPowerNight: 60 });
+    expect(sanitized).toMatchObject({ hruMinPower: 6, hruMaxPowerDay: 6, hruMaxPowerNight: 6 });
   });
 
-  test("sanitizeEngineParams keeps powers within 0–100 %", () => {
+  test("sanitizeEngineParams keeps powers within 0–10", () => {
     const sanitized = sanitizeEngineParams(
-      engineWith({ hruMinPower: 130, hruMaxPowerDay: 150, hruMaxPowerNight: 120 }),
+      engineWith({ hruMinPower: 13, hruMaxPowerDay: 15, hruMaxPowerNight: 12 }),
     );
 
     expect(sanitized).toMatchObject({
-      hruMinPower: 100,
-      hruMaxPowerDay: 100,
-      hruMaxPowerNight: 100,
+      hruMinPower: 10,
+      hruMaxPowerDay: 10,
+      hruMaxPowerNight: 10,
     });
     expect(sanitizeEngineParams(engineWith({ hruMinPower: -5 })).hruMinPower).toBe(0);
   });
 
-  test("sanitizeEngineParams keeps the remaining parameters non-negative and the step at least 1", () => {
+  test("sanitizeEngineParams keeps the remaining parameters non-negative and the step at least 0.01", () => {
     const sanitized = sanitizeEngineParams(
       engineWith({
-        co2Hysteresis: -1,
+        th1Hysteresis: -1,
+        th2Hysteresis: -1,
         thresholdTimeLimit: -1,
+        belowTimeLimit: -1,
         hruPowerStep: 0,
         partialCloseValue: -3,
         fullyOpenValue: -3,
@@ -64,19 +66,21 @@ describe("sanitizeEngineParams", () => {
     );
 
     expect(sanitized).toMatchObject({
-      co2Hysteresis: 0,
+      th1Hysteresis: 0,
+      th2Hysteresis: 0,
       thresholdTimeLimit: 0,
-      hruPowerStep: 1,
+      belowTimeLimit: 0,
+      hruPowerStep: 0.01,
       partialCloseValue: 0,
       fullyOpenValue: 0,
     });
   });
 
-  test("sanitizeEngineParams keeps Pmove within the minimum and 100 % and the offset non-negative", () => {
-    expect(
-      sanitizeEngineParams(engineWith({ hruMinPower: 30, hruMovePower: 10 })).hruMovePower,
-    ).toBe(30);
-    expect(sanitizeEngineParams(engineWith({ hruMovePower: 130 })).hruMovePower).toBe(100);
+  test("sanitizeEngineParams keeps Pmove within the minimum and 10 and the offset non-negative", () => {
+    expect(sanitizeEngineParams(engineWith({ hruMinPower: 3, hruMovePower: 1 })).hruMovePower).toBe(
+      3,
+    );
+    expect(sanitizeEngineParams(engineWith({ hruMovePower: 13 })).hruMovePower).toBe(10);
     expect(sanitizeEngineParams(engineWith({ fluctuationOffset: -20 })).fluctuationOffset).toBe(0);
   });
 

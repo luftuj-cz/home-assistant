@@ -7,20 +7,20 @@ import type { SimulationControls } from "./useSimulation.ts";
 const NO_VALUE = "—";
 
 /** The current HRU maximum, tagged day or night when the two parameters tell them apart. */
-function maxPowerText(maxPowerPct: number | null, params: EngineParams): string {
-  if (maxPowerPct === null) {
+function maxPowerText(maxPower: number | null, params: EngineParams): string {
+  if (maxPower === null) {
     return NO_VALUE;
   }
   if (params.hruMaxPowerDay === params.hruMaxPowerNight) {
-    return `${maxPowerPct} %`;
+    return `${maxPower}`;
   }
-  if (maxPowerPct === params.hruMaxPowerDay) {
-    return `${maxPowerPct} % (den)`;
+  if (maxPower === params.hruMaxPowerDay) {
+    return `${maxPower} (den)`;
   }
-  if (maxPowerPct === params.hruMaxPowerNight) {
-    return `${maxPowerPct} % (noc)`;
+  if (maxPower === params.hruMaxPowerNight) {
+    return `${maxPower} (noc)`;
   }
-  return `${maxPowerPct} %`;
+  return `${maxPower}`;
 }
 
 export function HruPanel({ controls }: Readonly<{ controls: SimulationControls }>) {
@@ -30,9 +30,9 @@ export function HruPanel({ controls }: Readonly<{ controls: SimulationControls }
     <Paper withBorder p="md">
       <Stack gap="xs">
         <Title order={4}>Rekuperace</Title>
-        <Text size="sm">Výkon {snapshot.powerPct} %</Text>
-        <Progress value={snapshot.powerPct} aria-label="Výkon rekuperace" />
-        <Text size="sm">Maximum teď: {maxPowerText(snapshot.maxPowerPct, engineParams)}</Text>
+        <Text size="sm">Výkon {snapshot.power} / 10</Text>
+        <Progress value={snapshot.power * 10} aria-label="Výkon rekuperace" />
+        <Text size="sm">Maximum teď: {maxPowerText(snapshot.maxPower, engineParams)}</Text>
         <Text size="sm">Průtok: {Math.round(snapshot.totalFlowM3h)} m³/h</Text>
         <Text size="sm">
           Poslední rozhodnutí:{" "}

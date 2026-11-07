@@ -46,6 +46,7 @@ export function splitValveFlows(
   return flows;
 }
 
-export function hruFlowM3h(nominalFlowM3h: number, powerPct: number): number {
-  return (nominalFlowM3h * powerPct) / 100;
+/** The HRU airflow for an engine power on the 0–10 scale, where 10 is the nominal flow. */
+export function hruFlowM3h(nominalFlowM3h: number, power: number): number {
+  return (nominalFlowM3h * power) / 10;
 }

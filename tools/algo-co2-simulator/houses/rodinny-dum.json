@@ -1,6 +1,6 @@
 {
   "name": "Rodinný dům",
-  "hru": { "nominalFlowM3h": 350, "initialPowerPct": null },
+  "hru": { "nominalFlowM3h": 350, "initialPower": null },
   "rooms": [
     {
       "id": "obyvak",

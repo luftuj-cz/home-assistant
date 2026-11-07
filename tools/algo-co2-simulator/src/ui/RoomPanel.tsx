@@ -61,6 +61,7 @@ export function RoomPanel({ controls, room }: Readonly<RoomPanelProps>) {
   const { people, activity } = room.occupancy;
   const nowEpoch = snapshot.epochSecond;
   const limitS = engineParams.thresholdTimeLimit;
+  const belowLimitS = engineParams.belowTimeLimit;
 
   return (
     <Paper withBorder p="md">
@@ -105,7 +106,7 @@ export function RoomPanel({ controls, room }: Readonly<RoomPanelProps>) {
 
         <Row label="Nad TH1">{timer(nowEpoch, room.aboveSince.th1, limitS)}</Row>
         <Row label="Nad TH2">{timer(nowEpoch, room.aboveSince.th2, limitS)}</Row>
-        <Row label="Pod TH1 − hystereze">{timer(nowEpoch, room.belowSince.th1, limitS)}</Row>
+        <Row label="Pod TH1 − hystereze">{timer(nowEpoch, room.belowSince.th1, belowLimitS)}</Row>
         <Row label="Od posledního zásahu">{timer(nowEpoch, room.lastChangeEpoch, limitS)}</Row>
       </Stack>
     </Paper>

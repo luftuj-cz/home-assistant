@@ -40,9 +40,9 @@ interface House {
 
 /**
  * Rooms a, b and c, one sensor and one supply valve (default 10) each. Fluctuation is on (the default)
- * with Pmove 40, and the CO2 filter is off (alpha 1) so the readings are the filtered values.
+ * with Pmove 4, and the CO2 filter is off (alpha 1) so the readings are the filtered values.
  */
-function createHouse(hruPower = 20): House {
+function createHouse(hruPower = 2): House {
   const sensors = {
     a: new Sensor("sensor_a"),
     b: new Sensor("sensor_b"),
@@ -59,7 +59,7 @@ function createHouse(hruPower = 20): House {
   const hru = new SimulatedHRU(hruPower);
   const engine = new AutomaticModeEngine(new Building(rooms, [new Box(valves)]), hru, logger);
   engine.co2FilterAlpha = 1;
-  engine.hruMovePower = 40;
+  engine.hruMovePower = 4;
   return { engine, hru, sensors, valves };
 }
 
@@ -103,7 +103,7 @@ const TWO_IN_BAND: Readings = { a: 720, b: 720, c: 500 };
 describe("fluctuation", () => {
   describe("on by default, can be turned off", () => {
     test("is enabled by default", () => {
-      const engine = new AutomaticModeEngine(new Building([], []), new SimulatedHRU(20), logger);
+      const engine = new AutomaticModeEngine(new Building([], []), new SimulatedHRU(2), logger);
 
       expect(engine.fluctuationEnabled).toBe(true);
     });
@@ -189,7 +189,7 @@ describe("fluctuation", () => {
       }));
 
       expect(reports.slice(120).every((r) => r.fluctuationActive)).toBe(true);
-      expect(at(reports, 600).powerAfter).toBe(40);
+      expect(at(reports, 600).powerAfter).toBe(4);
     });
 
     test("switches off once every room has been below the level for the time limit", () => {
@@ -201,7 +201,7 @@ describe("fluctuation", () => {
       expect(at(reports, 319).fluctuationActive).toBe(true);
       expect(at(reports, 320).fluctuationActive).toBe(false);
       expect(at(reports, 320).branch).toBe("allBelow");
-      expect(at(reports, 320).powerAfter).toBe(30);
+      expect(at(reports, 320).powerAfter).toBe(3);
     });
 
     test("a short dip of every room does not switch it off", () => {
@@ -210,7 +210,7 @@ describe("fluctuation", () => {
       );
 
       expect(reports.slice(120).every((r) => r.fluctuationActive)).toBe(true);
-      expect(reports.slice(120).every((r) => r.powerAfter === 40)).toBe(true);
+      expect(reports.slice(120).every((r) => r.powerAfter === 4)).toBe(true);
     });
 
     test("switches off when no room has a reading", () => {
@@ -242,8 +242,8 @@ describe("fluctuation", () => {
       const reports = simulate(house, 120, constant(TWO_IN_BAND));
       const report = at(reports, 120);
 
-      expect(report.powerBefore).toBe(20);
-      expect(report.powerAfter).toBe(40);
+      expect(report.powerBefore).toBe(2);
+      expect(report.powerAfter).toBe(4);
       expect(report.valvesChanged).toBe(true);
       expect(house.valves.map((v) => v.value)).toEqual([
         VALVE_DEFAULT,
@@ -253,27 +253,27 @@ describe("fluctuation", () => {
     });
 
     test("steps power down to Pmove, not to Pmin", () => {
-      const reports = simulate(createHouse(80), 130, constant(TWO_IN_BAND));
+      const reports = simulate(createHouse(8), 130, constant(TWO_IN_BAND));
 
-      expect(reports.slice(120, 125).map((r) => r.powerAfter)).toEqual([70, 60, 50, 40, 40]);
-      expect(at(reports, 130).powerAfter).toBe(40);
+      expect(reports.slice(120, 125).map((r) => r.powerAfter)).toEqual([7, 6, 5, 4, 4]);
+      expect(at(reports, 130).powerAfter).toBe(4);
     });
 
     test("caps Pmove by the night maximum", () => {
       const house = createHouse();
-      house.engine.hruMovePower = 60;
+      house.engine.hruMovePower = 6;
       const reports = simulate(house, 120, constant(TWO_IN_BAND), { startHour: 23 });
 
-      expect(at(reports, 120).maxPower).toBe(50);
-      expect(at(reports, 120).powerAfter).toBe(50);
+      expect(at(reports, 120).maxPower).toBe(5);
+      expect(at(reports, 120).powerAfter).toBe(5);
     });
 
     test("never goes below the HRU minimum", () => {
-      const house = createHouse(30);
-      house.engine.hruMovePower = 10;
+      const house = createHouse(3);
+      house.engine.hruMovePower = 1;
       const reports = simulate(house, 125, constant(TWO_IN_BAND));
 
-      expect(at(reports, 125).powerAfter).toBe(20);
+      expect(at(reports, 125).powerAfter).toBe(2);
     });
 
     test("does not put rooms into cooldown", () => {

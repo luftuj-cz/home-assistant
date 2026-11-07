@@ -3,7 +3,10 @@ import type { SimSettings } from "../core/settings.ts";
 
 const MIN_ALPHA = 0.01;
 const MIN_SHARE = 0.01;
-const MAX_POWER_PCT = 100;
+/** The engine's power scale is 0–10. */
+const MAX_POWER = 10;
+/** The engine rounds written powers to two decimals, so a smaller step would vanish. */
+const MIN_POWER_STEP = 0.01;
 const LAST_SECOND_OF_DAY = 86399;
 
 function clamp(value: number, min: number, max: number): number {
@@ -23,18 +26,20 @@ function wholeSeconds(value: number): number {
 /** The parameters in a form the engine can run with; applied before every change reaches it. */
 export function sanitizeEngineParams(params: EngineParams): EngineParams {
   const th1 = atLeast(0, params.th1);
-  const hruMinPower = clamp(params.hruMinPower, 0, MAX_POWER_PCT);
+  const hruMinPower = clamp(params.hruMinPower, 0, MAX_POWER);
   return {
     th1,
     th2: atLeast(th1 + 1, params.th2),
-    co2Hysteresis: atLeast(0, params.co2Hysteresis),
+    th1Hysteresis: atLeast(0, params.th1Hysteresis),
+    th2Hysteresis: atLeast(0, params.th2Hysteresis),
     thresholdTimeLimit: atLeast(0, params.thresholdTimeLimit),
+    belowTimeLimit: atLeast(0, params.belowTimeLimit),
     co2FilterAlpha: clamp(params.co2FilterAlpha, MIN_ALPHA, 1),
     hruMinPower,
-    hruMaxPowerDay: clamp(params.hruMaxPowerDay, hruMinPower, MAX_POWER_PCT),
-    hruMaxPowerNight: clamp(params.hruMaxPowerNight, hruMinPower, MAX_POWER_PCT),
-    hruPowerStep: atLeast(1, params.hruPowerStep),
-    hruMovePower: clamp(params.hruMovePower, hruMinPower, MAX_POWER_PCT),
+    hruMaxPowerDay: clamp(params.hruMaxPowerDay, hruMinPower, MAX_POWER),
+    hruMaxPowerNight: clamp(params.hruMaxPowerNight, hruMinPower, MAX_POWER),
+    hruPowerStep: atLeast(MIN_POWER_STEP, params.hruPowerStep),
+    hruMovePower: clamp(params.hruMovePower, hruMinPower, MAX_POWER),
     fluctuationEnabled: params.fluctuationEnabled,
     fluctuationOffset: atLeast(0, params.fluctuationOffset),
     partialCloseValue: atLeast(0, params.partialCloseValue),

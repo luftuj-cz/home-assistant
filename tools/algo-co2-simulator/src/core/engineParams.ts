@@ -4,8 +4,10 @@ import type { HRU } from "./engine.ts";
 export interface EngineParams {
   th1: number;
   th2: number;
-  co2Hysteresis: number;
+  th1Hysteresis: number;
+  th2Hysteresis: number;
   thresholdTimeLimit: number;
+  belowTimeLimit: number;
   co2FilterAlpha: number;
   hruMinPower: number;
   hruMaxPowerDay: number;
@@ -28,12 +30,19 @@ function threshold(engine: AutomaticModeEngine, type: ThresholdType): number {
   return value;
 }
 
+/** A missing hysteresis entry means 0 to the engine. */
+function hysteresis(engine: AutomaticModeEngine, type: ThresholdType): number {
+  return engine.co2Hysteresis.get(type) ?? 0;
+}
+
 export function readEngineParams(engine: AutomaticModeEngine): EngineParams {
   return {
     th1: threshold(engine, ThresholdType.TH1),
     th2: threshold(engine, ThresholdType.TH2),
-    co2Hysteresis: engine.co2Hysteresis,
+    th1Hysteresis: hysteresis(engine, ThresholdType.TH1),
+    th2Hysteresis: hysteresis(engine, ThresholdType.TH2),
     thresholdTimeLimit: engine.thresholdTimeLimit,
+    belowTimeLimit: engine.belowTimeLimit,
     co2FilterAlpha: engine.co2FilterAlpha,
     hruMinPower: engine.hruMinPower,
     hruMaxPowerDay: engine.hruMaxPowerDay,
@@ -52,8 +61,10 @@ export function readEngineParams(engine: AutomaticModeEngine): EngineParams {
 export function applyEngineParams(engine: AutomaticModeEngine, params: EngineParams): void {
   engine.thresholds.set(ThresholdType.TH1, params.th1);
   engine.thresholds.set(ThresholdType.TH2, params.th2);
-  engine.co2Hysteresis = params.co2Hysteresis;
+  engine.co2Hysteresis.set(ThresholdType.TH1, params.th1Hysteresis);
+  engine.co2Hysteresis.set(ThresholdType.TH2, params.th2Hysteresis);
   engine.thresholdTimeLimit = params.thresholdTimeLimit;
+  engine.belowTimeLimit = params.belowTimeLimit;
   engine.co2FilterAlpha = params.co2FilterAlpha;
   engine.hruMinPower = params.hruMinPower;
   engine.hruMaxPowerDay = params.hruMaxPowerDay;

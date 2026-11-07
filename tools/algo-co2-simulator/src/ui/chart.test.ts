@@ -15,7 +15,7 @@ function sample(epochSecond: number, co2: number): HistorySample {
     epochSecond,
     co2Ppm: { a: co2, b: co2 / 2 },
     filteredCo2Ppm: { a: co2, b: null },
-    powerPct: 20,
+    power: 2,
   };
 }
 

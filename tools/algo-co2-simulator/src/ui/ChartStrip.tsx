@@ -43,7 +43,7 @@ const CO2_PLOT_H = 200;
 const CO2_BOTTOM = 8;
 const POWER_PLOT_H = 56;
 const POWER_BOTTOM = 22;
-const POWER_TICKS = [0, 50, 100];
+const POWER_TICKS = [0, 5, 10];
 const X_FRACTIONS = [0, 0.25, 0.5, 0.75, 1];
 const LABEL_SIZE = 11;
 
@@ -197,7 +197,7 @@ function Co2Chart({ domain, samples, shade, rooms, th1, th2 }: Readonly<Co2Chart
 
 function PowerChart({ domain, samples, shade, startSecondOfDay }: Readonly<PowerChartProps>) {
   const size = { w: PLOT_W, h: POWER_PLOT_H };
-  const powerDomain: Domain = { ...domain, y0: 0, y1: 100 };
+  const powerDomain: Domain = { ...domain, y0: 0, y1: 10 };
   const spanS = domain.x1 - domain.x0;
 
   return (
@@ -212,7 +212,7 @@ function PowerChart({ domain, samples, shade, startSecondOfDay }: Readonly<Power
         <HorizontalGrid ticks={POWER_TICKS} domain={powerDomain} plotH={POWER_PLOT_H} />
         <polyline
           points={polylinePoints(
-            samples.map((entry) => ({ x: entry.epochSecond, y: entry.powerPct })),
+            samples.map((entry) => ({ x: entry.epochSecond, y: entry.power })),
             powerDomain,
             size,
           )}
@@ -297,7 +297,7 @@ export function ChartStrip({ controls }: Readonly<{ controls: SimulationControls
     <Paper withBorder p="md">
       <Stack gap="xs">
         <Group justify="space-between">
-          <Text fw={600}>CO2 (ppm) a výkon rekuperace (%)</Text>
+          <Text fw={600}>CO2 (ppm) a výkon rekuperace (0–10)</Text>
           <SegmentedControl
             size="xs"
             data={WINDOWS}

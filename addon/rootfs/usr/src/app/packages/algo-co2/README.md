@@ -42,24 +42,26 @@ const report = engine.run(Timestamp.now());
 ```
 
 `HRU` is synchronous, and the engine writes positions straight into `Valve.value`. The
-`onValveChange` callback exists but the engine does not call it yet.
+`onValveChange` callback exists but the engine does not call it yet. `HRU` power is on the engine's
+0–10 scale (see Power scale), so `currentPower` and `writePower` above convert to and from the
+unit's own values.
 
 `run()` returns a `RunReport` describing how it decided; the engine behaves the same whether or
 not the caller reads it. Besides the `branch` (see Algorithm), it lists the rooms by id, unique
 and in `building.rooms` order:
 
 - `roomsWithReading`: rooms with a CO2 value.
-- `roomsAboveTh2`, `roomsAboveTh1`, `roomsBelowTh1`: rooms that have been above TH2, above TH1 or
-  below TH1 - hysteresis for `thresholdTimeLimit`.
+- `roomsAboveTh2`, `roomsAboveTh1`: rooms that have been above TH2 or TH1 for `thresholdTimeLimit`
+  (Tzone).
+- `roomsBelowTh1`: rooms that have been below TH1 minus its hysteresis for `belowTimeLimit` (Topen).
 - `roomsInCooldown`: rooms with a reading that the engine acted on within `thresholdTimeLimit` before
   this run. It is the state before the run: a room acted on in this run is not listed in the same report.
 - `roomsActedOn`: rooms the engine marked as changed in this run.
-
 - `roomsAboveFluctuation`: rooms at or above the fluctuation level (`TH1 - fluctuationOffset`) for
   `thresholdTimeLimit`. Reported whether or not fluctuation is enabled.
 
 It also reports `valvesChanged` (whether any valve moved), `powerBefore` and `powerAfter` (the HRU
-power around the run), `maxPower` (the day or night maximum at that timestamp) and
+power around the run), `maxPower` (the day or night maximum at that timestamp), all on the 0–10 scale, and
 `fluctuationActive` (the fluctuation state after the run).
 
 ## Model
@@ -79,8 +81,10 @@ Every `run(timestamp)`:
    a reading drops out of the decision, and its valves open fully whenever the engine
    redistributes the airflow.
 2. Tracks, per room and threshold (TH1, TH2), since when the smoothed CO2 has been at or above
-   the threshold, and since when it has been below `threshold - co2Hysteresis`.
-3. Counts a room as above or below a threshold only after `thresholdTimeLimit` seconds there.
+   the threshold, and since when it has been below `threshold - hysteresis`, where each threshold
+   has its own hysteresis in `co2Hysteresis` (TH1diff, TH2diff).
+3. Counts a room as above a threshold only after `thresholdTimeLimit` seconds there (Tzone), and as
+   below one only after `belowTimeLimit` seconds (Topen).
 4. Updates the fluctuation state (see below).
 5. Acts on the first branch that applies, and reports it as `RunReport.branch`:
    - **A room above TH2** (`th2`): rooms above TH1 or TH2 open fully, all other rooms close partially,
@@ -97,8 +101,8 @@ Every `run(timestamp)`:
    - **Every room with a reading below TH1 - hysteresis** (`allBelow`): valves return to their
      defaults and the HRU power drops by one step on every tick, down to `hruMinPower`. This also
      applies when no room has a reading.
-   - Otherwise (`none`) nothing changes: the hysteresis band, or a state that has not yet lasted
-     `thresholdTimeLimit`.
+   - Otherwise (`none`) nothing changes: the hysteresis band, or a state that has not yet lasted its
+     time limit.
 
 ### Fluctuation
 
@@ -110,14 +114,27 @@ not exist.
 - The fluctuation level is `TH1 - fluctuationOffset` (700 ppm by default). Per room the engine tracks
   since when the smoothed CO2 has been at or above it and since when below it, with no hysteresis: a
   crossing restarts the other timer, and a room without a reading has both timers cleared.
-- **On**: at least two rooms have been at or above the level for `thresholdTimeLimit` and no room is
-  above TH1 or TH2 for `thresholdTimeLimit`.
+- **On**: at least two rooms have been at or above the level for `thresholdTimeLimit` (Tzone) and no
+  room is above TH1 or TH2 for `thresholdTimeLimit`.
 - **Stays on**, also through a TH1 or TH2 episode, until every room with a reading has been below the
-  level for `thresholdTimeLimit`, so it does not flap around the level. It goes off at once when
+  level for `belowTimeLimit` (Topen), so it does not flap around the level. It goes off at once when
   `fluctuationEnabled` is cleared or no room has a reading.
 
 While it is on, the power never falls below Pmove: only `allBelow` lowers power below it, and that
 branch comes after `fluctuation`.
+
+### Power scale
+
+Every power the engine reads or writes is on one scale for every HRU: 0 is zero power, 10 is the
+unit's maximum, decimals allowed. The engine rounds what it writes to two decimals. Converting is the
+caller's job:
+
+- writing: `unitValue = power / 10 × unitMax`, rounded to the unit's step and kept within its range;
+- reading: `power = unitValue / unitMax × 10`;
+- `unitMax` comes from the unit definition, or from the installer where the definition has none.
+
+For a VENTBOX 400 (400 m³/h), the project values Pmin 80, Pmax 400 / 280 and Pmove 153 m³/h are 2,
+10 / 7 and 3.8.
 
 ## Parameters
 
@@ -126,13 +143,14 @@ Public fields on `AutomaticModeEngine`, with their defaults:
 | Field                               | Default           | Meaning                                      |
 | ----------------------------------- | ----------------- | -------------------------------------------- |
 | `thresholds`                        | TH1 800, TH2 1200 | CO2 thresholds in ppm                        |
-| `co2Hysteresis`                     | 50                | ppm below a threshold that counts as "under" |
-| `thresholdTimeLimit`                | 120               | seconds a state must last before it counts   |
+| `co2Hysteresis`                     | TH1 50, TH2 100   | ppm below a threshold that counts as "under" |
+| `thresholdTimeLimit`                | 120               | Tzone: seconds above a threshold; cooldown   |
+| `belowTimeLimit`                    | 120               | Topen: seconds below a threshold             |
 | `co2FilterAlpha`                    | 0.3               | weight of the newest reading in the filter   |
-| `hruMinPower`                       | 20                | lowest HRU power                             |
-| `hruMaxPowerDay`/`hruMaxPowerNight` | 100 / 50          | highest HRU power by time of day             |
-| `hruPowerStep`                      | 10                | HRU power change per step                    |
-| `hruMovePower`                      | 40                | HRU power while fluctuation is on (Pmove)    |
+| `hruMinPower`                       | 2                 | lowest HRU power (0–10)                      |
+| `hruMaxPowerDay`/`hruMaxPowerNight` | 10 / 5            | highest HRU power by time of day (0–10)      |
+| `hruPowerStep`                      | 1                 | HRU power change per step (0–10)             |
+| `hruMovePower`                      | 4                 | HRU power while fluctuation is on, Pmove     |
 | `fluctuationEnabled`                | `true`            | turns fluctuation on                         |
 | `fluctuationOffset`                 | 100               | ppm below TH1 where fluctuation starts       |
 | `partialCloseValue`                 | 45                | position of a partially closed valve         |

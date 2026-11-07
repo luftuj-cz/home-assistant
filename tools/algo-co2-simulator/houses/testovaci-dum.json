@@ -1,6 +1,6 @@
 {
   "name": "Testovací dům",
-  "hru": { "nominalFlowM3h": 200, "initialPowerPct": 20 },
+  "hru": { "nominalFlowM3h": 200, "initialPower": 2 },
   "rooms": [
     {
       "id": "obyvak",

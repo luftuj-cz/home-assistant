@@ -35,7 +35,7 @@ function createEngine(): AutomaticModeEngine {
   valveLoznice1.value = 0;
   valveLoznice2.value = 0;
   valvePracovna.value = 0;
-  const hru: HRU = new SimulatedHRU(20);
+  const hru: HRU = new SimulatedHRU(2);
   return new AutomaticModeEngine(model, hru, logger);
 }
 
@@ -63,7 +63,7 @@ describe("sada testu na automaticke rizeni rekuperace", () => {
     const simPracovna = new SensorSimulator(sensorPracovna).addPoint(0, 900);
     const res = simulate(22, 1000, [simObyvak, simLoznice, simPracovna]);
     expect(res).toBe(
-      "120,20,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;480,30,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;600,40,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;720,50,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
+      "120,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;480,3,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;600,4,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;720,5,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
     );
   });
 
@@ -79,7 +79,7 @@ describe("sada testu na automaticke rizeni rekuperace", () => {
 
     const res = simulate(22, 1000, [simObyvak, simLoznice, simPracovna]);
     expect(res).toBe(
-      "120,20,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;480,30,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;552,30,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:45;600,40,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:45;720,50,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:45;794,50,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
+      "120,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;480,3,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;552,3,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:45;600,4,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:45;720,5,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:45;794,5,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
     );
   });
 
@@ -93,7 +93,7 @@ describe("sada testu na automaticke rizeni rekuperace", () => {
       .addPoint(600, 700);
     const res = simulate(8, 1000, [simObyvak, simLoznice, simPracovna]);
     expect(res).toBe(
-      "256,20,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0;694,20,obyvak_privod_1:0,obyvak_privod_2:0,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
+      "256,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0;694,2,obyvak_privod_1:0,obyvak_privod_2:0,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
     );
   });
 
@@ -111,7 +111,7 @@ describe("sada testu na automaticke rizeni rekuperace", () => {
       .addPoint(180, 900);
     const res = simulate(8, 1000, [simObyvak, simLoznice, simPracovna]);
     expect(res).toBe(
-      "297,20,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0",
+      "297,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0",
     );
   });
 
@@ -121,7 +121,7 @@ describe("sada testu na automaticke rizeni rekuperace", () => {
     const simPracovna = new SensorSimulator(sensorPracovna).addPoint(0, 600).addPoint(200, 1500);
     const res = simulate(8, 300, [simLoznice, simPracovna]);
     expect(res).toBe(
-      "167,20,obyvak_privod_1:0,obyvak_privod_2:0,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0;287,30,obyvak_privod_1:0,obyvak_privod_2:0,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0",
+      "167,2,obyvak_privod_1:0,obyvak_privod_2:0,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0;287,3,obyvak_privod_1:0,obyvak_privod_2:0,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0",
     );
   });
 });

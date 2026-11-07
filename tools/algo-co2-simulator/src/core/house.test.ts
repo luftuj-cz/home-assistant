@@ -103,7 +103,7 @@ describe("parseHouse", () => {
     const house = parseHouse("minimalni", minimalHouse());
 
     expect(house.id).toBe("minimalni");
-    expect(house.hru).toEqual({ nominalFlowM3h: 100, initialPowerPct: null });
+    expect(house.hru).toEqual({ nominalFlowM3h: 100, initialPower: null });
     expect(house.rooms.map((room) => room.heightM)).toEqual([2.6, 2.6]);
     expect(house.scenarios[0]?.initialCo2Ppm).toEqual({ a: 700, b: 500 });
     expect(house.scenarios[0]?.steps).toEqual([
@@ -195,8 +195,8 @@ describe("parseHouse", () => {
     expect(() => parseHouse("x", negative)).toThrow(/defaultPosition/);
 
     const tooMuch = minimalHouse();
-    tooMuch.hru = { nominalFlowM3h: 100, initialPowerPct: 101 };
-    expect(() => parseHouse("x", tooMuch)).toThrow(/initialPowerPct/);
+    tooMuch.hru = { nominalFlowM3h: 100, initialPower: 11 };
+    expect(() => parseHouse("x", tooMuch)).toThrow(/initialPower/);
   });
 
   test("parseHouse rejects fractional or negative people", () => {
