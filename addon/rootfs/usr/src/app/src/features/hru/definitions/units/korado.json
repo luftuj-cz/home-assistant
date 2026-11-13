@@ -76,8 +76,8 @@
         "type": "assignment",
         "variable": "$power",
         "value": {
-          "function": "modbus_read_input",
-          "args": [107, 1]
+          "function": "modbus_read_holding",
+          "args": [106, 1]
         }
       },
       {
