@@ -8,13 +8,22 @@
       "type": "number",
       "editable": true,
       "onDashboard": true,
-      "label": { "text": "hru.power", "translate": true },
+      "label": { "text": "hru.setPower", "translate": true },
       "unit": "%",
       "min": 0,
       "max": 100,
       "maxConfigurable": false,
       "step": 5,
       "class": "power"
+    },
+    {
+      "name": "actualFlow",
+      "type": "number",
+      "editable": false,
+      "onDashboard": true,
+      "label": { "text": "hru.actualFlow", "translate": true },
+      "unit": "m³/h",
+      "class": "other"
     },
     {
       "name": "unit_sn",
@@ -78,6 +87,14 @@
         "value": {
           "function": "modbus_read_holding",
           "args": [106, 1]
+        }
+      },
+      {
+        "type": "assignment",
+        "variable": "$actualFlow",
+        "value": {
+          "function": "modbus_read_input",
+          "args": [117, 1]
         }
       },
       {
