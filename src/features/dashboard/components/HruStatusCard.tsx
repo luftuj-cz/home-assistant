@@ -215,7 +215,7 @@ export function HruStatusCard({
                   <Text fw={700} size="xl" ta="center">
                     {val} {unit}
                   </Text>
-                  <Text c="dimmed" size="xs">
+                  <Text c="dimmed" size="xs" ta="center" lh={1.2} maw={84}>
                     {getLocalizedText(variable.label)}
                   </Text>
                 </Stack>

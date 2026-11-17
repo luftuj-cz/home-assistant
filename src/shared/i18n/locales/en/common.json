@@ -91,6 +91,8 @@
     "heating": "Heating",
     "flowOut": "Flow out",
     "flowIn": "Flow in",
+    "setPower": "Set power",
+    "actualFlow": "Actual airflow",
     "serialNo": "Serial number",
     "errorState": "Error state",
     "changeFilters": "Change filters",

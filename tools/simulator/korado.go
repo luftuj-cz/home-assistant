@@ -7,6 +7,9 @@ import (
 	. "github.com/tbrandon/mbserver"
 )
 
+// Ventbox 400 with constant-flow motors reports input 117 in m³/h.
+const koradoNominalFlow = 400
+
 type Korado struct {
 	power     int
 	lastAlive time.Time
@@ -24,8 +27,8 @@ func (k *Korado) Configure(serv *Server) {
 		if register == 100 && numRegs == 1 {
 			return []uint16{uint16(12345)}, &Success
 		}
-		if register == 107 && numRegs == 1 {
-			return []uint16{uint16(k.power)}, &Success
+		if register == 117 && numRegs == 1 {
+			return []uint16{uint16(k.power * koradoNominalFlow / 100)}, &Success
 		}
 		if register == 110 && numRegs == 1 {
 			return []uint16{uint16(457)}, &Success
@@ -35,6 +38,12 @@ func (k *Korado) Configure(serv *Server) {
 		}
 		if (register >= 112 && register <= 114) && numRegs == 1 {
 			return []uint16{uint16(200)}, &Success
+		}
+		return []uint16{}, &IllegalDataAddress
+	})
+	OnReadHoldingRegisters(serv, func(register uint16, numRegs int) ([]uint16, *Exception) {
+		if register == 106 && numRegs == 1 {
+			return []uint16{uint16(k.power)}, &Success
 		}
 		return []uint16{}, &IllegalDataAddress
 	})

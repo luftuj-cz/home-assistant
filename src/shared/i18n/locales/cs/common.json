@@ -91,6 +91,8 @@
     "heating": "Ohřev",
     "flowOut": "Průtok výfuk",
     "flowIn": "Průtok sání",
+    "setPower": "Nastavený výkon",
+    "actualFlow": "Skutečný průtok",
     "serialNo": "Výrobní číslo",
     "errorState": "Chybový stav",
     "changeFilters": "Vyměňte filtry",

@@ -2,6 +2,27 @@
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
+## [1.1.3-stable] - 2026-11-17
+
+### Added
+
+- **KORADO VENTBOX**: The dashboard shows the actual airflow next to the set power, read from input register 117.
+  On units with constant-flow motors the value is in m³/h; on units with 0–10 V motors the register holds a
+  percentage, which is shown under the same m³/h label.
+
+### Changed
+
+- **KORADO VENTBOX**: The power on the dashboard and in Home Assistant is named "Set power". It is the power
+  requested by LUFTaTOR; the unit follows it only in automatic mode, so a change made on the unit itself in
+  manual mode does not show up there.
+
+### Fixed
+
+- **KORADO VENTBOX**: The power always read 0, because it was taken from input register 107, which the unit does
+  not provide. It is now read from holding register 106, the register the power is written to
+  ([#22](https://github.com/luftuj-cz/home-assistant/issues/22)).
+- **Dashboard**: A long label inside the power ring wraps onto two lines instead of overflowing the ring.
+
 ## [1.1.2-stable] - 2026-10-25
 
 ### Added

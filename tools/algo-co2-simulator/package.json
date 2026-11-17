@@ -1,0 +1,11 @@
+{
+  "name": "@luftator/algo-co2-simulator",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vp dev",
+    "build": "vp build",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node ../../addon/rootfs/usr/src/app/node_modules/vitest/vitest.mjs run --config vitest.config.mjs"
+  }
+}
