@@ -150,6 +150,12 @@ describe("sanitizeSettings", () => {
     });
   });
 
+  test("sanitizeSettings keeps the noise seed a whole number from 0", () => {
+    expect(sanitizeSettings(settingsWith({ noiseSeed: 7.9 })).noiseSeed).toBe(7);
+    expect(sanitizeSettings(settingsWith({ noiseSeed: -3 })).noiseSeed).toBe(0);
+    expect(sanitizeSettings(settingsWith({ noiseSeed: Number.NaN })).noiseSeed).toBe(0);
+  });
+
   test("sanitizeSettings returns its own copy of the nested record", () => {
     const sanitized = sanitizeSettings(DEFAULT_SIM_SETTINGS);
 

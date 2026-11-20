@@ -9,6 +9,8 @@ import { measureTextEm } from "./textMeasure.ts";
 import type { SimulationControls } from "./useSimulation.ts";
 
 const PLAN_PADDING_M = 0.5;
+/** Below this scale the room labels (0.3 m tall) are too small to read, so the plan scrolls. */
+const MIN_PX_PER_M = 34;
 const HATCH_ID = "no-reading-hatch";
 const HATCH_SPACING_M = 0.25;
 
@@ -97,7 +99,7 @@ function PlanRoom({
         strokeWidth={0.04}
         style={{ fill: BAND_FILL[band], stroke: "var(--mantine-color-default-border)" }}
       />
-      <svg x={x} y={y} width={w} height={d}>
+      <svg x={x} y={y} width={w} height={d} aria-hidden="true">
         {layoutRoomText(
           room.name,
           roomLines(room, fullyOpenValue, fullyClosedPosition),
@@ -139,73 +141,75 @@ export function FloorPlan({ controls, selectedRoomId, onSelect }: Readonly<Floor
   const selectedHouseRoom = house.rooms.find((candidate) => candidate.id === selectedRoomId);
 
   return (
-    <svg
-      role="group"
-      aria-label="Půdorys domu"
-      viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
-      style={{
-        display: "block",
-        width: "100%",
-        height: "auto",
-        maxHeight: "65vh",
-        userSelect: "none",
-      }}
-    >
-      <defs>
-        <pattern
-          id={HATCH_ID}
-          width={HATCH_SPACING_M}
-          height={HATCH_SPACING_M}
-          patternUnits="userSpaceOnUse"
-          patternTransform="rotate(45)"
-        >
-          <rect
+    <div className="sim-plan-scroll">
+      <svg
+        aria-label="Půdorys domu"
+        viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`}
+        style={{
+          display: "block",
+          width: "100%",
+          minWidth: box.w * MIN_PX_PER_M,
+          height: "auto",
+          maxHeight: `max(65vh, ${box.h * MIN_PX_PER_M}px)`,
+          userSelect: "none",
+        }}
+      >
+        <defs>
+          <pattern
+            id={HATCH_ID}
             width={HATCH_SPACING_M}
             height={HATCH_SPACING_M}
-            style={{ fill: "var(--mantine-color-gray-light)" }}
+            patternUnits="userSpaceOnUse"
+            patternTransform="rotate(45)"
+          >
+            <rect
+              width={HATCH_SPACING_M}
+              height={HATCH_SPACING_M}
+              style={{ fill: "var(--mantine-color-gray-light)" }}
+            />
+            <line
+              x1={0}
+              y1={0}
+              x2={0}
+              y2={HATCH_SPACING_M}
+              strokeWidth={0.05}
+              strokeOpacity={0.5}
+              style={{ stroke: "var(--mantine-color-gray-5)" }}
+            />
+          </pattern>
+        </defs>
+        {house.rooms.map((houseRoom) => {
+          const room = snapshot.rooms.find((candidate) => candidate.id === houseRoom.id);
+          if (room === undefined) {
+            return null;
+          }
+          const selected = houseRoom.id === selectedRoomId;
+          return (
+            <PlanRoom
+              key={houseRoom.id}
+              houseRoom={houseRoom}
+              room={room}
+              band={roomCo2Band(room, engineParams.th1, engineParams.th2)}
+              fullyOpenValue={engineParams.fullyOpenValue}
+              fullyClosedPosition={settings.valveFullyClosedPosition}
+              selected={selected}
+              onToggle={() => onSelect(selected ? null : houseRoom.id)}
+            />
+          );
+        })}
+        {selectedHouseRoom !== undefined && (
+          <rect
+            x={selectedHouseRoom.rect.x}
+            y={selectedHouseRoom.rect.y}
+            width={selectedHouseRoom.rect.w}
+            height={selectedHouseRoom.rect.d}
+            fill="none"
+            strokeWidth={0.12}
+            pointerEvents="none"
+            style={{ stroke: "var(--mantine-primary-color-filled)" }}
           />
-          <line
-            x1={0}
-            y1={0}
-            x2={0}
-            y2={HATCH_SPACING_M}
-            strokeWidth={0.05}
-            strokeOpacity={0.5}
-            style={{ stroke: "var(--mantine-color-gray-5)" }}
-          />
-        </pattern>
-      </defs>
-      {house.rooms.map((houseRoom) => {
-        const room = snapshot.rooms.find((candidate) => candidate.id === houseRoom.id);
-        if (room === undefined) {
-          return null;
-        }
-        const selected = houseRoom.id === selectedRoomId;
-        return (
-          <PlanRoom
-            key={houseRoom.id}
-            houseRoom={houseRoom}
-            room={room}
-            band={roomCo2Band(room, engineParams.th1, engineParams.th2)}
-            fullyOpenValue={engineParams.fullyOpenValue}
-            fullyClosedPosition={settings.valveFullyClosedPosition}
-            selected={selected}
-            onToggle={() => onSelect(selected ? null : houseRoom.id)}
-          />
-        );
-      })}
-      {selectedHouseRoom !== undefined && (
-        <rect
-          x={selectedHouseRoom.rect.x}
-          y={selectedHouseRoom.rect.y}
-          width={selectedHouseRoom.rect.w}
-          height={selectedHouseRoom.rect.d}
-          fill="none"
-          strokeWidth={0.12}
-          pointerEvents="none"
-          style={{ stroke: "var(--mantine-primary-color-filled)" }}
-        />
-      )}
-    </svg>
+        )}
+      </svg>
+    </div>
   );
 }

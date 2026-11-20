@@ -1,4 +1,4 @@
-export const SPEEDS = [1, 60, 600] as const;
+export const SPEEDS = [1, 60, 600, 3600] as const;
 
 /** Simulated seconds one frame may advance at most, so a hidden tab cannot freeze the page on return. */
 export const MAX_STEPS_PER_FRAME = 3600;

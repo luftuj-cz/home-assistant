@@ -1,7 +1,17 @@
-import { Button, Drawer, NumberInput, SimpleGrid, Stack, Switch, Text, Title } from "@mantine/core";
-import { TimeInput } from "@mantine/dates";
+import {
+  Alert,
+  Button,
+  Drawer,
+  NumberInput,
+  SimpleGrid,
+  Stack,
+  Switch,
+  Text,
+  Title,
+} from "@mantine/core";
+import { TimePicker } from "@mantine/dates";
 import { useRef, useState } from "react";
-import type { ChangeEvent, KeyboardEvent, ReactNode } from "react";
+import type { KeyboardEvent, ReactNode } from "react";
 
 import { valveOpening } from "../core/airflow.ts";
 import { engineDefaults } from "../core/engineParams.ts";
@@ -15,6 +25,9 @@ import type { SimulationControls } from "./useSimulation.ts";
 /** The engine's power scale is 0–10. */
 const MAX_POWER = 10;
 const PERCENT = 100;
+const HH_MM_LENGTH = 5;
+/** Two fields side by side need about 190 px each; a phone-wide drawer gets one column. */
+const GRID_COLS = { base: 1, "380px": 2 };
 
 interface NumberFieldProps {
   label: string;
@@ -103,29 +116,26 @@ interface TimeFieldProps {
   onCommit: (secondOfDay: number) => void;
 }
 
-/** A time of day in whole minutes; the text is applied on blur or Enter, and only when it parses. */
+/**
+ * A time of day in whole minutes, always shown as 24 h. The picker reports a time only once both
+ * parts are filled in, so it is applied at once.
+ */
 function TimeField({ label, secondOfDay, onCommit }: Readonly<TimeFieldProps>) {
-  const [draft, setDraft] = useState<string | null>(null);
-
-  function apply(): void {
-    const parsed = draft === null ? null : parseHhMm(draft);
-    setDraft(null);
-    if (parsed !== null) {
+  function onChange(text: string): void {
+    const parsed = parseHhMm(text.slice(0, HH_MM_LENGTH));
+    if (parsed !== null && parsed !== secondOfDay) {
       onCommit(parsed);
     }
   }
 
-  function onChange(event: ChangeEvent<HTMLInputElement>): void {
-    setDraft(event.currentTarget.value);
-  }
-
   return (
-    <TimeInput
+    <TimePicker
       label={label}
-      value={draft ?? formatHhMm(secondOfDay)}
+      format="24h"
+      value={formatHhMm(secondOfDay)}
       onChange={onChange}
-      onKeyDown={onEnter(apply)}
-      onBlur={apply}
+      hoursInputLabel={`${label}, hodiny`}
+      minutesInputLabel={`${label}, minuty`}
     />
   );
 }
@@ -137,9 +147,11 @@ function shareToPercent(share: number): number {
 
 interface ParameterDrawerProps {
   opened: boolean;
-  /** The drawer's width in px; the page reserves the same space while it is open. */
+  /** Beside the page on a wide screen; over the page, from the top of the screen, on a narrow one. */
+  docked: boolean;
+  /** The drawer's width in px; the page reserves the same space while it is docked and open. */
   width: number;
-  /** Where the drawer starts, as a CSS length: below the top bar, which stays in reach. */
+  /** Where a docked drawer starts, as a CSS length: below the top bar, which stays in reach. */
   top: string;
   onClose: () => void;
   controls: SimulationControls;
@@ -147,12 +159,13 @@ interface ParameterDrawerProps {
 
 export function ParameterDrawer({
   opened,
+  docked,
   width,
   top,
   onClose,
   controls,
 }: Readonly<ParameterDrawerProps>) {
-  const { engineParams, settings } = controls;
+  const { engineParams, settings, parameterProblems } = controls;
 
   function changeEngine(changes: Partial<EngineParams>): void {
     controls.setEngineParams(sanitizeEngineParams({ ...engineParams, ...changes }));
@@ -186,12 +199,12 @@ export function ParameterDrawer({
       opened={opened}
       onClose={onClose}
       position="right"
-      size={width}
+      size={docked ? width : `min(${width}px, 100%)`}
       title="Parametry"
       withOverlay={false}
       trapFocus={false}
       lockScroll={false}
-      styles={{ inner: { top }, content: { height: "100%" } }}
+      styles={{ inner: { top: docked ? top : 0 }, content: { height: "100%" } }}
     >
       <Stack gap="lg">
         <Stack gap="xs">
@@ -203,9 +216,21 @@ export function ParameterDrawer({
           </Text>
         </Stack>
 
+        {parameterProblems.length > 0 && (
+          <Alert color="orange" title="Algoritmus hlásí chybné parametry">
+            <Stack gap={4}>
+              {parameterProblems.map((problem) => (
+                <Text key={problem} size="sm">
+                  {problem}
+                </Text>
+              ))}
+            </Stack>
+          </Alert>
+        )}
+
         <Stack gap="sm">
           <Title order={5}>Algoritmus</Title>
-          <SimpleGrid cols={2} spacing="sm" verticalSpacing="sm">
+          <SimpleGrid type="container" cols={GRID_COLS} spacing="sm" verticalSpacing="sm">
             <NumberField
               label="TH1 (ppm)"
               value={engineParams.th1}
@@ -386,7 +411,7 @@ export function ParameterDrawer({
 
         <Stack gap="sm">
           <Title order={5}>Simulace</Title>
-          <SimpleGrid cols={2} spacing="sm" verticalSpacing="sm">
+          <SimpleGrid type="container" cols={GRID_COLS} spacing="sm" verticalSpacing="sm">
             <NumberField
               label="Perioda algoritmu (s)"
               value={settings.enginePeriodS}
@@ -415,6 +440,15 @@ export function ParameterDrawer({
               onCommit={(sensorNoiseSigmaPpm) => changeSettings({ sensorNoiseSigmaPpm })}
               min={0}
               step={5}
+            />
+            <NumberField
+              label="Seed šumu"
+              description="Stejné číslo dá stejný šum; použije se od příštího Resetu"
+              value={settings.noiseSeed}
+              onCommit={(noiseSeed) => changeSettings({ noiseSeed })}
+              min={0}
+              step={1}
+              decimalScale={0}
             />
             <NumberField
               label="CO2 venku (ppm)"

@@ -6,8 +6,8 @@ and every decision the engine makes. Use it to understand the algorithm and to t
 
 **It is a developer tool and is never shipped.** It is not part of the add-on image, the frontend
 build or the release. The root `tsconfig.json`, `vp build`, `npm run build:addon` and the backend
-`npm test` do not pick it up, and it is excluded from the SonarCloud scan. The UI is in Czech, for a
-desktop screen only, and keeps nothing between page loads.
+`npm test` do not pick it up, and it is excluded from the SonarCloud scan. The UI is in Czech and keeps
+nothing between page loads. It is made for a desktop screen and stays usable down to a phone.
 
 ## Setup
 
@@ -37,7 +37,10 @@ Vite+. The tests themselves are plain Vitest tests. That is also why they need `
 
 ## Using it
 
-Pick a house and a scenario, press play, and change anything while it runs.
+Pick a house and a scenario, press play, and change anything while it runs. Paused, the button next to
+play advances the run by one second. Sensor noise comes from a seeded generator: the same seed gives the
+same noise, so two parameter sets can be compared on the same run (a new seed applies from the next
+Reset).
 
 - **Floor plan:** rooms are green below TH1, orange from TH1 to TH2, red from TH2. Hatched rooms have no
   reading. Each room lists its valves with their position and a word for it (`otevřeno` up to the
@@ -45,14 +48,21 @@ Pick a house and a scenario, press play, and change anything while it runs.
   room to select it.
 - **Room panel:** people and activity (a manual change holds until the room's next scenario step), the
   real, sensor and filtered CO2, the engine's timers, and a "sensor not working" switch per sensor.
-- **HRU panel, chart, decision log:** current power and airflow, CO2 per room over time, and one log entry
-  per change the engine makes.
+- **HRU panel, chart, decision log:** current power and airflow, CO2 per room over time (the air itself or
+  the filtered value the engine decides by), and one log entry per change the engine makes. A power review
+  is logged once per outcome until the power moves.
 - **Parametry:** every engine parameter and simulation setting. A number typed into a field applies when
   you leave the field or press Enter (so "300" never passes through 3 and 30 on its way in); the stepper
   arrows and the arrow keys apply at once. Changes do not restart the run. "Obnovit výchozí" restores the
-  defaults (engine defaults are read from an engine instance, so they never drift from the package).
+  defaults (engine defaults are read from an engine instance, so they never drift from the package). When
+  the engine itself finds the parameters inconsistent (`getParameterProblems()`), the drawer lists why.
 
 Changing the house, the scenario or the start time rebuilds the run; so does "Reset".
+
+**Layout.** The page folds by the width its content has: beside a docked parameter drawer or on a
+tablet the panels move under the floor plan, on a phone everything is one column. From 1100 px the
+drawer sits beside the page; below that it lies over it. A plan too wide to stay legible scrolls sideways,
+and the charts are drawn at their real pixel width, so their labels do not shrink.
 
 ## The model
 
@@ -66,7 +76,7 @@ positions and HRU power (they act from the next step).
 **Room.** Volume is the plan rectangle's area times the room height. CO2 `C` is in ppm.
 
 - People add CO2 at a rate set by activity.
-- Total supply flow is `nominal flow × power / 100`, exhaust equals supply, and the total does not depend on
+- Total supply flow is `nominal flow × power / 10` (the engine's power scale is 0–10), exhaust equals supply, and the total does not depend on
   the valve positions: closing some valves pushes more air through the others. It is split among the
   supply valves in proportion to their opening, and likewise among the exhaust valves.
 - Fresh inflow is the room's supply flow plus infiltration (`ACH × V`). A room with an exhaust surplus also
@@ -94,9 +104,10 @@ LUFTaTOR valve, so it is a setting.
 | Engine period               | 1 s               | same                                 |
 | Sensor interval             | 30 s              | same                                 |
 | Sensor noise                | off, σ = 15 ppm   | same                                 |
+| Noise seed                  | 1                 | same                                 |
 | Room height                 | 2.6 m             | house file, default in `settings.ts` |
 | Initial CO2 of a room       | 500 ppm           | scenario, default in `settings.ts`   |
-| Speeds                      | ×1, ×60, ×600     | `src/ui/runLoop.ts`                  |
+| Speeds                      | ×1 to ×3600       | `src/ui/runLoop.ts`                  |
 | Chart history               | every 10 s, 24 h  | `src/core/settings.ts`               |
 | Decision log                | last 1000 entries | `src/core/settings.ts`               |
 
@@ -111,8 +122,8 @@ naming the field; an unknown key counts as a bad field, so a typo in an optional
 | Field                 | Meaning                                                                                       |
 | --------------------- | --------------------------------------------------------------------------------------------- |
 | `name`                | Display name                                                                                  |
-| `hru.nominalFlowM3h`  | Airflow at 100 % power, in m³/h                                                               |
-| `hru.initialPowerPct` | Start power in %, or `null` for the engine's `hruMinPower`                                    |
+| `hru.nominalFlowM3h`  | Airflow at power 10, in m³/h                                                                  |
+| `hru.initialPower`    | Start power on the 0–10 scale, or `null` for the engine's `hruMinPower`                       |
 | `rooms[]`             | `id`, `name`, `rect` (`x`, `y`, `w`, `d` in metres), `heightM` (default 2.6), `sensors` (ids) |
 | `boxes[].valves[]`    | `id`, `room` (a room id), `type` (`supply` or `exhaust`), `defaultPosition`                   |
 | `scenarios[]`         | `id`, `name`, `initialCo2Ppm` (per room, default 500), `steps`                                |
@@ -127,7 +138,7 @@ A minimal house:
 ```json
 {
   "name": "Garsonka",
-  "hru": { "nominalFlowM3h": 150, "initialPowerPct": null },
+  "hru": { "nominalFlowM3h": 150, "initialPower": null },
   "rooms": [
     {
       "id": "pokoj",

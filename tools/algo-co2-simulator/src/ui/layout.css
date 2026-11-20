@@ -1,0 +1,43 @@
+/*
+ * The page lays itself out by the width its content really has, not by the viewport: the docked
+ * parameter drawer takes 480 px of a wide screen, and the grids must fold as if the screen were
+ * that much narrower.
+ */
+.sim-content {
+  container-type: inline-size;
+}
+
+.sim-main,
+.sim-side,
+.sim-bottom {
+  display: grid;
+  gap: var(--mantine-spacing-md);
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+@container (min-width: 600px) {
+  .sim-side {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 900px) {
+  .sim-main {
+    grid-template-columns: minmax(0, 1fr) 320px;
+  }
+
+  .sim-side {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sim-bottom {
+    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    align-items: stretch;
+  }
+}
+
+/* A plan too wide to stay legible on a narrow screen scrolls sideways instead of shrinking. */
+.sim-plan-scroll {
+  overflow-x: auto;
+}

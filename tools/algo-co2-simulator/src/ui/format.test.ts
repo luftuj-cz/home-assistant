@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import type { DecisionBranch } from "../core/engine.ts";
 import {
+  engineMessageLabel,
   branchLabel,
   co2Band,
   formatClock,
@@ -88,5 +89,42 @@ describe("reviewLabel", () => {
     expect(reviewLabel({ lane: "slow", raised: true, asked: ["x"], held: [] }, roomNames)).toBe(
       "kontrola výkonu (pomalá): přidat, žádá x",
     );
+  });
+});
+
+describe("engineMessageLabel", () => {
+  const roomNames = new Map([["loznice", "Ložnice"]]);
+
+  test("names the room and the threshold a room went over", () => {
+    expect(
+      engineMessageLabel(
+        "[06:00] CO2 in room loznice exceeded threshold th1: (900>=800)",
+        roomNames,
+      ),
+    ).toBe("Ložnice: CO2 nad TH1 (900 ≥ 800)");
+  });
+
+  test("says when a room is back under a threshold", () => {
+    expect(
+      engineMessageLabel(
+        "[07:10] CO2 in room loznice recovered under threshold th2: (1099<1100)",
+        roomNames,
+      ),
+    ).toBe("Ložnice: CO2 zpět pod TH2 (1099 < 1100)");
+  });
+
+  test("keeps the id of a room it has no name for", () => {
+    expect(
+      engineMessageLabel("[06:00] CO2 in room sklep exceeded threshold th1: (900>=800)", roomNames),
+    ).toBe("sklep: CO2 nad TH1 (900 ≥ 800)");
+  });
+
+  test("translates the fluctuation switch", () => {
+    expect(engineMessageLabel("[06:00] fluctuation on", roomNames)).toBe("Pohyb osob: zapnuto");
+    expect(engineMessageLabel("[06:00] fluctuation off", roomNames)).toBe("Pohyb osob: vypnuto");
+  });
+
+  test("passes an unknown message through without the engine's clock", () => {
+    expect(engineMessageLabel("[06:00] something new", roomNames)).toBe("something new");
   });
 });

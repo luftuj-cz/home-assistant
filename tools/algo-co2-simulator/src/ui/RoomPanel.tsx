@@ -1,18 +1,31 @@
 import { Group, Paper, SegmentedControl, Slider, Stack, Switch, Text, Title } from "@mantine/core";
 import type { ReactNode } from "react";
 
+import type { House } from "../core/house.ts";
 import type { RoomSnapshot } from "../core/simulation.ts";
 import type { Activity } from "../core/settings.ts";
 import { formatDuration } from "./format.ts";
 import type { SimulationControls } from "./useSimulation.ts";
 
 const NO_VALUE = "—";
-const MAX_PEOPLE = 10;
+const MIN_SLIDER_PEOPLE = 10;
+const MAX_SLIDER_MARKS = 11;
 
-const PEOPLE_MARKS = Array.from({ length: MAX_PEOPLE + 1 }, (_, people) => ({
-  value: people,
-  label: String(people),
-}));
+/** The slider's top: the most people any scenario of the house puts in one room, at least 10. */
+function sliderMax(house: House, people: number): number {
+  const scripted = house.scenarios.flatMap((scenario) => scenario.steps.map((step) => step.people));
+  return Math.max(MIN_SLIDER_PEOPLE, people, ...scripted);
+}
+
+/** A mark per person while they fit, then every second, third… one. */
+function peopleMarks(max: number): { value: number; label: string }[] {
+  const stride = Math.ceil((max + 1) / MAX_SLIDER_MARKS);
+  const marks = [];
+  for (let people = 0; people <= max; people += stride) {
+    marks.push({ value: people, label: String(people) });
+  }
+  return marks;
+}
 
 const ACTIVITIES: { value: Activity; label: string }[] = [
   { value: "sleeping", label: "Spí" },
@@ -62,6 +75,7 @@ export function RoomPanel({ controls, room }: Readonly<RoomPanelProps>) {
   const nowEpoch = snapshot.epochSecond;
   const limitS = engineParams.thresholdTimeLimit;
   const belowLimitS = engineParams.belowTimeLimit;
+  const maxPeople = sliderMax(controls.house, people);
 
   return (
     <Paper withBorder p="md">
@@ -72,9 +86,10 @@ export function RoomPanel({ controls, room }: Readonly<RoomPanelProps>) {
           <Text size="sm">Lidé</Text>
           <Slider
             min={0}
-            max={MAX_PEOPLE}
+            max={maxPeople}
             step={1}
-            marks={PEOPLE_MARKS}
+            marks={peopleMarks(maxPeople)}
+            thumbLabel="Počet lidí"
             value={people}
             onChange={(next) => controls.setOccupancy(room.id, { people: next, activity })}
           />
@@ -84,6 +99,7 @@ export function RoomPanel({ controls, room }: Readonly<RoomPanelProps>) {
           <Text size="sm">Činnost</Text>
           <SegmentedControl
             fullWidth
+            aria-label="Činnost"
             data={ACTIVITIES}
             value={activity}
             onChange={(next) => controls.setOccupancy(room.id, { people, activity: next })}
@@ -107,7 +123,11 @@ export function RoomPanel({ controls, room }: Readonly<RoomPanelProps>) {
         <Row label="Nad TH1">{timer(nowEpoch, room.aboveSince.th1, limitS)}</Row>
         <Row label="Nad TH2">{timer(nowEpoch, room.aboveSince.th2, limitS)}</Row>
         <Row label="Pod TH1 − hystereze">{timer(nowEpoch, room.belowSince.th1, belowLimitS)}</Row>
-        <Row label="Od posledního zásahu">{timer(nowEpoch, room.lastChangeEpoch, limitS)}</Row>
+        <Row label="Od posledního zásahu">
+          {room.lastChangeEpoch === null
+            ? NO_VALUE
+            : formatDuration(nowEpoch - room.lastChangeEpoch)}
+        </Row>
       </Stack>
     </Paper>
   );

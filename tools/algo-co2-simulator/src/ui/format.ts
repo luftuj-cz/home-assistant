@@ -77,3 +77,32 @@ export function reviewLabel(review: PowerReview, roomNames: ReadonlyMap<string, 
   const held = review.held.length > 0 ? `, ${names(review.held)}` : "";
   return `kontrola výkonu (${lane}): držet${held}`;
 }
+
+const ENGINE_MESSAGE_PREFIX = /^\[[^\]]*] /;
+const THRESHOLD_MESSAGE =
+  /^CO2 in room (\S+) (exceeded|recovered under) threshold (\w+): \((.+)\)$/;
+const FLUCTUATION_MESSAGE = /^fluctuation (on|off)$/;
+
+/**
+ * An engine log message in Czech, without the engine's own clock prefix. The engine writes its
+ * messages in English with room ids; a message this does not know is passed through as it is.
+ */
+export function engineMessageLabel(
+  message: string,
+  roomNames: ReadonlyMap<string, string>,
+): string {
+  const text = message.replace(ENGINE_MESSAGE_PREFIX, "");
+  const threshold = THRESHOLD_MESSAGE.exec(text);
+  if (threshold !== null) {
+    const [, roomId = "", verb, type = "", comparison = ""] = threshold;
+    const room = roomNames.get(roomId) ?? roomId;
+    const values = comparison.replace(">=", " ≥ ").replace("<", " < ");
+    const what = verb === "exceeded" ? "CO2 nad" : "CO2 zpět pod";
+    return `${room}: ${what} ${type.toUpperCase()} (${values})`;
+  }
+  const fluctuation = FLUCTUATION_MESSAGE.exec(text);
+  if (fluctuation !== null) {
+    return `Pohyb osob: ${fluctuation[1] === "on" ? "zapnuto" : "vypnuto"}`;
+  }
+  return text;
+}

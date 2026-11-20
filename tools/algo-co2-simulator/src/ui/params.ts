@@ -70,6 +70,7 @@ export function sanitizeSettings(settings: SimSettings): SimSettings {
     sensorIntervalS: wholeSeconds(settings.sensorIntervalS),
     sensorNoise: settings.sensorNoise,
     sensorNoiseSigmaPpm: atLeast(0, settings.sensorNoiseSigmaPpm),
+    noiseSeed: Number.isFinite(settings.noiseSeed) ? atLeast(0, Math.floor(settings.noiseSeed)) : 0,
     outdoorCo2Ppm: atLeast(0, settings.outdoorCo2Ppm),
     infiltrationAch: atLeast(0, settings.infiltrationAch),
     co2PerPersonLph: {

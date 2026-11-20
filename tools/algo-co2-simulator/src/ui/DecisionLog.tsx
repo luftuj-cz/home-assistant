@@ -3,7 +3,7 @@ import { memo, useMemo } from "react";
 
 import type { LogEntry } from "../core/simulation.ts";
 import { clockSecond } from "./chart.ts";
-import { branchLabel, formatClock, reviewLabel } from "./format.ts";
+import { branchLabel, engineMessageLabel, formatClock, reviewLabel } from "./format.ts";
 import type { SimulationControls } from "./useSimulation.ts";
 
 type DecisionEntry = Extract<LogEntry, { kind: "decision" }>;
@@ -45,14 +45,14 @@ function decisionText(
 }
 
 function LogRow({ entry, startSecondOfDay, roomNames }: Readonly<LogRowProps>) {
+  const clock = formatClock(clockSecond(startSecondOfDay, entry.epochSecond));
   if (entry.kind === "engine") {
     return (
       <Text size="xs" c="dimmed">
-        {entry.message}
+        {clock} · {engineMessageLabel(entry.message, roomNames)}
       </Text>
     );
   }
-  const clock = formatClock(clockSecond(startSecondOfDay, entry.epochSecond));
   return <Text size="sm">{decisionText(entry, clock, roomNames)}</Text>;
 }
 

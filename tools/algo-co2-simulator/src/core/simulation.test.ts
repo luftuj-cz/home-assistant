@@ -306,6 +306,17 @@ describe("sensors", () => {
     expect(roomSnapshot(sim, "loznice").sensors[0]?.reading).toBe(482);
   });
 
+  test("the same noise seed gives the same run, another seed a different one", () => {
+    function readings(noiseSeed: number): (number | null)[] {
+      const sim = createSimulation({ settings: settings({ sensorNoise: true, noiseSeed }) });
+      sim.advance(600);
+      return sim.snapshot().rooms.flatMap((room) => room.sensors.map((sensor) => sensor.reading));
+    }
+
+    expect(readings(1)).toEqual(readings(1));
+    expect(readings(1)).not.toEqual(readings(2));
+  });
+
   test("without noise the random source is never drawn", () => {
     const random = vi.fn(() => 0.5);
     const sim = createSimulation({ random });
@@ -557,6 +568,27 @@ describe("decision log", () => {
       );
     // Three steps up, then the rooms stop asking: every later review is the same held one.
     expect(reviews).toEqual([true, true, true, false]);
+  });
+
+  test("does not log again a review that keeps asking at the maximum", () => {
+    const sim = createSimulation({
+      settings: settings({ enginePeriodS: 1, sensorIntervalS: 1 }),
+      sensorOverride: () => 1500,
+    });
+
+    sim.advance(6 * HOUR);
+
+    const capped = sim
+      .getLog()
+      .filter(
+        (entry) =>
+          entry.kind === "decision" &&
+          entry.report.powerReview?.raised === true &&
+          entry.report.powerAfter === entry.report.powerBefore,
+      );
+    expect(sim.snapshot().power).toBe(sim.snapshot().maxPower);
+    // The review that took the last step already says who asks; the same ask is not repeated.
+    expect(capped).toHaveLength(0);
   });
 });
 

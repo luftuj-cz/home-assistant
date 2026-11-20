@@ -5,6 +5,8 @@ export interface SimSettings {
   sensorIntervalS: number;
   sensorNoise: boolean;
   sensorNoiseSigmaPpm: number;
+  /** Seeds the noise of a run, so the same seed gives the same noise; read when a run starts. */
+  noiseSeed: number;
   outdoorCo2Ppm: number;
   infiltrationAch: number;
   co2PerPersonLph: Record<Activity, number>;
@@ -17,6 +19,7 @@ export const DEFAULT_SIM_SETTINGS: Readonly<SimSettings> = {
   sensorIntervalS: 30,
   sensorNoise: false,
   sensorNoiseSigmaPpm: 15,
+  noiseSeed: 1,
   outdoorCo2Ppm: 420,
   infiltrationAch: 0.1,
   co2PerPersonLph: { sleeping: 13, sitting: 19, active: 30 },

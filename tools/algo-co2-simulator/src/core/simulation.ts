@@ -35,7 +35,10 @@ export interface SimulationOptions {
   startSecondOfDay: number;
   settings: SimSettings;
   engineParams?: EngineParams;
-  /** The noise source: a function returning a number in [0, 1), like `Math.random`. */
+  /**
+   * The noise source: a function returning a number in [0, 1), like `Math.random`. Without it the
+   * run draws from a generator seeded with `settings.noiseSeed`.
+   */
   random?: () => number;
   journal?: boolean;
   /**
@@ -131,6 +134,18 @@ function startingCo2(scenario: Scenario | null, roomId: string): number {
   return scenario?.initialCo2Ppm[roomId] ?? DEFAULT_INITIAL_CO2_PPM;
 }
 
+/** A small seeded generator (mulberry32): the same seed always gives the same numbers in [0, 1). */
+function seededRandom(seed: number): () => number {
+  let state = Math.trunc(seed) >>> 0;
+  return function next() {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let mixed = state;
+    mixed = Math.imul(mixed ^ (mixed >>> 15), mixed | 1);
+    mixed ^= mixed + Math.imul(mixed ^ (mixed >>> 7), mixed | 61);
+    return ((mixed ^ (mixed >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
 /** A standard normal draw by the Box–Muller transform. */
 function gaussian(random: () => number): number {
   const u1 = 1 - random();
@@ -206,14 +221,18 @@ export class Simulation {
   private lastSensorEpoch = 0;
   private lastRunEpoch = 0;
   private lastReport: RunReport | null = null;
-  /** The outcome of the last power review, so that a run of identical held reviews logs once. */
-  private lastReviewOutcome: string | null = null;
+  /**
+   * The review outcomes already logged since the power last moved. At the maximum several rooms
+   * keep asking in turn, every review, for hours; each such outcome is worth one entry, not ninety
+   * an hour.
+   */
+  private readonly loggedReviewOutcomes = new Set<string>();
 
   constructor(options: SimulationOptions) {
     this.house = options.house;
     this.scenario = options.scenario;
     this.startSecondOfDay = options.startSecondOfDay;
-    this.random = options.random ?? Math.random;
+    this.random = options.random ?? seededRandom(options.settings.noiseSeed);
     this.sensorOverride = options.sensorOverride;
     this.settings = copySettings(options.settings);
 
@@ -355,7 +374,7 @@ export class Simulation {
   }
 
   private recordEngineMessage(message: string): void {
-    if (message.includes("threshold")) {
+    if (message.includes("threshold") || message.includes("fluctuation")) {
       this.log.push({ kind: "engine", epochSecond: this.epoch, message });
     }
   }
@@ -458,11 +477,9 @@ export class Simulation {
     this.lastReport = report;
     this.lastRunEpoch = this.epoch;
 
-    if (
-      report.valvesChanged ||
-      report.powerAfter !== report.powerBefore ||
-      this.isReviewWorthLogging(report)
-    ) {
+    // Asked on every run, not only when the entry is logged anyway: it also keeps the outcomes.
+    const reviewIsNews = this.isReviewWorthLogging(report);
+    if (report.valvesChanged || report.powerAfter !== report.powerBefore || reviewIsNews) {
       const valveChanges: ValveChange[] = [];
       for (const simValve of this.valves) {
         const from = positionsBefore.get(simValve.id) ?? simValve.valve.value;
@@ -478,16 +495,19 @@ export class Simulation {
     }
   }
 
-  /** A review that raised the power, or whose outcome differs from the review before it. */
+  /** A review whose outcome has not been logged yet at the current power. */
   private isReviewWorthLogging(report: RunReport): boolean {
+    if (report.powerAfter !== report.powerBefore) {
+      this.loggedReviewOutcomes.clear();
+    }
     const review = report.powerReview;
     if (review === null) {
       return false;
     }
     const outcome = JSON.stringify(review);
-    const changed = outcome !== this.lastReviewOutcome;
-    this.lastReviewOutcome = outcome;
-    return review.raised || changed;
+    const isNew = !this.loggedReviewOutcomes.has(outcome);
+    this.loggedReviewOutcomes.add(outcome);
+    return isNew;
   }
 
   private sampleHistory(): void {

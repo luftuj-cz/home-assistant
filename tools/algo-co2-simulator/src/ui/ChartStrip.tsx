@@ -7,7 +7,8 @@ import {
   Text,
   useComputedColorScheme,
 } from "@mantine/core";
-import { useState } from "react";
+import { useElementSize } from "@mantine/hooks";
+import { useId, useState } from "react";
 
 import type { HouseRoom } from "../core/house.ts";
 import type { HistorySample } from "../core/simulation.ts";
@@ -33,23 +34,50 @@ const WINDOWS = [
 ];
 const DEFAULT_WINDOW_S = 1800;
 
+type Series = "actual" | "filtered";
+const SERIES: { value: Series; label: string }[] = [
+  { value: "actual", label: "Skutečné" },
+  { value: "filtered", label: "Vyhlazené" },
+];
+
 /** One line should not need more points than the chart has pixels; 24 h holds 8640 samples. */
 const MAX_LINE_POINTS = 800;
 
-const VIEW_W = 800;
+/**
+ * Drawn 1:1 in CSS pixels at the width the page gives it, so labels stay readable on a phone. The
+ * minimum is also what is drawn before the first measurement.
+ */
+const MIN_VIEW_W = 240;
 const MARGIN = { left: 44, right: 8, top: 10 };
-const PLOT_W = VIEW_W - MARGIN.left - MARGIN.right;
 const CO2_PLOT_H = 200;
 const CO2_BOTTOM = 8;
 const POWER_PLOT_H = 56;
 const POWER_BOTTOM = 22;
 const POWER_TICKS = [0, 5, 10];
 const X_FRACTIONS = [0, 0.25, 0.5, 0.75, 1];
+const NARROW_X_FRACTIONS = [0, 0.5, 1];
+/** Five clock labels need about this much plot width not to touch. */
+const NARROW_PLOT_W = 320;
 const LABEL_SIZE = 11;
 
-const ROOM_COLORS = ["blue", "grape", "teal", "cyan", "indigo", "lime", "pink", "violet"];
+/** Orange and red are left to the thresholds; the largest preset house has eleven rooms. */
+const ROOM_COLORS = [
+  "blue",
+  "grape",
+  "teal",
+  "yellow",
+  "indigo",
+  "lime",
+  "pink",
+  "cyan",
+  "green",
+  "violet",
+  "gray",
+];
 
 interface ChartProps {
+  /** The whole SVG's width in px. */
+  viewW: number;
   domain: Domain;
   samples: readonly HistorySample[];
   shade: number;
@@ -57,6 +85,8 @@ interface ChartProps {
 
 interface Co2ChartProps extends ChartProps {
   rooms: readonly HouseRoom[];
+  /** The air itself, or the filtered value the engine decides by. */
+  series: Series;
   th1: number;
   th2: number;
 }
@@ -77,17 +107,25 @@ function viewHeight(plotH: number, bottom: number): number {
   return MARGIN.top + plotH + bottom;
 }
 
+function plotWidth(viewW: number): number {
+  return viewW - MARGIN.left - MARGIN.right;
+}
+
+function xFractions(plotW: number): readonly number[] {
+  return plotW < NARROW_PLOT_W ? NARROW_X_FRACTIONS : X_FRACTIONS;
+}
+
 function inside(value: number, domain: Domain): boolean {
   return value >= domain.y0 && value <= domain.y1;
 }
 
 /** The faint vertical lines that tie the two charts to the same clock labels. */
-function VerticalGrid({ plotH }: Readonly<{ plotH: number }>) {
-  return X_FRACTIONS.map((fraction) => (
+function VerticalGrid({ plotW, plotH }: Readonly<{ plotW: number; plotH: number }>) {
+  return xFractions(plotW).map((fraction) => (
     <line
       key={fraction}
-      x1={fraction * PLOT_W}
-      x2={fraction * PLOT_W}
+      x1={fraction * plotW}
+      x2={fraction * plotW}
       y1={0}
       y2={plotH}
       stroke="var(--mantine-color-default-border)"
@@ -100,15 +138,16 @@ function VerticalGrid({ plotH }: Readonly<{ plotH: number }>) {
 function HorizontalGrid({
   ticks,
   domain,
+  plotW,
   plotH,
-}: Readonly<{ ticks: readonly number[]; domain: Domain; plotH: number }>) {
+}: Readonly<{ ticks: readonly number[]; domain: Domain; plotW: number; plotH: number }>) {
   return ticks.map((tick) => {
     const y = scaleY(tick, domain, plotH);
     return (
       <g key={tick}>
         <line
           x1={0}
-          x2={PLOT_W}
+          x2={plotW}
           y1={y}
           y2={y}
           stroke="var(--mantine-color-default-border)"
@@ -129,8 +168,20 @@ function HorizontalGrid({
   });
 }
 
-function Co2Chart({ domain, samples, shade, rooms, th1, th2 }: Readonly<Co2ChartProps>) {
-  const size = { w: PLOT_W, h: CO2_PLOT_H };
+function Co2Chart({
+  viewW,
+  domain,
+  samples,
+  shade,
+  rooms,
+  series,
+  th1,
+  th2,
+}: Readonly<Co2ChartProps>) {
+  const plotW = plotWidth(viewW);
+  const size = { w: plotW, h: CO2_PLOT_H };
+  const clipId = useId();
+  const viewH = viewHeight(CO2_PLOT_H, CO2_BOTTOM);
   const thresholds = [
     { label: "TH1", value: th1, color: paletteColor("orange", shade) },
     { label: "TH2", value: th2, color: paletteColor("red", shade) },
@@ -138,21 +189,35 @@ function Co2Chart({ domain, samples, shade, rooms, th1, th2 }: Readonly<Co2Chart
 
   return (
     <svg
-      viewBox={`0 0 ${VIEW_W} ${viewHeight(CO2_PLOT_H, CO2_BOTTOM)}`}
-      width="100%"
+      viewBox={`0 0 ${viewW} ${viewH}`}
+      width={viewW}
+      height={viewH}
       role="img"
       aria-label="Průběh CO2 v místnostech a prahy TH1 a TH2"
+      style={{ display: "block" }}
     >
+      <defs>
+        <clipPath id={clipId}>
+          <rect x={0} y={0} width={plotW} height={CO2_PLOT_H} />
+        </clipPath>
+      </defs>
       <g transform={`translate(${MARGIN.left} ${MARGIN.top})`}>
-        <VerticalGrid plotH={CO2_PLOT_H} />
-        <HorizontalGrid ticks={yTicks(domain.y0, domain.y1)} domain={domain} plotH={CO2_PLOT_H} />
+        <VerticalGrid plotW={plotW} plotH={CO2_PLOT_H} />
+        <HorizontalGrid
+          ticks={yTicks(domain.y0, domain.y1)}
+          domain={domain}
+          plotW={plotW}
+          plotH={CO2_PLOT_H}
+        />
         {rooms.map((room, index) => (
           <polyline
             key={room.id}
+            clipPath={`url(#${clipId})`}
             points={polylinePoints(
               samples.flatMap((entry) => {
-                const y = entry.co2Ppm[room.id];
-                return y === undefined ? [] : [{ x: entry.epochSecond, y }];
+                const y =
+                  series === "filtered" ? entry.filteredCo2Ppm[room.id] : entry.co2Ppm[room.id];
+                return y === undefined || y === null ? [] : [{ x: entry.epochSecond, y }];
               }),
               domain,
               size,
@@ -170,7 +235,7 @@ function Co2Chart({ domain, samples, shade, rooms, th1, th2 }: Readonly<Co2Chart
             <g key={threshold.label}>
               <line
                 x1={0}
-                x2={PLOT_W}
+                x2={plotW}
                 y1={y}
                 y2={y}
                 stroke={threshold.color}
@@ -179,7 +244,7 @@ function Co2Chart({ domain, samples, shade, rooms, th1, th2 }: Readonly<Co2Chart
                 vectorEffect="non-scaling-stroke"
               />
               <text
-                x={PLOT_W - 4}
+                x={plotW - 4}
                 y={y - 4}
                 textAnchor="end"
                 fontSize={LABEL_SIZE}
@@ -195,21 +260,36 @@ function Co2Chart({ domain, samples, shade, rooms, th1, th2 }: Readonly<Co2Chart
   );
 }
 
-function PowerChart({ domain, samples, shade, startSecondOfDay }: Readonly<PowerChartProps>) {
-  const size = { w: PLOT_W, h: POWER_PLOT_H };
+function PowerChart({
+  viewW,
+  domain,
+  samples,
+  shade,
+  startSecondOfDay,
+}: Readonly<PowerChartProps>) {
+  const plotW = plotWidth(viewW);
+  const size = { w: plotW, h: POWER_PLOT_H };
+  const viewH = viewHeight(POWER_PLOT_H, POWER_BOTTOM);
   const powerDomain: Domain = { ...domain, y0: 0, y1: 10 };
   const spanS = domain.x1 - domain.x0;
 
   return (
     <svg
-      viewBox={`0 0 ${VIEW_W} ${viewHeight(POWER_PLOT_H, POWER_BOTTOM)}`}
-      width="100%"
+      viewBox={`0 0 ${viewW} ${viewH}`}
+      width={viewW}
+      height={viewH}
       role="img"
       aria-label="Výkon rekuperace"
+      style={{ display: "block" }}
     >
       <g transform={`translate(${MARGIN.left} ${MARGIN.top})`}>
-        <VerticalGrid plotH={POWER_PLOT_H} />
-        <HorizontalGrid ticks={POWER_TICKS} domain={powerDomain} plotH={POWER_PLOT_H} />
+        <VerticalGrid plotW={plotW} plotH={POWER_PLOT_H} />
+        <HorizontalGrid
+          ticks={POWER_TICKS}
+          domain={powerDomain}
+          plotW={plotW}
+          plotH={POWER_PLOT_H}
+        />
         <polyline
           points={polylinePoints(
             samples.map((entry) => ({ x: entry.epochSecond, y: entry.power })),
@@ -222,8 +302,8 @@ function PowerChart({ domain, samples, shade, startSecondOfDay }: Readonly<Power
           strokeLinejoin="round"
           vectorEffect="non-scaling-stroke"
         />
-        {X_FRACTIONS.map((fraction) => {
-          const x = scaleX(domain.x0 + fraction * spanS, domain, PLOT_W);
+        {xFractions(plotW).map((fraction) => {
+          const x = scaleX(domain.x0 + fraction * spanS, domain, plotW);
           let anchor: "start" | "middle" | "end" = "middle";
           if (fraction === 0) {
             anchor = "start";
@@ -281,7 +361,10 @@ function Legend({ rooms, shade }: Readonly<{ rooms: readonly HouseRoom[]; shade:
 export function ChartStrip({ controls }: Readonly<{ controls: SimulationControls }>) {
   const { history, house, snapshot, startSecondOfDay, engineParams } = controls;
   const [windowS, setWindowS] = useState(DEFAULT_WINDOW_S);
+  const [series, setSeries] = useState<Series>("actual");
   const shade = useComputedColorScheme("light") === "dark" ? 4 : 6;
+  const { ref: chartsRef, width: measuredW } = useElementSize();
+  const viewW = Math.max(MIN_VIEW_W, Math.floor(measuredW));
 
   const now = snapshot.epochSecond;
   const inWindow = windowSamples(history, now, windowS);
@@ -296,30 +379,47 @@ export function ChartStrip({ controls }: Readonly<{ controls: SimulationControls
   return (
     <Paper withBorder p="md">
       <Stack gap="xs">
-        <Group justify="space-between">
+        <Group justify="space-between" gap="xs">
           <Text fw={600}>CO2 (ppm) a výkon rekuperace (0–10)</Text>
-          <SegmentedControl
-            size="xs"
-            data={WINDOWS}
-            value={String(windowS)}
-            onChange={(value) => setWindowS(Number(value))}
-          />
+          <Group gap="xs">
+            <SegmentedControl
+              size="xs"
+              aria-label="Zobrazené CO2"
+              data={SERIES}
+              value={series}
+              onChange={(value) => setSeries(value as Series)}
+            />
+            <SegmentedControl
+              size="xs"
+              aria-label="Časové okno grafu"
+              data={WINDOWS}
+              value={String(windowS)}
+              onChange={(value) => setWindowS(Number(value))}
+            />
+          </Group>
         </Group>
         <Legend rooms={house.rooms} shade={shade} />
-        <Co2Chart
-          domain={domain}
-          samples={samples}
-          shade={shade}
-          rooms={house.rooms}
-          th1={engineParams.th1}
-          th2={engineParams.th2}
-        />
-        <PowerChart
-          domain={domain}
-          samples={samples}
-          shade={shade}
-          startSecondOfDay={startSecondOfDay}
-        />
+        <Box ref={chartsRef} style={{ minWidth: 0, overflow: "hidden" }}>
+          <Stack gap="xs">
+            <Co2Chart
+              viewW={viewW}
+              domain={domain}
+              samples={samples}
+              shade={shade}
+              rooms={house.rooms}
+              series={series}
+              th1={engineParams.th1}
+              th2={engineParams.th2}
+            />
+            <PowerChart
+              viewW={viewW}
+              domain={domain}
+              samples={samples}
+              shade={shade}
+              startSecondOfDay={startSecondOfDay}
+            />
+          </Stack>
+        </Box>
       </Stack>
     </Paper>
   );

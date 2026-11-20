@@ -26,8 +26,12 @@ export interface SimulationControls {
   history: readonly HistorySample[];
   settings: SimSettings;
   engineParams: EngineParams;
+  /** What the engine itself finds wrong with the current parameters; empty when they are fine. */
+  parameterProblems: readonly string[];
   play(): void;
   pause(): void;
+  /** Advances a paused run by one simulated second. */
+  stepOnce(): void;
   setSpeed(speed: number): void;
   reset(): void;
   setHouse(id: string): void;
@@ -101,11 +105,11 @@ export function useSimulation(): SimulationControls {
   const [initial] = useState(createInitialState);
   const simRef = useRef(initial.sim);
   const [config, setConfig] = useState(initial.config);
-  const [settings, setSettingsState] = useState(initial.settings);
-  const [engineParams, setEngineParamsState] = useState(initial.engineParams);
+  const [settings, setSettings] = useState(initial.settings);
+  const [engineParams, setEngineParams] = useState(initial.engineParams);
   const [view, setView] = useState(initial.view);
   const [playing, setPlaying] = useState(false);
-  const [speed, setSpeedState] = useState(DEFAULT_SPEED);
+  const [speed, setSpeed] = useState(DEFAULT_SPEED);
 
   useEffect(() => {
     if (!playing) {
@@ -136,6 +140,11 @@ export function useSimulation(): SimulationControls {
     setView(capture(simRef.current));
   }
 
+  function stepOnce(): void {
+    simRef.current.advance(1);
+    setView(capture(simRef.current));
+  }
+
   function setHouse(id: string): void {
     const house = findHouse(id);
     restart({ ...config, houseId: id, scenarioId: house.scenarios[0]?.id ?? null });
@@ -151,16 +160,16 @@ export function useSimulation(): SimulationControls {
     setView(capture(simRef.current));
   }
 
-  function setSettings(next: SimSettings): void {
+  function changeSettings(next: SimSettings): void {
     const copy = copySettings(next);
     simRef.current.setSettings(copy);
-    setSettingsState(copy);
+    setSettings(copy);
   }
 
-  function setEngineParams(next: EngineParams): void {
+  function changeEngineParams(next: EngineParams): void {
     const copy = { ...next };
     simRef.current.setEngineParams(copy);
-    setEngineParamsState(copy);
+    setEngineParams(copy);
   }
 
   return {
@@ -175,16 +184,18 @@ export function useSimulation(): SimulationControls {
     history: view.history,
     settings,
     engineParams,
+    parameterProblems: simRef.current.engine.getParameterProblems(),
     play: () => setPlaying(true),
     pause: () => setPlaying(false),
-    setSpeed: setSpeedState,
+    stepOnce,
+    setSpeed,
     reset: () => restart(config),
     setHouse,
     setScenario: (id) => restart({ ...config, scenarioId: id }),
     setStartSecondOfDay: (secondOfDay) => restart({ ...config, startSecondOfDay: secondOfDay }),
     setOccupancy,
     setSensorBroken,
-    setSettings,
-    setEngineParams,
+    setSettings: changeSettings,
+    setEngineParams: changeEngineParams,
   };
 }
