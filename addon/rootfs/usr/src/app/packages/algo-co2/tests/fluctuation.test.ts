@@ -60,6 +60,8 @@ function createHouse(hruPower = 2): House {
   const engine = new AutomaticModeEngine(new Building(rooms, [new Box(valves)]), hru, logger);
   engine.co2FilterAlpha = 1;
   engine.hruMovePower = 4;
+  // One step down per second, so the tests can count seconds; the default is five minutes.
+  engine.hruPowerStepDownInterval = 1;
   return { engine, hru, sensors, valves };
 }
 
@@ -255,7 +257,8 @@ describe("fluctuation", () => {
     test("steps power down to Pmove, not to Pmin", () => {
       const reports = simulate(createHouse(8), 130, constant(TWO_IN_BAND));
 
-      expect(reports.slice(120, 125).map((r) => r.powerAfter)).toEqual([7, 6, 5, 4, 4]);
+      // Fluctuation starts at second 120; the first step down comes one interval later.
+      expect(reports.slice(120, 126).map((r) => r.powerAfter)).toEqual([8, 7, 6, 5, 4, 4]);
       expect(at(reports, 130).powerAfter).toBe(4);
     });
 

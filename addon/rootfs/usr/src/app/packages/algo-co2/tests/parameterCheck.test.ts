@@ -104,6 +104,41 @@ describe("parameter check", () => {
       "hruPowerStepDownInterval must be a finite number above 0",
     ],
     [
+      "a power review interval of 0",
+      (engine) => {
+        engine.powerReviewInterval = 0;
+      },
+      "powerReviewInterval must be a finite number above 0",
+    ],
+    [
+      "a negative falling margin",
+      (engine) => {
+        engine.co2FallingMargin = -1;
+      },
+      "co2FallingMargin must be a finite number, 0 or more",
+    ],
+    [
+      "a step limit below 1",
+      (engine) => {
+        engine.powerReviewStepLimit = 0;
+      },
+      "powerReviewStepLimit must be a whole number, 1 or more",
+    ],
+    [
+      "a step limit that is not whole",
+      (engine) => {
+        engine.powerReviewStepLimit = 2.5;
+      },
+      "powerReviewStepLimit must be a whole number, 1 or more",
+    ],
+    [
+      "a negative hold for missing readings",
+      (engine) => {
+        engine.missingReadingHold = Number.NaN;
+      },
+      "missingReadingHold must be a finite number, 0 or more",
+    ],
+    [
       "a power above the scale",
       (engine) => {
         engine.hruMaxPowerDay = 11;

@@ -157,12 +157,14 @@ describe("a branch write the HRU does not follow", () => {
   test("a step down is retried once per time limit when the unit stays where it is", () => {
     const recording = recordingHru(() => 10);
     const house = createHouse({ hru: recording.hru });
+    house.engine.hruPowerStepDownInterval = 1;
     for (let time = 0; time <= 300; time++) {
       recording.setTime(time);
       runAt(house, time, ALL_LOW);
     }
 
-    expect(recording.writes).toEqual([120, 240].map((time) => ({ time, power: 9 })));
+    // `allBelow` starts at second 120 and the first step down comes one interval later.
+    expect(recording.writes).toEqual([121, 241].map((time) => ({ time, power: 9 })));
   });
 });
 

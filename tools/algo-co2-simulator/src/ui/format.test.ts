@@ -8,6 +8,7 @@ import {
   formatDuration,
   formatHhMm,
   parseHhMm,
+  reviewLabel,
 } from "./format.ts";
 
 describe("co2Band", () => {
@@ -62,5 +63,30 @@ describe("branchLabel", () => {
     for (const [branch, label] of Object.entries(labels)) {
       expect(branchLabel(branch as DecisionBranch)).toBe(label);
     }
+  });
+});
+
+describe("reviewLabel", () => {
+  const roomNames = new Map([
+    ["loznice", "Ložnice"],
+    ["obyvak", "Obývák"],
+  ]);
+
+  test("a review that raises names the lane and the rooms that asked", () => {
+    expect(
+      reviewLabel({ lane: "slow", raised: true, asked: ["loznice"], held: ["obyvak"] }, roomNames),
+    ).toBe("kontrola výkonu (pomalá): přidat, žádá Ložnice");
+  });
+
+  test("a held review names the rooms it looked at", () => {
+    expect(
+      reviewLabel({ lane: "fast", raised: false, asked: [], held: ["obyvak"] }, roomNames),
+    ).toBe("kontrola výkonu (rychlá): držet, Obývák");
+  });
+
+  test("an unknown room falls back to its id", () => {
+    expect(reviewLabel({ lane: "slow", raised: true, asked: ["x"], held: [] }, roomNames)).toBe(
+      "kontrola výkonu (pomalá): přidat, žádá x",
+    );
   });
 });

@@ -11,18 +11,24 @@ describe("room state from the first reading", () => {
     expect(at(reports, 120).branch).toBe("allBelow");
   });
 
-  test("a restart with partially closed valves returns to the defaults", () => {
+  test("a restart with partially closed valves returns them to the defaults", () => {
     const house = createHouse({ hru: 8 });
     house.engine.fluctuationEnabled = false;
+    house.engine.hruPowerStepDownInterval = 1;
     house.valves.forEach((valve) => {
       valve.value = house.engine.partialCloseValue;
     });
-    const reports = simulate(house, 130, () => ({ a: 770, b: 760, c: 790 }));
+    const reports = simulate(house, 210, (time) =>
+      time < 200 ? { a: 770, b: 760, c: 790 } : { a: 700, b: 700, c: 700 },
+    );
 
-    expect(at(reports, 119).powerAfter).toBe(8);
+    expect(at(reports, 120).branch).toBe("allBelow");
     expect(house.valves.map((valve) => valve.value)).toEqual([0, 0, 0]);
-    expect(at(reports, 120).powerAfter).toBe(7);
-    expect(at(reports, 130).powerAfter).toBe(2);
+    // Rooms at 750 ppm or more keep the power where it is; it comes down once they are under.
+    expect(at(reports, 199).powerAfter).toBe(8);
+    expect(at(reports, 200).powerAfter).toBe(8);
+    expect(at(reports, 201).powerAfter).toBe(7);
+    expect(at(reports, 206).powerAfter).toBe(2);
   });
 
   test("a room that starts inside the band and then rises is handled as usual", () => {

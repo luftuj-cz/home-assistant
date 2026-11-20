@@ -88,6 +88,7 @@ describe("run() report", () => {
       maxPower: 10,
       fluctuationActive: false,
       roomsAboveFluctuation: ["a"],
+      powerReview: { lane: "fast", raised: true, asked: ["a"], held: [] },
     });
   });
 
@@ -110,6 +111,7 @@ describe("run() report", () => {
       maxPower: 10,
       fluctuationActive: true,
       roomsAboveFluctuation: ["a", "b"],
+      powerReview: null,
     });
   });
 
@@ -139,9 +141,14 @@ describe("run() report", () => {
     expect(cooldown.powerAfter).toBe(2);
   });
 
-  test("reports allBelow and lowers power", () => {
-    const report = runUntil(createHouse(4), { a: 500, b: 500 }, 120);
+  test("reports allBelow and lowers power one interval after it starts", () => {
+    const house = createHouse(4);
+    house.engine.hruPowerStepDownInterval = 1;
+    const first = runUntil(house, { a: 500, b: 500 }, 120);
+    expect(first.branch).toBe("allBelow");
+    expect(first.powerAfter).toBe(4);
 
+    const report = house.engine.run(Timestamp.simulate(121, 8));
     expect(report.branch).toBe("allBelow");
     expect(report.roomsActedOn).toEqual(["a", "b"]);
     expect(report.powerBefore).toBe(4);

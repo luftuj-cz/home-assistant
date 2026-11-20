@@ -61,6 +61,10 @@ describe("sanitizeEngineParams", () => {
         belowTimeLimit: -1,
         hruPowerStep: 0,
         hruPowerStepDownInterval: 0,
+        powerReviewInterval: 0,
+        co2FallingMargin: -1,
+        powerReviewStepLimit: 0.4,
+        missingReadingHold: -1,
         partialCloseValue: -3,
         fullyOpenValue: -3,
       }),
@@ -73,9 +77,22 @@ describe("sanitizeEngineParams", () => {
       belowTimeLimit: 0,
       hruPowerStep: 0.01,
       hruPowerStepDownInterval: 0.01,
+      powerReviewInterval: 1,
+      co2FallingMargin: 0,
+      powerReviewStepLimit: 1,
+      missingReadingHold: 0,
       partialCloseValue: 0,
       fullyOpenValue: 0,
     });
+  });
+
+  test("sanitizeEngineParams replaces a step limit that is not a number with the engine's own 3", () => {
+    expect(
+      sanitizeEngineParams(engineWith({ powerReviewStepLimit: Number.NaN })).powerReviewStepLimit,
+    ).toBe(3);
+    expect(
+      sanitizeEngineParams(engineWith({ powerReviewStepLimit: Infinity })).powerReviewStepLimit,
+    ).toBe(3);
   });
 
   test("sanitizeEngineParams keeps Pmove within the minimum and 10 and the offset non-negative", () => {

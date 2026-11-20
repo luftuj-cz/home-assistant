@@ -1,4 +1,4 @@
-import type { DecisionBranch } from "../core/engine.ts";
+import type { DecisionBranch, PowerReview } from "../core/engine.ts";
 
 export type Co2Band = "ok" | "warn" | "bad" | "none";
 
@@ -60,4 +60,20 @@ export function branchLabel(branch: DecisionBranch): string {
     case "none":
       return "Beze změny";
   }
+}
+
+/**
+ * A power review in words: which lane, what it decided, and for which rooms. A step that the maximum
+ * capped still reads as "přidat"; the power change next to it shows whether anything moved.
+ */
+export function reviewLabel(review: PowerReview, roomNames: ReadonlyMap<string, string>): string {
+  const lane = review.lane === "fast" ? "rychlá" : "pomalá";
+  function names(ids: string[]): string {
+    return ids.map((id) => roomNames.get(id) ?? id).join(", ");
+  }
+  if (review.raised) {
+    return `kontrola výkonu (${lane}): přidat, žádá ${names(review.asked)}`;
+  }
+  const held = review.held.length > 0 ? `, ${names(review.held)}` : "";
+  return `kontrola výkonu (${lane}): držet${held}`;
 }

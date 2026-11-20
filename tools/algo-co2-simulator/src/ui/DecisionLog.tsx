@@ -3,7 +3,7 @@ import { memo, useMemo } from "react";
 
 import type { LogEntry } from "../core/simulation.ts";
 import { clockSecond } from "./chart.ts";
-import { branchLabel, formatClock } from "./format.ts";
+import { branchLabel, formatClock, reviewLabel } from "./format.ts";
 import type { SimulationControls } from "./useSimulation.ts";
 
 type DecisionEntry = Extract<LogEntry, { kind: "decision" }>;
@@ -34,6 +34,9 @@ function decisionText(
     parts.push(
       valveChanges.map((change) => `${change.valveId} ${change.from}→${change.to}`).join(", "),
     );
+  }
+  if (report.powerReview !== null) {
+    parts.push(reviewLabel(report.powerReview, roomNames));
   }
   if (report.powerBefore !== report.powerAfter) {
     parts.push(`výkon ${report.powerBefore} → ${report.powerAfter}`);

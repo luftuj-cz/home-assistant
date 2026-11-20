@@ -66,22 +66,7 @@ function simulate(
   return reports;
 }
 
-function powerAt(reports: Map<number, RunReport>, time: number): number {
-  const report = reports.get(time);
-  if (report === undefined) {
-    throw new Error(`No run at second ${time}`);
-  }
-  return report.powerAfter;
-}
-
 const ALL_LOW: Readings = { a: 500, b: 500, c: 500 };
-
-function allLow(): Readings {
-  return ALL_LOW;
-}
-
-/** With every room at 500 ppm from second 0, `allBelow` first applies after Topen. */
-const FIRST_STEP = 120;
 
 describe("CO2 filter and the run period", () => {
   test("follows the same course at a 1 s and a 10 s period", () => {
@@ -134,101 +119,6 @@ describe("CO2 filter and the run period", () => {
     runAt(house, 70, { a: 900, b: 500, c: 500 });
 
     expect(house.engine.getFilteredCO2("a")).toBe(900);
-  });
-});
-
-describe("power step-down and the run period", () => {
-  test("the interval defaults to one second", () => {
-    expect(createHouse().engine.hruPowerStepDownInterval).toBe(1);
-  });
-
-  test("reaches the minimum in the same time at a 1 s and a 30 s period", () => {
-    const everySecond = simulate(createHouse(10), 1, 200, allLow);
-    const everyThirtySeconds = simulate(createHouse(10), 30, 200, allLow);
-
-    expect(powerAt(everySecond, FIRST_STEP)).toBe(9);
-    expect(powerAt(everySecond, FIRST_STEP + 6)).toBe(3);
-    expect(powerAt(everySecond, FIRST_STEP + 7)).toBe(2);
-    expect(powerAt(everyThirtySeconds, FIRST_STEP)).toBe(9);
-    expect(powerAt(everyThirtySeconds, FIRST_STEP + 30)).toBe(2);
-  });
-
-  test.each([1, 30])("a 60 s interval gives one step per minute at a %i s period", (period) => {
-    const house = createHouse(10);
-    house.engine.hruPowerStepDownInterval = 60;
-    const reports = simulate(house, period, 600, allLow);
-
-    expect(powerAt(reports, FIRST_STEP)).toBe(9);
-    expect(powerAt(reports, FIRST_STEP + 30)).toBe(9);
-    expect(powerAt(reports, FIRST_STEP + 60)).toBe(8);
-    expect(powerAt(reports, FIRST_STEP + 390)).toBe(3);
-    expect(powerAt(reports, FIRST_STEP + 420)).toBe(2);
-  });
-
-  test("carries the remainder of an interval over to the next run", () => {
-    const house = createHouse(10);
-    house.engine.hruPowerStepDownInterval = 45;
-    const reports = simulate(house, 30, 300, allLow);
-
-    const powers = [0, 30, 60, 90, 120, 150, 180].map((offset) =>
-      powerAt(reports, FIRST_STEP + offset),
-    );
-    expect(powers).toEqual([9, 9, 8, 7, 7, 6, 5]);
-  });
-
-  test("builds no backlog while the power sits at Pmove", () => {
-    const house = createHouse();
-    house.engine.co2FilterAlpha = 1;
-    house.engine.hruPowerStepDownInterval = 60;
-    const fluctuationEnds = 3600;
-    const reports = simulate(house, 1, fluctuationEnds + 400, (time) =>
-      time < fluctuationEnds ? { a: 720, b: 720, c: 500 } : ALL_LOW,
-    );
-    const firstAllBelow = [...reports].find(
-      ([time, report]) => time >= fluctuationEnds && report.branch === "allBelow",
-    )?.[0];
-    if (firstAllBelow === undefined) {
-      throw new Error("allBelow never applied");
-    }
-
-    expect(powerAt(reports, firstAllBelow - 1)).toBe(4);
-    expect(powerAt(reports, firstAllBelow + 59)).toBeGreaterThanOrEqual(3);
-    expect(powerAt(reports, firstAllBelow + 120)).toBe(2);
-  });
-
-  test("starts a new stretch with exactly one step, whatever the time since the last run", () => {
-    const house = createHouse(10);
-    const first = runAt(house, 0, ALL_LOW);
-    const second = runAt(house, 1000, ALL_LOW);
-
-    expect(first.branch).toBe("none");
-    expect(second.branch).toBe("allBelow");
-    expect(second.powerAfter).toBe(9);
-  });
-
-  test("still raises to Pmove in one write", () => {
-    const house = createHouse();
-    house.engine.co2FilterAlpha = 1;
-    house.engine.hruPowerStepDownInterval = 60;
-    const reports = simulate(house, 30, 120, () => ({ a: 720, b: 720, c: 500 }));
-
-    expect(reports.get(120)).toMatchObject({
-      branch: "fluctuation",
-      powerBefore: 2,
-      powerAfter: 4,
-    });
-  });
-
-  test.each([
-    ["0", 0],
-    ["NaN", Number.NaN],
-  ])("an interval of %s goes to the minimum and never writes NaN", (_name, interval) => {
-    const house = createHouse(10);
-    house.engine.hruPowerStepDownInterval = interval;
-    const reports = simulate(house, 1, FIRST_STEP, allLow);
-
-    expect(powerAt(reports, FIRST_STEP)).toBe(2);
-    expect(house.hru.getPower()).toBe(2);
   });
 });
 

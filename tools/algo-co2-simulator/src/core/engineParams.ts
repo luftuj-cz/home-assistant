@@ -14,6 +14,10 @@ export interface EngineParams {
   hruMaxPowerNight: number;
   hruPowerStep: number;
   hruPowerStepDownInterval: number;
+  powerReviewInterval: number;
+  co2FallingMargin: number;
+  powerReviewStepLimit: number;
+  missingReadingHold: number;
   hruMovePower: number;
   fluctuationEnabled: boolean;
   fluctuationOffset: number;
@@ -50,6 +54,10 @@ export function readEngineParams(engine: AutomaticModeEngine): EngineParams {
     hruMaxPowerNight: engine.hruMaxPowerNight,
     hruPowerStep: engine.hruPowerStep,
     hruPowerStepDownInterval: engine.hruPowerStepDownInterval,
+    powerReviewInterval: engine.powerReviewInterval,
+    co2FallingMargin: engine.co2FallingMargin,
+    powerReviewStepLimit: engine.powerReviewStepLimit,
+    missingReadingHold: engine.missingReadingHold,
     hruMovePower: engine.hruMovePower,
     fluctuationEnabled: engine.fluctuationEnabled,
     fluctuationOffset: engine.fluctuationOffset,
@@ -73,6 +81,10 @@ export function applyEngineParams(engine: AutomaticModeEngine, params: EnginePar
   engine.hruMaxPowerNight = params.hruMaxPowerNight;
   engine.hruPowerStep = params.hruPowerStep;
   engine.hruPowerStepDownInterval = params.hruPowerStepDownInterval;
+  engine.powerReviewInterval = params.powerReviewInterval;
+  engine.co2FallingMargin = params.co2FallingMargin;
+  engine.powerReviewStepLimit = params.powerReviewStepLimit;
+  engine.missingReadingHold = params.missingReadingHold;
   engine.hruMovePower = params.hruMovePower;
   engine.fluctuationEnabled = params.fluctuationEnabled;
   engine.fluctuationOffset = params.fluctuationOffset;

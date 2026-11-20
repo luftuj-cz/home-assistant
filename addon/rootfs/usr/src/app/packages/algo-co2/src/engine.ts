@@ -41,6 +41,22 @@ export enum ThresholdDirection {
   Below = "below",
 }
 
+/**
+ * A room's CO2 averaged over the time since its previous power review, and the average of the window
+ * before it. A room is falling when the new average is below the reference by more than the margin.
+ */
+export interface TrendWindow {
+  /** Filtered CO2 in whole ppm times the seconds it stood for. */
+  sum: number;
+  seconds: number;
+  /** The average of the previous window; `null` until a first window was closed. */
+  reference: number | null;
+}
+
+function emptyTrendWindow(): TrendWindow {
+  return { sum: 0, seconds: 0, reference: null };
+}
+
 export interface RoomState {
   /** Unrounded; the engine compares, reports and logs it rounded to whole ppm. */
   filteredCO2: number | null;
@@ -58,6 +74,14 @@ export interface RoomState {
    * `lastChangeTimestamp` so that the `th1` and `allBelow` branches cannot hold a power step back.
    */
   lastPowerStepAt: number | null;
+  /** The epoch second of the last run in which the room had a reading. */
+  lastReadingAt: number | null;
+  /** The window of the slow lane, kept while the room is in the above-TH1 state. */
+  slowWindow: TrendWindow;
+  /** The window of the fast lane, kept while the room is in the above-TH2 state. */
+  fastWindow: TrendWindow;
+  /** Slow-lane reviews in a row in which this room asked for power. */
+  slowAskStreak: number;
 }
 
 /**
@@ -100,6 +124,19 @@ export interface RunReport {
   fluctuationActive: boolean;
   /** At or above the fluctuation level (`TH1 - fluctuationOffset`) for `thresholdTimeLimit`. */
   roomsAboveFluctuation: string[];
+  /** What the power review of this run decided; `null` in a run without one. */
+  powerReview: PowerReview | null;
+}
+
+/** One power review: the fast lane (a room above TH2) or the slow lane (a room above TH1). */
+export interface PowerReview {
+  lane: "fast" | "slow";
+  /** Whether a room asked for power; the step itself may have been capped by the maximum. */
+  raised: boolean;
+  /** The rooms that asked, in `building.rooms` order. */
+  asked: string[];
+  /** The reviewed rooms that did not ask, in `building.rooms` order. */
+  held: string[];
 }
 
 /** The only logging the engine needs; a pino logger satisfies it as is. */
@@ -114,6 +151,19 @@ function isFiniteAbove(value: number | undefined, limit: number): value is numbe
 function isFiniteAtLeast(value: number | undefined, limit: number): value is number {
   return value !== undefined && Number.isFinite(value) && value >= limit;
 }
+
+function isStepLimit(value: number): boolean {
+  return Number.isInteger(value) && value >= 1;
+}
+
+/** What `powerReviewStepLimit` falls back to when it is not a whole number of 1 or more. */
+const DEFAULT_REVIEW_STEP_LIMIT = 3;
+
+/**
+ * A room at its step limit may ask again once its average rose by more than this many margins since
+ * the previous review. Twice the margin: one margin is within what sensor noise does to two averages.
+ */
+const RISING_MARGINS = 2;
 
 /** Two decimals: steps such as 0.1 would otherwise drift (0.1 + 0.2 = 0.30000000000000004). */
 function roundPower(power: number): number {
@@ -146,7 +196,15 @@ export class AutomaticModeEngine {
    * Seconds one step down takes while the `allBelow` or `fluctuation` branch keeps applying. Anything
    * that is not a finite number above 0 means no limit: the power goes straight to the branch's floor.
    */
-  hruPowerStepDownInterval: number = 1;
+  hruPowerStepDownInterval: number = 300;
+  /** Seconds between slow-lane power reviews while a room is above TH1; not above 0 switches it off. */
+  powerReviewInterval: number = 600;
+  /** ppm a room's window average must drop between two reviews to count as falling. */
+  co2FallingMargin: number = 10;
+  /** Slow-lane reviews in a row in which one room may ask for power; a guard for rooms that do not respond. */
+  powerReviewStepLimit: number = 3;
+  /** Seconds a room above TH1 without a reading still holds the power and its place in the review. */
+  missingReadingHold: number = 3600;
   /** HRU power held while fluctuation is active (Pmove). */
   hruMovePower: number = 4;
 
@@ -166,10 +224,12 @@ export class AutomaticModeEngine {
 
   private readonly roomStates: Map<string, RoomState> = new Map();
   private fluctuationActive: boolean = false;
-  /** The previous run: when it was and whether its branch lowers the power step by step. */
-  private previousRun: { epochSecond: number; lowering: boolean } | null = null;
-  /** Seconds of a lowering stretch not yet turned into steps down. */
+  /** The previous run: when it was, whether its branch lowers the power, and whether the gate was open. */
+  private previousRun: { epochSecond: number; lowering: boolean; gateOpen: boolean } | null = null;
+  /** Seconds of an open step-down gate in this lowering stretch that are not yet turned into steps. */
   private stepDownCredit: number = 0;
+  /** When the slow lane last started or reviewed; `null` while no room is held above TH1. */
+  private reviewClock: number | null = null;
   /**
    * Powers written and not yet read back from the HRU, with the epoch second of the write. More than
    * one can wait at a time: with a unit that is off, the minimum and Pmove are both written.
@@ -197,6 +257,10 @@ export class AutomaticModeEngine {
         fluctuationBelowSince: null,
         lastChangeTimestamp: null,
         lastPowerStepAt: null,
+        lastReadingAt: null,
+        slowWindow: emptyTrendWindow(),
+        fastWindow: emptyTrendWindow(),
+        slowAskStreak: 0,
       });
     }
   }
@@ -254,11 +318,16 @@ export class AutomaticModeEngine {
       timestamp,
     );
 
+    const roomsHeldAboveTh1 = this.getRoomsHeldAboveTh1(timestamp);
+    if (roomsHeldAboveTh1.length === 0) this.reviewClock = null;
+
     const powerBefore = this.hru.getPower();
     this.enforcePowerLimits(timestamp);
     let branch: DecisionBranch = "none";
     let roomsActedOn: Room[] = [];
     let valvesChanged = false;
+    let powerReview: PowerReview | null = null;
+    let stepDownGateOpen = false;
 
     if (roomsAboveThreshold2ForTimeLimit.length > 0) {
       branch = "th2";
@@ -266,21 +335,27 @@ export class AutomaticModeEngine {
         ...new Set([...roomsAboveThreshold1ForTimeLimit, ...roomsAboveThreshold2ForTimeLimit]),
       ];
       valvesChanged = this.applyValveStrategy(roomWithAtLeastThreshold1, timestamp);
-      const roomsToUpdate = roomWithAtLeastThreshold1.filter((r) => {
+      const roomsDue = roomWithAtLeastThreshold1.filter((r) => {
         const lastPowerStepAt = this.getState(r).lastPowerStepAt;
         return (
           lastPowerStepAt === null ||
           lastPowerStepAt <= timestamp.epochSecond - this.thresholdTimeLimit
         );
       });
-      if (roomsToUpdate.length > 0) {
-        this.increasePower(timestamp);
-        for (const room of roomsToUpdate) {
-          this.getState(room).lastPowerStepAt = timestamp.epochSecond;
-        }
-        this.markChanged(roomsToUpdate, timestamp);
-        roomsActedOn = roomsToUpdate;
+      for (const room of roomsDue) {
+        this.getState(room).lastPowerStepAt = timestamp.epochSecond;
       }
+      powerReview = this.reviewFastLane(roomsDue, roomsAboveThreshold2ForTimeLimit);
+      if (powerReview?.raised) {
+        this.increasePower(timestamp);
+        this.markChanged(roomsDue, timestamp);
+        roomsActedOn = roomsDue;
+        // The slow lane waits one interval after the last fast step.
+        this.restartSlowLane(timestamp);
+      }
+      powerReview =
+        this.reviewSlowLane(roomsAboveThreshold1ForTimeLimit, powerReview, timestamp) ??
+        powerReview;
     } else if (roomsAboveThreshold1ForTimeLimit.length > 0) {
       branch = "th1";
       const roomsToUpdate = roomsAboveThreshold1ForTimeLimit.filter((r) =>
@@ -292,22 +367,29 @@ export class AutomaticModeEngine {
         this.markChanged(roomsToUpdate, timestamp);
         roomsActedOn = roomsToUpdate;
       }
+      powerReview = this.reviewSlowLane(roomsAboveThreshold1ForTimeLimit, null, timestamp);
     } else if (this.fluctuationActive) {
       // No markChanged: a room that crosses TH1 next must not start in cooldown.
       branch = "fluctuation";
       valvesChanged = this.resetValvesToDefault(timestamp);
-      this.movePowerTowardsMovePower(timestamp, this.takeStepsDown(timestamp));
+      stepDownGateOpen = this.isStepDownGateOpen(roomsWithValidMeasurement, roomsHeldAboveTh1);
+      this.movePowerTowardsMovePower(timestamp, this.takeStepsDown(timestamp, stepDownGateOpen));
     } else if (roomsBelowThreshold1ForTimeLimit.length === roomsWithValidMeasurement.length) {
       branch = "allBelow";
       valvesChanged = this.resetValvesToDefault(timestamp);
-      this.decreasePowerIfPossible(timestamp, this.takeStepsDown(timestamp));
+      stepDownGateOpen = this.isStepDownGateOpen(roomsWithValidMeasurement, roomsHeldAboveTh1);
+      this.decreasePowerIfPossible(timestamp, this.takeStepsDown(timestamp, stepDownGateOpen));
       this.markChanged(roomsWithValidMeasurement, timestamp);
       roomsActedOn = roomsWithValidMeasurement;
     }
 
     const lowering = branch === "fluctuation" || branch === "allBelow";
     if (!lowering) this.stepDownCredit = 0;
-    this.previousRun = { epochSecond: timestamp.epochSecond, lowering };
+    this.previousRun = {
+      epochSecond: timestamp.epochSecond,
+      lowering,
+      gateOpen: stepDownGateOpen,
+    };
 
     return {
       branch,
@@ -325,6 +407,7 @@ export class AutomaticModeEngine {
       maxPower: this.getHruMaxPower(timestamp),
       fluctuationActive: this.fluctuationActive,
       roomsAboveFluctuation: this.toRoomIds(roomsAboveFluctuationForTimeLimit),
+      powerReview,
     };
   }
 
@@ -366,8 +449,19 @@ export class AutomaticModeEngine {
     if (!isFiniteAbove(this.co2FilterAlpha, 0) || this.co2FilterAlpha > 1) {
       problems.push("co2FilterAlpha must be above 0 and at most 1");
     }
-    for (const name of ["hruPowerStep", "hruPowerStepDownInterval"] as const) {
+    for (const name of [
+      "hruPowerStep",
+      "hruPowerStepDownInterval",
+      "powerReviewInterval",
+    ] as const) {
       if (!isFiniteAbove(this[name], 0)) problems.push(`${name} must be a finite number above 0`);
+    }
+    for (const name of ["co2FallingMargin", "missingReadingHold"] as const) {
+      if (!isFiniteAtLeast(this[name], 0))
+        problems.push(`${name} must be a finite number, 0 or more`);
+    }
+    if (!isStepLimit(this.powerReviewStepLimit)) {
+      problems.push("powerReviewStepLimit must be a whole number, 1 or more");
     }
 
     const powers = ["hruMinPower", "hruMaxPowerDay", "hruMaxPowerNight", "hruMovePower"] as const;
@@ -496,6 +590,10 @@ export class AutomaticModeEngine {
   }
 
   private updateFilteredCO2Values(timestamp: Timestamp): void {
+    const now = timestamp.epochSecond;
+    const sincePreviousRun =
+      this.previousRun === null ? 0 : Math.max(0, now - this.previousRun.epochSecond);
+
     for (const room of this.model.rooms) {
       const rawCO2 = room.getCO2();
       const state = this.getState(room);
@@ -507,6 +605,17 @@ export class AutomaticModeEngine {
         state.fluctuationBelowSince = null;
         continue;
       }
+
+      // The first run after a gap adds no time to the windows: nobody knows what the room did in it.
+      const afterGap = state.filteredCO2 === null;
+      if (
+        afterGap &&
+        state.lastReadingAt !== null &&
+        now - state.lastReadingAt >= this.getMissingReadingHold()
+      ) {
+        this.clearPowerReviewState(state);
+      }
+      state.lastReadingAt = now;
 
       if (state.filteredCO2 === null || state.filteredAt === null) {
         state.filteredCO2 = rawCO2;
@@ -520,7 +629,209 @@ export class AutomaticModeEngine {
 
       this.updateThresholdTimers(room, state, timestamp);
       this.updateFluctuationTimers(state, timestamp);
+      if (!afterGap) this.accumulateTrendWindows(state, sincePreviousRun);
     }
+  }
+
+  /** Adds the time since the previous run to the windows of the states the room is in. */
+  private accumulateTrendWindows(state: RoomState, seconds: number): void {
+    const co2 = this.getRoundedCO2(state);
+    if (co2 === null || seconds <= 0) return;
+
+    if (state.aboveThresholdSince.get(ThresholdType.TH1) !== null) {
+      state.slowWindow.sum += co2 * seconds;
+      state.slowWindow.seconds += seconds;
+    }
+    if (state.aboveThresholdSince.get(ThresholdType.TH2) !== null) {
+      state.fastWindow.sum += co2 * seconds;
+      state.fastWindow.seconds += seconds;
+    }
+  }
+
+  /** A fresh start for the lane of `thresholdType`: its window, its reference and, for TH1, the guard. */
+  private clearTrendWindow(state: RoomState, thresholdType: ThresholdType): void {
+    if (thresholdType === ThresholdType.TH1) {
+      state.slowWindow = emptyTrendWindow();
+      state.slowAskStreak = 0;
+    } else {
+      state.fastWindow = emptyTrendWindow();
+    }
+  }
+
+  private clearPowerReviewState(state: RoomState): void {
+    this.clearTrendWindow(state, ThresholdType.TH1);
+    this.clearTrendWindow(state, ThresholdType.TH2);
+  }
+
+  /**
+   * Closes a window: returns its average and the reference it is compared with, then makes the average
+   * the new reference. A window with no elapsed time uses the current value.
+   */
+  private closeTrendWindow(
+    window: TrendWindow,
+    currentCO2: number,
+  ): { average: number; reference: number | null } {
+    const average = window.seconds > 0 ? window.sum / window.seconds : currentCO2;
+    const reference = window.reference;
+    window.sum = 0;
+    window.seconds = 0;
+    window.reference = average;
+    return { average, reference };
+  }
+
+  /** `co2FallingMargin`; an unusable value counts as 0. */
+  private getFallingMargin(): number {
+    return isFiniteAtLeast(this.co2FallingMargin, 0) ? this.co2FallingMargin : 0;
+  }
+
+  /** Lower than the reference by more than `co2FallingMargin`. */
+  private isFalling(average: number, reference: number): boolean {
+    return average < reference - this.getFallingMargin();
+  }
+
+  /** Clearly getting worse: higher than the reference by more than twice `co2FallingMargin`. */
+  private isRising(average: number, reference: number): boolean {
+    return average > reference + RISING_MARGINS * this.getFallingMargin();
+  }
+
+  private getMissingReadingHold(): number {
+    return isFiniteAtLeast(this.missingReadingHold, 0) ? this.missingReadingHold : 0;
+  }
+
+  /**
+   * Rooms in the above-TH1 state that still count: with a reading, or without one for less than
+   * `missingReadingHold`. They keep the review clock running and the step-down gate closed.
+   */
+  private getRoomsHeldAboveTh1(timestamp: Timestamp): Room[] {
+    const hold = this.getMissingReadingHold();
+    return this.model.rooms.filter((room) => {
+      const state = this.getState(room);
+      if (state.aboveThresholdSince.get(ThresholdType.TH1) === null) return false;
+      if (state.filteredCO2 !== null) return true;
+      return state.lastReadingAt !== null && timestamp.epochSecond - state.lastReadingAt < hold;
+    });
+  }
+
+  /**
+   * The fast lane: of the rooms due for a TH2 step, those in the above-TH2 state are reviewed. A room
+   * asks on its first review of an episode, or when its average is at or above TH2 and not falling.
+   * `null` when no room took part.
+   */
+  private reviewFastLane(roomsDue: Room[], roomsAboveTh2: Room[]): PowerReview | null {
+    const th2 = this.thresholds.get(ThresholdType.TH2);
+    const aboveTh2 = new Set(roomsAboveTh2);
+    const asked: Room[] = [];
+    const held: Room[] = [];
+    for (const room of roomsDue) {
+      const state = this.getState(room);
+      const co2 = this.getRoundedCO2(state);
+      if (co2 === null || !aboveTh2.has(room)) continue;
+
+      const { average, reference } = this.closeTrendWindow(state.fastWindow, co2);
+      const asks =
+        reference === null ||
+        (th2 !== undefined && average >= th2 && !this.isFalling(average, reference));
+      (asks ? asked : held).push(room);
+    }
+    if (asked.length === 0 && held.length === 0) return null;
+    return {
+      lane: "fast",
+      raised: asked.length > 0,
+      asked: this.toRoomIds(asked),
+      held: this.toRoomIds(held),
+    };
+  }
+
+  /** Sets the review clock to now and makes what every room above TH1 accumulated its reference. */
+  private restartSlowLane(timestamp: Timestamp): void {
+    this.reviewClock = timestamp.epochSecond;
+    for (const room of this.model.rooms) {
+      const state = this.getState(room);
+      const co2 = this.getRoundedCO2(state);
+      if (co2 === null || state.aboveThresholdSince.get(ThresholdType.TH1) === null) continue;
+      this.closeTrendWindow(state.slowWindow, co2);
+    }
+  }
+
+  /**
+   * The slow lane, in a `th1` or `th2` run. The first such run after the clock was cleared only starts
+   * it. Once `powerReviewInterval` has passed, the rooms above TH1 are reviewed and the power rises by
+   * one step when one of them asks: it had a reference, its average is at or above TH1, it is not
+   * falling, and it has not asked `powerReviewStepLimit` times in a row, unless it is clearly rising.
+   * Returns `null` without a review.
+   */
+  private reviewSlowLane(
+    roomsAboveTh1: Room[],
+    fastReview: PowerReview | null,
+    timestamp: Timestamp,
+  ): PowerReview | null {
+    if (fastReview?.raised) return null;
+    if (this.reviewClock === null) {
+      this.restartSlowLane(timestamp);
+      return null;
+    }
+    const interval = this.powerReviewInterval;
+    if (!Number.isFinite(interval) || interval <= 0) return null;
+    if (timestamp.epochSecond - this.reviewClock < interval) return null;
+
+    const th1 = this.thresholds.get(ThresholdType.TH1);
+    const stepLimit = isStepLimit(this.powerReviewStepLimit)
+      ? this.powerReviewStepLimit
+      : DEFAULT_REVIEW_STEP_LIMIT;
+    const asked: Room[] = [];
+    const held: Room[] = [];
+    const counted: RoomState[] = [];
+    for (const room of roomsAboveTh1) {
+      const state = this.getState(room);
+      const co2 = this.getRoundedCO2(state);
+      if (co2 === null) continue;
+
+      const { average, reference } = this.closeTrendWindow(state.slowWindow, co2);
+      const falling = reference !== null && this.isFalling(average, reference);
+      // A room that is getting worse is not the stuck sensor the limit is there for.
+      const rising = reference !== null && this.isRising(average, reference);
+      const underTh1 = th1 !== undefined && average < th1;
+      // Better than it was, or no longer over the threshold: the room starts with a clean count.
+      if (falling || underTh1) state.slowAskStreak = 0;
+      const asks =
+        reference !== null &&
+        !falling &&
+        th1 !== undefined &&
+        !underTh1 &&
+        (state.slowAskStreak < stepLimit || rising);
+      if (asks) {
+        asked.push(room);
+        if (!rising) counted.push(state);
+      } else {
+        held.push(room);
+      }
+    }
+    this.reviewClock = timestamp.epochSecond;
+    // Only a step that reached the HRU uses up the limit: asking at the maximum costs nothing.
+    if (asked.length > 0 && this.increasePower(timestamp)) {
+      for (const state of counted) state.slowAskStreak += 1;
+    }
+    return {
+      lane: "slow",
+      raised: asked.length > 0,
+      asked: this.toRoomIds(asked),
+      held: this.toRoomIds(held),
+    };
+  }
+
+  /**
+   * The power may come down only while every room with a reading is below TH1 minus its hysteresis
+   * right now, and no room is held above TH1 (which then means its reading is missing).
+   */
+  private isStepDownGateOpen(roomsWithReading: Room[], roomsHeldAboveTh1: Room[]): boolean {
+    if (roomsHeldAboveTh1.length > 0) return false;
+    const th1 = this.thresholds.get(ThresholdType.TH1);
+    if (th1 === undefined) return true;
+    const lower = th1 - (this.co2Hysteresis.get(ThresholdType.TH1) ?? 0);
+    return roomsWithReading.every((room) => {
+      const co2 = this.getRoundedCO2(this.getState(room));
+      return co2 === null || co2 < lower;
+    });
   }
 
   /**
@@ -591,12 +902,14 @@ export class AutomaticModeEngine {
       if (co2 >= thresholdUpper && aboveSince === null) {
         state.aboveThresholdSince.set(thresholdType, timestamp.epochSecond);
         state.belowThresholdSince.set(thresholdType, null);
+        this.clearTrendWindow(state, thresholdType);
         this.logger.info(
           `[${this.formatDayTime(timestamp)}] CO2 in room ${room.id} exceeded threshold ${thresholdType}: (${co2}>=${thresholdUpper})`,
         );
       } else if (co2 < thresholdLower && aboveSince !== null) {
         state.aboveThresholdSince.set(thresholdType, null);
         state.belowThresholdSince.set(thresholdType, timestamp.epochSecond);
+        this.clearTrendWindow(state, thresholdType);
         this.logger.info(
           `[${this.formatDayTime(timestamp)}] CO2 in room ${room.id} recovered under threshold ${thresholdType}: (${co2}<${thresholdLower})`,
         );
@@ -729,46 +1042,53 @@ export class AutomaticModeEngine {
    * again only after `thresholdTimeLimit`. A unit that follows is not affected, because the next run
    * reads the value back and clears the memory.
    */
-  private writePower(timestamp: Timestamp, power: number, description: string): void {
+  private writePower(timestamp: Timestamp, power: number, description: string): boolean {
     const writtenAt = this.pendingPowerWrites.get(power);
     if (writtenAt !== undefined && timestamp.epochSecond - writtenAt < this.thresholdTimeLimit) {
-      return;
+      return false;
     }
     this.logger.info(`[${this.formatDayTime(timestamp)}] ${description}`);
     this.hru.setPower(power);
     this.pendingPowerWrites.set(power, timestamp.epochSecond);
     this.recordJournalEntry(timestamp);
+    return true;
   }
 
-  private increasePower(timestamp: Timestamp): void {
+  /** One step up, capped by the day or night maximum. Returns whether a higher power was written. */
+  private increasePower(timestamp: Timestamp): boolean {
     const hruCurrentPower = this.hru.getPower();
     const newPower = roundPower(
       Math.min(hruCurrentPower + this.hruPowerStep, this.getHruMaxPower(timestamp)),
     );
     // Only upwards: an HRU whose read-back lags can still report a power above the maximum here.
-    if (newPower > hruCurrentPower) {
-      this.writePower(
-        timestamp,
-        newPower,
-        `increasing HRU power from ${hruCurrentPower} to ${newPower}`,
-      );
-    }
+    // `NaN` from an unavailable HRU is not higher than anything, so nothing is written.
+    const higher = newPower > hruCurrentPower;
+    if (!higher) return false;
+    return this.writePower(
+      timestamp,
+      newPower,
+      `increasing HRU power from ${hruCurrentPower} to ${newPower}`,
+    );
   }
 
   /**
-   * How many steps down this run may take, see `hruPowerStepDownInterval`. The first run of a lowering
-   * stretch takes one; later runs take one per full interval since the previous run, and the rest of
-   * the time is carried over. Call once per run, in a lowering branch only.
+   * How many steps down this run may take, see `hruPowerStepDownInterval`. None while the gate is
+   * closed. One step per full interval of open gate within the lowering stretch, the rest of the time
+   * carried over; a closed gate pauses the count and leaving the lowering branches clears it. So the
+   * first step comes after a full interval of open gate. Call once per run, in a lowering branch only.
    */
-  private takeStepsDown(timestamp: Timestamp): number {
+  private takeStepsDown(timestamp: Timestamp, gateOpen: boolean): number {
+    const previous = this.previousRun;
+    // A lowering stretch starts from nothing; inside one, a closed gate only pauses the count.
+    if (!previous?.lowering) this.stepDownCredit = 0;
+    if (!gateOpen) return 0;
+
     const interval = this.hruPowerStepDownInterval;
     if (!Number.isFinite(interval) || interval <= 0) return Infinity;
 
-    const previous = this.previousRun;
-    if (previous?.lowering) {
+    // Only time between two runs with the gate open counts.
+    if (previous?.lowering && previous.gateOpen) {
       this.stepDownCredit += Math.max(0, timestamp.epochSecond - previous.epochSecond);
-    } else {
-      this.stepDownCredit = interval;
     }
     const steps = Math.floor(this.stepDownCredit / interval);
     this.stepDownCredit -= steps * interval;

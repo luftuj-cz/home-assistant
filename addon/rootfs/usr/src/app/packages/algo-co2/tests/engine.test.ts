@@ -111,7 +111,7 @@ describe("sada testu na automaticke rizeni rekuperace", () => {
       .addPoint(180, 900);
     const res = simulate(8, 1000, [simObyvak, simLoznice, simPracovna]);
     expect(res).toBe(
-      "297,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0",
+      "297,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0;897,3,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0",
     );
   });
 

@@ -300,6 +300,38 @@ export function ParameterDrawer({
               step={10}
               decimalScale={2}
             />
+            <NumberField
+              label="Interval kontroly výkonu (s)"
+              description="Jak často se nad TH1 posuzuje, zda přidat výkon"
+              value={engineParams.powerReviewInterval}
+              onCommit={(powerReviewInterval) => changeEngine({ powerReviewInterval })}
+              min={1}
+              step={60}
+            />
+            <NumberField
+              label="Pokles CO2 pro podržení výkonu (ppm)"
+              description="O kolik musí průměr mezi kontrolami klesnout, aby se výkon nepřidal"
+              value={engineParams.co2FallingMargin}
+              onCommit={(co2FallingMargin) => changeEngine({ co2FallingMargin })}
+              min={0}
+              step={5}
+            />
+            <NumberField
+              label="Nejvíc kroků výkonu po sobě"
+              description="Pojistka pro místnost, která na výkon nereaguje"
+              value={engineParams.powerReviewStepLimit}
+              onCommit={(powerReviewStepLimit) => changeEngine({ powerReviewStepLimit })}
+              min={1}
+              step={1}
+            />
+            <NumberField
+              label="Držení při výpadku čidla (s)"
+              description="Jak dlouho místnost nad TH1 bez hodnot drží výkon"
+              value={engineParams.missingReadingHold}
+              onCommit={(missingReadingHold) => changeEngine({ missingReadingHold })}
+              min={0}
+              step={600}
+            />
             <Switch
               label="Pohyb osob (Fluctuation)"
               checked={engineParams.fluctuationEnabled}

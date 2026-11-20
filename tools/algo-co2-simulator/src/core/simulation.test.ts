@@ -502,6 +502,10 @@ describe("engine params", () => {
       hruMaxPowerNight: 4,
       hruPowerStep: 0.5,
       hruPowerStepDownInterval: 30,
+      powerReviewInterval: 300,
+      co2FallingMargin: 5,
+      powerReviewStepLimit: 2,
+      missingReadingHold: 900,
       hruMovePower: 3.5,
       fluctuationEnabled: true,
       fluctuationOffset: 80,
@@ -532,6 +536,27 @@ describe("engine params", () => {
     sim.advance(60);
 
     expect(sim.snapshot().lastReport?.roomsAboveTh1).toEqual(["obyvak", "pracovna", "loznice"]);
+  });
+});
+
+describe("decision log", () => {
+  test("logs a run of identical held power reviews once", () => {
+    const sim = createSimulation({
+      settings: settings({ enginePeriodS: 1, sensorIntervalS: 1 }),
+      sensorOverride: () => 900,
+    });
+
+    sim.advance(2 * HOUR);
+
+    const reviews = sim
+      .getLog()
+      .flatMap((entry) =>
+        entry.kind === "decision" && entry.report.powerReview !== null
+          ? [entry.report.powerReview.raised]
+          : [],
+      );
+    // Three steps up, then the rooms stop asking: every later review is the same held one.
+    expect(reviews).toEqual([true, true, true, false]);
   });
 });
 

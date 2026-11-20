@@ -9,6 +9,10 @@ const MAX_POWER = 10;
 const MIN_POWER_STEP = 0.01;
 /** The engine reads an interval of 0 as "no limit", so the drawer keeps it above that. */
 const MIN_STEP_DOWN_INTERVAL = 0.01;
+/** The engine switches the power review off at 0, so the drawer keeps the interval above that. */
+const MIN_REVIEW_INTERVAL = 1;
+/** What the engine itself falls back to for a step limit it cannot use. */
+const DEFAULT_REVIEW_STEP_LIMIT = 3;
 const LAST_SECOND_OF_DAY = 86399;
 
 function clamp(value: number, min: number, max: number): number {
@@ -42,6 +46,12 @@ export function sanitizeEngineParams(params: EngineParams): EngineParams {
     hruMaxPowerNight: clamp(params.hruMaxPowerNight, hruMinPower, MAX_POWER),
     hruPowerStep: atLeast(MIN_POWER_STEP, params.hruPowerStep),
     hruPowerStepDownInterval: atLeast(MIN_STEP_DOWN_INTERVAL, params.hruPowerStepDownInterval),
+    powerReviewInterval: atLeast(MIN_REVIEW_INTERVAL, params.powerReviewInterval),
+    co2FallingMargin: atLeast(0, params.co2FallingMargin),
+    powerReviewStepLimit: Number.isFinite(params.powerReviewStepLimit)
+      ? atLeast(1, Math.floor(params.powerReviewStepLimit))
+      : DEFAULT_REVIEW_STEP_LIMIT,
+    missingReadingHold: atLeast(0, params.missingReadingHold),
     hruMovePower: clamp(params.hruMovePower, hruMinPower, MAX_POWER),
     fluctuationEnabled: params.fluctuationEnabled,
     fluctuationOffset: atLeast(0, params.fluctuationOffset),

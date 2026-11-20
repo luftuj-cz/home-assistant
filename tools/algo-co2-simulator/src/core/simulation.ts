@@ -206,6 +206,8 @@ export class Simulation {
   private lastSensorEpoch = 0;
   private lastRunEpoch = 0;
   private lastReport: RunReport | null = null;
+  /** The outcome of the last power review, so that a run of identical held reviews logs once. */
+  private lastReviewOutcome: string | null = null;
 
   constructor(options: SimulationOptions) {
     this.house = options.house;
@@ -456,7 +458,11 @@ export class Simulation {
     this.lastReport = report;
     this.lastRunEpoch = this.epoch;
 
-    if (report.valvesChanged || report.powerAfter !== report.powerBefore) {
+    if (
+      report.valvesChanged ||
+      report.powerAfter !== report.powerBefore ||
+      this.isReviewWorthLogging(report)
+    ) {
       const valveChanges: ValveChange[] = [];
       for (const simValve of this.valves) {
         const from = positionsBefore.get(simValve.id) ?? simValve.valve.value;
@@ -470,6 +476,18 @@ export class Simulation {
     if (this.log.length > LOG_LIMIT) {
       this.log.splice(0, this.log.length - LOG_LIMIT);
     }
+  }
+
+  /** A review that raised the power, or whose outcome differs from the review before it. */
+  private isReviewWorthLogging(report: RunReport): boolean {
+    const review = report.powerReview;
+    if (review === null) {
+      return false;
+    }
+    const outcome = JSON.stringify(review);
+    const changed = outcome !== this.lastReviewOutcome;
+    this.lastReviewOutcome = outcome;
+    return review.raised || changed;
   }
 
   private sampleHistory(): void {

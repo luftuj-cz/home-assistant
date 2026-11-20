@@ -8,9 +8,9 @@ globals, and knows nothing about the backend around it. The backend imports it; 
 the backend.
 
 Ported from `luftuj-tools/homeassistant-engine` at commit `b429c36` (2026-07-19). Behaviour has moved
-on since: the scenario tests in `tests/engine.test.ts` come from the original, and four of their five
-expected journals were re-baselined on 2026-11-20 (an earlier first TH2 power step, and a filter that
-keeps its precision).
+on since: the scenario tests in `tests/engine.test.ts` come from the original, and all five of their
+expected journals were re-baselined on 2026-11-20 (an earlier first TH2 power step, a filter that
+keeps its precision, and the power review in the TH1 band).
 
 ## Usage
 
@@ -66,6 +66,11 @@ It also reports `valvesChanged` (whether any valve moved), `powerBefore` and `po
 power around the run), `maxPower` (the day or night maximum at that timestamp, which `powerAfter` never exceeds), all on the 0–10 scale, and
 `fluctuationActive` (the fluctuation state after the run).
 
+`powerReview` says what a power review decided (see Power review): `null` in a run without one,
+otherwise the `lane` (`"fast"` or `"slow"`), `raised` (whether a room asked for power; the step itself
+may have been capped by the maximum), and the rooms that `asked` and the reviewed rooms that were
+`held`. A slow-lane step is not an action on a room and does not appear in `roomsActedOn`.
+
 ## Model
 
 - **Building**: rooms plus boxes; `getAllValves()` flattens the valves of every box.
@@ -109,26 +114,67 @@ Every `run(timestamp)`:
    per `thresholdTimeLimit`, not on every run.
 6. Acts on the first branch that applies, and reports it as `RunReport.branch`:
    - **A room above TH2** (`th2`): rooms above TH1 or TH2 open fully, all other rooms close partially,
-     and the HRU power rises by one step (capped by the day or night maximum). The power step
-     happens at most once per `thresholdTimeLimit` for the rooms involved, on a timer of its own: the
-     first step comes as soon as a room has been above TH2 for `thresholdTimeLimit`, whatever the `th1`
-     branch did with that room before.
+     and the fast lane of the power review may raise the HRU power by one step (capped by the day or
+     night maximum), at most once per `thresholdTimeLimit` for the rooms involved and on a timer of its
+     own: the first step comes as soon as a room has been above TH2 for `thresholdTimeLimit`, whatever
+     the `th1` branch did with that room before. Later steps need a room that is really at or above
+     TH2 and not falling (see Power review).
    - **A room above TH1** (`th1`) that the engine has not acted on within `thresholdTimeLimit`:
      every room above TH1 opens fully, including rooms acted on more recently, and every other room
      closes partially. Only the rooms out of that window are marked as acted on. When every room
-     above TH1 is still within the window the branch is `th1` all the same, but nothing changes.
+     above TH1 is still within the window the branch is `th1` all the same, and the valves stay. The
+     slow lane of the power review may raise the HRU power here (see Power review).
    - **Fluctuation is active** (`fluctuation`): valves return to their defaults and the HRU power moves
      to `hruMovePower` (Pmove): up in one write, down by one step per
-     `hruPowerStepDownInterval`. Pmove is kept at or above
+     `hruPowerStepDownInterval` while the step-down gate is open (see Power review). Pmove is kept at
+     or above
      `hruMinPower` and capped by the day or night maximum. No room is marked as acted on, so a room that
      then crosses TH1 is handled at once.
    - **Every room with a reading below TH1 - hysteresis** (`allBelow`): valves return to their
-     defaults and the HRU power drops by one step per `hruPowerStepDownInterval`, down to `hruMinPower`. This also
-     applies when no room has a reading.
+     defaults and the HRU power drops by one step per `hruPowerStepDownInterval`, down to
+     `hruMinPower`, while the step-down gate is open (see Power review). This also applies when no
+     room has a reading.
    - Otherwise (`none`) nothing changes: a state that has not yet lasted its time limit.
 
 While the engine runs, it owns the HRU power: a power set outside the limits from outside is brought
 back on the next run, and a unit that reads 0 is raised to `hruMinPower`. Do not call `run()` while another mode (a boost, a schedule override) controls the unit.
+
+### Power review
+
+The power goes up while a room at or above TH1 is not getting better, holds while it is, and comes
+down slowly once every room is below TH1.
+
+- **Falling.** A room above TH1 keeps a window: its filtered CO2 in whole ppm averaged over the time
+  since its previous review, weighted by elapsed time. A room is falling when the average is lower than
+  the previous window's by more than `co2FallingMargin` (10 ppm). Averages, because with a sample every
+  30 s and ordinary sensor noise two single values say nothing about ten minutes of a room.
+- **Slow lane** (a room above TH1). One clock for the whole engine. It starts in the first `th1` or `th2`
+  run of a stretch, when the valves have just been redistributed, and takes no step then. Every
+  `powerReviewInterval` (600 s) the rooms above TH1 are reviewed, and the power rises by one step when
+  one of them asks: its average is at or above TH1 and it is not falling. One step per review however
+  many rooms ask. A room held in the above-TH1 state by the hysteresis but under TH1 (750 to 799 ppm
+  by default) asks for nothing.
+- **The guard.** A room stops asking once `powerReviewStepLimit` (3) of its asks have raised the power;
+  an ask at the maximum raises nothing and does not count. The count returns to 0 when a review finds
+  the room falling or under TH1, and when it leaves the above-TH1 state. It is there for rooms that do
+  not respond to power, such as a sensor stuck just above TH1. A room that is clearly getting worse,
+  its average up by more than twice the margin, asks whatever its count.
+- **Fast lane** (a room above TH2). The rooms due for a TH2 step are reviewed with windows of their own.
+  A room takes part once it has been above TH2 for `thresholdTimeLimit`. It asks on its first review of
+  the episode, and afterwards when its average is at or above TH2 and it is not falling. Rooms that are only above TH1 do not cause a fast step.
+  After a fast step the slow lane waits one interval; a room stuck between TH2 minus its hysteresis and
+  TH2 is picked up by the slow lane.
+- **The way down.** A step down in `allBelow`, or toward Pmove in `fluctuation`, needs the gate open:
+  every room with a reading below TH1 minus its hysteresis right now, and no room held above TH1 by a
+  missing reading. The first step needs a full `hruPowerStepDownInterval` (300 s) of open gate, and each
+  further step another interval; a closed gate pauses the count, and leaving these two branches clears
+  it. A room climbing through 750 ppm stops the descent before the next step. The power is never lowered while a room is above TH1.
+- **A silent sensor.** A room that was above TH1 when its sensor stopped reporting keeps the gate closed
+  and its place in the review for `missingReadingHold` (3600 s). After that it no longer counts, and
+  starts over when a reading returns.
+
+A power step from the slow lane shows in `powerReview` and in `powerBefore` / `powerAfter`; it does not
+touch the valve cooldown.
 
 ### Run period
 
@@ -139,12 +185,15 @@ back on the next run, and a unit that reads 0 is raised to `hruMinPower`. Do not
   the same course in time whatever the period (within the whole-ppm rounding). As a time constant,
   `alpha` is `-1 / ln(1 - alpha)` seconds: 2.8 s at the default 0.3, which smooths nothing when sensors
   report every 30 s. Two runs with the same timestamp filter once.
-- **Power on the way down.** One step of `hruPowerStep` takes `hruPowerStepDownInterval` seconds while
-  the `allBelow` or `fluctuation` branch keeps applying. The first run of such a stretch takes one step;
-  each later run takes one step per full interval since the previous run and carries the rest over. A
-  value that is not a finite number above 0 means no limit. With the default of 1 s the power goes from
-  10 to 2 in 7 s at a 1 s period; at a period of 7 s or more the first run takes one step and the next
-  run reaches the minimum.
+- **Power on the way down.** One step of `hruPowerStep` takes `hruPowerStepDownInterval` seconds of an
+  open step-down gate (see Power review). The seconds are counted between runs, so a run that comes
+  after several intervals takes several steps and the rest is carried over. A value that is not a
+  finite number above 0 means no pace limit. With the default of 300 s the power goes from 10 to 2 in
+  40 minutes: the first step five minutes after the gate opened, the last after forty.
+- **Power review.** The windows are weighted by the seconds between runs, so a review decides the same
+  at a 1 s and a 60 s period. Reviews are at least `powerReviewInterval` apart, at the first run after
+  the interval. Keep the period short against the intervals: with a period near `powerReviewInterval`
+  a window holds one or two readings.
 - **Timed decisions** (Tzone, Topen, the cooldown) compare seconds. A crossing is noticed at the first
   run after it happens and acted on at the first run after its limit, so a decision can come up to two
   periods late. Keep the period short against `thresholdTimeLimit` and `belowTimeLimit`.
@@ -188,23 +237,27 @@ For a VENTBOX 400 (400 m³/h), the project values Pmin 80, Pmax 400 / 280 and Pm
 
 Public fields on `AutomaticModeEngine`, with their defaults:
 
-| Field                               | Default           | Meaning                                      |
-| ----------------------------------- | ----------------- | -------------------------------------------- |
-| `thresholds`                        | TH1 800, TH2 1200 | CO2 thresholds in ppm                        |
-| `co2Hysteresis`                     | TH1 50, TH2 100   | ppm below a threshold that counts as "under" |
-| `thresholdTimeLimit`                | 120               | Tzone: seconds above a threshold; cooldown   |
-| `belowTimeLimit`                    | 120               | Topen: seconds below a threshold             |
-| `co2FilterAlpha`                    | 0.3               | weight of the newest reading, per second     |
-| `hruMinPower`                       | 2                 | lowest HRU power (0–10)                      |
-| `hruMaxPowerDay`/`hruMaxPowerNight` | 10 / 5            | highest HRU power by time of day (0–10)      |
-| `hruPowerStep`                      | 1                 | HRU power change per step (0–10)             |
-| `hruPowerStepDownInterval`          | 1                 | seconds one step down takes                  |
-| `hruMovePower`                      | 4                 | HRU power while fluctuation is on, Pmove     |
-| `fluctuationEnabled`                | `true`            | turns fluctuation on                         |
-| `fluctuationOffset`                 | 100               | ppm below TH1 where fluctuation starts       |
-| `partialCloseValue`                 | 45                | position of a partially closed valve         |
-| `fullyOpenValue`                    | 0                 | position of a fully open valve               |
-| `dayStart`/`dayEnd`                 | 07:00 / 22:00     | day window, in seconds of the day            |
+| Field                               | Default           | Meaning                                       |
+| ----------------------------------- | ----------------- | --------------------------------------------- |
+| `thresholds`                        | TH1 800, TH2 1200 | CO2 thresholds in ppm                         |
+| `co2Hysteresis`                     | TH1 50, TH2 100   | ppm below a threshold that counts as "under"  |
+| `thresholdTimeLimit`                | 120               | Tzone: seconds above a threshold; cooldown    |
+| `belowTimeLimit`                    | 120               | Topen: seconds below a threshold              |
+| `co2FilterAlpha`                    | 0.3               | weight of the newest reading, per second      |
+| `hruMinPower`                       | 2                 | lowest HRU power (0–10)                       |
+| `hruMaxPowerDay`/`hruMaxPowerNight` | 10 / 5            | highest HRU power by time of day (0–10)       |
+| `hruPowerStep`                      | 1                 | HRU power change per step (0–10)              |
+| `hruPowerStepDownInterval`          | 300               | seconds one step down takes                   |
+| `powerReviewInterval`               | 600               | seconds between slow-lane power reviews       |
+| `co2FallingMargin`                  | 10                | ppm of drop between reviews that is "falling" |
+| `powerReviewStepLimit`              | 3                 | slow-lane asks in a row per room (the guard)  |
+| `missingReadingHold`                | 3600              | seconds a silent room above TH1 still counts  |
+| `hruMovePower`                      | 4                 | HRU power while fluctuation is on, Pmove      |
+| `fluctuationEnabled`                | `true`            | turns fluctuation on                          |
+| `fluctuationOffset`                 | 100               | ppm below TH1 where fluctuation starts        |
+| `partialCloseValue`                 | 45                | position of a partially closed valve          |
+| `fullyOpenValue`                    | 0                 | position of a fully open valve                |
+| `dayStart`/`dayEnd`                 | 07:00 / 22:00     | day window, in seconds of the day             |
 
 The defaults are placeholders: every installation sets its own thresholds, powers and day window.
 `getParameterProblems()` returns what is wrong with the current values, one message per problem (TH2
@@ -228,6 +281,12 @@ The engine cannot do these on its own:
   and, as the unit does not follow, write it again once per `thresholdTimeLimit`.
 - **Readings.** Pass `null` for a reading that is too old, and convert Home Assistant states yourself
   (see Model).
+- **A sensor that is wrong.** A reading stuck just above TH1 holds up to `powerReviewStepLimit` extra
+  power steps for as long as it is stuck, and a noisy one that hovers there can work the power up to
+  the maximum over a day or two: nothing lowers the power while a room is above TH1. Watch for a room
+  that never leaves the above-TH1 state.
+- **A sensor that is dead.** After `missingReadingHold` the engine stops holding the power for its room
+  and the room is on its own, as with any room without a reading. Report dead sensors to the user.
 - **Parameters.** Call `getParameterProblems()` after applying settings and decide what to do with
   the answer.
 
