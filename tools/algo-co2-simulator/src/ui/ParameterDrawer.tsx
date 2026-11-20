@@ -70,12 +70,6 @@ function NumberField({
     }
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
-    if (event.key === "Enter") {
-      apply();
-    }
-  }
-
   return (
     <NumberInput
       label={label}
@@ -83,7 +77,7 @@ function NumberField({
       value={draft ?? value}
       onChange={edit}
       onValueChange={(_values, info) => applyStep(info.source)}
-      onKeyDown={onKeyDown}
+      onKeyDown={onEnter(apply)}
       onBlur={apply}
       min={min}
       max={max}
@@ -92,6 +86,15 @@ function NumberField({
       allowNegative={false}
     />
   );
+}
+
+/** A key handler that calls `apply` when Enter is pressed. */
+function onEnter(apply: () => void): (event: KeyboardEvent<HTMLInputElement>) => void {
+  return function handleKeyDown(event) {
+    if (event.key === "Enter") {
+      apply();
+    }
+  };
 }
 
 interface TimeFieldProps {
@@ -116,18 +119,12 @@ function TimeField({ label, secondOfDay, onCommit }: Readonly<TimeFieldProps>) {
     setDraft(event.currentTarget.value);
   }
 
-  function onKeyDown(event: KeyboardEvent<HTMLInputElement>): void {
-    if (event.key === "Enter") {
-      apply();
-    }
-  }
-
   return (
     <TimeInput
       label={label}
       value={draft ?? formatHhMm(secondOfDay)}
       onChange={onChange}
-      onKeyDown={onKeyDown}
+      onKeyDown={onEnter(apply)}
       onBlur={apply}
     />
   );
@@ -252,7 +249,7 @@ export function ParameterDrawer({
               step={10}
             />
             <NumberField
-              label="Filtr CO2 α (0,01–1)"
+              label="Filtr CO2 α za sekundu (0,01–1)"
               value={engineParams.co2FilterAlpha}
               onCommit={(co2FilterAlpha) => changeEngine({ co2FilterAlpha })}
               min={0.01}
@@ -293,6 +290,14 @@ export function ParameterDrawer({
               onCommit={(hruPowerStep) => changeEngine({ hruPowerStep })}
               min={0.01}
               step={0.5}
+              decimalScale={2}
+            />
+            <NumberField
+              label="Interval snižování výkonu (s)"
+              value={engineParams.hruPowerStepDownInterval}
+              onCommit={(hruPowerStepDownInterval) => changeEngine({ hruPowerStepDownInterval })}
+              min={0.01}
+              step={10}
               decimalScale={2}
             />
             <Switch

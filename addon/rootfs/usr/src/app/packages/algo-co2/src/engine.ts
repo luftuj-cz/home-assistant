@@ -4,8 +4,7 @@ export class Timestamp {
   constructor(
     readonly epochSecond: number,
     readonly secondOfDay: number,
-  ) {
-  }
+  ) {}
 
   static now(): Timestamp {
     const now = new Date();
@@ -24,11 +23,11 @@ class JournalEntry {
     readonly timestamp: Timestamp,
     readonly unitPower: number,
     readonly valves: Map<string, number>,
-  ) {
-  }
+  ) {}
 
   toString(): string {
-    return `${this.timestamp.epochSecond},${this.unitPower},${[...this.valves].map(([key, value]) => `${key}:${value}`).join(",")}`;
+    const valves = [...this.valves].map(([key, value]) => `${key}:${value}`).join(",");
+    return `${this.timestamp.epochSecond},${this.unitPower},${valves}`;
   }
 }
 
@@ -44,6 +43,8 @@ export enum ThresholdDirection {
 
 export interface RoomState {
   filteredCO2: number | null;
+  /** The epoch second `filteredCO2` was last computed at; `null` while there is no filtered value. */
+  filteredAt: number | null;
   aboveThresholdSince: Map<ThresholdType, number | null>;
   belowThresholdSince: Map<ThresholdType, number | null>;
   /** Since when the filtered CO2 has been at or above the fluctuation level, without a break. */
@@ -123,6 +124,7 @@ export class AutomaticModeEngine {
   thresholdTimeLimit: number = 120;
   /** Topen: seconds below a threshold, or below the fluctuation level, before it counts. */
   belowTimeLimit: number = 120;
+  /** Weight of the newest reading per second; over several seconds it grows as `1 - (1 - alpha)^dt`. */
   co2FilterAlpha: number = 0.3;
 
   // HRU powers are on the 0–10 scale (0 = zero, 10 = the unit's maximum), see `HRU`.
@@ -130,6 +132,11 @@ export class AutomaticModeEngine {
   hruMaxPowerDay: number = 10;
   hruMaxPowerNight: number = 5;
   hruPowerStep: number = 1;
+  /**
+   * Seconds one step down takes while the `allBelow` or `fluctuation` branch keeps applying. Anything
+   * that is not a finite number above 0 means no limit: the power goes straight to the branch's floor.
+   */
+  hruPowerStepDownInterval: number = 1;
   /** HRU power held while fluctuation is active (Pmove). */
   hruMovePower: number = 4;
 
@@ -149,6 +156,10 @@ export class AutomaticModeEngine {
 
   private readonly roomStates: Map<string, RoomState> = new Map();
   private fluctuationActive: boolean = false;
+  /** The previous run: when it was and whether its branch lowers the power step by step. */
+  private previousRun: { epochSecond: number; lowering: boolean } | null = null;
+  /** Seconds of a lowering stretch not yet turned into steps down. */
+  private stepDownCredit: number = 0;
 
   constructor(
     private readonly model: Building,
@@ -164,6 +175,7 @@ export class AutomaticModeEngine {
       }
       this.roomStates.set(room.id, {
         filteredCO2: null,
+        filteredAt: null,
         aboveThresholdSince: thresholdTimes,
         belowThresholdSince: belowThresholdTimes,
         fluctuationAboveSince: null,
@@ -266,14 +278,18 @@ export class AutomaticModeEngine {
       // No markChanged: a room that crosses TH1 next must not start in cooldown.
       branch = "fluctuation";
       valvesChanged = this.resetValvesToDefault(timestamp);
-      this.movePowerTowardsMovePower(timestamp);
+      this.movePowerTowardsMovePower(timestamp, this.takeStepsDown(timestamp));
     } else if (roomsBelowThreshold1ForTimeLimit.length === roomsWithValidMeasurement.length) {
       branch = "allBelow";
       valvesChanged = this.resetValvesToDefault(timestamp);
-      this.decreasePowerIfPossible(timestamp);
+      this.decreasePowerIfPossible(timestamp, this.takeStepsDown(timestamp));
       this.markChanged(roomsWithValidMeasurement, timestamp);
       roomsActedOn = roomsWithValidMeasurement;
     }
+
+    const lowering = branch === "fluctuation" || branch === "allBelow";
+    if (!lowering) this.stepDownCredit = 0;
+    this.previousRun = { epochSecond: timestamp.epochSecond, lowering };
 
     return {
       branch,
@@ -382,17 +398,19 @@ export class AutomaticModeEngine {
 
       if (rawCO2 === null) {
         state.filteredCO2 = null;
+        state.filteredAt = null;
         state.fluctuationAboveSince = null;
         state.fluctuationBelowSince = null;
         continue;
       }
 
-      if (state.filteredCO2 === null) {
+      if (state.filteredCO2 === null || state.filteredAt === null) {
         state.filteredCO2 = rawCO2;
-      } else {
-        state.filteredCO2 = Math.round(
-          this.co2FilterAlpha * rawCO2 + (1 - this.co2FilterAlpha) * state.filteredCO2,
-        );
+        state.filteredAt = timestamp.epochSecond;
+      } else if (timestamp.epochSecond > state.filteredAt) {
+        const weight = this.getFilterWeight(timestamp.epochSecond - state.filteredAt);
+        state.filteredCO2 = Math.round(weight * rawCO2 + (1 - weight) * state.filteredCO2);
+        state.filteredAt = timestamp.epochSecond;
       }
 
       this.updateThresholdTimers(room, state, timestamp);
@@ -412,6 +430,15 @@ export class AutomaticModeEngine {
       state.fluctuationAboveSince = null;
       state.fluctuationBelowSince ??= timestamp.epochSecond;
     }
+  }
+
+  /**
+   * The weight of the newest reading after `elapsedSeconds`: what applying `co2FilterAlpha` once per
+   * second would add up to. One second returns alpha itself, so a 1 s period is exact.
+   */
+  private getFilterWeight(elapsedSeconds: number): number {
+    if (elapsedSeconds === 1) return this.co2FilterAlpha;
+    return 1 - Math.pow(1 - this.co2FilterAlpha, elapsedSeconds);
   }
 
   private getHruMaxPower(timestamp: Timestamp): number {
@@ -551,7 +578,8 @@ export class AutomaticModeEngine {
   private enforceMaxPower(timestamp: Timestamp): void {
     const hruCurrentPower = this.hru.getPower();
     const maxPower = roundPower(this.getHruMaxPower(timestamp));
-    // Written this way so that a `NaN` from an unavailable HRU counts as "not above" and writes nothing.
+    // An unavailable HRU reports `NaN`: there is nothing to compare, so nothing is written.
+    if (!Number.isFinite(hruCurrentPower) || !Number.isFinite(maxPower)) return;
     if (hruCurrentPower <= maxPower) return;
 
     this.logger.info(
@@ -576,10 +604,36 @@ export class AutomaticModeEngine {
     }
   }
 
-  private decreasePowerIfPossible(timestamp: Timestamp): void {
+  /**
+   * How many steps down this run may take, see `hruPowerStepDownInterval`. The first run of a lowering
+   * stretch takes one; later runs take one per full interval since the previous run, and the rest of
+   * the time is carried over. Call once per run, in a lowering branch only.
+   */
+  private takeStepsDown(timestamp: Timestamp): number {
+    const interval = this.hruPowerStepDownInterval;
+    if (!Number.isFinite(interval) || interval <= 0) return Infinity;
+
+    const previous = this.previousRun;
+    if (previous?.lowering) {
+      this.stepDownCredit += Math.max(0, timestamp.epochSecond - previous.epochSecond);
+    } else {
+      this.stepDownCredit = interval;
+    }
+    const steps = Math.floor(this.stepDownCredit / interval);
+    this.stepDownCredit -= steps * interval;
+    return steps;
+  }
+
+  /** `power` lowered by `steps` steps, not below `floor`; an unlimited step count gives the floor. */
+  private lowerPower(power: number, steps: number, floor: number): number {
+    if (!Number.isFinite(steps)) return Math.min(power, floor);
+    return Math.max(power - steps * this.hruPowerStep, floor);
+  }
+
+  private decreasePowerIfPossible(timestamp: Timestamp, steps: number): void {
     const hruCurrentPower = this.hru.getPower();
-    if (hruCurrentPower > this.hruMinPower) {
-      const newPower = roundPower(Math.max(hruCurrentPower - this.hruPowerStep, this.hruMinPower));
+    if (steps > 0 && hruCurrentPower > this.hruMinPower) {
+      const newPower = roundPower(this.lowerPower(hruCurrentPower, steps, this.hruMinPower));
       this.logger.info(
         `[${this.formatDayTime(timestamp)}] decreasing HRU power from ${hruCurrentPower} to ${newPower}`,
       );
@@ -589,17 +643,17 @@ export class AutomaticModeEngine {
   }
 
   /**
-   * Raises the power to Pmove in one write, or lowers it by one step without going below Pmove. Pmove
-   * is kept at or above `hruMinPower` and capped by the day or night maximum.
+   * Raises the power to Pmove in one write, or lowers it by `steps` steps without going below Pmove.
+   * Pmove is kept at or above `hruMinPower` and capped by the day or night maximum.
    */
-  private movePowerTowardsMovePower(timestamp: Timestamp): void {
+  private movePowerTowardsMovePower(timestamp: Timestamp, steps: number): void {
     const target = Math.min(
       Math.max(this.hruMovePower, this.hruMinPower),
       this.getHruMaxPower(timestamp),
     );
     const hruCurrentPower = this.hru.getPower();
     const newPower = roundPower(
-      hruCurrentPower < target ? target : Math.max(hruCurrentPower - this.hruPowerStep, target),
+      hruCurrentPower < target ? target : this.lowerPower(hruCurrentPower, steps, target),
     );
     if (newPower === hruCurrentPower) return;
 

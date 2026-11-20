@@ -85,7 +85,8 @@ value), write `null`.
 
 Every `run(timestamp)`:
 
-1. Smooths each room's CO2 with an exponential moving average (`co2FilterAlpha`). A room without
+1. Smooths each room's CO2 with an exponential moving average (`co2FilterAlpha`, the weight of the
+   newest reading per second of elapsed time, see Run period). A room without
    a reading (see Model for what counts as one) drops out of the decision, and its valves open fully
    whenever the engine redistributes the airflow. When a reading returns, the average starts again
    from it.
@@ -107,17 +108,40 @@ Every `run(timestamp)`:
      closes partially. Only the rooms out of that window are marked as acted on. When every room
      above TH1 is still within the window the branch is `th1` all the same, but nothing changes.
    - **Fluctuation is active** (`fluctuation`): valves return to their defaults and the HRU power moves
-     to `hruMovePower` (Pmove): up in one write, down by one step per run. Pmove is kept at or above
+     to `hruMovePower` (Pmove): up in one write, down by one step per
+     `hruPowerStepDownInterval`. Pmove is kept at or above
      `hruMinPower` and capped by the day or night maximum. No room is marked as acted on, so a room that
      then crosses TH1 is handled at once.
    - **Every room with a reading below TH1 - hysteresis** (`allBelow`): valves return to their
-     defaults and the HRU power drops by one step on every tick, down to `hruMinPower`. This also
+     defaults and the HRU power drops by one step per `hruPowerStepDownInterval`, down to `hruMinPower`. This also
      applies when no room has a reading.
    - Otherwise (`none`) nothing changes: the hysteresis band, or a state that has not yet lasted its
      time limit.
 
 While the engine runs, it owns the HRU power: a power set above the maximum from outside is lowered on
 the next run. Do not call `run()` while another mode (a boost, a schedule override) controls the unit.
+
+### Run period
+
+`run()` may be called at any period; nothing is counted per call.
+
+- **Filter.** `co2FilterAlpha` is the weight of the newest reading per second. After `dt` seconds since
+  the room's previous filtered value the weight is `1 - (1 - alpha)^dt`, so the filtered value follows
+  the same course in time whatever the period (within the whole-ppm rounding). As a time constant,
+  `alpha` is `-1 / ln(1 - alpha)` seconds: 2.8 s at the default 0.3, which smooths nothing when sensors
+  report every 30 s. Two runs with the same timestamp filter once.
+- **Power on the way down.** One step of `hruPowerStep` takes `hruPowerStepDownInterval` seconds while
+  the `allBelow` or `fluctuation` branch keeps applying. The first run of such a stretch takes one step;
+  each later run takes one step per full interval since the previous run and carries the rest over. A
+  value that is not a finite number above 0 means no limit. With the default of 1 s the power goes from
+  10 to 2 in 7 s at a 1 s period; at a period of 7 s or more the first run takes one step and the next
+  run reaches the minimum.
+- **Timed decisions** (Tzone, Topen, the cooldown) compare seconds. A crossing is noticed at the first
+  run after it happens and acted on at the first run after its limit, so a decision can come up to two
+  periods late. Keep the period short against `thresholdTimeLimit` and `belowTimeLimit`.
+
+The engine keeps the time of the previous run. After a long pause, create a new engine rather than
+resuming the old one: its timers would describe the house as it was before the pause.
 
 ### Fluctuation
 
@@ -161,10 +185,11 @@ Public fields on `AutomaticModeEngine`, with their defaults:
 | `co2Hysteresis`                     | TH1 50, TH2 100   | ppm below a threshold that counts as "under" |
 | `thresholdTimeLimit`                | 120               | Tzone: seconds above a threshold; cooldown   |
 | `belowTimeLimit`                    | 120               | Topen: seconds below a threshold             |
-| `co2FilterAlpha`                    | 0.3               | weight of the newest reading in the filter   |
+| `co2FilterAlpha`                    | 0.3               | weight of the newest reading, per second     |
 | `hruMinPower`                       | 2                 | lowest HRU power (0–10)                      |
 | `hruMaxPowerDay`/`hruMaxPowerNight` | 10 / 5            | highest HRU power by time of day (0–10)      |
 | `hruPowerStep`                      | 1                 | HRU power change per step (0–10)             |
+| `hruPowerStepDownInterval`          | 1                 | seconds one step down takes                  |
 | `hruMovePower`                      | 4                 | HRU power while fluctuation is on, Pmove     |
 | `fluctuationEnabled`                | `true`            | turns fluctuation on                         |
 | `fluctuationOffset`                 | 100               | ppm below TH1 where fluctuation starts       |

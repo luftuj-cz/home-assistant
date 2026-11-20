@@ -52,7 +52,7 @@ describe("sanitizeEngineParams", () => {
     expect(sanitizeEngineParams(engineWith({ hruMinPower: -5 })).hruMinPower).toBe(0);
   });
 
-  test("sanitizeEngineParams keeps the remaining parameters non-negative and the step at least 0.01", () => {
+  test("sanitizeEngineParams keeps the remaining parameters non-negative and the step and its interval at least 0.01", () => {
     const sanitized = sanitizeEngineParams(
       engineWith({
         th1Hysteresis: -1,
@@ -60,6 +60,7 @@ describe("sanitizeEngineParams", () => {
         thresholdTimeLimit: -1,
         belowTimeLimit: -1,
         hruPowerStep: 0,
+        hruPowerStepDownInterval: 0,
         partialCloseValue: -3,
         fullyOpenValue: -3,
       }),
@@ -71,6 +72,7 @@ describe("sanitizeEngineParams", () => {
       thresholdTimeLimit: 0,
       belowTimeLimit: 0,
       hruPowerStep: 0.01,
+      hruPowerStepDownInterval: 0.01,
       partialCloseValue: 0,
       fullyOpenValue: 0,
     });

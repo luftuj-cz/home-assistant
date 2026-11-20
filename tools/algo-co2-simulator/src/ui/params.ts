@@ -7,6 +7,8 @@ const MIN_SHARE = 0.01;
 const MAX_POWER = 10;
 /** The engine rounds written powers to two decimals, so a smaller step would vanish. */
 const MIN_POWER_STEP = 0.01;
+/** The engine reads an interval of 0 as "no limit", so the drawer keeps it above that. */
+const MIN_STEP_DOWN_INTERVAL = 0.01;
 const LAST_SECOND_OF_DAY = 86399;
 
 function clamp(value: number, min: number, max: number): number {
@@ -39,6 +41,7 @@ export function sanitizeEngineParams(params: EngineParams): EngineParams {
     hruMaxPowerDay: clamp(params.hruMaxPowerDay, hruMinPower, MAX_POWER),
     hruMaxPowerNight: clamp(params.hruMaxPowerNight, hruMinPower, MAX_POWER),
     hruPowerStep: atLeast(MIN_POWER_STEP, params.hruPowerStep),
+    hruPowerStepDownInterval: atLeast(MIN_STEP_DOWN_INTERVAL, params.hruPowerStepDownInterval),
     hruMovePower: clamp(params.hruMovePower, hruMinPower, MAX_POWER),
     fluctuationEnabled: params.fluctuationEnabled,
     fluctuationOffset: atLeast(0, params.fluctuationOffset),

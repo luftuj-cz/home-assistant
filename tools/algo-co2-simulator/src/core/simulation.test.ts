@@ -501,6 +501,7 @@ describe("engine params", () => {
       hruMaxPowerDay: 9,
       hruMaxPowerNight: 4,
       hruPowerStep: 0.5,
+      hruPowerStepDownInterval: 30,
       hruMovePower: 3.5,
       fluctuationEnabled: true,
       fluctuationOffset: 80,
