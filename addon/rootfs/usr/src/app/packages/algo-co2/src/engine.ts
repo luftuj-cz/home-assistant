@@ -1,6 +1,12 @@
 import type { Building, Room, Valve } from "./model.js";
 
 export class Timestamp {
+  constructor(
+    readonly epochSecond: number,
+    readonly secondOfDay: number,
+  ) {
+  }
+
   static now(): Timestamp {
     const now = new Date();
     const currentEpochSecond = Math.floor(now.getTime() / 1000);
@@ -11,11 +17,6 @@ export class Timestamp {
   static simulate(epochSecond: number, startHour: number): Timestamp {
     return new Timestamp(epochSecond, (epochSecond + startHour * 3600) % (24 * 3600));
   }
-
-  constructor(
-    readonly epochSecond: number,
-    readonly secondOfDay: number,
-  ) {}
 }
 
 class JournalEntry {
@@ -23,7 +24,9 @@ class JournalEntry {
     readonly timestamp: Timestamp,
     readonly unitPower: number,
     readonly valves: Map<string, number>,
-  ) {}
+  ) {
+  }
+
   toString(): string {
     return `${this.timestamp.epochSecond},${this.unitPower},${[...this.valves].map(([key, value]) => `${key}:${value}`).join(",")}`;
   }
@@ -147,10 +150,6 @@ export class AutomaticModeEngine {
   private readonly roomStates: Map<string, RoomState> = new Map();
   private fluctuationActive: boolean = false;
 
-  onValveChange: (valves: Map<string, number>) => void = () => {
-    // No listener until the application registers one.
-  };
-
   constructor(
     private readonly model: Building,
     private readonly hru: HRU,
@@ -173,6 +172,10 @@ export class AutomaticModeEngine {
       });
     }
   }
+
+  onValveChange: (valves: Map<string, number>) => void = () => {
+    // No listener until the application registers one.
+  };
 
   run(timestamp: Timestamp): RunReport {
     this.updateFilteredCO2Values(timestamp);
@@ -228,6 +231,7 @@ export class AutomaticModeEngine {
     );
 
     const powerBefore = this.hru.getPower();
+    this.enforceMaxPower(timestamp);
     let branch: DecisionBranch = "none";
     let roomsActedOn: Room[] = [];
     let valvesChanged = false;
@@ -288,6 +292,26 @@ export class AutomaticModeEngine {
       fluctuationActive: this.fluctuationActive,
       roomsAboveFluctuation: this.toRoomIds(roomsAboveFluctuationForTimeLimit),
     };
+  }
+
+  getHruCurrentPower(): number {
+    return this.hru.getPower();
+  }
+
+  getFilteredCO2(roomId: string): number | null {
+    return this.roomStates.get(roomId)?.filteredCO2 ?? null;
+  }
+
+  getRoomState(roomId: string): RoomState | undefined {
+    return this.roomStates.get(roomId);
+  }
+
+  clearJournal(): void {
+    this.journal = [];
+  }
+
+  getJournalString(): string {
+    return this.journal.map((entry) => `${entry.toString()}`).join(";");
   }
 
   private isPastTimeLimit(since: number | null, timestamp: Timestamp, limit: number): boolean {
@@ -520,12 +544,30 @@ export class AutomaticModeEngine {
     return false;
   }
 
+  /**
+   * Lowers a power above the day or night maximum to that maximum in one write, whatever the branch.
+   * Not an action on a room: nothing is marked as changed.
+   */
+  private enforceMaxPower(timestamp: Timestamp): void {
+    const hruCurrentPower = this.hru.getPower();
+    const maxPower = roundPower(this.getHruMaxPower(timestamp));
+    // Written this way so that a `NaN` from an unavailable HRU counts as "not above" and writes nothing.
+    if (hruCurrentPower <= maxPower) return;
+
+    this.logger.info(
+      `[${this.formatDayTime(timestamp)}] lowering HRU power from ${hruCurrentPower} to ${maxPower} (maximum)`,
+    );
+    this.hru.setPower(maxPower);
+    this.recordJournalEntry(timestamp);
+  }
+
   private increasePower(timestamp: Timestamp): void {
     const hruCurrentPower = this.hru.getPower();
     const newPower = roundPower(
       Math.min(hruCurrentPower + this.hruPowerStep, this.getHruMaxPower(timestamp)),
     );
-    if (newPower !== hruCurrentPower) {
+    // Only upwards: an HRU whose read-back lags can still report a power above the maximum here.
+    if (newPower > hruCurrentPower) {
       this.logger.info(
         `[${this.formatDayTime(timestamp)}] increasing HRU power from ${hruCurrentPower} to ${newPower}`,
       );
@@ -566,25 +608,5 @@ export class AutomaticModeEngine {
     );
     this.hru.setPower(newPower);
     this.recordJournalEntry(timestamp);
-  }
-
-  getHruCurrentPower(): number {
-    return this.hru.getPower();
-  }
-
-  getFilteredCO2(roomId: string): number | null {
-    return this.roomStates.get(roomId)?.filteredCO2 ?? null;
-  }
-
-  getRoomState(roomId: string): RoomState | undefined {
-    return this.roomStates.get(roomId);
-  }
-
-  clearJournal(): void {
-    this.journal = [];
-  }
-
-  getJournalString(): string {
-    return this.journal.map((entry) => `${entry.toString()}`).join(";");
   }
 }

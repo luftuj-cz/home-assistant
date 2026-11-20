@@ -61,7 +61,7 @@ and in `building.rooms` order:
   `thresholdTimeLimit`. Reported whether or not fluctuation is enabled.
 
 It also reports `valvesChanged` (whether any valve moved), `powerBefore` and `powerAfter` (the HRU
-power around the run), `maxPower` (the day or night maximum at that timestamp), all on the 0–10 scale, and
+power around the run), `maxPower` (the day or night maximum at that timestamp, which `powerAfter` never exceeds), all on the 0–10 scale, and
 `fluctuationActive` (the fluctuation state after the run).
 
 ## Model
@@ -95,7 +95,10 @@ Every `run(timestamp)`:
 3. Counts a room as above a threshold only after `thresholdTimeLimit` seconds there (Tzone), and as
    below one only after `belowTimeLimit` seconds (Topen).
 4. Updates the fluctuation state (see below).
-5. Acts on the first branch that applies, and reports it as `RunReport.branch`:
+5. Lowers an HRU power that is above the day or night maximum to that maximum, in one write and in
+   every branch. This is not an action on a room: no room is marked as acted on and the reported branch
+   does not change; the run's `powerBefore` and `powerAfter` show it.
+6. Acts on the first branch that applies, and reports it as `RunReport.branch`:
    - **A room above TH2** (`th2`): rooms above TH1 or TH2 open fully, all other rooms close partially,
      and the HRU power rises by one step (capped by the day or night maximum). The power step
      happens at most once per `thresholdTimeLimit` for the rooms involved.
@@ -112,6 +115,9 @@ Every `run(timestamp)`:
      applies when no room has a reading.
    - Otherwise (`none`) nothing changes: the hysteresis band, or a state that has not yet lasted its
      time limit.
+
+While the engine runs, it owns the HRU power: a power set above the maximum from outside is lowered on
+the next run. Do not call `run()` while another mode (a boost, a schedule override) controls the unit.
 
 ### Fluctuation
 
