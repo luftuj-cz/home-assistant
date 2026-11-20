@@ -67,19 +67,28 @@ power around the run), `maxPower` (the day or night maximum at that timestamp), 
 ## Model
 
 - **Building**: rooms plus boxes; `getAllValves()` flattens the valves of every box.
-- **Room**: its CO2 is the **maximum** over sensors that report a value, or `null` if none do.
+- **Room**: its CO2 is the **maximum** over sensors that hold a reading, or `null` if none do.
 - **Box**: a physical unit holding valves.
 - **Valve**: id, default position, owning room, `Supply` or `Exhaust`. Position `0` is fully
   open; higher values close it further.
-- **Sensor**: id and a `co2` reading (`number | null`).
+- **Sensor**: id and a `co2` reading (`number | null`), `null` until the caller writes one.
+
+A reading is a finite number above 0. Anything else in `Sensor.co2` (`null`, `undefined`, `NaN`,
+infinity, `0`, a negative number, a string) is no reading, and that sensor is left out of its room's
+CO2. There is no upper limit: a sensor stuck at its ceiling still means "ventilate". Convert Home
+Assistant states yourself; `Number("unavailable")` is `NaN`, which the engine ignores.
+
+The engine sees a value, not its age. If a reading is too old to trust (a sensor frozen at its last
+value), write `null`.
 
 ## Algorithm
 
 Every `run(timestamp)`:
 
 1. Smooths each room's CO2 with an exponential moving average (`co2FilterAlpha`). A room without
-   a reading drops out of the decision, and its valves open fully whenever the engine
-   redistributes the airflow.
+   a reading (see Model for what counts as one) drops out of the decision, and its valves open fully
+   whenever the engine redistributes the airflow. When a reading returns, the average starts again
+   from it.
 2. Tracks, per room and threshold (TH1, TH2), since when the smoothed CO2 has been at or above
    the threshold, and since when it has been below `threshold - hysteresis`, where each threshold
    has its own hysteresis in `co2Hysteresis` (TH1diff, TH2diff).
