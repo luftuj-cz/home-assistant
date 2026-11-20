@@ -157,13 +157,14 @@ describe("run() report", () => {
     expect(report.roomsActedOn).toEqual([]);
   });
 
-  test("reports the hysteresis band as none", () => {
+  test("reports the wait for a time limit as none", () => {
     const house = createHouse();
     // Two rooms at 780 ppm would otherwise be a fluctuation.
     house.engine.fluctuationEnabled = false;
-    const report = runUntil(house, { a: 780, b: 780 }, 200);
 
-    expect(report.branch).toBe("none");
+    // Below TH1 from their first reading, but not yet for `belowTimeLimit`.
+    expect(runUntil(house, { a: 780, b: 780 }, 119).branch).toBe("none");
+    expect(house.engine.run(Timestamp.simulate(120, 8)).branch).toBe("allBelow");
   });
 
   test("reports the night maximum, with 22:00:00 still day", () => {

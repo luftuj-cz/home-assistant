@@ -107,7 +107,7 @@ describe("CO2 filter and the run period", () => {
       }
     }
 
-    expect(Math.max(...differences)).toBeLessThanOrEqual(5);
+    expect(Math.max(...differences)).toBeLessThanOrEqual(1);
   });
 
   test("takes the new reading after a long interval", () => {

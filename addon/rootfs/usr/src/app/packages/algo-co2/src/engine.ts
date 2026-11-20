@@ -42,6 +42,7 @@ export enum ThresholdDirection {
 }
 
 export interface RoomState {
+  /** Unrounded; the engine compares, reports and logs it rounded to whole ppm. */
   filteredCO2: number | null;
   /** The epoch second `filteredCO2` was last computed at; `null` while there is no filtered value. */
   filteredAt: number | null;
@@ -52,6 +53,11 @@ export interface RoomState {
   /** Since when the filtered CO2 has been below the fluctuation level, without a break. */
   fluctuationBelowSince: number | null;
   lastChangeTimestamp: Timestamp | null;
+  /**
+   * The epoch second of the last power step in the `th2` branch that this room allowed. Separate from
+   * `lastChangeTimestamp` so that the `th1` and `allBelow` branches cannot hold a power step back.
+   */
+  lastPowerStepAt: number | null;
 }
 
 /**
@@ -64,11 +70,7 @@ export interface HRU {
   setPower(power: number): void;
 }
 
-export interface OnValveChange {
-  updateValves(valves: Map<string, number>): void;
-}
-
-/** The branch of `run()` that applied; `none` is the hysteresis band or a wait for the time limit. */
+/** The branch of `run()` that applied; `none` is a state that has not lasted its time limit yet. */
 export type DecisionBranch = "th2" | "th1" | "fluctuation" | "allBelow" | "none";
 
 /** What one `run()` saw and did. Room-id lists are unique and in `building.rooms` order. */
@@ -103,6 +105,14 @@ export interface RunReport {
 /** The only logging the engine needs; a pino logger satisfies it as is. */
 export interface Logger {
   info(message: string): void;
+}
+
+function isFiniteAbove(value: number | undefined, limit: number): value is number {
+  return value !== undefined && Number.isFinite(value) && value > limit;
+}
+
+function isFiniteAtLeast(value: number | undefined, limit: number): value is number {
+  return value !== undefined && Number.isFinite(value) && value >= limit;
 }
 
 /** Two decimals: steps such as 0.1 would otherwise drift (0.1 + 0.2 = 0.30000000000000004). */
@@ -160,6 +170,11 @@ export class AutomaticModeEngine {
   private previousRun: { epochSecond: number; lowering: boolean } | null = null;
   /** Seconds of a lowering stretch not yet turned into steps down. */
   private stepDownCredit: number = 0;
+  /**
+   * Powers written and not yet read back from the HRU, with the epoch second of the write. More than
+   * one can wait at a time: with a unit that is off, the minimum and Pmove are both written.
+   */
+  private readonly pendingPowerWrites: Map<number, number> = new Map();
 
   constructor(
     private readonly model: Building,
@@ -181,13 +196,10 @@ export class AutomaticModeEngine {
         fluctuationAboveSince: null,
         fluctuationBelowSince: null,
         lastChangeTimestamp: null,
+        lastPowerStepAt: null,
       });
     }
   }
-
-  onValveChange: (valves: Map<string, number>) => void = () => {
-    // No listener until the application registers one.
-  };
 
   run(timestamp: Timestamp): RunReport {
     this.updateFilteredCO2Values(timestamp);
@@ -243,7 +255,7 @@ export class AutomaticModeEngine {
     );
 
     const powerBefore = this.hru.getPower();
-    this.enforceMaxPower(timestamp);
+    this.enforcePowerLimits(timestamp);
     let branch: DecisionBranch = "none";
     let roomsActedOn: Room[] = [];
     let valvesChanged = false;
@@ -251,15 +263,21 @@ export class AutomaticModeEngine {
     if (roomsAboveThreshold2ForTimeLimit.length > 0) {
       branch = "th2";
       const roomWithAtLeastThreshold1 = [
-        ...roomsAboveThreshold1ForTimeLimit,
-        ...roomsAboveThreshold2ForTimeLimit,
+        ...new Set([...roomsAboveThreshold1ForTimeLimit, ...roomsAboveThreshold2ForTimeLimit]),
       ];
       valvesChanged = this.applyValveStrategy(roomWithAtLeastThreshold1, timestamp);
-      const roomsToUpdate = roomWithAtLeastThreshold1.filter((r) =>
-        roomsWithoutActionForTimeLimit.has(r.id),
-      );
+      const roomsToUpdate = roomWithAtLeastThreshold1.filter((r) => {
+        const lastPowerStepAt = this.getState(r).lastPowerStepAt;
+        return (
+          lastPowerStepAt === null ||
+          lastPowerStepAt <= timestamp.epochSecond - this.thresholdTimeLimit
+        );
+      });
       if (roomsToUpdate.length > 0) {
         this.increasePower(timestamp);
+        for (const room of roomsToUpdate) {
+          this.getState(room).lastPowerStepAt = timestamp.epochSecond;
+        }
         this.markChanged(roomsToUpdate, timestamp);
         roomsActedOn = roomsToUpdate;
       }
@@ -310,12 +328,98 @@ export class AutomaticModeEngine {
     };
   }
 
+  /**
+   * What is wrong with the current parameter values, one message per problem; empty when nothing is.
+   * The engine never calls this itself and runs whatever the values are: the caller decides.
+   */
+  getParameterProblems(): string[] {
+    const problems: string[] = [];
+    const th1 = this.thresholds.get(ThresholdType.TH1);
+    const th2 = this.thresholds.get(ThresholdType.TH2);
+    const th1Valid = isFiniteAbove(th1, 0);
+    const th2Valid = isFiniteAbove(th2, 0);
+    if (!th1Valid) problems.push("thresholds TH1 must be a finite number above 0");
+    if (!th2Valid) problems.push("thresholds TH2 must be a finite number above 0");
+    if (th1Valid && th2Valid && th2 <= th1) problems.push("thresholds TH2 must be above TH1");
+
+    const hysteresis1 = this.co2Hysteresis.get(ThresholdType.TH1) ?? 0;
+    const hysteresis2 = this.co2Hysteresis.get(ThresholdType.TH2) ?? 0;
+    if (!isFiniteAtLeast(hysteresis1, 0) || (th1Valid && hysteresis1 >= th1)) {
+      problems.push("co2Hysteresis TH1 must be a finite number from 0 to below TH1");
+    }
+    if (!isFiniteAtLeast(hysteresis2, 0) || (th2Valid && hysteresis2 >= th2)) {
+      problems.push("co2Hysteresis TH2 must be a finite number from 0 to below TH2");
+    } else if (th1Valid && th2Valid && th2 > th1 && th2 - hysteresis2 <= th1) {
+      problems.push("co2Hysteresis TH2 must leave TH2 minus the hysteresis above TH1");
+    }
+    if (
+      !isFiniteAtLeast(this.fluctuationOffset, 0) ||
+      (th1Valid && this.fluctuationOffset >= th1)
+    ) {
+      problems.push("fluctuationOffset must be a finite number from 0 to below TH1");
+    }
+
+    for (const name of ["thresholdTimeLimit", "belowTimeLimit"] as const) {
+      if (!isFiniteAtLeast(this[name], 0))
+        problems.push(`${name} must be a finite number, 0 or more`);
+    }
+    if (!isFiniteAbove(this.co2FilterAlpha, 0) || this.co2FilterAlpha > 1) {
+      problems.push("co2FilterAlpha must be above 0 and at most 1");
+    }
+    for (const name of ["hruPowerStep", "hruPowerStepDownInterval"] as const) {
+      if (!isFiniteAbove(this[name], 0)) problems.push(`${name} must be a finite number above 0`);
+    }
+
+    const powers = ["hruMinPower", "hruMaxPowerDay", "hruMaxPowerNight", "hruMovePower"] as const;
+    const powerValid = new Map<string, boolean>();
+    for (const name of powers) {
+      const valid = isFiniteAtLeast(this[name], 0) && this[name] <= 10;
+      powerValid.set(name, valid);
+      if (!valid) problems.push(`${name} must be a finite number from 0 to 10`);
+    }
+    for (const name of ["hruMaxPowerDay", "hruMaxPowerNight"] as const) {
+      if (powerValid.get("hruMinPower") && powerValid.get(name) && this.hruMinPower > this[name]) {
+        problems.push(`hruMinPower must not be above ${name}`);
+      }
+    }
+    if (powerValid.get("hruMovePower") && powerValid.get("hruMinPower")) {
+      if (this.hruMovePower < this.hruMinPower) {
+        problems.push("hruMovePower must not be below hruMinPower");
+      }
+    }
+    if (powerValid.get("hruMovePower") && powerValid.get("hruMaxPowerDay")) {
+      if (this.hruMovePower > this.hruMaxPowerDay) {
+        problems.push("hruMovePower must not be above hruMaxPowerDay");
+      }
+    }
+
+    const openValid = isFiniteAtLeast(this.fullyOpenValue, 0);
+    const partialValid = isFiniteAtLeast(this.partialCloseValue, 0);
+    if (!openValid) problems.push("fullyOpenValue must be a finite number, 0 or more");
+    if (!partialValid) problems.push("partialCloseValue must be a finite number, 0 or more");
+    if (openValid && partialValid && this.partialCloseValue <= this.fullyOpenValue) {
+      problems.push("partialCloseValue must be greater than fullyOpenValue");
+    }
+
+    const dayBoundsValid = (["dayStart", "dayEnd"] as const).map((name) => {
+      const valid = Number.isInteger(this[name]) && this[name] >= 0 && this[name] <= 86399;
+      if (!valid) problems.push(`${name} must be a whole second of the day, 0 to 86399`);
+      return valid;
+    });
+    if (dayBoundsValid.every(Boolean) && this.dayStart === this.dayEnd) {
+      problems.push("dayStart and dayEnd must differ");
+    }
+    return problems;
+  }
+
   getHruCurrentPower(): number {
     return this.hru.getPower();
   }
 
+  /** The filtered CO2 of a room in whole ppm, as the engine compares it with the thresholds. */
   getFilteredCO2(roomId: string): number | null {
-    return this.roomStates.get(roomId)?.filteredCO2 ?? null;
+    const state = this.roomStates.get(roomId);
+    return state === undefined ? null : this.getRoundedCO2(state);
   }
 
   getRoomState(roomId: string): RoomState | undefined {
@@ -409,7 +513,8 @@ export class AutomaticModeEngine {
         state.filteredAt = timestamp.epochSecond;
       } else if (timestamp.epochSecond > state.filteredAt) {
         const weight = this.getFilterWeight(timestamp.epochSecond - state.filteredAt);
-        state.filteredCO2 = Math.round(weight * rawCO2 + (1 - weight) * state.filteredCO2);
+        // Kept unrounded: a rounded state stops moving once the remaining distance rounds to nothing.
+        state.filteredCO2 = weight * rawCO2 + (1 - weight) * state.filteredCO2;
         state.filteredAt = timestamp.epochSecond;
       }
 
@@ -418,9 +523,18 @@ export class AutomaticModeEngine {
     }
   }
 
+  /**
+   * The filtered value in whole ppm. Everything that compares or shows it goes through here: unrounded,
+   * a moving average only ever approaches a steady reading, so `>= threshold` would never become true
+   * for a room that sits exactly on the threshold.
+   */
+  private getRoundedCO2(state: RoomState): number | null {
+    return state.filteredCO2 === null ? null : Math.round(state.filteredCO2);
+  }
+
   /** Unlike the TH timers there is no hysteresis: crossing the level restarts the other timer. */
   private updateFluctuationTimers(state: RoomState, timestamp: Timestamp): void {
-    const co2 = state.filteredCO2;
+    const co2 = this.getRoundedCO2(state);
     if (co2 === null) return;
 
     if (co2 >= this.getFluctuationLevel()) {
@@ -441,12 +555,19 @@ export class AutomaticModeEngine {
     return 1 - Math.pow(1 - this.co2FilterAlpha, elapsedSeconds);
   }
 
-  private getHruMaxPower(timestamp: Timestamp): number {
-    if (timestamp.secondOfDay < this.dayStart || timestamp.secondOfDay > this.dayEnd) {
-      return this.hruMaxPowerNight;
-    } else {
-      return this.hruMaxPowerDay;
+  /**
+   * Day runs from `dayStart` to `dayEnd`, both included. With `dayStart` after `dayEnd` it runs through
+   * midnight, and night is the stretch in between.
+   */
+  private isDay(secondOfDay: number): boolean {
+    if (this.dayStart <= this.dayEnd) {
+      return secondOfDay >= this.dayStart && secondOfDay <= this.dayEnd;
     }
+    return secondOfDay >= this.dayStart || secondOfDay <= this.dayEnd;
+  }
+
+  private getHruMaxPower(timestamp: Timestamp): number {
+    return this.isDay(timestamp.secondOfDay) ? this.hruMaxPowerDay : this.hruMaxPowerNight;
   }
 
   private formatDayTime(timestamp: Timestamp): string {
@@ -456,7 +577,7 @@ export class AutomaticModeEngine {
   }
 
   private updateThresholdTimers(room: Room, state: RoomState, timestamp: Timestamp): void {
-    const co2 = state.filteredCO2;
+    const co2 = this.getRoundedCO2(state);
     if (co2 === null) return;
 
     for (const thresholdType of Object.values(ThresholdType)) {
@@ -479,7 +600,8 @@ export class AutomaticModeEngine {
         this.logger.info(
           `[${this.formatDayTime(timestamp)}] CO2 in room ${room.id} recovered under threshold ${thresholdType}: (${co2}<${thresholdLower})`,
         );
-      } else if (co2 < thresholdLower && belowSince === null && aboveSince === null) {
+      } else if (belowSince === null && aboveSince === null) {
+        // A room without a state yet: under the threshold it is below, even inside the hysteresis band.
         state.belowThresholdSince.set(thresholdType, timestamp.epochSecond);
       }
     }
@@ -572,20 +694,49 @@ export class AutomaticModeEngine {
   }
 
   /**
-   * Lowers a power above the day or night maximum to that maximum in one write, whatever the branch.
-   * Not an action on a room: nothing is marked as changed.
+   * Brings a power outside the limits back in one write, whatever the branch: down to the day or night
+   * maximum, up to `hruMinPower`. Where the minimum is above the maximum, the maximum wins. Not an
+   * action on a room: nothing is marked as changed.
    */
-  private enforceMaxPower(timestamp: Timestamp): void {
+  private enforcePowerLimits(timestamp: Timestamp): void {
     const hruCurrentPower = this.hru.getPower();
+    // The HRU followed a write, so it is responding: nothing is waiting any more.
+    if (this.pendingPowerWrites.has(hruCurrentPower)) this.pendingPowerWrites.clear();
+
     const maxPower = roundPower(this.getHruMaxPower(timestamp));
     // An unavailable HRU reports `NaN`: there is nothing to compare, so nothing is written.
     if (!Number.isFinite(hruCurrentPower) || !Number.isFinite(maxPower)) return;
-    if (hruCurrentPower <= maxPower) return;
+    const minPower = roundPower(Math.min(this.hruMinPower, maxPower));
 
-    this.logger.info(
-      `[${this.formatDayTime(timestamp)}] lowering HRU power from ${hruCurrentPower} to ${maxPower} (maximum)`,
-    );
-    this.hru.setPower(maxPower);
+    if (hruCurrentPower > maxPower) {
+      this.writePower(
+        timestamp,
+        maxPower,
+        `lowering HRU power from ${hruCurrentPower} to ${maxPower} (maximum)`,
+      );
+    } else if (hruCurrentPower < minPower) {
+      this.writePower(
+        timestamp,
+        minPower,
+        `raising HRU power from ${hruCurrentPower} to ${minPower} (minimum)`,
+      );
+    }
+  }
+
+  /**
+   * The one place a power is written. A write the HRU does not follow (a unit that is off, a dropped
+   * write, a unit that rounds to its own steps) is not repeated on every run: the same value is written
+   * again only after `thresholdTimeLimit`. A unit that follows is not affected, because the next run
+   * reads the value back and clears the memory.
+   */
+  private writePower(timestamp: Timestamp, power: number, description: string): void {
+    const writtenAt = this.pendingPowerWrites.get(power);
+    if (writtenAt !== undefined && timestamp.epochSecond - writtenAt < this.thresholdTimeLimit) {
+      return;
+    }
+    this.logger.info(`[${this.formatDayTime(timestamp)}] ${description}`);
+    this.hru.setPower(power);
+    this.pendingPowerWrites.set(power, timestamp.epochSecond);
     this.recordJournalEntry(timestamp);
   }
 
@@ -596,11 +747,11 @@ export class AutomaticModeEngine {
     );
     // Only upwards: an HRU whose read-back lags can still report a power above the maximum here.
     if (newPower > hruCurrentPower) {
-      this.logger.info(
-        `[${this.formatDayTime(timestamp)}] increasing HRU power from ${hruCurrentPower} to ${newPower}`,
+      this.writePower(
+        timestamp,
+        newPower,
+        `increasing HRU power from ${hruCurrentPower} to ${newPower}`,
       );
-      this.hru.setPower(newPower);
-      this.recordJournalEntry(timestamp);
     }
   }
 
@@ -634,11 +785,11 @@ export class AutomaticModeEngine {
     const hruCurrentPower = this.hru.getPower();
     if (steps > 0 && hruCurrentPower > this.hruMinPower) {
       const newPower = roundPower(this.lowerPower(hruCurrentPower, steps, this.hruMinPower));
-      this.logger.info(
-        `[${this.formatDayTime(timestamp)}] decreasing HRU power from ${hruCurrentPower} to ${newPower}`,
+      this.writePower(
+        timestamp,
+        newPower,
+        `decreasing HRU power from ${hruCurrentPower} to ${newPower}`,
       );
-      this.hru.setPower(newPower);
-      this.recordJournalEntry(timestamp);
     }
   }
 
@@ -657,10 +808,10 @@ export class AutomaticModeEngine {
     );
     if (newPower === hruCurrentPower) return;
 
-    this.logger.info(
-      `[${this.formatDayTime(timestamp)}] moving HRU power from ${hruCurrentPower} to ${newPower} (fluctuation)`,
+    this.writePower(
+      timestamp,
+      newPower,
+      `moving HRU power from ${hruCurrentPower} to ${newPower} (fluctuation)`,
     );
-    this.hru.setPower(newPower);
-    this.recordJournalEntry(timestamp);
   }
 }

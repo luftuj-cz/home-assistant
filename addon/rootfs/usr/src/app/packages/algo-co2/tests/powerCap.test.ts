@@ -45,22 +45,25 @@ function createHouse(hru: HRU): House {
   return { engine, sensors, logs };
 }
 
+type ReadingsAt = Readings | ((time: number) => Readings);
+
 /**
- * Runs seconds 0..lastSecond with constant readings and returns the reports indexed by second. The
+ * Runs seconds 0..lastSecond with the given readings and returns the reports indexed by second. The
  * time of day starts at `startSecondOfDay`.
  */
 function simulate(
   house: House,
   lastSecond: number,
-  readings: Readings,
+  readingsAt: ReadingsAt,
   startSecondOfDay = START_SECOND_OF_DAY,
 ): RunReport[] {
-  [readings.a, readings.b, readings.c].forEach((co2, i) => {
-    const sensor = house.sensors[i];
-    if (sensor !== undefined) sensor.co2 = co2;
-  });
   const reports: RunReport[] = [];
   for (let time = 0; time <= lastSecond; time++) {
+    const readings = typeof readingsAt === "function" ? readingsAt(time) : readingsAt;
+    [readings.a, readings.b, readings.c].forEach((co2, i) => {
+      const sensor = house.sensors[i];
+      if (sensor !== undefined) sensor.co2 = co2;
+    });
     reports.push(house.engine.run(new Timestamp(time, startSecondOfDay + time)));
   }
   return reports;
@@ -83,14 +86,19 @@ function falseIncreases(logs: string[]): string[] {
 }
 
 const ABOVE_TH1: Readings = { a: 1000, b: 500, c: 500 };
-/** Room a inside the TH1 hysteresis band, never above TH1. */
-const IN_BAND: Readings = { a: 780, b: 500, c: 500 };
+/**
+ * Room a above TH1 until 50 s before the night, then well below it: when the night starts it has not
+ * been below for `belowTimeLimit` yet, so the branch is `none`.
+ */
+function waitingBelowTh1(time: number): Readings {
+  return { a: time < FIRST_NIGHT_RUN - 50 ? 900 : 700, b: 500, c: 500 };
+}
 const ABOVE_TH2: Readings = { a: 1300, b: 500, c: 500 };
 
 describe("power above the maximum of the run", () => {
   test.each([
     ["th1", ABOVE_TH1],
-    ["none", IN_BAND],
+    ["none", waitingBelowTh1],
     ["th2", ABOVE_TH2],
   ] as const)("is lowered in the first run of the night in the %s branch", (branch, readings) => {
     const reports = simulate(createHouse(new SimulatedHRU(10)), FIRST_NIGHT_RUN, readings);
@@ -132,7 +140,7 @@ describe("power at or below the maximum", () => {
 
 describe("lowering to the maximum", () => {
   test("is reported through powerBefore, powerAfter and maxPower", () => {
-    const reports = simulate(createHouse(new SimulatedHRU(10)), FIRST_NIGHT_RUN, IN_BAND);
+    const reports = simulate(createHouse(new SimulatedHRU(10)), FIRST_NIGHT_RUN, waitingBelowTh1);
 
     expect(at(reports, FIRST_NIGHT_RUN)).toMatchObject({
       branch: "none",
@@ -143,10 +151,17 @@ describe("lowering to the maximum", () => {
   });
 
   test("is not an action on a room", () => {
-    const reports = simulate(createHouse(new SimulatedHRU(10)), FIRST_NIGHT_RUN + 1, IN_BAND);
+    const reports = simulate(
+      createHouse(new SimulatedHRU(10)),
+      FIRST_NIGHT_RUN + 1,
+      waitingBelowTh1,
+    );
 
     expect(at(reports, FIRST_NIGHT_RUN).roomsActedOn).toEqual([]);
-    expect(at(reports, FIRST_NIGHT_RUN + 1).roomsInCooldown).toEqual([]);
+    // Room a is in cooldown from the th1 branch before the night; the limit adds nothing to that.
+    expect(at(reports, FIRST_NIGHT_RUN + 1).roomsInCooldown).toEqual(
+      at(reports, FIRST_NIGHT_RUN - 1).roomsInCooldown,
+    );
   });
 
   test("is logged as a lowering, never as an increase", () => {

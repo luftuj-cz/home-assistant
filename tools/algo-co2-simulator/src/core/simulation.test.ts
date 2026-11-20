@@ -101,7 +101,7 @@ describe("engine fidelity", () => {
     sim.advance(1000);
 
     expect(sim.engine.getJournalString()).toBe(
-      "256,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0;694,2,obyvak_privod_1:0,obyvak_privod_2:0,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
+      "256,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:45,loznice_privod_2:45,pracovna_privod:0;695,2,obyvak_privod_1:0,obyvak_privod_2:0,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
     );
   });
 
@@ -123,7 +123,7 @@ describe("engine fidelity", () => {
     sim.advance(1000);
 
     expect(sim.engine.getJournalString()).toBe(
-      "120,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;480,3,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;600,4,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;720,5,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
+      "120,2,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;421,3,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;541,4,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0;661,5,obyvak_privod_1:45,obyvak_privod_2:45,loznice_privod_1:0,loznice_privod_2:0,pracovna_privod:0",
     );
   });
 

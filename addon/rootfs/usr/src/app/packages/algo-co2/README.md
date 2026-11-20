@@ -7,8 +7,10 @@ The package is standalone on purpose. It has no runtime dependencies, uses no No
 globals, and knows nothing about the backend around it. The backend imports it; it never imports
 the backend.
 
-Ported from `luftuj-tools/homeassistant-engine` at commit `b429c36` (2026-07-19). Behaviour is
-unchanged; the scenario tests carry over with their original expected journals.
+Ported from `luftuj-tools/homeassistant-engine` at commit `b429c36` (2026-07-19). Behaviour has moved
+on since: the scenario tests in `tests/engine.test.ts` come from the original, and four of their five
+expected journals were re-baselined on 2026-11-20 (an earlier first TH2 power step, and a filter that
+keeps its precision).
 
 ## Usage
 
@@ -41,8 +43,8 @@ const report = engine.run(Timestamp.now());
 // read valve.value for the new positions
 ```
 
-`HRU` is synchronous, and the engine writes positions straight into `Valve.value`. The
-`onValveChange` callback exists but the engine does not call it yet. `HRU` power is on the engine's
+`HRU` is synchronous, and the engine writes positions straight into `Valve.value`; `RunReport.valvesChanged`
+says whether a run moved any. `HRU` power is on the engine's
 0–10 scale (see Power scale), so `currentPower` and `writePower` above convert to and from the
 unit's own values.
 
@@ -70,7 +72,9 @@ power around the run), `maxPower` (the day or night maximum at that timestamp, w
 - **Room**: its CO2 is the **maximum** over sensors that hold a reading, or `null` if none do.
 - **Box**: a physical unit holding valves.
 - **Valve**: id, default position, owning room, `Supply` or `Exhaust`. Position `0` is fully
-  open; higher values close it further.
+  open; higher values close it further. The engine carries the type but does not use it: supply and
+  exhaust valves are treated alike, and the valves of a room without sensors open fully whenever the
+  airflow is redistributed.
 - **Sensor**: id and a `co2` reading (`number | null`), `null` until the caller writes one.
 
 A reading is a finite number above 0. Anything else in `Sensor.co2` (`null`, `undefined`, `NaN`,
@@ -92,17 +96,23 @@ Every `run(timestamp)`:
    from it.
 2. Tracks, per room and threshold (TH1, TH2), since when the smoothed CO2 has been at or above
    the threshold, and since when it has been below `threshold - hysteresis`, where each threshold
-   has its own hysteresis in `co2Hysteresis` (TH1diff, TH2diff).
+   has its own hysteresis in `co2Hysteresis` (TH1diff, TH2diff). The smoothed value is kept unrounded
+   and compared in whole ppm. A room's first reading decides its state: below the threshold it is
+   "below", also inside the hysteresis band; the hysteresis only applies to leaving "above".
 3. Counts a room as above a threshold only after `thresholdTimeLimit` seconds there (Tzone), and as
    below one only after `belowTimeLimit` seconds (Topen).
 4. Updates the fluctuation state (see below).
-5. Lowers an HRU power that is above the day or night maximum to that maximum, in one write and in
-   every branch. This is not an action on a room: no room is marked as acted on and the reported branch
-   does not change; the run's `powerBefore` and `powerAfter` show it.
+5. Brings an HRU power outside the limits back in one write, in every branch: down to the day or night
+   maximum, up to `hruMinPower` (where the minimum is above the maximum, the maximum wins). This is not
+   an action on a room: no room is marked as acted on and the reported branch does not change; the
+   run's `powerBefore` and `powerAfter` show it. A write the unit does not follow is tried again once
+   per `thresholdTimeLimit`, not on every run.
 6. Acts on the first branch that applies, and reports it as `RunReport.branch`:
    - **A room above TH2** (`th2`): rooms above TH1 or TH2 open fully, all other rooms close partially,
      and the HRU power rises by one step (capped by the day or night maximum). The power step
-     happens at most once per `thresholdTimeLimit` for the rooms involved.
+     happens at most once per `thresholdTimeLimit` for the rooms involved, on a timer of its own: the
+     first step comes as soon as a room has been above TH2 for `thresholdTimeLimit`, whatever the `th1`
+     branch did with that room before.
    - **A room above TH1** (`th1`) that the engine has not acted on within `thresholdTimeLimit`:
      every room above TH1 opens fully, including rooms acted on more recently, and every other room
      closes partially. Only the rooms out of that window are marked as acted on. When every room
@@ -115,11 +125,10 @@ Every `run(timestamp)`:
    - **Every room with a reading below TH1 - hysteresis** (`allBelow`): valves return to their
      defaults and the HRU power drops by one step per `hruPowerStepDownInterval`, down to `hruMinPower`. This also
      applies when no room has a reading.
-   - Otherwise (`none`) nothing changes: the hysteresis band, or a state that has not yet lasted its
-     time limit.
+   - Otherwise (`none`) nothing changes: a state that has not yet lasted its time limit.
 
-While the engine runs, it owns the HRU power: a power set above the maximum from outside is lowered on
-the next run. Do not call `run()` while another mode (a boost, a schedule override) controls the unit.
+While the engine runs, it owns the HRU power: a power set outside the limits from outside is brought
+back on the next run, and a unit that reads 0 is raised to `hruMinPower`. Do not call `run()` while another mode (a boost, a schedule override) controls the unit.
 
 ### Run period
 
@@ -197,7 +206,33 @@ Public fields on `AutomaticModeEngine`, with their defaults:
 | `fullyOpenValue`                    | 0                 | position of a fully open valve               |
 | `dayStart`/`dayEnd`                 | 07:00 / 22:00     | day window, in seconds of the day            |
 
-`Timestamp.now()` takes the time of day from the process's local time zone.
+The defaults are placeholders: every installation sets its own thresholds, powers and day window.
+`getParameterProblems()` returns what is wrong with the current values, one message per problem (TH2
+not above TH1, a minimum above a maximum, a step of 0, a partially closed position that is not more
+closed than the open one, …) and an empty list when nothing is. The engine never calls it and never
+throws because of a parameter.
+
+`dayStart` after `dayEnd` is a day that runs through midnight; both ends count as day either way.
+`Timestamp.now()` takes the time of day from the process's local time zone, so an integration that
+knows the house's time zone builds the `Timestamp` itself.
+
+## What the caller must do
+
+The engine cannot do these on its own:
+
+- **Valve positions at start.** A valve is moved only when `Valve.value` differs from what the engine
+  wants, and `Valve.value` starts at 0, which is also "fully open". Set it from the real positions
+  before the first run, or write every position once after it; otherwise valves left partially closed
+  before a restart are never opened.
+- **A unit that is off.** Do not call `run()` then. The engine would raise the power to `hruMinPower`
+  and, as the unit does not follow, write it again once per `thresholdTimeLimit`.
+- **Readings.** Pass `null` for a reading that is too old, and convert Home Assistant states yourself
+  (see Model).
+- **Parameters.** Call `getParameterProblems()` after applying settings and decide what to do with
+  the answer.
+
+`getRoomState()` exposes the engine's own state for display; its `filteredCO2` is the unrounded value,
+`getFilteredCO2()` the one in whole ppm that the engine compares.
 
 ## Tests
 
@@ -209,7 +244,7 @@ npm test          # in the backend or repo root: backend and this package
 The scenarios in `tests/engine.test.ts` drive the engine one simulated second at a time with
 `SensorSimulator` (linear interpolation between CO2 points) and compare the journal: with
 `useJournal = true` the engine records `epochSecond,power,valve:position,...` on every change,
-entries joined by `;`.
+entries joined by `;`. The journal is a test aid: it grows until `clearJournal()`.
 
 ## Staying standalone
 

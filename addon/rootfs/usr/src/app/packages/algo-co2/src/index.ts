@@ -6,7 +6,6 @@ export {
   type DecisionBranch,
   type HRU,
   type Logger,
-  type OnValveChange,
   type RoomState,
   type RunReport,
 } from "./engine.js";

@@ -95,8 +95,4 @@ export class Valve {
   get type(): ValveType {
     return this._type;
   }
-
-  resetToDefault(): void {
-    this.value = this._defaultValue;
-  }
 }
