@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { notifications } from "@mantine/notifications";
-import { Button, Stack, Text } from "@mantine/core";
+import { Button } from "@luftuj/shared/ui/button";
+import { dismissNotification, notify } from "@luftuj/shared/ui/notify";
 import type { TFunction } from "i18next";
-import { IconCopy } from "@tabler/icons-react";
 import type { Mode, TimelineEvent } from "@luftuj/shared/types/timeline";
 import { createLogger } from "@luftuj/shared/utils/logger";
 
@@ -77,16 +76,15 @@ export function useDayCopyPaste(
 
   useEffect(() => {
     if (!clipboard) {
-      notifications.hide("copy-hint");
+      dismissNotification("copy-hint");
       return;
     }
 
     const crossSeason =
       clipboard.sourceSeasonLabel !== undefined && clipboard.sourcePlanKey !== context.planKey;
 
-    notifications.show({
+    notify({
       id: "copy-hint",
-      icon: <IconCopy size={16} />,
       title: crossSeason
         ? t("settings.timeline.copyingFromSeason", {
             day: dayLabels[clipboard.sourceDay],
@@ -94,22 +92,21 @@ export function useDayCopyPaste(
           })
         : t("settings.timeline.copying", { day: dayLabels[clipboard.sourceDay] }),
       message: (
-        <Stack gap="xs">
-          <Text size="xs">{t("settings.timeline.copyHint")}</Text>
+        <span className="grid gap-2">
+          <span>{t("settings.timeline.copyHint")}</span>
           <Button
-            size="compact-xs"
-            variant="light"
-            color="gray"
-            fullWidth
+            variant="secondary"
+            size="sm"
+            className="w-full"
             onClick={() => setClipboard(null)}
           >
             {t("settings.timeline.modal.cancel")}
           </Button>
-        </Stack>
+        </span>
       ),
       autoClose: false,
-      withCloseButton: false,
-      color: "blue",
+      dismissible: false,
+      variant: "info",
       loading: true,
     });
   }, [clipboard, context.planKey, dayLabels, t]);
@@ -123,8 +120,8 @@ export function useDayCopyPaste(
         if (existing.id === undefined) continue;
         if (!(await deleteEvent(existing.id, { silent: true }))) {
           setPendingPaste(null);
-          notifications.show({
-            color: "red",
+          notify({
+            variant: "error",
             title: t("settings.timeline.pasteBlockedTitle"),
             message: t("settings.timeline.pasteDeleteFailed", { day: dayLabels[targetDay] }),
           });
@@ -179,8 +176,8 @@ export function useDayCopyPaste(
       // A plain success toast would turn a partial paste into exactly the kind
       // of half-failure the rest of this feature avoids.
       if (failed > 0) {
-        notifications.show({
-          color: "red",
+        notify({
+          variant: "error",
           autoClose: false,
           title: t("settings.timeline.pasteFailedTitle", {
             pasted,
@@ -189,8 +186,8 @@ export function useDayCopyPaste(
           message: t("settings.timeline.pasteFailedMessage", { failed }),
         });
       } else if (disabledModes.size > 0) {
-        notifications.show({
-          color: "yellow",
+        notify({
+          variant: "warning",
           autoClose: false,
           title: t("settings.timeline.pastePartialTitle", {
             pasted,
@@ -201,10 +198,10 @@ export function useDayCopyPaste(
           }),
         });
       } else {
-        notifications.show({
+        notify({
           title: t("settings.timeline.notifications.saveSuccessTitle"),
           message: t("settings.timeline.pasteSuccess"),
-          color: "green",
+          variant: "success",
         });
       }
 
@@ -225,8 +222,8 @@ export function useDayCopyPaste(
       // Mode ids are scoped to a unit, so a mode copied from another unit does
       // not exist here. Hard rejection, not a warning.
       if (clipboard.sourceUnitId !== context.unitId) {
-        notifications.show({
-          color: "red",
+        notify({
+          variant: "error",
           title: t("settings.timeline.pasteBlockedTitle"),
           message: t("settings.timeline.pasteCrossUnit"),
         });

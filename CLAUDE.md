@@ -92,8 +92,10 @@ The frontend communicates with the backend via REST API (`/api/*`) and WebSocket
 
 **Styling**:
 
-- Mantine v9 for component library with custom theme in `src/App.tsx`
-- Notifications at bottom-left with motion animations (framer-motion)
+- LUFTaTOR design system (reference in `../luftator-design-system`): Tailwind v4 with the design tokens in
+  `src/globals.css`, shadcn-style primitives on Radix (`radix-ui`) and the app's own components in `src/shared/ui/`
+- Light / dark / system theme via `ThemeProvider` (`src/shared/theme/`); `.dark` and `data-theme` on `<html>`
+- Notifications through `notify()` (`src/shared/ui/notify.ts`), shown by sonner
 
 **Utilities**:
 
@@ -188,7 +190,7 @@ The backend acts as a Home Assistant add-on. Key integration points:
 - **React 19**: Use `async` handlers with `useTransition` for mutations
 - **Hooks**: Extract logic into custom hooks (see `src/features/timeline/hooks/`)
 - **Component Pattern**: Functional components, TypeScript strict mode
-- **Form Handling**: Mantine Form + Zod for validation
+- **Form Handling**: react-hook-form + Zod (`@hookform/resolvers`) for validation
 - **API Calls**: Use React Query for caching and synchronization
 - **Logging**: Use `createLogger("ComponentName")` for debug visibility
 
@@ -215,7 +217,7 @@ The backend acts as a Home Assistant add-on. Key integration points:
 
 1. `tsc -b` – TypeScript type checking
 2. `node scripts/copy-translations.mjs` – Copy frontend locales (`src/shared/i18n/locales`) to the backend
-3. `vite build` – Bundle with chunking strategy (mantine, tanstack, motion, icons, date-fns as separate chunks)
+3. `vite build` – Bundle with chunking strategy (tanstack, icons, date-fns as separate chunks)
 4. Output goes to `dist/`
 
 ### Addon Build

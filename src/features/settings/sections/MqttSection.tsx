@@ -1,22 +1,17 @@
-import { startTransition, useCallback, useEffect, useState } from "react";
-import {
-  Accordion,
-  Badge,
-  Button,
-  Group,
-  NumberInput,
-  Paper,
-  PasswordInput,
-  SimpleGrid,
-  Stack,
-  Text,
-  TextInput,
-} from "@mantine/core";
-import { IconSettings } from "@tabler/icons-react";
-import { notifications } from "@mantine/notifications";
+import { IconRss } from "@tabler/icons-react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { MotionSwitch } from "@luftuj/shared/ui";
+import { SaveBar } from "@luftuj/features/settings/components/SaveBar";
+import { SettingsSection, SummaryChip } from "@luftuj/features/settings/components/SettingsSection";
+import { Collapse } from "@luftuj/shared/ui/collapse";
+import { ConnectionTest, type ConnectionTestState } from "@luftuj/shared/ui/connection-test";
+import { Field } from "@luftuj/shared/ui/field";
+import { Input } from "@luftuj/shared/ui/input";
+import { notify } from "@luftuj/shared/ui/notify";
+import { NumberInput } from "@luftuj/shared/ui/number-input";
+import { Switch } from "@luftuj/shared/ui/switch";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import { parseApiError, translateApiError } from "@luftuj/shared/utils/apiError";
 import { createLogger } from "@luftuj/shared/utils/logger";
@@ -31,21 +26,35 @@ interface MqttSettings {
   password: string;
 }
 
-const initial: MqttSettings = {
-  enabled: false,
-  host: "",
-  port: 1883,
-  user: "",
-  password: "",
-};
+const initial: MqttSettings = { enabled: false, host: "", port: 1883, user: "", password: "" };
 
+/** The broker connection for the summary chip, from the backend's status. */
+function useMqttConnected() {
+  const { data } = useQuery({
+    queryKey: ["status", "settings-summary-mqtt"],
+    queryFn: async () => {
+      const res = await fetch(resolveApiUrl("/api/status"));
+      if (!res.ok) return null;
+      return (await res.json()) as { mqtt?: { connection?: string } };
+    },
+    refetchInterval: 15_000,
+  });
+  return data?.mqtt?.connection === "connected";
+}
+
+/**
+ * Integrace MQTT: the enable switch, then broker host and port, user and password (with reveal), the connection
+ * test (with the form's values) and the SaveBar.
+ */
 export function MqttSection() {
   const { t } = useTranslation();
+  const connected = useMqttConnected();
+  const [loading, setLoading] = useState(true);
   const [settings, setSettings] = useState<MqttSettings>(initial);
+  const [saved, setSaved] = useState<MqttSettings>(initial);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [status, setStatus] = useState<"success" | "error" | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const [test, setTest] = useState<ConnectionTestState>("idle");
+  const [testError, setTestError] = useState<{ message: string; code?: string } | null>(null);
 
   useEffect(() => {
     let canceled = false;
@@ -54,15 +63,19 @@ export function MqttSection() {
         const res = await fetch(resolveApiUrl("/api/settings/mqtt"), { cache: "no-cache" });
         if (!res.ok || canceled) return;
         const data = await res.json();
-        setSettings({
+        const loaded: MqttSettings = {
           enabled: !!data.enabled,
           host: data.host || "",
           port: data.port || 1883,
           user: data.user || "",
           password: data.password || "",
-        });
+        };
+        setSettings(loaded);
+        setSaved(loaded);
       } catch (err) {
         logger.error("Failed to load MQTT settings", { error: err });
+      } finally {
+        if (!canceled) setLoading(false);
       }
     }
     void load();
@@ -73,11 +86,11 @@ export function MqttSection() {
 
   function update<K extends keyof MqttSettings>(key: K, value: MqttSettings[K]) {
     setSettings((prev) => ({ ...prev, [key]: value }));
-    setStatus(null);
-    setError(null);
+    setTest("idle");
+    setTestError(null);
   }
 
-  const save = useCallback(async () => {
+  async function save(): Promise<boolean> {
     setSaving(true);
     try {
       const res = await fetch(resolveApiUrl("/api/settings/mqtt"), {
@@ -87,36 +100,31 @@ export function MqttSection() {
       });
       if (!res.ok) {
         const err = await parseApiError(res);
-        notifications.show({
+        notify({
           title: t("settings.mqtt.notifications.saveFailedTitle"),
           message: translateApiError(err, t),
-          color: "red",
+          variant: "error",
         });
-        return;
+        return false;
       }
-      notifications.show({
-        title: t("settings.mqtt.notifications.saveSuccessTitle"),
-        message: t("settings.mqtt.notifications.saveSuccessMessage"),
-        color: "green",
-      });
+      setSaved(settings);
+      return true;
     } catch (err) {
       logger.error("Failed to save MQTT settings", { error: err });
-      notifications.show({
+      notify({
         title: t("settings.mqtt.notifications.saveFailedTitle"),
         message: t("settings.mqtt.notifications.unknown"),
-        color: "red",
+        variant: "error",
       });
+      return false;
     } finally {
       setSaving(false);
     }
-  }, [settings, t]);
+  }
 
-  const test = useCallback(async () => {
-    startTransition(() => {
-      setStatus(null);
-      setError(null);
-    });
-    setTesting(true);
+  async function runTest() {
+    setTestError(null);
+    setTest("testing");
     try {
       const res = await fetch(resolveApiUrl("/api/settings/mqtt/test"), {
         method: "POST",
@@ -125,126 +133,118 @@ export function MqttSection() {
       });
       if (!res.ok) {
         const err = await parseApiError(res);
-        const message = translateApiError(err, t);
-        startTransition(() => {
-          setStatus("error");
-          setError(message);
-        });
+        setTestError({ message: translateApiError(err, t), code: err.code });
+        setTest("error");
         return;
       }
-      startTransition(() => setStatus("success"));
+      setTest("success");
     } catch (err) {
       logger.error("MQTT connection test failed", { error: err });
-      startTransition(() => {
-        setStatus("error");
-        setError(t("settings.mqtt.notifications.unknown"));
-      });
-    } finally {
-      setTesting(false);
+      setTestError({ message: t("settings.mqtt.notifications.unknown") });
+      setTest("error");
     }
-  }, [settings, t]);
+  }
 
   const hostMissing = settings.enabled && settings.host.trim() === "";
+  const portInvalid = settings.port <= 0 || settings.port > 65535;
+  const dirty = !loading && JSON.stringify(settings) !== JSON.stringify(saved);
+
+  let summary = <SummaryChip>{t("settings.mqtt.state.off")}</SummaryChip>;
+  if (saved.enabled) {
+    summary = connected ? (
+      <SummaryChip tone="success">{t("settings.mqtt.state.connected")}</SummaryChip>
+    ) : (
+      <SummaryChip tone="destructive">{t("settings.mqtt.state.disconnected")}</SummaryChip>
+    );
+  }
 
   return (
-    <Accordion.Item value="mqtt">
-      <Accordion.Control icon={<IconSettings size={20} />}>
-        <Text fw={600}>{t("settings.mqtt.title")}</Text>
-      </Accordion.Control>
-      <Accordion.Panel>
-        <Paper p="md" withBorder radius="md">
-          <Stack gap="md">
-            <Group justify="space-between" align="center">
-              <Text fw={500} size="md">
-                {t("settings.mqtt.description")}
-              </Text>
-              <MotionSwitch
-                label={t("settings.mqtt.enabled")}
-                checked={settings.enabled}
-                onChange={(e) => update("enabled", e.currentTarget.checked)}
-                size="md"
+    <SettingsSection
+      value="mqtt"
+      index="05"
+      icon={IconRss}
+      title={t("settings.mqtt.title")}
+      description={t("settings.mqtt.sectionDescription")}
+      dirty={dirty}
+      summary={summary}
+    >
+      <Switch
+        label={t("settings.mqtt.enabled")}
+        description={t("settings.mqtt.description")}
+        checked={settings.enabled}
+        onCheckedChange={(checked) => update("enabled", checked)}
+        disabled={loading}
+      />
+      <Collapse open={settings.enabled}>
+        <div className="grid gap-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_130px] gap-4 @max-[420px]:grid-cols-[minmax(0,1fr)]">
+            <Field
+              label={t("settings.mqtt.host")}
+              required
+              error={hostMissing ? t("settings.mqtt.hostRequired") : undefined}
+            >
+              <Input
+                value={settings.host}
+                onChange={(event) => update("host", event.target.value)}
+                placeholder="core-mosquitto"
+                className="font-mono"
+                spellCheck={false}
               />
-            </Group>
-
-            {settings.enabled && (
-              <Stack gap="md" mt="xs">
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                  <TextInput
-                    value={settings.host}
-                    onChange={(e) => update("host", e.target.value)}
-                    label={t("settings.mqtt.host")}
-                    placeholder="core-mosquitto"
-                    error={hostMissing ? t("settings.mqtt.hostRequired") : undefined}
-                    size="md"
-                  />
-                  <NumberInput
-                    value={settings.port}
-                    onChange={(v) => update("port", typeof v === "number" ? v : 0)}
-                    label={t("settings.mqtt.port")}
-                    placeholder="1883"
-                    min={1}
-                    max={65535}
-                    error={
-                      settings.port <= 0 || settings.port > 65535
-                        ? t("settings.mqtt.portInvalid")
-                        : undefined
-                    }
-                    size="md"
-                  />
-                </SimpleGrid>
-
-                <SimpleGrid cols={{ base: 1, sm: 2 }} spacing="md">
-                  <TextInput
-                    value={settings.user}
-                    onChange={(e) => update("user", e.target.value)}
-                    label={t("settings.mqtt.user")}
-                    autoComplete="off"
-                    size="md"
-                  />
-                  <PasswordInput
-                    value={settings.password}
-                    onChange={(e) => update("password", e.target.value)}
-                    label={t("settings.mqtt.password")}
-                    autoComplete="new-password"
-                    size="md"
-                  />
-                </SimpleGrid>
-              </Stack>
-            )}
-
-            <Group mt="sm">
-              <Button
-                onClick={save}
-                loading={saving}
-                disabled={hostMissing}
-                variant="filled"
-                size="md"
-              >
-                {t("settings.mqtt.save")}
-              </Button>
-              <Button
-                onClick={test}
-                loading={testing}
-                disabled={settings.host.trim() === ""}
-                variant="light"
-                size="md"
-              >
-                {t("settings.mqtt.test")}
-              </Button>
-              {status === "success" && (
-                <Badge color="green" variant="light">
-                  {t("settings.mqtt.testSuccess")}
-                </Badge>
-              )}
-              {status === "error" && (
-                <Badge color="red" variant="light">
-                  {error || t("settings.mqtt.notifications.unknown")}
-                </Badge>
-              )}
-            </Group>
-          </Stack>
-        </Paper>
-      </Accordion.Panel>
-    </Accordion.Item>
+            </Field>
+            <Field
+              label={t("settings.mqtt.port")}
+              error={portInvalid ? t("settings.mqtt.portInvalid") : undefined}
+            >
+              <NumberInput
+                value={settings.port}
+                min={1}
+                max={65535}
+                onValueChange={(value) => update("port", value)}
+              />
+            </Field>
+          </div>
+          <div className="grid grid-cols-2 gap-4 @max-[420px]:grid-cols-[minmax(0,1fr)]">
+            <Field label={t("settings.mqtt.user")}>
+              <Input
+                value={settings.user}
+                onChange={(event) => update("user", event.target.value)}
+                autoComplete="off"
+              />
+            </Field>
+            <Field label={t("settings.mqtt.password")}>
+              <Input
+                type="password"
+                value={settings.password}
+                onChange={(event) => update("password", event.target.value)}
+                autoComplete="new-password"
+              />
+            </Field>
+          </div>
+        </div>
+      </Collapse>
+      <div className="border-t border-border pt-4">
+        <ConnectionTest
+          state={test}
+          onTest={() => void runTest()}
+          disabled={loading || settings.host.trim() === ""}
+          hint={t("settings.testFormHint")}
+          error={testError?.message}
+          code={testError?.code}
+          detail={`${settings.host}:${settings.port}`}
+        />
+      </div>
+      <SaveBar
+        dirty={dirty}
+        saving={saving}
+        disabled={hostMissing || portInvalid}
+        label={t("settings.mqtt.save")}
+        onSave={save}
+        onDiscard={() => {
+          setSettings(saved);
+          setTest("idle");
+          setTestError(null);
+        }}
+      />
+    </SettingsSection>
   );
 }

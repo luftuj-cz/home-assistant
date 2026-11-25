@@ -1,5 +1,7 @@
 export const THEME_SETTING_KEY = "ui.theme";
 export const LANGUAGE_SETTING_KEY = "ui.language";
+export const TEMPERATURE_UNIT_SETTING_KEY = "ui.temperatureUnit";
+export const TEMPERATURE_UNITS = ["celsius", "fahrenheit"] as const;
 export const SUPPORTED_LANGUAGES = ["en", "cs"] as const;
 
 export const HRU_SETTINGS_KEY = "hru.settings";

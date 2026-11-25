@@ -1,6 +1,6 @@
 import i18n from "i18next";
 import { initReactI18next } from "react-i18next";
-import { notifications } from "@mantine/notifications";
+import { notify } from "@luftuj/shared/ui/notify";
 
 import enCommon from "@luftuj/shared/i18n/locales/en/common.json";
 import csCommon from "@luftuj/shared/i18n/locales/cs/common.json";
@@ -42,10 +42,10 @@ try {
 } catch (error) {
   logger.error("Failed to initialize i18n", { error });
   if (globalThis.window !== undefined) {
-    notifications.show({
+    notify({
       title: i18n.t("errors.i18n.title"),
       message: i18n.t("errors.i18n.message"),
-      color: "red",
+      variant: "error",
     });
   }
 }

@@ -1,7 +1,9 @@
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import {
   createContext,
   type ReactNode,
-  type RefObject,
   useCallback,
   useContext,
   useEffect,
@@ -9,25 +11,29 @@ import {
   useRef,
   useState,
 } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
-import { useForm, type UseFormReturnType } from "@mantine/form";
-import { useMantineColorScheme } from "@mantine/core";
+import { useForm, type UseFormReturn } from "react-hook-form";
 import { useTranslation } from "react-i18next";
-import { notifications } from "@mantine/notifications";
 import { z } from "zod";
+
 import { fetchHruUnits, type HruUnit, type HruVariable } from "@luftuj/shared/api/hru";
-import { createLogger } from "@luftuj/shared/utils/logger";
+import { notify } from "@luftuj/shared/ui/notify";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
-import { parseApiError, translateApiError } from "@luftuj/shared/utils/apiError";
+import { parseApiError } from "@luftuj/shared/utils/apiError";
+import { createLogger } from "@luftuj/shared/utils/logger";
 
 const logger = createLogger("OnboardingWizard");
 
 function createModbusSchema(t: (key: string) => string) {
   return z.object({
     host: z.string().trim().min(1, t("onboarding.modbus.hostRequired")),
-    port: z.number().min(1, t("onboarding.modbus.portRequired")).max(65535),
-    unitId: z.number().min(0, t("onboarding.modbus.unitIdRequired")).max(255),
+    port: z
+      .number(t("onboarding.modbus.portRequired"))
+      .min(1, t("onboarding.modbus.portRequired"))
+      .max(65535),
+    unitId: z
+      .number(t("onboarding.modbus.unitIdRequired"))
+      .min(0, t("onboarding.modbus.unitIdRequired"))
+      .max(255),
   });
 }
 
@@ -54,167 +60,104 @@ function createMqttSchema(t: (key: string) => string) {
     });
 }
 
-type ModbusForm = z.infer<ReturnType<typeof createModbusSchema>>;
-type MqttForm = z.infer<ReturnType<typeof createMqttSchema>>;
+export type ModbusForm = z.infer<ReturnType<typeof createModbusSchema>>;
+export type MqttForm = z.infer<ReturnType<typeof createMqttSchema>>;
 
-interface StepsContextValue {
-  currentStep: number;
-  totalSteps: number;
-  nextStep: () => void;
-  prevStep: () => void;
-  setStep: (step: number) => void;
-  selectedUnit: string | null;
-  setSelectedUnit: (unit: string | null) => void;
-  minPower: number | undefined;
-  setMinPower: (power: number | undefined) => void;
-  maxPower: number | undefined;
-  setMaxPower: (power: number | undefined) => void;
-  fullUnits: HruUnit[];
-  selectedUnitDef: HruUnit | undefined;
-  requiresMinPower: boolean;
-  defaultMinPower: number | undefined;
-  requiresMaxPower: boolean;
-  defaultMaxPower: number | undefined;
-  powerVariable: HruVariable | undefined;
-  isDemoUnit: boolean;
-  modbusForm: UseFormReturnType<ModbusForm>;
-  mqttForm: UseFormReturnType<MqttForm>;
-  selectedLanguage: string;
-  setSelectedLanguage: (lang: string) => void;
-  selectedTheme: "light" | "dark";
-  setSelectedTheme: (theme: "light" | "dark") => void;
-  modbusSchema: ReturnType<typeof createModbusSchema>;
-  mqttSchema: ReturnType<typeof createMqttSchema>;
-  modbusMutation: ReturnType<typeof useMutation<unknown, Error, ModbusForm>>;
-  mqttMutation: ReturnType<typeof useMutation<unknown, Error, MqttForm>>;
-  testMqttMutation: ReturnType<typeof useMutation<unknown, Error, MqttForm>>;
-  testModbusMutation: ReturnType<typeof useMutation<unknown, Error, ModbusForm>>;
-  saveHruMutation: ReturnType<
-    typeof useMutation<
-      unknown,
-      Error,
-      {
-        host: string;
-        port: number;
-        unitId: number;
-        unit: string;
-        minPower?: number;
-        maxPower?: number;
-      }
-    >
-  >;
-  saveLanguageMutation: ReturnType<typeof useMutation<unknown, Error, string>>;
-  saveThemeMutation: ReturnType<typeof useMutation<unknown, Error, string>>;
-  finishMutation: ReturnType<typeof useMutation<unknown, Error, void>>;
-  importDbMutation: ReturnType<typeof useMutation<unknown, Error, File>>;
-  unitsQuery: ReturnType<typeof useQuery<{ id: string; name: string }[], Error>>;
-  systemInfoQuery: ReturnType<typeof useQuery<{ hassHost: string }, Error>>;
-  statusQuery: ReturnType<
-    typeof useQuery<
-      {
-        onboardingDone: boolean;
-        hruConfigured: boolean;
-        mqttConfigured: boolean;
-        luftatorAvailable: boolean;
-      },
-      Error
-    >
-  >;
-  importInputRef: RefObject<HTMLInputElement | null>;
+export interface OnboardingStatus {
+  onboardingDone: boolean;
+  hruConfigured: boolean;
+  mqttConfigured: boolean;
+  luftatorAvailable: boolean;
+  /** LUFTaTOR entities Home Assistant knows; null when it could not be asked. */
+  luftatorEntityCount: number | null;
 }
 
-const StepsContext = createContext<StepsContextValue | null>(null);
-
-export function useStepsContext() {
-  const ctx = useContext(StepsContext);
-  if (!ctx) throw new Error("useStepsContext must be used inside StepsContext.Provider");
-  return ctx;
+interface HruSaveInput {
+  host: string;
+  port: number;
+  unitId: number;
+  unit: string;
+  minPower?: number;
+  maxPower?: number;
 }
 
-interface OnboardingWizardProps {
-  children: ReactNode;
+/** The six steps, in order. */
+export const ONBOARDING_STEPS = [
+  "welcome",
+  "preferences",
+  "unit",
+  "mqtt",
+  "modbus",
+  "status",
+] as const;
+
+async function postJson(path: string, body: unknown, failure: string) {
+  const res = await fetch(resolveApiUrl(path), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    logger.error(failure, { status: res.status, statusText: res.statusText });
+    throw new Error(failure);
+  }
 }
 
-export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) {
+function useWizardState() {
   const { t, i18n } = useTranslation();
-  const { colorScheme } = useMantineColorScheme();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
   const [currentStep, setCurrentStep] = useState(0);
+  // False until the user moves between steps, so the first step does not grab focus on page load.
+  const [navigated, setNavigated] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(i18n.language);
-  const [selectedTheme, setSelectedTheme] = useState<"light" | "dark">(
-    colorScheme === "auto" ? "dark" : colorScheme,
-  );
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [minPower, setMinPower] = useState<number | undefined>(undefined);
   const [maxPower, setMaxPower] = useState<number | undefined>(undefined);
-  const [fullUnits, setFullUnits] = useState<HruUnit[]>([]);
-  const importInputRef = useRef<HTMLInputElement>(null);
   const mqttHostPrefilled = useRef(false);
 
-  const totalSteps = 6;
+  const totalSteps = ONBOARDING_STEPS.length;
 
   const modbusSchema = useMemo(() => createModbusSchema(t), [t]);
   const mqttSchema = useMemo(() => createMqttSchema(t), [t]);
 
   const modbusForm = useForm<ModbusForm>({
-    initialValues: { host: "0.0.0.0", port: 502, unitId: 1 },
-    validate: (values) => {
-      const result = modbusSchema.safeParse(values);
-      if (result.success) return {};
-      const errors: Record<string, string> = {};
-      result.error.issues.forEach((issue) => {
-        if (issue.path[0]) errors[issue.path[0].toString()] = issue.message;
-      });
-      return errors;
-    },
+    defaultValues: { host: "0.0.0.0", port: 502, unitId: 1 },
+    resolver: zodResolver(modbusSchema),
   });
 
   const mqttForm = useForm<MqttForm>({
-    initialValues: { enabled: true, host: "", port: 1883, user: "", password: "" },
-    validate: (values) => {
-      if (!values.enabled) return {};
-      const result = mqttSchema.safeParse(values);
-      const errors: Record<string, string> = {};
-      if (!result.success) {
-        result.error.issues.forEach((issue) => {
-          if (issue.path[0]) errors[issue.path[0].toString()] = issue.message;
-        });
-      }
-      if (!values.host?.trim()) {
-        errors.host = t("onboarding.mqtt.hostRequired");
-      }
-      return errors;
-    },
+    defaultValues: { enabled: true, host: "", port: 1883, user: "", password: "" },
+    resolver: zodResolver(mqttSchema),
   });
 
   const unitsQuery = useQuery({
     queryKey: ["hru-units"],
-    queryFn: async () => {
+    queryFn: async (): Promise<HruUnit[]> => {
       const units = await fetchHruUnits();
       logger.info("Fetched units successfully", { count: units.length });
-      setFullUnits(units);
-      return units.map((u) => ({ id: u.id, name: u.name }));
+      return units;
     },
-    enabled: currentStep === 2,
+    enabled: currentStep >= 2,
   });
+  const units = useMemo(() => unitsQuery.data ?? [], [unitsQuery.data]);
 
-  const selectedUnitDef = useMemo(() => {
-    return fullUnits.find((u) => u.id === selectedUnit);
-  }, [fullUnits, selectedUnit]);
-
-  const isDemoUnit = useMemo(() => {
-    if (!selectedUnitDef) return false;
-    return selectedUnitDef.interfaceType === "demo" || selectedUnitDef.code === "demo";
-  }, [selectedUnitDef]);
-
-  const powerVariable = useMemo(() => {
-    return selectedUnitDef?.variables.find((v) => v.class === "power");
-  }, [selectedUnitDef]);
+  const selectedUnitDef = useMemo(
+    () => units.find((unit) => unit.id === selectedUnit),
+    [units, selectedUnit],
+  );
+  const isDemoUnit =
+    selectedUnitDef !== undefined &&
+    (selectedUnitDef.interfaceType === "demo" || selectedUnitDef.code === "demo");
+  const powerVariable: HruVariable | undefined = selectedUnitDef?.variables.find(
+    (variable) => variable.class === "power",
+  );
 
   const requiresMaxPower = powerVariable?.maxConfigurable ?? false;
   const defaultMaxPower = powerVariable?.maxDefault ?? powerVariable?.max;
+  const requiresMinPower = powerVariable?.minConfigurable ?? false;
+  const defaultMinPower = powerVariable?.minDefault ?? powerVariable?.min;
 
   useEffect(() => {
     if (
@@ -226,9 +169,6 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
       setMaxPower(defaultMaxPower);
     }
   }, [selectedUnit, requiresMaxPower, defaultMaxPower, maxPower]);
-
-  const requiresMinPower = powerVariable?.minConfigurable ?? false;
-  const defaultMinPower = powerVariable?.minDefault ?? powerVariable?.min;
 
   useEffect(() => {
     if (
@@ -265,51 +205,21 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
   });
 
   useEffect(() => {
-    if (systemInfoQuery.data?.hassHost && !mqttHostPrefilled.current) {
-      mqttForm.setFieldValue("host", systemInfoQuery.data.hassHost);
+    const hassHost = systemInfoQuery.data?.hassHost;
+    if (hassHost && !mqttHostPrefilled.current) {
       mqttHostPrefilled.current = true;
+      if (!mqttForm.getFieldState("host").isDirty) mqttForm.setValue("host", hassHost);
     }
   }, [systemInfoQuery.data, mqttForm]);
 
   const saveHruMutation = useMutation({
-    mutationFn: async (data: {
-      host: string;
-      port: number;
-      unitId: number;
-      unit: string;
-      minPower?: number;
-      maxPower?: number;
-    }) => {
-      const res = await fetch(resolveApiUrl("/api/settings/hru"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        logger.error("Failed to save HRU settings", {
-          status: res.status,
-          statusText: res.statusText,
-        });
-        throw new Error("Failed to save HRU settings");
-      }
-    },
+    mutationFn: (data: HruSaveInput) =>
+      postJson("/api/settings/hru", data, "Failed to save HRU settings"),
   });
 
   const saveMqttMutation = useMutation({
-    mutationFn: async (data: MqttForm) => {
-      const res = await fetch(resolveApiUrl("/api/settings/mqtt"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (!res.ok) {
-        logger.error("Failed to save MQTT settings", {
-          status: res.status,
-          statusText: res.statusText,
-        });
-        throw new Error("Failed to save MQTT settings");
-      }
-    },
+    mutationFn: (data: MqttForm) =>
+      postJson("/api/settings/mqtt", data, "Failed to save MQTT settings"),
   });
 
   const testMqttMutation = useMutation({
@@ -324,17 +234,7 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
           password: data.password,
         }),
       });
-      if (!res.ok) {
-        const detail = await res.text();
-        let errorMessage = detail;
-        try {
-          const json = JSON.parse(detail);
-          errorMessage = json.detail || detail;
-        } catch {
-          logger.warn("Failed to parse MQTT test error response", { detail });
-        }
-        throw new Error(errorMessage || "Connection failed");
-      }
+      if (!res.ok) throw await parseApiError(res);
       const json = await res.json();
       const success = json?.success ?? json?.data?.success;
       if (!success) throw new Error(json?.detail || "Connection failed");
@@ -344,45 +244,14 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
     onError: (error) => logger.error("MQTT connection test failed", { error }),
   });
 
-  const testModbusMutation = useMutation({
-    mutationFn: async (data: ModbusForm) => {
-      const params = new URLSearchParams({ host: data.host, port: data.port.toString() });
-      const res = await fetch(resolveApiUrl(`/api/modbus/status?${params.toString()}`));
-      if (!res.ok) throw new Error("Failed to probe Modbus");
-      const json = await res.json();
-      if (!json.reachable) throw new Error(json.error || "Modbus unreachable");
-      return json;
-    },
-    onSuccess: () => logger.info("Modbus connection test successful"),
-    onError: (error) => logger.error("Modbus connection test failed", { error }),
-  });
-
   const saveLanguageMutation = useMutation({
-    mutationFn: async (lang: string) => {
-      const res = await fetch(resolveApiUrl("/api/settings/language"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ language: lang }),
-      });
-      if (!res.ok) {
-        logger.error("Failed to save language", { status: res.status, statusText: res.statusText });
-        throw new Error("Failed to save language");
-      }
-    },
+    mutationFn: (lang: string) =>
+      postJson("/api/settings/language", { language: lang }, "Failed to save language"),
   });
 
   const saveThemeMutation = useMutation({
-    mutationFn: async (theme: string) => {
-      const res = await fetch(resolveApiUrl("/api/settings/theme"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ theme }),
-      });
-      if (!res.ok) {
-        logger.error("Failed to save theme", { status: res.status, statusText: res.statusText });
-        throw new Error("Failed to save theme");
-      }
-    },
+    mutationFn: (theme: string) =>
+      postJson("/api/settings/theme", { theme }, "Failed to save theme"),
   });
 
   const finishMutation = useMutation({
@@ -417,22 +286,16 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
       if (!finish.ok) throw new Error("Failed to finish onboarding");
     },
     onSuccess: async () => {
-      notifications.show({
+      // The page goes to Přehled at once, so a toast is the only place left to say it worked.
+      notify({
         title: t("settings.database.notifications.importSuccessTitle"),
         message: t("onboarding.welcome.importSuccess"),
-        color: "green",
+        variant: "success",
       });
       await queryClient.invalidateQueries({ queryKey: ["onboarding-status"] });
       await navigate({ to: "/" });
     },
-    onError: (error) => {
-      notifications.show({
-        title: t("onboarding.welcome.importError"),
-        message: translateApiError(error, t),
-        color: "red",
-      });
-      logger.error("Failed to import database", { error });
-    },
+    onError: (error) => logger.error("Failed to import database", { error }),
   });
 
   const statusQuery = useQuery({
@@ -443,117 +306,74 @@ export function OnboardingWizard({ children }: Readonly<OnboardingWizardProps>) 
         logger.error("Failed to check status", { status: res.status, statusText: res.statusText });
         throw new Error("Failed to check status");
       }
-      return (await res.json()) as {
-        onboardingDone: boolean;
-        hruConfigured: boolean;
-        mqttConfigured: boolean;
-        luftatorAvailable: boolean;
-      };
+      return (await res.json()) as OnboardingStatus;
     },
-    enabled: currentStep === 5,
-    refetchInterval: currentStep === 5 ? 2000 : false,
+    enabled: currentStep === totalSteps - 1,
+    refetchInterval: currentStep === totalSteps - 1 ? 2000 : false,
   });
 
   const nextStep = useCallback(() => {
-    const next = currentStep + 1;
+    const next = Math.min(currentStep + 1, totalSteps - 1);
     logger.info("Navigating to next step", { from: currentStep, to: next });
+    setNavigated(true);
     setCurrentStep(next);
-  }, [currentStep]);
+  }, [currentStep, totalSteps]);
 
   const prevStep = useCallback(() => {
-    const prev = currentStep > 0 ? currentStep - 1 : currentStep;
+    const prev = Math.max(currentStep - 1, 0);
     logger.info("Navigating to previous step", { from: currentStep, to: prev });
+    setNavigated(true);
     setCurrentStep(prev);
   }, [currentStep]);
 
-  const ctx = useMemo<StepsContextValue>(
-    () => ({
-      currentStep,
-      totalSteps,
-      nextStep,
-      prevStep,
-      setStep: setCurrentStep,
-      selectedUnit,
-      setSelectedUnit: selectUnit,
-      minPower,
-      setMinPower,
-      maxPower,
-      setMaxPower,
-      fullUnits,
-      selectedUnitDef,
-      requiresMinPower,
-      defaultMinPower,
-      requiresMaxPower,
-      defaultMaxPower,
-      powerVariable,
-      isDemoUnit,
-      modbusForm,
-      mqttForm,
-      selectedLanguage,
-      setSelectedLanguage,
-      selectedTheme,
-      setSelectedTheme,
-      modbusSchema,
-      mqttSchema,
-      modbusMutation: saveHruMutation as ReturnType<typeof useMutation<unknown, Error, ModbusForm>>,
-      mqttMutation: saveMqttMutation,
-      testMqttMutation: testMqttMutation as ReturnType<
-        typeof useMutation<unknown, Error, MqttForm>
-      >,
-      testModbusMutation: testModbusMutation as ReturnType<
-        typeof useMutation<unknown, Error, ModbusForm>
-      >,
-      saveHruMutation,
-      saveLanguageMutation,
-      saveThemeMutation,
-      finishMutation,
-      importDbMutation,
-      unitsQuery,
-      systemInfoQuery,
-      statusQuery,
-      importInputRef,
-    }),
-    [
-      currentStep,
-      totalSteps,
-      nextStep,
-      prevStep,
-      selectedUnit,
-      selectUnit,
-      minPower,
-      maxPower,
-      fullUnits,
-      selectedUnitDef,
-      requiresMinPower,
-      defaultMinPower,
-      requiresMaxPower,
-      defaultMaxPower,
-      powerVariable,
-      isDemoUnit,
-      modbusForm,
-      mqttForm,
-      selectedLanguage,
-      selectedTheme,
-      modbusSchema,
-      mqttSchema,
-      saveHruMutation,
-      saveMqttMutation,
-      testMqttMutation,
-      testModbusMutation,
-      saveLanguageMutation,
-      saveThemeMutation,
-      finishMutation,
-      importDbMutation,
-      unitsQuery,
-      systemInfoQuery,
-      statusQuery,
-      importInputRef,
-    ],
-  );
+  return {
+    currentStep,
+    totalSteps,
+    navigated,
+    nextStep,
+    prevStep,
+    selectedUnit,
+    setSelectedUnit: selectUnit,
+    minPower,
+    setMinPower,
+    maxPower,
+    setMaxPower,
+    units,
+    selectedUnitDef,
+    requiresMinPower,
+    defaultMinPower,
+    requiresMaxPower,
+    defaultMaxPower,
+    powerVariable,
+    isDemoUnit,
+    modbusForm: modbusForm as UseFormReturn<ModbusForm>,
+    mqttForm: mqttForm as UseFormReturn<MqttForm>,
+    selectedLanguage,
+    setSelectedLanguage,
+    saveHruMutation,
+    saveMqttMutation,
+    testMqttMutation,
+    saveLanguageMutation,
+    saveThemeMutation,
+    finishMutation,
+    importDbMutation,
+    unitsQuery,
+    statusQuery,
+  };
+}
 
-  return <StepsContext.Provider value={ctx}>{children}</StepsContext.Provider>;
+type WizardValue = ReturnType<typeof useWizardState>;
+
+const WizardContext = createContext<WizardValue | null>(null);
+
+/** Holds the wizard's state, both forms and every request, so steps keep their values when you go back. */
+export function OnboardingWizard({ children }: Readonly<{ children: ReactNode }>) {
+  const value = useWizardState();
+  return <WizardContext.Provider value={value}>{children}</WizardContext.Provider>;
 }
 
 export function useOnboardingWizard() {
-  return useStepsContext();
+  const ctx = useContext(WizardContext);
+  if (!ctx) throw new Error("useOnboardingWizard must be used inside OnboardingWizard");
+  return ctx;
 }

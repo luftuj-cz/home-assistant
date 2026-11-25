@@ -1,94 +1,50 @@
-import { useState } from "react";
-import { Button, Container, Group, Select, Stack, Tabs, Text, Title } from "@mantine/core";
 import { IconExternalLink } from "@tabler/icons-react";
-import { useMediaQuery } from "@mantine/hooks";
-import { useRouter } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { useTranslation } from "react-i18next";
-import { BackendValuesPanel } from "@luftuj/features/debug/panels/BackendValuesPanel";
-import { HomeAssistantApiPanel } from "@luftuj/features/debug/panels/HomeAssistantApiPanel";
-import { OnboardingToolsPanel } from "@luftuj/features/debug/panels/OnboardingToolsPanel";
-import { CommissioningPanel } from "@luftuj/features/debug/panels/CommissioningPanel";
-import { ServerLogsPanel } from "@luftuj/features/debug/panels/ServerLogsPanel";
 
+import { CommissioningCard } from "@luftuj/features/debug/components/CommissioningCard";
+import { DebugStats } from "@luftuj/features/debug/components/DebugStats";
+import { Inspector } from "@luftuj/features/debug/components/Inspector";
+import { LogStream } from "@luftuj/features/debug/components/LogStream";
+import { ToolList } from "@luftuj/features/debug/components/ToolList";
+import { Button } from "@luftuj/shared/ui/button";
+import { PageHeader } from "@luftuj/shared/ui/page-header";
+
+/**
+ * Ladění: one workbench instead of five tabs. Watching (log, values) and acting (test, tools) sit on screen
+ * together: stats on top, the log beside the commissioning test and the tools, the Inspector across the bottom.
+ * On a phone the same blocks stack in that order.
+ */
 export function DebugPage() {
   const { t } = useTranslation();
-  const router = useRouter();
-  const isMobile = useMediaQuery("(max-width: 48em)");
-  const [activeTab, setActiveTab] = useState<string>("backend-values");
-
-  const tabs = [
-    {
-      value: "backend-values",
-      label: t("debug.backendValues", { defaultValue: "Backend Debug Values" }),
-    },
-    { value: "server-logs", label: t("debug.serverLogs", { defaultValue: "Server Logs" }) },
-    {
-      value: "home-assistant-api",
-      label: t("debug.homeAssistantApi", { defaultValue: "Home Assistant API" }),
-    },
-    { value: "onboarding-tools", label: t("debug.onboardingTools") },
-    { value: "commissioning", label: t("debug.commissioning.tabLabel") },
-  ];
+  const navigate = useNavigate();
 
   return (
-    <Container size="xl">
-      <Stack gap="xl">
-        <Stack gap="xs">
-          <Group justify="space-between" align="flex-start">
-            <div>
-              <Title order={1}>{t("debug.title")}</Title>
-              <Text c="dimmed">{t("debug.description")}</Text>
-            </div>
-            <Button
-              variant="light"
-              leftSection={<IconExternalLink size={16} />}
-              onClick={() => router.navigate({ to: "/debug/home-assistant" })}
-            >
-              {t("debug.haEntities.openLink", { defaultValue: "HA Entities" })}
-            </Button>
-          </Group>
-        </Stack>
-
-        <Tabs value={activeTab} onChange={(v) => setActiveTab(v ?? "backend-values")}>
-          {isMobile ? (
-            <Select
-              data={tabs}
-              value={activeTab}
-              onChange={(v) => setActiveTab(v ?? "backend-values")}
-              mb="md"
-              allowDeselect={false}
-            />
-          ) : (
-            <Tabs.List>
-              {tabs.map((tab) => (
-                <Tabs.Tab key={tab.value} value={tab.value}>
-                  {tab.label}
-                </Tabs.Tab>
-              ))}
-            </Tabs.List>
-          )}
-
-          <Tabs.Panel value="backend-values" pt="md">
-            <BackendValuesPanel />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="server-logs" pt="md">
-            <ServerLogsPanel />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="home-assistant-api" pt="md">
-            <HomeAssistantApiPanel />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="onboarding-tools" pt="md">
-            <OnboardingToolsPanel />
-          </Tabs.Panel>
-
-          <Tabs.Panel value="commissioning" pt="md">
-            <CommissioningPanel />
-          </Tabs.Panel>
-        </Tabs>
-      </Stack>
-    </Container>
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 font-sans text-sm leading-5 text-foreground max-md:gap-4">
+      <PageHeader
+        title={t("debug.title")}
+        description={t("debug.description")}
+        actions={
+          <Button
+            variant="secondary"
+            iconRight={IconExternalLink}
+            onClick={() => void navigate({ to: "/debug/home-assistant" })}
+          >
+            {t("debug.haEntities.openLink")}
+          </Button>
+        }
+      />
+      <DebugStats />
+      <div className="grid grid-cols-12 items-start gap-6 max-lg:grid-cols-[minmax(0,1fr)] max-md:gap-4">
+        <div className="col-span-8 grid min-w-0 max-lg:col-span-1">
+          <LogStream />
+        </div>
+        <div className="col-span-4 grid min-w-0 gap-6 max-lg:col-span-1 max-md:gap-4">
+          <CommissioningCard />
+          <ToolList />
+        </div>
+      </div>
+      <Inspector />
+    </div>
   );
 }

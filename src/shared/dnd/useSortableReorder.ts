@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { DragEndEvent } from "@dnd-kit/core";
 import { arrayMove } from "@dnd-kit/sortable";
 
@@ -15,6 +15,8 @@ export function useSortableReorder<T, Id extends string | number>(
   getId: (item: T) => Id,
 ) {
   const [orderOverride, setOrderOverride] = useState<Id[] | null>(null);
+  // Only the latest reorder's persist may drop the override; an earlier one settling first would flash its order.
+  const latest = useRef(0);
 
   const orderedItems = (() => {
     if (!orderOverride) return items;
@@ -40,11 +42,40 @@ export function useSortableReorder<T, Id extends string | number>(
     const newIndex = orderedItems.findIndex((item) => getId(item) === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
 
-    const reordered = arrayMove(orderedItems, oldIndex, newIndex);
-    setOrderOverride(reordered.map(getId));
-
-    void Promise.resolve(onReordered(reordered)).finally(() => setOrderOverride(null));
+    reorder(oldIndex, newIndex, onReordered);
   }
 
-  return { orderedItems, sensors, handleDragEnd };
+  function reorder(
+    from: number,
+    to: number,
+    onReordered: (reordered: T[]) => void | Promise<void>,
+  ) {
+    const reordered = arrayMove(orderedItems, from, to);
+    setOrderOverride(reordered.map(getId));
+    latest.current += 1;
+    const id = latest.current;
+
+    void Promise.resolve(onReordered(reordered)).finally(() => {
+      if (latest.current === id) setOrderOverride(null);
+    });
+  }
+
+  /** Moves the item at `index` one place up (−1) or down (+1): the grip's ↑ ↓ keys. */
+  function moveBy(
+    index: number,
+    delta: -1 | 1,
+    onReordered: (reordered: T[]) => void | Promise<void>,
+  ) {
+    const to = index + delta;
+    if (to < 0 || to >= orderedItems.length) return;
+    reorder(index, to, onReordered);
+  }
+
+  /** Moves the item at `from` to `to` (indexes in `orderedItems`), e.g. past items the page does not show. */
+  function move(from: number, to: number, onReordered: (reordered: T[]) => void | Promise<void>) {
+    if (from === to || to < 0 || to >= orderedItems.length) return;
+    reorder(from, to, onReordered);
+  }
+
+  return { orderedItems, sensors, handleDragEnd, moveBy, move };
 }

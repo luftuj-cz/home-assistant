@@ -1,5 +1,5 @@
 import type { Mode, TimelineEvent } from "@luftuj/shared/types/timeline";
-import type { HruVariable } from "@luftuj/shared/api/hru";
+import type { HruVariable, LocalizedText } from "@luftuj/shared/api/hru";
 import type { TFunction } from "i18next";
 
 export const DAY_ORDER = [0, 1, 2, 3, 4, 5, 6] as const;
@@ -71,9 +71,17 @@ export function calculatePowerConfig(
   return { powerUnit, minPower: effectiveMinPower, maxPower: effectiveMaxPower };
 }
 
-function toMinutes(time: string): number {
+export function toMinutes(time: string): number {
   const [hours, minutes] = time.split(":").map(Number);
   return (hours ?? 0) * 60 + (minutes ?? 0);
+}
+
+/** The mode an event switches to, by id or (older events) by name; undefined when it names none. */
+export function modeOfEvent(event: TimelineEvent, modes: Mode[]): Mode | undefined {
+  const reference = event.hruConfig?.mode;
+  if (typeof reference !== "string" && typeof reference !== "number") return undefined;
+  const key = String(reference);
+  return modes.find((mode) => String(mode.id) === key || mode.name === reference);
 }
 
 function hasResolvableMode(event: TimelineEvent, modes: Mode[]): boolean {
@@ -124,4 +132,52 @@ export function findActiveEvent(
     }
   }
   return undefined;
+}
+
+/** A day's enabled events as strip segments ("HH:MM" and the mode colour), in time order. */
+export function stripEvents(events: TimelineEvent[], modes: Mode[]) {
+  return events
+    .filter((event) => event.enabled)
+    .toSorted((a, b) => a.startTime.localeCompare(b.startTime))
+    .map((event) => ({
+      time: event.startTime,
+      color: modeOfEvent(event, modes)?.color ?? "var(--mode-8)",
+    }));
+}
+
+/**
+ * The colour a day starts in: the last enabled mode before it keeps running until the day's first event. Empty days
+ * are skipped, so the week wraps (Monday takes Sunday's, or an earlier day's).
+ */
+export function carryColor(
+  eventsByDay: Map<number, TimelineEvent[]>,
+  day: number,
+  modes: Mode[],
+): string | undefined {
+  for (let back = 1; back <= 7; back++) {
+    const previous = stripEvents(eventsByDay.get((day - back + 7) % 7) ?? [], modes);
+    if (previous.length > 0) return previous.at(-1)?.color;
+  }
+  return undefined;
+}
+
+/** A mode's power or temperature: the unit variable when set, else the legacy field. */
+export function modeNumber(mode: Mode, key: "power" | "temperature"): number | undefined {
+  const value = mode.variables?.[key];
+  return typeof value === "number" ? value : mode[key];
+}
+
+/** "HH:MM" now, and today as 0 = Monday … 6 = Sunday. */
+export function clockNow(date = new Date()) {
+  return {
+    time: `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`,
+    day: (date.getDay() + 6) % 7,
+  };
+}
+
+/** A unit definition's label: a translation key, a plain text, or `{ text, translate }`. */
+export function localizedText(text: LocalizedText, t: TFunction): string {
+  if (typeof text === "string") return t(text, { defaultValue: text });
+  if (text.translate) return t(text.text, { defaultValue: text.text });
+  return text.text;
 }

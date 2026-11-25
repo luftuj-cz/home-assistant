@@ -17,17 +17,25 @@
     <title>LUFTaTOR HASS Add-on</title>
 
     <script>
+      // Applies the saved theme (.dark, data-theme) before the app loads, so there is no flash; ThemeProvider keeps
+      // it in sync afterwards. Dark unless the user chose otherwise.
       (function () {
+        let scheme = "dark";
         try {
           const saved = globalThis.localStorage.getItem("luftujha-color-scheme");
           if (saved === "dark" || saved === "light") {
-            document.documentElement.dataset.mantineColorScheme = saved;
-          } else {
-            document.documentElement.dataset.mantineColorScheme = "dark";
+            scheme = saved;
+          } else if (saved === "system") {
+            scheme = globalThis.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
           }
         } catch {
-          document.documentElement.dataset.mantineColorScheme = "dark";
+          // Storage unavailable: keep the dark default.
         }
+        const root = document.documentElement;
+        root.dataset.theme = scheme;
+        root.classList.toggle("dark", scheme === "dark");
       })();
     </script>
   </head>

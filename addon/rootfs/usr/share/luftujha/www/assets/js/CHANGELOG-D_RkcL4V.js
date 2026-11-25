@@ -1,0 +1,383 @@
+var e=`# Changelog
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
+
+## [1.1.3-stable] - 2026-11-17
+
+### Added
+
+- **KORADO VENTBOX**: The dashboard shows the actual airflow next to the set power, read from input register 117.
+  On units with constant-flow motors the value is in m³/h; on units with 0–10 V motors the register holds a
+  percentage, which is shown under the same m³/h label.
+
+### Changed
+
+- **KORADO VENTBOX**: The power on the dashboard and in Home Assistant is named "Set power". It is the power
+  requested by LUFTaTOR; the unit follows it only in automatic mode, so a change made on the unit itself in
+  manual mode does not show up there.
+
+### Fixed
+
+- **KORADO VENTBOX**: The power always read 0, because it was taken from input register 107, which the unit does
+  not provide. It is now read from holding register 106, the register the power is written to
+  ([#22](https://github.com/luftuj-cz/home-assistant/issues/22)).
+- **Dashboard**: A long label inside the power ring wraps onto two lines instead of overflowing the ring.
+
+## [1.1.2-stable] - 2026-10-25
+
+### Added
+
+- **Duplicating a mode**: Mode cards on the timeline have a Duplicate button. It opens the mode editor filled in
+  from the source mode (values, valves, scripts, colour, boost) under a free name such as "Comfort (copy)". The
+  values in the editor go to the season being viewed; every other season the source is set up for gets the
+  source's values, so the copy works all year round. If the source has no values in the season being viewed, the
+  editor offers to copy them from another season. Not offered on custom plans, where modes cannot be created.
+- **New HRU unit**: Elektrodesign S&P Sabik, with airflow set in m³/h (80–400 m³/h, with a configurable minimum
+  and maximum). Modes can switch boost, snooze, manual bypass and automatic bypass; the dashboard shows the
+  temperatures, humidity, supply and extract airflow, the active mode, the bypass position, the filter state and
+  the last alarm. Comes with a Modbus simulator for development.
+- **Configurable minimum power**: A unit definition can let the user set a minimum airflow or power next to the
+  maximum (\`minConfigurable\`, \`minDefault\`), in Settings and in the onboarding wizard. The mode editor and every
+  write keep to that range, and the safe state uses the configured minimum.
+- **Unit definitions**: 32-bit reads of input registers (\`modbus_read_input_uint32_le\` and \`_be\`) and a
+  low-word-first read of holding registers (\`modbus_read_holding_uint32_le\`), each in a single request.
+
+### Changed
+
+- **Systemair SAVE**: Power is set as fan speed in % (0–100) instead of a 2–4 level, and the extract fan speed
+  differs from the supply by an offset (−20 to +20 %). Modes can also set the defrosting mode (soft, normal,
+  hard); the dashboard shows when the unit is defrosting or heating. The unit's own modes (auto, crowded,
+  fireplace, ...) can no longer be selected: the add-on switches the unit to manual and writes both fan speeds
+  directly. **After upgrading, set power in % in every mode that drives a Systemair SAVE**: values saved as 2–4
+  now mean a fan speed of 2–4 %.
+- **Meltem**: The minimum power is 10 instead of 0. A mode set lower is rejected when it is applied, so raise it
+  after upgrading.
+- **Unit definitions**: \`modbus_read_holding_uint32\` is renamed \`modbus_read_holding_uint32_be\` (high word first),
+  next to the new low-word-first variant. A definition using the old name has to be updated.
+- **Dependencies**: Updated, including Vite+ 1.4, React 19.3, Mantine 9.7 and Express 5.3.
+
+### Fixed
+
+- **Changing the unit or its address**: After switching the unit model or changing its address or port in
+  Settings, the dashboard kept probing the old address and showed the previous unit's values until the add-on
+  was restarted. It now switches straight away. When the new address does not answer, the dashboard reports the
+  connection error instead of loading forever.
+- **Power limits on a unit switch**: Switching to a model without a configurable maximum or minimum no longer
+  fails with "maximum power exceeds the limit for this unit" because the form still carried the previous unit's
+  value. Settings and the onboarding wizard start a newly selected unit from its own defaults, and going back to
+  the saved unit restores its saved limits.
+- **Systemair SAVE**: Every register address was one too high, so the temperatures, humidity, filter time and
+  alarm were read from the wrong registers and the setpoint was written to the wrong one. The remaining filter
+  time is read as one 32-bit value, low word first.
+- **Unit scripts**: The arguments of a function in a unit definition are evaluated one after another. They were
+  read in parallel, which put several Modbus requests in flight on one connection; some units (Systemair SAVE)
+  answered them out of order or dropped them.
+
+## [1.1.1-stable] - 2026-10-21
+
+### Added
+
+- **Custom plans**: Create any number of weekly plans of your own ("Holiday", "Cottage", "Working from home") in
+  Settings › Plans and edit them on the timeline like a season. A custom plan only says when which mode runs; the
+  modes always use the values of the season active by the calendar, so one plan works in January and July. A mode
+  can be used in a custom plan only once it has values in every enabled season. New plans start empty; "Fill the
+  week with one mode" sets one up in a click.
+- **Switching to a custom plan**: From the dashboard, run a custom plan instead of the season plan, starting now
+  or at a set time and ending at a set time or when you end it. A boost still runs on top and hands back to the
+  custom plan when it finishes. The dashboard and MQTT show it as "Plan name: Mode".
+- **Custom plans in Home Assistant**: Each custom plan gets an MQTT switch. On runs it until switched off; off
+  ends it only if that plan is the one running. The state payload carries the running plan's id, name and end.
+- **Season names**: Seasons can be renamed in Settings, and the default name restored. The Home Assistant season
+  sensor shows the name; automations that need a stable value should match on the \`season_key\` attribute, which
+  never changes.
+- **Unit definitions**: \`modbus_read_holding_uint32\` reads an unsigned 32-bit value stored high word first in a
+  single request, for controllers that reject a read of either half on its own. A variable can set a
+  \`defaultValue\`, written when a mode leaves that variable out; before, the write script saw 0 there, which could
+  switch the unit off.
+
+### Changed
+
+- **Komfovent Domekt C6**: Power is set as airflow in m³/h (50–600, with a configurable maximum of 300 by default)
+  instead of a 1–4 level, and the extract airflow differs from the supply by a disbalance offset (−20 to +20 %).
+  Modes can also switch the unit on or off and turn heating on or off; a mode that leaves these out switches the
+  unit on and heating off. The add-on puts the unit in Normal mode with auto mode off and writes both airflows
+  directly. Outside temperature, fan intensity, heat exchanger efficiency, error state and the native mode are no
+  longer shown. **After upgrading, set power in m³/h in every mode that drives a Domekt C6**: values saved as 1–4
+  are below the new minimum and are rejected when the mode is applied.
+
+### Fixed
+
+- **Schedule gap on single-weekday plans**: The scheduler looked back only six days plus today, so a plan whose
+  events all sit on one weekday had nothing to apply between midnight and that day's first event. The unit was
+  reported as manual in that window, or, with seasons on, driven to the safe state every week. The scheduler now
+  looks back a full week. A plan with a single event is now one continuous activation, so its activation scripts
+  no longer re-run every week.
+- **Timeline highlights the running event**: Before the first event of the day, the timeline page highlighted
+  nothing while the scheduler was applying an event from an earlier day. It now marks that event, and marks
+  nothing when you are viewing a season that is not running.
+- **Komfovent Domekt C6**: Every register address was one too high, so the setpoint, temperatures and filter
+  impurity were read from the wrong register, and the setpoint was written to the wrong one. Airflow is read in a
+  single request, because the C6 rejects a read of either half of the 32-bit value with exception 3.
+
+## [1.1.0-stable] - 2026-09-24
+
+### Added
+
+- **Seasons**: Optional per-season timelines (spring, summer, autumn, winter) with movable boundaries. Each season
+  has its own schedule and its own mode values; a mode can be left unconfigured in a season it is not needed in.
+  Off by default; enabling it clones the current schedule into every season so nothing changes until you edit it.
+  Turning it off parks the other seasons and turning it back on restores exactly what was there.
+- **Astronomical season boundaries**: New seasons start on the current year's equinoxes and solstices rather than
+  fixed dates, and can be moved afterwards.
+- **Active season in Home Assistant**: MQTT sensor showing the running season's name in the add-on language. The
+  stable key (\`spring\`, \`summer\`, ...) is exposed as the \`season_key\` attribute for use in automations.
+- **New HRU units**: Brink (with a UWA2-B or UWA2-E Modbus board), Systemair SAVE, and Komfovent Domekt with a C6
+  or C6M controller (listed as Komfovent Domekt C6). Each comes with a Modbus simulator for development.
+- **Safe state**: With seasons enabled, a season with no applicable event drives the unit to a defined low state
+  (minimum values, 20 °C) instead of leaving it on whatever was last written. Written once, retried after a
+  failed write, and never applied to installs that have never had a schedule.
+- **Bug report bundle**: One-click download of logs, diagnostics, connection state and a redacted database copy
+  for developers. Credentials from the add-on config and from the Settings UI are scrubbed.
+- **Activation scripts**: Modes can run Home Assistant scripts on activation; they fire once per activation and
+  again after an add-on restart.
+- **Valve groups**: Group valves and drive them together from one slider.
+- **Debug tooling**: Copy and download actions on debug panels, server log download, links to Home Assistant
+  entities, HRU status age indicator. The server log panel is now a table with text search, a level filter and a
+  button to pause auto-refresh.
+- **Help section**: Settings page section with a link to luftator.eu, common MQTT and Modbus setup mistakes, and
+  a support contact.
+- **Error pages**: A page that fails to load shows an error screen with retry and back-to-dashboard actions;
+  unknown routes show a "page not found" screen.
+- **Modbus request gap**: Unit definitions can set a minimum gap between Modbus requests (\`modbusMinGapMs\`),
+  applied once per read/write cycle. The dashboard shows live Modbus reconnect status.
+- **\`modbus_write_command\`**: Unit definition function that writes a holding register only when its current value
+  differs.
+- **GitHub link**: "Star us on GitHub" button in the footer.
+
+### Changed
+
+- **Boost**: Boost values are frozen at start, so a boost crossing a season boundary keeps running on the values
+  it began with. Applies to the UI boost and to both MQTT buttons.
+- **Power validation**: Decimal power values are rounded instead of rejected, so modes saved by earlier versions
+  stay editable.
+- **Connection errors**: Human-readable Modbus and MQTT connection errors surfaced as notifications.
+- **Modbus error reporting**: A failed Modbus operation now logs and reports the operation, register address,
+  value sent and unit ID with the Modbus exception code, so the failing step of a unit definition can be found.
+- **Seasons settings**: Better layout on mobile.
+- **Boost buttons**: Dashboard and mode editor boost buttons show that the mode is being applied or cancelled,
+  which can take a few seconds.
+- **Add-on stage**: The add-on is marked stable or experimental in the Home Assistant add-on store, following the
+  release channel.
+- **Logging**: Per-request and user-context log lines moved to the debug level.
+- **Toolchain**: Node 24 LTS, TypeScript 7, Alpine 3.24 base image, updated dependencies.
+
+### Fixed
+
+- **Modbus**: A unit that freezes on Modbus without closing the socket (seen on Atrea Duplex AM) no longer keeps
+  failing until the add-on is restarted: the client is reset after any failure and reconnects with exponential
+  backoff.
+  Serialized reconnects and status probes under one lock, bounded handshake timeout, outage counting once per
+  connect attempt, stale clients retired when connection settings change, no UI flicker on client reset.
+- **Scheduler**: A mode change is no longer reported as applied before the HRU write succeeds.
+- **Server**: A WebSocket request with a malformed Host header is rejected instead of crashing the add-on; errors
+  while stopping services no longer break shutdown. Validated query parameters (defaults, type conversion) now
+  reach the API handlers.
+- **MQTT**: Publish queue no longer stalls after a single failed publish; renaming a boost mode removes both of
+  its old buttons; a boost button on a mode with no values for the running season is refused instead of doing
+  nothing; listener leak on restart fixed. Switching to a different HRU unit removes the previous unit's
+  discovery entities instead of leaving duplicates in Home Assistant. Select values such as the bypass state are
+  published translated instead of as raw translation keys.
+- **Database import**: Services are stopped and the database swap is guarded during import.
+- **Valve handling**: Unavailable valves are reported instead of crashing; a boost that could not move a
+  configured valve fails visibly instead of reporting success. Non-valve entities that ended up in a mode's or an
+  event's valve configuration are dropped and no longer driven. Concurrent valve changes no longer race.
+- **Timeline**: Editing an event without naming a season keeps it in its own season; day paste resolves modes
+  referenced by name; clearing the season day field no longer commits the 1st of the month. The empty-season
+  warning appears only when the safe state would actually apply, and season names are no longer shown in dialogs
+  and notifications while seasons are turned off.
+- **Upgrade safety**: Pre-migration database backup; existing installs keep every mode configured after the
+  first save, including boost-only and valve-only setups.
+
+## [1.0.9-stable] - 2026-06-15
+
+### Added
+
+- **Commissioning Feature**: Introduced a new commissioning tool with dedicated API and UI integration for easier
+  initial setup and valve calibration.
+- **MQTT Enhancements**: Shortened published MQTT entity names for better compatibility and readability in Home
+  Assistant.
+- **Timeline State Localization**: Added translations for timeline states and improved boost duration handling.
+
+### Changed
+
+- **Database Architecture**: Decomposed the monolithic database service into modular components (repositories and
+  services) for better maintainability and reliability.
+- **Timeline Scheduler**: Refactored the timeline scheduler and event picker to improve performance and event execution
+  reliability.
+- **Improved Validation**: Enhanced validation for HRU payloads and timeline events, including stricter temperature
+  range limits and better error reporting.
+- **Mobile UI Improvements**: Updated the Debug menu to use a dropdown selector on mobile devices for better space
+  utilization.
+- **Timeline Navigation**: Improved drag-scroll handling and layout responsiveness in the Timeline view.
+- **HRU Write Operations**: Streamlined HRU write functionality with added request validation and enhanced error
+  handling for Modbus communication.
+- **Maintainability**: Integrated SonarQube for continuous code quality monitoring and applied various refactorings
+  based on its recommendations.
+
+### Fixed
+
+- **Concurrency Issues**: Improved database initialization logic to prevent potential race conditions during concurrent
+  access.
+- **Temperature Handling**: Fixed validation schemas to correctly handle optional temperature values and provide clearer
+  feedback.
+- **Typo Fixes**: Corrected spelling of 'subtract' in internal function definitions and unit implementations.
+
+## [1.0.8.2-stable] - 2026-05-21
+
+### Fixed
+
+- **HRU Data Type Conversions**: Added support for signed data types in HRU unit definitions.
+- **HRU Register Value Handling**: Added signed/unsigned conversion support in unit definitions to correctly map
+  register values.
+- **Timeline Mode Copy Button**: Fixed copy button behavior in the mode valve selector.
+
+## [1.0.8.1-stable] - 2026-05-13
+
+### Added
+
+- **Extended Xvent Parameters**: Added Xvent dashboard support for error state and remaining filter lifetime.
+
+### Changed
+
+- **Xvent Status Presentation**: Updated Xvent bypass and boost fields to use positive status flags for clearer
+  dashboard visibility.
+- **HRU Scripting Functions**: Added the \`substract\` operation so Xvent definitions can derive values such as remaining
+  filter life from Modbus registers.
+- **Xvent Simulator**: Expanded the Xvent simulator with filter lifetime, elapsed runtime, and error register support
+  for development and testing.
+
+## [1.0.8-stable] - 2026-05-13
+
+### Added
+
+- **Debug Page Tools**: Added buttons to refresh MQTT discovery, restart the timeline scheduler, and stop active
+  timeline overrides.
+- **Improved UI Feedback**: Replaced notifications with badges for HRU and MQTT connection tests in Settings for better
+  visual consistency.
+- **Zehnder Support**: Added support for Zehnder HRU units, including simulator coverage for development and testing.
+
+### Changed
+
+- **Timeline Operations**: Multiple notifications during day copy-paste operations are now replaced by a single summary
+  notification.
+- **Frontend Architecture**: Reorganized the frontend into feature-based modules and shared UI building blocks for
+  better maintainability.
+- **Data Fetching**: Migrated more frontend data loading to TanStack Query and lazy-loaded routes to improve
+  synchronization and responsiveness.
+- **Valve Controls**: Updated slider behavior to better match real Luftator valve values.
+
+### Fixed
+
+- **Code Quality**: Refactored internal error handling patterns and fixed various linting/formatting issues.
+- **Backend Tests**: Restored broken backend tests for HRU and Timeline services.
+- **Valve Entity Filtering**: Adjusted frontend filtering so valid valve entities are shown correctly.
+- **Zehnder Integration**: Fixed follow-up issues in Zehnder definitions and translations after the initial integration.
+- **Onboarding and Mobile UI**: Fixed several onboarding flow issues and polished mobile navigation behavior.
+
+## [1.0.7-stable] - 2026-04-22
+
+### Added
+
+- **New Debug Page**: Added a specialized debug page for easier troubleshooting and system status monitoring.
+- **Improved Error Handling**: API errors in notifications are now translated and more user-friendly instead of raw JSON
+  strings.
+- **Flexible Onboarding**: Users can now skip the onboarding process and import an existing database directly.
+- **AI Guidance**: Added \`CLAUDE.md\` to provide better context and guidance for AI assistants working with the codebase.
+
+### Changed
+
+- **Unified Toolchain**: Migrated to **Vite+** (including Rolldown, Oxlint, and Oxfmt) for significantly faster builds
+  and unified code quality checks.
+- **Mantine v9 Upgrade**: Upgraded the component library to Mantine v9 with major UX improvements across valves,
+  settings, timeline, and navigation.
+- **Performance Optimization**: Replaced \`framer-motion\` with native CSS animations, reducing the overall bundle size.
+- **Dependencies Clean-up**: Removed Prettier and ESLint in favor of the faster Vite+ toolchain (Oxlint/Oxfmt).
+- **Frontend Logging**: Refined and improved the client-side logging system for better development and debugging
+  experience.
+
+### Fixed
+
+- **Add-on Builder**: Updated deprecated Home Assistant builder image to ensure stable builds.
+- **Onboarding Flow**: Fixed an issue where MQTT settings couldn't be configured before skipping onboarding.
+- **UI Polishing**: Numerous small fixes for layout and styling after the Mantine v9 migration.
+
+## [1.0.6-stable] - 2026-03-21
+
+### Added
+
+- Offline mode notice — users are now informed when valve values may not be up to date due to offline mode.
+- New and improved addon logo for Home Assistant.
+- New README and Czech README (README.cs.md).
+
+### Fixed
+
+- Fixed drag and scroll in Timeline on mobile devices.
+- Fixed mode creation modal layout and controls for mobile.
+- Fixed form validation error placement in mode creation.
+- Fixed copy-paste in timeline — day is now correctly cleared before paste.
+- Prevented creating or copying two timeline events with the same time.
+
+## [1.0.5-stable] - 2026-03-16
+
+### Changed
+
+- Refined the dashboard HRU status card and the settings page layout, including the HRU test button UI.
+- Updated the Korado Ventbox simulator and Korado unit definitions.
+
+### Fixed
+
+- Improved reliability when loading values from the HRU to avoid intermittent read errors.
+- Fixed manual mode run-on time being displayed among valves.
+- Corrected temperature scaling for Korado units.
+
+## [1.0.4-stable] - 2026-03-05
+
+### Changed
+
+- Migrated frontend/backend runtime from Bun to NodeJS for better compatibility with the other HW. (Now works on
+  Raspberry Pi)
+
+### Fixed
+
+- Fixed addon startup failure in Home Assistant by updating tsx loader flag from deprecated \`--loader\` to \`--import\`.
+
+### Thanks
+
+- Thanks to [@JanNohejl](https://github.com/JanNohejl) for
+  reporting [issue #4](https://github.com/luftuj-cz/home-assistant/issues/4).
+
+## [1.0.3-stable] - 2026-03-02
+
+### Fixed
+
+- Prevented demo HRU keep-alive loop from crashing when no integration keepAlive is defined.
+
+## [1.0.2-stable] - 2026-03-02
+
+### Fixed
+
+- Valve filtering was too strict for certain luftator valve IDs.
+
+## [1.0.1-stable] - 2026-03-01
+
+### Fixed
+
+- Quickfix: manual mode entity was showing up as a valve; filtered out.
+
+## [1.0.0-stable] - 2026-03-01
+
+### Added
+
+- First stable version of this addon
+- If you find a bug or want to add a new HRU, open an issue: https://github.com/luftuj-cz/home-assistant/issues/new
+`;export{e as default};

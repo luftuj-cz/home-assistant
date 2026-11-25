@@ -1,37 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { IconLeaf } from "@tabler/icons-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Accordion,
-  ActionIcon,
-  Badge,
-  Button,
-  Checkbox,
-  Divider,
-  Flex,
-  Group,
-  Loader,
-  Modal,
-  NumberInput,
-  Paper,
-  Radio,
-  Select,
-  Stack,
-  Text,
-  TextInput,
-  Tooltip,
-} from "@mantine/core";
-import { IconAlertTriangle, IconPencil, IconSunLow } from "@tabler/icons-react";
-import { notifications } from "@mantine/notifications";
+import { useCallback, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
-import { MotionSwitch } from "@luftuj/shared/ui";
-import { translateApiError } from "@luftuj/shared/utils/apiError";
+import { RenameDialog } from "@luftuj/features/settings/components/RenameDialog";
 import {
-  type DisableImpact,
-  SEASON_KEYS,
-  type SeasonKey,
-  type SeasonSummary,
-} from "@luftuj/shared/types/season";
+  DisableSeasonsDialog,
+  EnableSeasonsDialog,
+} from "@luftuj/features/settings/components/SeasonDialogs";
+import { SeasonEditor } from "@luftuj/features/settings/components/SeasonEditor";
+import { SettingsSection, SummaryChip } from "@luftuj/features/settings/components/SettingsSection";
 import {
   disableSeasons,
   enableSeasons,
@@ -39,152 +17,29 @@ import {
   fetchSeasons,
   updateSeason,
 } from "@luftuj/features/settings/seasonsApi";
+import type {
+  DisableImpact,
+  EnablePreview,
+  SeasonKey,
+  SeasonSummary,
+} from "@luftuj/shared/types/season";
+import { notify } from "@luftuj/shared/ui/notify";
+import { Skeleton } from "@luftuj/shared/ui/skeleton";
+import { Switch } from "@luftuj/shared/ui/switch";
+import { translateApiError } from "@luftuj/shared/utils/apiError";
+import { formatMonthDay } from "@luftuj/shared/utils/monthDay";
 import { seasonLabel } from "@luftuj/shared/utils/seasonLabel";
-import { CustomTimelinesPanel } from "@luftuj/features/settings/sections/CustomTimelinesPanel";
-
-const SEASON_COLORS: Record<SeasonKey, string> = {
-  spring: "green",
-  summer: "yellow",
-  autumn: "orange",
-  winter: "blue",
-};
-
-const DAYS_IN_MONTH = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
-/** Leap-year basis so 29 February is always addressable as a boundary. */
-const DAYS_IN_YEAR = 366;
-
-/** Day-of-year (0-365, leap-year basis) for an MM-DD boundary. */
-function monthDayToOffset(monthDay: string): number {
-  const month = Number.parseInt(monthDay.slice(0, 2), 10);
-  const day = Number.parseInt(monthDay.slice(3), 10);
-  if (!Number.isFinite(month) || !Number.isFinite(day)) return 0;
-  let offset = 0;
-  for (let index = 0; index < month - 1; index++) offset += DAYS_IN_MONTH[index] ?? 0;
-  return offset + day - 1;
-}
-
-function formatMonthDay(monthDay: string): string {
-  const month = Number.parseInt(monthDay.slice(0, 2), 10);
-  const day = Number.parseInt(monthDay.slice(3), 10);
-  if (!Number.isFinite(month) || !Number.isFinite(day)) return monthDay;
-  return `${day}. ${month}.`;
-}
-
-function toMonthDay(month: number, day: number): string {
-  return `${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
 
 /**
- * The enabled season whose span would swallow this one if it were switched off.
- *
- * Spans are a ring of start days with each end derived from the next start, so
- * disabling a season removes its start point and the preceding one runs on
- * through it. Which neighbour that is has to be said before the toggle:
- * disabling autumn hands September to summer, and the schedule the user tuned
- * for September stops applying - a hardware-visible change presented, until
- * now, as an unlabelled switch.
+ * Roční období: the feature switch (with its enable and disable dialogs) and the SeasonEditor - boundaries on a bar
+ * and a row per season. Every change goes to the backend at once and refreshes everything a season can affect.
  */
-function absorbingNeighbour(
-  seasons: SeasonSummary[],
-  season: SeasonSummary,
-): SeasonSummary | undefined {
-  const enabled = seasons
-    .filter((candidate) => candidate.enabled)
-    .sort((a, b) => a.spanStart.localeCompare(b.spanStart));
-  if (enabled.length < 2) return undefined;
-
-  const index = enabled.findIndex((candidate) => candidate.id === season.id);
-  if (index === -1) return undefined;
-  return enabled[(index - 1 + enabled.length) % enabled.length];
-}
-
-/**
- * The year drawn as a ring of enabled seasons. Widths come from the derived
- * spans, so what is shown is exactly what the scheduler resolves - there is no
- * separate client-side notion of where a season ends.
- */
-function YearBar({ seasons, t }: Readonly<{ seasons: SeasonSummary[]; t: (k: string) => string }>) {
-  const enabled = seasons.filter((season) => season.enabled);
-  const now = new Date();
-  const todayOffset = monthDayToOffset(toMonthDay(now.getMonth() + 1, now.getDate()));
-
-  const segments = enabled
-    .map((season) => {
-      const start = monthDayToOffset(season.spanStart);
-      const end = monthDayToOffset(season.spanEnd);
-      // A season that wraps the year end still occupies the same total width.
-      const length = end >= start ? end - start + 1 : DAYS_IN_YEAR - start + end + 1;
-      return { season, start, length };
-    })
-    .sort((a, b) => a.start - b.start);
-
-  if (segments.length === 0) return null;
-
-  // The bar starts at the first enabled season, not at 1 January, so the marker
-  // has to be measured in the same rotated coordinate space as the segments.
-  // Measuring it from the start of the year is what put it in the wrong place.
-  const origin = segments[0]!.start;
-  const todayFraction =
-    (((todayOffset - origin + DAYS_IN_YEAR) % DAYS_IN_YEAR) / DAYS_IN_YEAR) * 100;
-
-  return (
-    <Stack gap={4}>
-      <Group gap={0} wrap="nowrap" style={{ width: "100%", height: 34 }}>
-        {segments.map(({ season, length }) => {
-          const name = seasonLabel(season, t);
-          const span = `${formatMonthDay(season.spanStart)} - ${formatMonthDay(season.spanEnd)}`;
-          return (
-            <Tooltip key={season.id} label={`${name}: ${span}`}>
-              <div
-                style={{
-                  flexGrow: length,
-                  flexBasis: 0,
-                  height: "100%",
-                  backgroundColor: `var(--mantine-color-${SEASON_COLORS[season.seasonKey]}-6)`,
-                  opacity: season.isActive ? 1 : 0.55,
-                  borderRight: "1px solid var(--mantine-color-body)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                }}
-              >
-                <Text size="xs" c="white" fw={600} truncate>
-                  {name}
-                </Text>
-              </div>
-            </Tooltip>
-          );
-        })}
-      </Group>
-
-      <div style={{ position: "relative", height: 16 }}>
-        <div
-          style={{
-            position: "absolute",
-            left: `${todayFraction}%`,
-            transform: "translateX(-50%)",
-            fontSize: 10,
-            lineHeight: 1.2,
-            whiteSpace: "nowrap",
-            color: "var(--mantine-color-dimmed)",
-          }}
-        >
-          {`\u25B2 ${t("settings.seasons.today")}`}
-        </div>
-      </div>
-    </Stack>
-  );
-}
-
 export function SeasonsSection() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const queryClient = useQueryClient();
   const [busy, setBusy] = useState(false);
 
-  // Shares the ["seasons"] cache with the timeline page's switcher. Holding
-  // this in local state instead meant a season disabled here stayed visible
-  // over there until a full page reload.
+  // Shares the ["seasons"] cache with the timeline page, so a change here shows there without a reload.
   const { data, isLoading: loading } = useQuery({
     queryKey: ["seasons"],
     queryFn: fetchSeasons,
@@ -193,6 +48,9 @@ export function SeasonsSection() {
 
   const seasons: SeasonSummary[] = useMemo(() => data?.seasons ?? [], [data]);
   const featureEnabled = data?.featureEnabled ?? false;
+  const activeSeason = featureEnabled
+    ? seasons.find((season) => season.id === data?.activeSeasonId)
+    : undefined;
 
   const [enableOpen, setEnableOpen] = useState(false);
   const [cloneCurrent, setCloneCurrent] = useState(true);
@@ -200,18 +58,8 @@ export function SeasonsSection() {
   const [keepSeasonKey, setKeepSeasonKey] = useState<SeasonKey>("spring");
   const [impact, setImpact] = useState<DisableImpact[]>([]);
   const [renaming, setRenaming] = useState<SeasonSummary | null>(null);
-  const [renameValue, setRenameValue] = useState("");
 
-  /** A season's label by key, for rows that carry only the key. */
-  function labelOf(key: SeasonKey): string {
-    return seasonLabel(seasons.find((season) => season.seasonKey === key) ?? { seasonKey: key }, t);
-  }
-
-  /**
-   * Refreshes every surface a season change can affect: the season list itself,
-   * plus the timeline's events and modes, since disabling a season can move
-   * which one is active and therefore what the timeline shows.
-   */
+  /** Everything a season change can move: the list, and the timeline's events and modes (the active season). */
   const reload = useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ["seasons"] }),
@@ -222,8 +70,8 @@ export function SeasonsSection() {
 
   const reportFailure = useCallback(
     (error: unknown) => {
-      notifications.show({
-        color: "red",
+      notify({
+        variant: "error",
         title: t("settings.seasons.errorTitle"),
         message: translateApiError(error, t),
       });
@@ -231,48 +79,44 @@ export function SeasonsSection() {
     [t],
   );
 
-  const handleToggleFeature = useCallback(
-    (next: boolean) => {
-      if (next) {
-        setEnableOpen(true);
-        return;
-      }
-      // Turning the feature off is destructive - it collapses to one season -
-      // so show what would be lost before asking for confirmation.
-      void (async () => {
-        try {
-          const preview = await fetchDisableImpact(keepSeasonKey);
-          setImpact(preview.seasons);
-          setDisableOpen(true);
-        } catch (error) {
-          reportFailure(error);
-        }
-      })();
-    },
-    [keepSeasonKey, reportFailure],
-  );
+  function toggleFeature(next: boolean) {
+    if (next) {
+      setEnableOpen(true);
+      return;
+    }
+    // The running season is the natural one to keep.
+    const keep = activeSeason?.seasonKey ?? keepSeasonKey;
+    setKeepSeasonKey(keep);
+    void fetchDisableImpact(keep)
+      .then((preview) => {
+        setImpact(preview.seasons);
+        setDisableOpen(true);
+      })
+      .catch(reportFailure);
+  }
 
-  const confirmEnable = useCallback(async () => {
+  async function confirmEnable() {
+    // The dialog's dry run: parked seasons come back as they were, so "a copy everywhere" would not be true.
+    const restored = queryClient.getQueryData<EnablePreview>([
+      "seasons-enable-preview",
+    ])?.restoresParked;
+    let message = t("settings.seasons.enabledEmpty");
+    if (restored) message = t("settings.seasons.enabledRestored");
+    else if (cloneCurrent) message = t("settings.seasons.enabledCloned");
     setBusy(true);
     try {
       await enableSeasons(cloneCurrent);
       await reload();
       setEnableOpen(false);
-      notifications.show({
-        color: "green",
-        title: t("settings.seasons.enabledTitle"),
-        message: cloneCurrent
-          ? t("settings.seasons.enabledCloned")
-          : t("settings.seasons.enabledEmpty"),
-      });
+      notify({ variant: "success", title: t("settings.seasons.enabledTitle"), message });
     } catch (error) {
       reportFailure(error);
     } finally {
       setBusy(false);
     }
-  }, [cloneCurrent, reload, reportFailure, t]);
+  }
 
-  const confirmDisable = useCallback(async () => {
+  async function confirmDisable() {
     setBusy(true);
     try {
       await disableSeasons(keepSeasonKey);
@@ -283,398 +127,106 @@ export function SeasonsSection() {
     } finally {
       setBusy(false);
     }
-  }, [keepSeasonKey, reload, reportFailure]);
+  }
 
-  const patchSeason = useCallback(
-    async (
-      key: SeasonKey,
-      patch: { enabled?: boolean; spanStart?: string; name?: string | null },
-    ) => {
-      setBusy(true);
-      try {
-        await updateSeason(key, patch);
-        await reload();
-      } catch (error) {
-        reportFailure(error);
-      } finally {
-        setBusy(false);
-      }
-    },
-    [reload, reportFailure],
-  );
-
-  const handleKeepChange = useCallback(
-    (value: string) => {
-      const next = value as SeasonKey;
-      setKeepSeasonKey(next);
-      void fetchDisableImpact(next)
-        .then((preview) => setImpact(preview.seasons))
-        .catch(reportFailure);
-    },
-    [reportFailure],
-  );
-
-  const enabledCount = useMemo(() => seasons.filter((s) => s.enabled).length, [seasons]);
-
-  return (
-    <Accordion.Item value="seasons">
-      <Accordion.Control icon={<IconSunLow size={20} />}>
-        <Group gap="xs">
-          <Text fw={600}>{t("settings.plans.title")}</Text>
-          {featureEnabled && (
-            <Badge size="sm" variant="light" color="green">
-              {enabledCount}
-            </Badge>
-          )}
-        </Group>
-      </Accordion.Control>
-
-      <Accordion.Panel>
-        <Stack gap="md">
-          <Group justify="space-between" align="flex-start" wrap="nowrap">
-            <Stack gap={2}>
-              <Text fw={600} size="sm">
-                {t("settings.seasons.title")}
-              </Text>
-              <Text size="sm">{t("settings.seasons.description")}</Text>
-              <Text size="xs" c="dimmed">
-                {t("settings.seasons.hint")}
-              </Text>
-            </Stack>
-            <MotionSwitch
-              checked={featureEnabled}
-              onChange={(event) => handleToggleFeature(event.currentTarget.checked)}
-              disabled={loading || busy}
-            />
-          </Group>
-
-          {loading && <Loader size="sm" />}
-
-          {featureEnabled && !loading && (
-            <>
-              <Divider />
-              <YearBar seasons={seasons} t={t} />
-              <Divider />
-
-              <Stack gap="xs">
-                {seasons.map((season) => {
-                  const neighbour = absorbingNeighbour(seasons, season);
-                  // The server refuses this too; blocking it here means the
-                  // user never has to learn the rule from a red toast.
-                  const isLastEnabled = season.enabled && enabledCount === 1;
-
-                  return (
-                    <Paper key={season.id} withBorder p="sm" radius="md">
-                      <Flex
-                        direction={{ base: "column", sm: "row" }}
-                        justify="space-between"
-                        align={{ base: "stretch", sm: "center" }}
-                        gap="sm"
-                        wrap="nowrap"
-                      >
-                        <Group gap="sm" wrap="nowrap" align="flex-start">
-                          <Tooltip
-                            label={t("settings.seasons.lastEnabledBlocked")}
-                            disabled={!isLastEnabled}
-                            multiline
-                            w={240}
-                          >
-                            <div>
-                              <MotionSwitch
-                                checked={season.enabled}
-                                onChange={(event) =>
-                                  void patchSeason(season.seasonKey, {
-                                    enabled: event.currentTarget.checked,
-                                  })
-                                }
-                                disabled={busy || isLastEnabled}
-                              />
-                            </div>
-                          </Tooltip>
-                          <Stack gap={2}>
-                            <Group gap={6}>
-                              <Text fw={600} size="sm">
-                                {seasonLabel(season, t)}
-                              </Text>
-                              <ActionIcon
-                                size="sm"
-                                variant="subtle"
-                                aria-label={t("settings.seasons.rename")}
-                                onClick={() => {
-                                  setRenaming(season);
-                                  setRenameValue(seasonLabel(season, t));
-                                }}
-                                disabled={busy}
-                              >
-                                <IconPencil size={14} />
-                              </ActionIcon>
-                              {season.isActive && (
-                                <Badge size="xs" color="green" variant="filled">
-                                  {t("settings.seasons.active")}
-                                </Badge>
-                              )}
-                              {season.enabled && season.enabledEvents === 0 && (
-                                <Badge
-                                  size="xs"
-                                  color="red"
-                                  variant="light"
-                                  leftSection={<IconAlertTriangle size={11} />}
-                                >
-                                  {t("settings.seasons.noEvents")}
-                                </Badge>
-                              )}
-                              {season.enabled && season.unconfiguredModes > 0 && (
-                                <Badge
-                                  size="xs"
-                                  color="yellow"
-                                  variant="light"
-                                  leftSection={<IconAlertTriangle size={11} />}
-                                >
-                                  {season.unconfiguredModes}
-                                </Badge>
-                              )}
-                            </Group>
-                            <Text size="xs" c="dimmed">
-                              {season.enabled
-                                ? `${formatMonthDay(season.spanStart)} - ${formatMonthDay(season.spanEnd)}`
-                                : t("settings.seasons.disabledHint")}
-                            </Text>
-                            {season.enabled && neighbour && (
-                              <Text size="xs" c="dimmed">
-                                {t("settings.seasons.disablePreview", {
-                                  neighbour: seasonLabel(neighbour, t),
-                                  start: formatMonthDay(season.spanStart),
-                                  end: formatMonthDay(season.spanEnd),
-                                })}
-                              </Text>
-                            )}
-                          </Stack>
-                        </Group>
-
-                        <SeasonBoundaryEditor
-                          season={season}
-                          disabled={busy || !season.enabled}
-                          onChange={(spanStart) =>
-                            void patchSeason(season.seasonKey, { spanStart })
-                          }
-                          t={t}
-                        />
-                      </Flex>
-                    </Paper>
-                  );
-                })}
-              </Stack>
-            </>
-          )}
-
-          <Divider />
-          <CustomTimelinesPanel />
-        </Stack>
-      </Accordion.Panel>
-
-      <Modal
-        opened={renaming !== null}
-        onClose={() => setRenaming(null)}
-        title={t("settings.seasons.renameTitle")}
-        centered
-      >
-        <Stack gap="md">
-          <TextInput
-            label={t("settings.customTimelines.nameLabel")}
-            value={renameValue}
-            maxLength={60}
-            onChange={(event) => setRenameValue(event.currentTarget.value)}
-            data-autofocus
-          />
-          <Group justify="space-between">
-            <Button
-              variant="subtle"
-              disabled={busy || !renaming?.name}
-              onClick={() => {
-                if (!renaming) return;
-                void patchSeason(renaming.seasonKey, { name: null }).then(() => setRenaming(null));
-              }}
-            >
-              {t("settings.seasons.restoreName")}
-            </Button>
-            <Group gap="xs">
-              <Button variant="default" onClick={() => setRenaming(null)} disabled={busy}>
-                {t("settings.timeline.modal.cancel")}
-              </Button>
-              <Button
-                loading={busy}
-                disabled={!renameValue.trim()}
-                onClick={() => {
-                  if (!renaming) return;
-                  void patchSeason(renaming.seasonKey, { name: renameValue.trim() }).then(() =>
-                    setRenaming(null),
-                  );
-                }}
-              >
-                {t("settings.customTimelines.save")}
-              </Button>
-            </Group>
-          </Group>
-        </Stack>
-      </Modal>
-
-      <Modal
-        opened={enableOpen}
-        onClose={() => setEnableOpen(false)}
-        title={t("settings.seasons.enableTitle")}
-        centered
-      >
-        <Stack gap="md">
-          <Text size="sm">{t("settings.seasons.enableBody")}</Text>
-          <Checkbox
-            checked={cloneCurrent}
-            onChange={(event) => setCloneCurrent(event.currentTarget.checked)}
-            label={t("settings.seasons.cloneLabel")}
-            description={t("settings.seasons.cloneDescription")}
-          />
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setEnableOpen(false)} disabled={busy}>
-              {t("settings.timeline.modal.cancel")}
-            </Button>
-            <Button onClick={() => void confirmEnable()} loading={busy}>
-              {t("settings.seasons.enableConfirm")}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-
-      <Modal
-        opened={disableOpen}
-        onClose={() => setDisableOpen(false)}
-        title={t("settings.seasons.disableTitle")}
-        centered
-      >
-        <Stack gap="md">
-          {/* Nothing is deleted any more: the other seasons are parked with
-              their events intact and come back when the feature does. The
-              dialog is here to say which schedule will be running, not to warn
-              about loss. */}
-          <Text size="sm">{t("settings.seasons.disableWarning")}</Text>
-
-          <Radio.Group
-            value={keepSeasonKey}
-            onChange={handleKeepChange}
-            label={t("settings.seasons.keepLabel")}
-          >
-            <Stack gap={4} mt="xs">
-              {SEASON_KEYS.map((key) => (
-                <Radio key={key} value={key} label={labelOf(key)} disabled={busy} />
-              ))}
-            </Stack>
-          </Radio.Group>
-
-          <Stack gap={2}>
-            {impact
-              .filter((entry) => !entry.wouldBeKept && entry.enabledEvents > 0)
-              .map((entry) => (
-                <Text key={entry.seasonKey} size="xs" c="dimmed">
-                  {t("settings.seasons.disableParkedRow", {
-                    season: labelOf(entry.seasonKey),
-                    count: entry.enabledEvents,
-                  })}
-                </Text>
-              ))}
-          </Stack>
-
-          <Group justify="flex-end">
-            <Button variant="default" onClick={() => setDisableOpen(false)} disabled={busy}>
-              {t("settings.timeline.modal.cancel")}
-            </Button>
-            <Button onClick={() => void confirmDisable()} loading={busy}>
-              {t("settings.seasons.disableConfirm")}
-            </Button>
-          </Group>
-        </Stack>
-      </Modal>
-    </Accordion.Item>
-  );
-}
-
-/**
- * Exact boundary entry: which day the season begins on. The month is a named
- * select rather than a bare number so the two fields cannot be confused, and
- * the day maximum follows the chosen month.
- */
-function SeasonBoundaryEditor({
-  season,
-  disabled,
-  onChange,
-  t,
-}: Readonly<{
-  season: SeasonSummary;
-  disabled: boolean;
-  onChange: (spanStart: string) => void;
-  t: (k: string) => string;
-}>) {
-  const { i18n } = useTranslation();
-  const [month, setMonth] = useState(() => Number.parseInt(season.spanStart.slice(0, 2), 10));
-  // "" while the user has the field cleared: a live boundary must not move on
-  // the strength of an empty input.
-  const [day, setDay] = useState<number | "">(() => Number.parseInt(season.spanStart.slice(3), 10));
-
-  useEffect(() => {
-    setMonth(Number.parseInt(season.spanStart.slice(0, 2), 10));
-    setDay(Number.parseInt(season.spanStart.slice(3), 10));
-  }, [season.spanStart]);
-
-  const monthOptions = useMemo(() => {
-    const formatter = new Intl.DateTimeFormat(i18n.language, { month: "long" });
-    return DAYS_IN_MONTH.map((_, index) => ({
-      value: String(index + 1),
-      // 2024 is a leap year, so February renders with 29 days available.
-      label: formatter.format(new Date(2024, index, 1)),
-    }));
-  }, [i18n.language]);
-
-  const maxDay = DAYS_IN_MONTH[month - 1] ?? 31;
-
-  function commit(nextMonth: number, nextDay: number | "") {
-    if (nextDay === "" || !Number.isFinite(nextDay)) {
-      // Nothing typed: restore the stored day instead of guessing the 1st,
-      // which could silently shift the boundary by up to a month.
-      setDay(Number.parseInt(season.spanStart.slice(3), 10));
-      return;
+  async function patchSeason(
+    key: SeasonKey,
+    patch: { enabled?: boolean; spanStart?: string; name?: string | null },
+  ) {
+    setBusy(true);
+    try {
+      await updateSeason(key, patch);
+      return true;
+    } catch (error) {
+      reportFailure(error);
+      return false;
+    } finally {
+      // Also after a refusal: the editor falls back to the boundaries the server kept.
+      await reload();
+      setBusy(false);
     }
-    const clampedDay = Math.min(Math.max(nextDay, 1), DAYS_IN_MONTH[nextMonth - 1] ?? 31);
-    const next = toMonthDay(nextMonth, clampedDay);
-    if (clampedDay !== nextDay) setDay(clampedDay);
-    if (next !== season.spanStart) onChange(next);
+  }
+
+  function changeKeep(key: SeasonKey) {
+    setKeepSeasonKey(key);
+    void fetchDisableImpact(key)
+      .then((preview) => setImpact(preview.seasons))
+      .catch(reportFailure);
   }
 
   return (
-    <Group gap={6} wrap="nowrap" align="flex-end" w={{ base: "100%", sm: "auto" }}>
-      <NumberInput
-        label={t("settings.seasons.day")}
-        value={day}
-        onChange={(value) => setDay(value === "" ? "" : Number(value))}
-        onBlur={() => commit(month, day)}
-        min={1}
-        max={maxDay}
-        w={68}
-        size="xs"
-        disabled={disabled}
-        clampBehavior="strict"
+    <SettingsSection
+      value="seasons"
+      index="03"
+      icon={IconLeaf}
+      title={t("settings.seasons.title")}
+      description={t("settings.seasons.description")}
+      summary={
+        activeSeason ? (
+          <SummaryChip tone="success">
+            {t("settings.seasons.summary", {
+              season: seasonLabel(activeSeason, t),
+              end: formatMonthDay(activeSeason.spanEnd, i18n.language),
+            })}
+          </SummaryChip>
+        ) : (
+          <SummaryChip>{t("settings.seasons.off")}</SummaryChip>
+        )
+      }
+    >
+      <Switch
+        label={t("settings.seasons.use")}
+        checked={featureEnabled}
+        disabled={loading || busy}
+        onCheckedChange={toggleFeature}
       />
-      <Select
-        label={t("settings.seasons.month")}
-        data={monthOptions}
-        value={String(month)}
-        onChange={(value) => {
-          const nextMonth = Number(value) || 1;
-          setMonth(nextMonth);
-          commit(nextMonth, day);
+      {loading && <Skeleton className="h-[220px] rounded-lg" />}
+      {featureEnabled && !loading && (
+        <SeasonEditor
+          seasons={seasons}
+          activeSeasonId={data?.activeSeasonId ?? undefined}
+          busy={busy}
+          onStartChange={(key, spanStart) => void patchSeason(key, { spanStart })}
+          onEnabledChange={(key, enabled) => void patchSeason(key, { enabled })}
+          onRename={setRenaming}
+        />
+      )}
+
+      <RenameDialog
+        open={renaming !== null}
+        onOpenChange={(open) => !open && setRenaming(null)}
+        legend={t("settings.seasons.renameLegend")}
+        title={t("settings.seasons.renameTitle")}
+        label={t("settings.customTimelines.nameLabel")}
+        defaultValue={renaming ? seasonLabel(renaming, t) : ""}
+        defaultName={renaming ? t(`settings.seasons.names.${renaming.seasonKey}`) : undefined}
+        busy={busy}
+        onSave={(name) => {
+          if (!renaming) return;
+          void patchSeason(renaming.seasonKey, { name }).then((ok) => {
+            if (ok) setRenaming(null);
+          });
         }}
-        flex={{ base: 1, sm: "0 0 130px" }}
-        size="xs"
-        disabled={disabled}
-        allowDeselect={false}
-        comboboxProps={{ withinPortal: true }}
       />
-    </Group>
+      <EnableSeasonsDialog
+        open={enableOpen}
+        onOpenChange={setEnableOpen}
+        cloneCurrent={cloneCurrent}
+        onCloneCurrentChange={setCloneCurrent}
+        busy={busy}
+        onConfirm={() => void confirmEnable()}
+      />
+      <DisableSeasonsDialog
+        open={disableOpen}
+        onOpenChange={setDisableOpen}
+        seasons={seasons}
+        activeSeasonId={data?.activeSeasonId ?? undefined}
+        keepSeasonKey={keepSeasonKey}
+        onKeepChange={changeKeep}
+        impact={impact}
+        busy={busy}
+        onConfirm={() => void confirmDisable()}
+      />
+    </SettingsSection>
   );
 }

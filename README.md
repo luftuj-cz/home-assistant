@@ -2,7 +2,7 @@
 
 [![English](https://img.shields.io/badge/lang-en-blue)](README.md) [![Čeština](https://img.shields.io/badge/lang-cs-red)](README.cs.md)
 
-React + TypeScript UI delivered by **LUFTaTOR** for managing **Luftator** ventilation valves. One Home Assistant instance can supervise multiple Luftator controllers through this add-on. The application is built with Vite and Mantine and is driven by **npm + Node.js** for both the frontend and add-on backend.
+React + TypeScript UI delivered by **LUFTaTOR** for managing **Luftator** ventilation valves. One Home Assistant instance can supervise multiple Luftator controllers through this add-on. The application is built with Vite, Tailwind and Radix and is driven by **npm + Node.js** for both the frontend and add-on backend.
 
 ## Prerequisites
 

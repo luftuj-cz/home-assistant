@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { SUPPORTED_LANGUAGES, VALID_LOG_LEVELS } from "../types/index.js";
+import { SUPPORTED_LANGUAGES, TEMPERATURE_UNITS, VALID_LOG_LEVELS } from "../types/index.js";
 
 export const hruSettingsInputSchema = z.object({
   host: z.string().trim().min(1, "Host is required"),
@@ -46,11 +46,16 @@ export const addonModeInputSchema = z.object({
 });
 
 export const themeSettingInputSchema = z.object({
-  theme: z.enum(["light", "dark"]),
+  /** `system` follows the viewer's operating system. */
+  theme: z.enum(["light", "dark", "system"]),
 });
 
 export const languageSettingInputSchema = z.object({
   language: z.enum(SUPPORTED_LANGUAGES),
+});
+
+export const temperatureUnitInputSchema = z.object({
+  unit: z.enum(TEMPERATURE_UNITS),
 });
 
 export const debugModeInputSchema = z.object({
@@ -67,5 +72,6 @@ export type MqttTestInput = z.infer<typeof mqttTestInputSchema>;
 export type AddonModeInput = z.infer<typeof addonModeInputSchema>;
 export type ThemeSettingInput = z.infer<typeof themeSettingInputSchema>;
 export type LanguageSettingInput = z.infer<typeof languageSettingInputSchema>;
+export type TemperatureUnitInput = z.infer<typeof temperatureUnitInputSchema>;
 export type DebugModeInput = z.infer<typeof debugModeInputSchema>;
 export type LogLevelInput = z.infer<typeof logLevelInputSchema>;

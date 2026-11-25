@@ -1,10 +1,12 @@
+import { IconCode } from "@tabler/icons-react";
 import { useEffect, useState } from "react";
-import { Accordion, Divider, Group, Paper, Select, Stack, Text } from "@mantine/core";
-import { IconBug, IconCode } from "@tabler/icons-react";
-import { notifications } from "@mantine/notifications";
 import { useTranslation } from "react-i18next";
 
-import { MotionSwitch } from "@luftuj/shared/ui";
+import { SettingsSection, SummaryChip } from "@luftuj/features/settings/components/SettingsSection";
+import { Combobox } from "@luftuj/shared/ui/combobox";
+import { Field } from "@luftuj/shared/ui/field";
+import { notify } from "@luftuj/shared/ui/notify";
+import { Switch } from "@luftuj/shared/ui/switch";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import {
   createLogger,
@@ -16,6 +18,7 @@ import {
 
 const logger = createLogger("DeveloperSection");
 
+/** Vývojářské nastavení: the debug-mode switch and the console log level. */
 export function DeveloperSection() {
   const { t } = useTranslation();
   const [debugMode, setDebugMode] = useState(false);
@@ -60,13 +63,12 @@ export function DeveloperSection() {
     }).then(() => {
       setTimeout(() => globalThis.location.reload(), 800);
     });
-    notifications.show({
+    notify({
       title: t("settings.developer.debugMode"),
       message: checked
         ? t("settings.developer.debugEnabled")
         : t("settings.developer.debugDisabled"),
-      color: checked ? "blue" : "gray",
-      icon: <IconBug size={20} />,
+      variant: checked ? "info" : "neutral",
     });
   }
 
@@ -81,10 +83,10 @@ export function DeveloperSection() {
         body: JSON.stringify({ level: value }),
       });
       if (res.ok) {
-        notifications.show({
+        notify({
           title: t("settings.developer.logLevel"),
           message: t("settings.developer.logLevelChanged", { level: value }),
-          color: "blue",
+          variant: "info",
         });
       }
     } catch (err) {
@@ -93,52 +95,38 @@ export function DeveloperSection() {
   }
 
   return (
-    <Accordion.Item value="developer">
-      <Accordion.Control icon={<IconCode size={20} />}>
-        <Text fw={600}>{t("settings.developer.title")}</Text>
-      </Accordion.Control>
-      <Accordion.Panel>
-        <Paper p="md" withBorder radius="md">
-          <Stack gap="md">
-            <Group justify="space-between" align="center">
-              <Stack gap={0}>
-                <Text fw={500}>{t("settings.developer.debugMode")}</Text>
-                <Text size="xs" c="dimmed">
-                  {t("settings.developer.debugModeDescription")}
-                </Text>
-              </Stack>
-              <MotionSwitch
-                checked={debugMode}
-                onChange={(e) => handleDebugChange(e.currentTarget.checked)}
-                size="md"
-              />
-            </Group>
-
-            <Divider />
-
-            <Group justify="space-between" align="center">
-              <Stack gap={0}>
-                <Text fw={500}>{t("settings.developer.logLevel")}</Text>
-                <Text size="xs" c="dimmed">
-                  {t("settings.developer.logLevelDescription")}
-                </Text>
-              </Stack>
-              <Select
-                value={currentLogLevel}
-                onChange={(v) => void handleLogLevelChange(v)}
-                data={VALID_LOG_LEVELS.map((level) => ({
-                  value: level,
-                  label: level.toUpperCase(),
-                }))}
-                size="sm"
-                w={120}
-                searchable
-                allowDeselect={false}
-              />
-            </Group>
-          </Stack>
-        </Paper>
-      </Accordion.Panel>
-    </Accordion.Item>
+    <SettingsSection
+      value="developer"
+      index="08"
+      icon={IconCode}
+      title={t("settings.developer.title")}
+      description={t("settings.developer.description")}
+      summary={
+        <>
+          <SummaryChip>
+            {debugMode ? t("settings.developer.debugOn") : t("settings.developer.debugOff")}
+          </SummaryChip>
+          <SummaryChip mono>{currentLogLevel}</SummaryChip>
+        </>
+      }
+    >
+      <Switch
+        label={t("settings.developer.debugMode")}
+        description={t("settings.developer.debugModeDescription")}
+        checked={debugMode}
+        onCheckedChange={handleDebugChange}
+      />
+      <Field
+        label={t("settings.developer.logLevel")}
+        description={t("settings.developer.logLevelDescription")}
+        className="max-w-[300px]"
+      >
+        <Combobox
+          options={VALID_LOG_LEVELS.map((level) => ({ value: level, label: level, mono: true }))}
+          value={currentLogLevel}
+          onValueChange={(value) => void handleLogLevelChange(value)}
+        />
+      </Field>
+    </SettingsSection>
   );
 }

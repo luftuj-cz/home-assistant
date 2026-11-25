@@ -1,49 +1,53 @@
-import { Button, Divider, Stack, Text, ThemeIcon } from "@mantine/core";
+import { IconUpload } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
-import { IconRocket, IconArrowRight } from "@tabler/icons-react";
-import { useOnboardingWizard } from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
 
+import { StepFrame } from "@luftuj/features/onboarding/components/StepFrame";
+import { useOnboardingWizard } from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
+import { Alert } from "@luftuj/shared/ui/alert";
+import { DamperModule } from "@luftuj/shared/ui/damper-module";
+import { FileButton } from "@luftuj/shared/ui/file-button";
+import { translateApiError } from "@luftuj/shared/utils/apiError";
+
+/** Vítejte: what the wizard will do, next to a damper, and a quiet way out for those who have a backup. */
 export function WelcomeStep() {
   const { t } = useTranslation();
-  const { nextStep, importDbMutation, importInputRef } = useOnboardingWizard();
+  const { nextStep, importDbMutation } = useOnboardingWizard();
 
   return (
-    <Stack align="center" py="xl">
-      <ThemeIcon size={80} radius="xl" variant="light" color="blue">
-        <IconRocket size={48} />
-      </ThemeIcon>
-      <Text ta="center" fw={700} size="xl">
-        {t("onboarding.welcome.title")}
-      </Text>
-      <Text c="dimmed" ta="center" maw={400}>
-        {t("onboarding.welcome.text")}
-      </Text>
-      <Button size="lg" mt="md" rightSection={<IconArrowRight size={18} />} onClick={nextStep}>
-        {t("onboarding.welcome.button")}
-      </Button>
-      <Divider label={t("app.nav.optional")} labelPosition="center" w="100%" maw={300} />
-      <Text size="xs" c="dimmed" ta="center">
-        {t("onboarding.welcome.importText")}
-      </Text>
-      <Button
-        variant="subtle"
-        size="sm"
-        loading={importDbMutation.isPending}
-        onClick={() => importInputRef.current?.click()}
-      >
-        {t("onboarding.welcome.importButton")}
-      </Button>
-      <input
-        ref={importInputRef}
-        type="file"
-        accept=".db,application/octet-stream"
-        style={{ display: "none" }}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) importDbMutation.mutate(file);
-          e.target.value = "";
-        }}
-      />
-    </Stack>
+    <StepFrame
+      title={t("onboarding.welcome.title")}
+      nextLabel={t("onboarding.welcome.button")}
+      onNext={nextStep}
+      nextDisabled={importDbMutation.isPending}
+    >
+      <div className="grid grid-cols-[auto_minmax(0,1fr)] items-center gap-6 @max-[520px]:grid-cols-[minmax(0,1fr)] @max-[520px]:justify-items-start">
+        <DamperModule angle={30} size={120} />
+        <p className="lead m-0">
+          {t("onboarding.welcome.text")} {t("onboarding.welcome.duration")}
+        </p>
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted p-4">
+        <div className="grid flex-[1_1_220px] gap-0.5">
+          <span className="label">{t("onboarding.welcome.importTitle")}</span>
+          <span className="caption text-muted-foreground">
+            {t("onboarding.welcome.importText")}
+          </span>
+        </div>
+        <FileButton
+          accept=".db,.sqlite,application/octet-stream"
+          variant="outline"
+          icon={IconUpload}
+          disabled={importDbMutation.isPending}
+          onFile={(file) => importDbMutation.mutate(file)}
+        >
+          {t("onboarding.welcome.importButton")}
+        </FileButton>
+      </div>
+      {importDbMutation.isError && (
+        <Alert variant="destructive" title={t("onboarding.welcome.importError")}>
+          {translateApiError(importDbMutation.error, t)}
+        </Alert>
+      )}
+    </StepFrame>
   );
 }

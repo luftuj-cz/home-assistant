@@ -532,4 +532,45 @@ describe("seasons feature enable and disable", () => {
     expect(impact.filter((i) => !i.wouldBeKept)).toHaveLength(3);
     expect(impact.every((i) => i.enabledEvents === 2)).toBe(true);
   });
+
+  // The enable dialog draws these boundaries before the user confirms, so they must be exactly what enable makes.
+  function partitionOf(list: { seasonKey: string; spanStart: string; enabled: boolean }[]) {
+    return list
+      .map(({ seasonKey, spanStart, enabled }) => ({ seasonKey, spanStart, enabled }))
+      .sort((a, b) => a.seasonKey.localeCompare(b.seasonKey));
+  }
+
+  it("previews the first enable without writing anything", () => {
+    const rowsBefore = db.prepare(`SELECT COUNT(*) AS n FROM timelines`).get();
+
+    const preview = feature.previewEnabledSeasons(UNIT);
+
+    expect(db.prepare(`SELECT COUNT(*) AS n FROM timelines`).get()).toEqual(rowsBefore);
+    expect(feature.isSeasonsFeatureEnabled()).toBe(false);
+    feature.enableSeasonsFeature(UNIT, false);
+    expect(partitionOf(preview.seasons)).toEqual(partitionOf(seasonsMod.getSeasons(UNIT)));
+    expect(preview.seasons.every((season) => season.spanEnd !== "")).toBe(true);
+    expect(preview.activeSeasonKey).not.toBeNull();
+    expect(preview.restoresParked).toBe(false);
+  });
+
+  it("previews the parked partition a re-enable brings back, and leaves it parked", () => {
+    feature.enableSeasonsFeature(UNIT, false);
+    seasonsMod.updateSeason(UNIT, "autumn", { spanStart: "10-01" });
+    seasonsMod.updateSeason(UNIT, "summer", { enabled: false });
+    feature.disableSeasonsFeature(UNIT, "spring");
+
+    const preview = feature.previewEnabledSeasons(UNIT);
+    // Previewing twice gives the same answer: the parked partition was not consumed.
+    expect(feature.previewEnabledSeasons(UNIT)).toEqual(preview);
+    expect(preview.seasons.find((s) => s.seasonKey === "autumn")).toMatchObject({
+      spanStart: "10-01",
+      enabled: true,
+    });
+    expect(preview.seasons.find((s) => s.seasonKey === "summer")?.enabled).toBe(false);
+    expect(preview.restoresParked).toBe(true);
+
+    feature.enableSeasonsFeature(UNIT, false);
+    expect(partitionOf(preview.seasons)).toEqual(partitionOf(seasonsMod.getSeasons(UNIT)));
+  });
 });

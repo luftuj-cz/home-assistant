@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { notifications } from "@mantine/notifications";
+import { notify } from "@luftuj/shared/ui/notify";
 import type { Mode, TimelineEvent } from "@luftuj/shared/types/timeline";
 import * as api from "@luftuj/features/timeline/api";
 import * as customApi from "@luftuj/features/timeline/customTimelinesApi";
@@ -96,10 +96,10 @@ export function useTimelineEventsQuery(
         eventId: event.id,
         dayOfWeek: event.dayOfWeek,
       });
-      notifications.show({
+      notify({
         title: t("settings.timeline.notifications.saveFailedTitle"),
         message: translateApiError(err, t),
-        color: "red",
+        variant: "error",
       });
     },
   });
@@ -119,10 +119,10 @@ export function useTimelineEventsQuery(
     },
     onError: (err, id) => {
       logger.error("Failed to delete timeline event", { error: err, id });
-      notifications.show({
+      notify({
         title: t("settings.timeline.notifications.deleteFailedTitle"),
         message: translateApiError(err, t),
-        color: "red",
+        variant: "error",
       });
     },
   });
@@ -153,10 +153,10 @@ export function useTimelineEventsQuery(
     try {
       await saveEventMutation.mutateAsync(event);
       if (!options?.silent) {
-        notifications.show({
+        notify({
           title: t("settings.timeline.notifications.saveSuccessTitle"),
           message: t("settings.timeline.notifications.saveSuccessMessage"),
-          color: "green",
+          variant: "success",
         });
       }
       return true;
@@ -169,10 +169,10 @@ export function useTimelineEventsQuery(
     try {
       await deleteEventMutation.mutateAsync(id);
       if (!options?.silent) {
-        notifications.show({
+        notify({
           title: t("settings.timeline.notifications.deleteSuccessTitle"),
           message: t("settings.timeline.notifications.deleteSuccessMessage"),
-          color: "green",
+          variant: "success",
         });
       }
       return true;

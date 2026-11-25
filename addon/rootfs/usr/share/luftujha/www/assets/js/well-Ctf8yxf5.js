@@ -1,0 +1,1 @@
+import{k as e,n as t}from"./useMediaQuery-BlLYNp3Z.js";import{v as n}from"./tanstack-CEvSAvWu.js";var r=n();function i({legend:n,className:i,children:a,...o}){return(0,r.jsxs)(`div`,{"data-slot":`well`,className:e(`grid min-w-0 content-start gap-2 rounded-lg bg-muted p-4`,i),...o,children:[n&&(0,r.jsx)(t,{children:n}),a]})}export{i as t};

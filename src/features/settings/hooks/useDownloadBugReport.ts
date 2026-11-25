@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { notifications } from "@mantine/notifications";
+import { notify } from "@luftuj/shared/ui/notify";
 import { useTranslation } from "react-i18next";
 
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
@@ -33,17 +33,17 @@ export function useDownloadBugReport() {
         "luftator-bugreport.zip",
       );
       triggerBlobDownload(blob, filename);
-      notifications.show({
+      notify({
         title: t("settings.help.bugReport.successTitle"),
         message: t("settings.help.bugReport.successMessage"),
-        color: "green",
+        variant: "success",
       });
     } catch (error) {
       logger.error("Bug report download failed", { error });
-      notifications.show({
+      notify({
         title: t("settings.help.bugReport.errorTitle"),
         message: t("settings.help.bugReport.errorMessage"),
-        color: "red",
+        variant: "error",
       });
     } finally {
       setLoading(false);

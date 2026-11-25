@@ -14,11 +14,11 @@
 
 ## Repository Layout
 
-- `src/` – React + TypeScript frontend (Vite, Mantine, TanStack Router, Bun toolchain).
+- `src/` – React + TypeScript frontend (Vite+, Tailwind + Radix design system, TanStack Router).
   - `src/pages/DashboardPage.tsx` – landing page placeholder for aggregated insights.
   - `src/pages/ValvesPage.tsx` – manual control page for valve zones.
   - `src/components/` – shared UI components (e.g., `ValveCard`).
-  - `src/layouts/AppLayout.tsx` – Mantine `AppShell` with navigation.
+  - `src/app/layouts/AppLayout.tsx` – app shell: header, tab bar and footer.
   - `src/router.tsx` – TanStack Router configuration.
 - `addon/` – Home Assistant add-on bundle.
   - `addon/rootfs/usr/src/app/src/` – Bun + Express backend (`server.ts`) plus services like `homeAssistantClient.ts` and `core/valveManager.ts`.
@@ -29,8 +29,8 @@
 
 ## Frontend Stack Notes
 
-- React 19, Mantine 7, TanStack Router 1.79.
-- Global Mantine theme defined in `src/App.tsx`.
+- React 19, Tailwind v4 with Radix primitives, TanStack Router and Query.
+- Design tokens and the theme live in `src/globals.css`; `ThemeProvider` switches light / dark / system.
 - Websocket + REST URLs are resolved from ingress origin with optional `VITE_API_BASE_URL` override for local dev.
 
 ## Backend Stack Notes

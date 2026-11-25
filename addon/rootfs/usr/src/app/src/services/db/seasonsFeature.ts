@@ -6,10 +6,13 @@ import {
   defaultSpanStarts,
   ensureSeasons,
   getSeasons,
+  inRange,
   persistDerivedSpanEnds,
+  previousMonthDay,
   SEASON_KEYS,
   type Season,
   type SeasonKey,
+  toMonthDay,
   validatePartition,
 } from "./seasons.js";
 
@@ -56,11 +59,18 @@ function isSeasonKey(value: string): value is SeasonKey {
 function takeParkedPartition(hruId: string | null, seasons: Season[]): ParkedPartition | null {
   const all = readParkedPartitions();
   const key = partitionStorageKey(hruId);
-  const parked = all[key];
-  if (!parked) return null;
+  if (!all[key]) return null;
 
+  const parked = peekParkedPartition(hruId, seasons);
   delete all[key];
   writeParkedPartitions(all);
+  return parked;
+}
+
+/** The parked partition enable would restore, read without consuming it (null: none, or no longer valid). */
+function peekParkedPartition(hruId: string | null, seasons: Season[]): ParkedPartition | null {
+  const parked = readParkedPartitions()[partitionStorageKey(hruId)];
+  if (!parked) return null;
 
   const defaults = defaultSpanStarts();
   const candidate = seasons.map((season) => {
@@ -314,4 +324,49 @@ export function disableSeasonsFeature(
     { hruId, kept: keeper.seasonKey, parked: seasons.length - 1 },
     "Seasons feature disabled, one season now applies all year",
   );
+}
+
+export interface EnablePreviewSeason {
+  seasonKey: SeasonKey;
+  name: string | null;
+  spanStart: string;
+  spanEnd: string;
+  enabled: boolean;
+}
+
+/**
+ * The partition `enableSeasonsFeature` would produce, computed without writing anything: a parked partition comes
+ * back as it was, otherwise every season starts on this year's equinox or solstice. Lets the enable dialog show
+ * the real boundaries before the user confirms.
+ */
+export function previewEnabledSeasons(hruId: string | null): {
+  seasons: EnablePreviewSeason[];
+  activeSeasonKey: SeasonKey | null;
+  /** True when enable brings back seasons parked by an earlier disable. */
+  restoresParked: boolean;
+} {
+  const existing = getSeasons(hruId);
+  const parked = existing.length > 0 ? peekParkedPartition(hruId, existing) : null;
+  const defaults = defaultSpanStarts();
+  const seasons: EnablePreviewSeason[] = SEASON_KEYS.map((seasonKey) => {
+    const restored = parked?.[seasonKey];
+    return {
+      seasonKey,
+      name: existing.find((season) => season.seasonKey === seasonKey)?.name ?? null,
+      spanStart: restored ? restored.spanStart : defaults[seasonKey],
+      spanEnd: "",
+      enabled: restored ? restored.enabled : true,
+    };
+  });
+
+  const enabled = seasons
+    .filter((season) => season.enabled)
+    .sort((a, b) => a.spanStart.localeCompare(b.spanStart));
+  enabled.forEach((season, index) => {
+    const next = enabled[(index + 1) % enabled.length]!;
+    season.spanEnd = previousMonthDay(next.spanStart);
+  });
+  const today = toMonthDay(new Date());
+  const active = enabled.find((season) => inRange(today, season.spanStart, season.spanEnd));
+  return { seasons, activeSeasonKey: active?.seasonKey ?? null, restoresParked: parked !== null };
 }

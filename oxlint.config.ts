@@ -17,8 +17,27 @@ export default {
     "react/rules-of-hooks": "error",
     "react/exhaustive-deps": "warn",
     "react/only-export-components": "warn",
+    // The app moved off Mantine to its own design system (src/shared/ui); keep it from coming back. The Algo CO2
+    // simulator in tools/ still uses Mantine until its own migration, see the override below.
+    "no-restricted-imports": [
+      "error",
+      {
+        patterns: [
+          {
+            regex: "^@mantine(/|$)",
+            message: "Mantine is gone: use the design system components in src/shared/ui.",
+          },
+        ],
+      },
+    ],
   },
   overrides: [
+    {
+      files: ["tools/algo-co2-simulator/**"],
+      rules: {
+        "no-restricted-imports": "off",
+      },
+    },
     {
       files: ["addon/rootfs/usr/src/app/src/**/*.ts"],
       rules: {

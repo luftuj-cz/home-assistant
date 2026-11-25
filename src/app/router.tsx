@@ -1,6 +1,5 @@
 import { lazy } from "react";
-import { Button, Group } from "@mantine/core";
-import { IconError404, IconHome, IconRefresh } from "@tabler/icons-react";
+import { IconError404, IconHome } from "@tabler/icons-react";
 import {
   createRootRoute,
   createRoute,
@@ -12,7 +11,9 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { AppLayout } from "@luftuj/app/layouts/AppLayout";
-import { ErrorState, LoadingState } from "@luftuj/shared/ui";
+import { Button } from "@luftuj/shared/ui/button";
+import { ErrorState } from "@luftuj/shared/ui/error-state";
+import { Spinner } from "@luftuj/shared/ui/spinner";
 
 function RouteErrorComponent({ error, reset }: Readonly<ErrorComponentProps>) {
   const { t } = useTranslation();
@@ -29,23 +30,21 @@ function RouteErrorComponent({ error, reset }: Readonly<ErrorComponentProps>) {
   }
 
   return (
-    <ErrorState
-      minHeight="100vh"
-      title={t("errors.route.title")}
-      description={t("errors.route.message")}
-      detail={message}
-      detailLabel={t("errors.route.details")}
-      action={
-        <Group gap="sm">
-          <Button leftSection={<IconRefresh size={16} />} onClick={handleRetry}>
-            {t("errors.route.retry")}
-          </Button>
-          <Button variant="light" leftSection={<IconHome size={16} />} onClick={handleHome}>
+    <div className="grid min-h-[60vh] place-items-center py-8">
+      <ErrorState
+        className="w-full max-w-[560px]"
+        title={t("errors.route.title")}
+        description={t("errors.route.message")}
+        details={message}
+        onRetry={handleRetry}
+        retryLabel={t("errors.route.retry")}
+        action={
+          <Button variant="ghost" icon={IconHome} onClick={handleHome}>
             {t("errors.route.home")}
           </Button>
-        </Group>
-      }
-    />
+        }
+      />
+    </div>
   );
 }
 
@@ -58,17 +57,27 @@ function NotFoundComponent() {
   }
 
   return (
-    <ErrorState
-      minHeight="100vh"
-      icon={<IconError404 size={32} />}
-      title={t("errors.notFound.title")}
-      description={t("errors.notFound.message")}
-      action={
-        <Button variant="light" leftSection={<IconHome size={16} />} onClick={handleHome}>
-          {t("errors.notFound.home")}
-        </Button>
-      }
-    />
+    <div className="grid min-h-[60vh] place-items-center py-8">
+      <ErrorState
+        className="w-full max-w-[560px]"
+        icon={IconError404}
+        title={t("errors.notFound.title")}
+        description={t("errors.notFound.message")}
+        action={
+          <Button variant="secondary" icon={IconHome} onClick={handleHome}>
+            {t("errors.notFound.home")}
+          </Button>
+        }
+      />
+    </div>
+  );
+}
+
+function PendingComponent() {
+  return (
+    <div className="grid min-h-[60vh] place-items-center">
+      <Spinner size={32} />
+    </div>
   );
 }
 
@@ -168,6 +177,18 @@ const onboardingRoute = createRoute({
   component: OnboardingPage,
 });
 
+// Dev-only showcase of the design-system primitives (#/ui). `import.meta.env.DEV` is a build-time constant, so the
+// route and its lazy chunk do not exist in a production build.
+const devRoutes = import.meta.env.DEV
+  ? [
+      createRoute({
+        getParentRoute: () => rootRoute,
+        path: "/ui",
+        component: lazy(() => import("@luftuj/app/dev/UiShowcasePage")),
+      }),
+    ]
+  : [];
+
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
   valvesRoute,
@@ -176,6 +197,7 @@ const routeTree = rootRoute.addChildren([
   debugRoute,
   haEntitiesRoute,
   onboardingRoute,
+  ...devRoutes,
 ]);
 
 const hashHistory = createHashHistory();
@@ -183,7 +205,7 @@ const hashHistory = createHashHistory();
 const router = createRouter({
   routeTree,
   history: hashHistory,
-  defaultPendingComponent: () => <LoadingState label="Loading…" minHeight="100vh" />,
+  defaultPendingComponent: PendingComponent,
   defaultErrorComponent: RouteErrorComponent,
   defaultNotFoundComponent: NotFoundComponent,
 });

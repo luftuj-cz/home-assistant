@@ -1,6 +1,96 @@
 {
+  "ui": {
+    "loading": "Loading",
+    "close": "Close",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "moreActions": "More actions",
+    "previousMonth": "Previous month",
+    "nextMonth": "Next month",
+    "moreToasts": "+{{count}} more",
+    "search": "Search…",
+    "searchLabel": "Search",
+    "clearSearch": "Clear search",
+    "nothingFound": "Nothing found",
+    "choose": "Choose…",
+    "options": "Options",
+    "clearSelection": "Clear selection",
+    "selectedCount": "{{count}} selected",
+    "deselectAll": "Deselect all",
+    "remove": "Remove {{name}}",
+    "decrease": "Decrease",
+    "increase": "Increase",
+    "hours": "Hours",
+    "minutes": "Minutes",
+    "time": "Time",
+    "dateTime": "Date and time",
+    "pickDateTime": "Pick a date and time",
+    "done": "Done",
+    "palette": "Palette",
+    "customColor": "Custom colour",
+    "colorHex": "Colour (hex)",
+    "copy": "Copy",
+    "copied": "Copied",
+    "chooseFile": "Choose file",
+    "retry": "Try again",
+    "colors": {
+      "mode1": "Petrol",
+      "mode2": "Green",
+      "mode3": "Violet",
+      "mode4": "Orange",
+      "mode5": "Plum",
+      "mode6": "Blue",
+      "mode7": "Ochre",
+      "mode8": "Slate"
+    },
+    "cancel": "Cancel",
+    "reorder": {
+      "pickedUp": "Picked up {{name}}.",
+      "position": "{{name}}: position {{position}} of {{count}}.",
+      "cancelled": "Move cancelled."
+    },
+    "connectionTest": {
+      "label": "Test connection",
+      "testing": "Testing…",
+      "success": "Connection successful",
+      "failed": "Connection failed"
+    }
+  },
   "app": {
     "title": "LUFTaTOR Control",
+    "header": {
+      "devTag": "Development build – not for everyday use",
+      "homeSuffix": " – Dashboard"
+    },
+    "unit": {
+      "ageSeconds": "{{count}} s ago",
+      "ageMinutes": "{{count}} min ago",
+      "disconnected": "disconnected",
+      "notResponding": "The unit is not responding",
+      "updated": "Updated {{age}}"
+    },
+    "version": {
+      "whatsNew": ", what's new"
+    },
+    "changelog": {
+      "title": "What's new",
+      "installedVersion": "Installed version {{version}} ({{channel}}).",
+      "installed": "Installed",
+      "unreleased": "Unreleased",
+      "devTitle": "Development build",
+      "devText": "It contains changes that are not in the list yet. Use stable in production.",
+      "fullHistory": "Full history on GitHub",
+      "sections": {
+        "Added": "Added",
+        "Changed": "Changed",
+        "Fixed": "Fixed",
+        "Removed": "Removed",
+        "Deprecated": "Deprecated",
+        "Security": "Security",
+        "Thanks": "Thanks"
+      }
+    },
+    "notificationsRegion": "Notifications",
     "units": {
       "level": "level",
       "m3/h": "m³/h",
@@ -19,7 +109,8 @@
       "debug": "Debug",
       "navigate": "Navigate",
       "toggle": "Toggle navigation",
-      "optional": "Optional"
+      "optional": "Optional",
+      "main": "Main navigation"
     },
     "footer": {
       "company": "Luftuj s.r.o.",
@@ -33,7 +124,7 @@
       "contact": "Contact",
       "location": "Location",
       "allRightsReserved": "All rights reserved.",
-      "github": "Star us on GitHub"
+      "github": "GitHub"
     }
   },
   "hru": {
@@ -174,8 +265,6 @@
       "manage": "Manage groups",
       "ungrouped": "Ungrouped",
       "bulkSetValue": "Set all",
-      "valveCount": "{{count}} valve",
-      "valveCount_other": "{{count}} valves",
       "create": "Create",
       "delete": "Delete group",
       "reorder": "Drag to reorder",
@@ -188,14 +277,32 @@
       "reorderFailedMessage": "Could not save the new group order. Please try again.",
       "actionFailedTitle": "Action failed",
       "actionFailedMessage": "Please try again.",
-      "mixedValues": "Mixed"
+      "mixedValues": "Mixed",
+      "bulkAria": "Set all – {{name}}",
+      "someOffline": "Some valves are unavailable in Home Assistant.",
+      "legend": "Valves",
+      "done": "Done",
+      "name": "Group name",
+      "membersAria": "Valves in group {{name}}",
+      "newGroupPlaceholder": "e.g. Ground floor",
+      "emptyDescription": "A group gathers valves you set together, such as the bedrooms or the ground floor.",
+      "deleteConfirm": "Group {{name}} will be deleted. Its valves stay, just without a group.",
+      "valveCount_one": "{{count}} valve",
+      "valveCount_other": "{{count}} valves"
+    },
+    "emptyTitle": "No valves",
+    "valveAria": "Valve {{name}}",
+    "scale": {
+      "open": "Open",
+      "closed": "Closed"
     }
   },
   "settings": {
     "title": "Settings",
-    "description": "Backup or restore LUFTaTOR data managed by this Home Assistant instance.",
+    "description": "Unit, seasons, integrations and data backup.",
     "appearance": {
-      "title": "Appearance"
+      "title": "Appearance",
+      "description": "Language, theme and temperature units"
     },
     "language": {
       "title": "Language",
@@ -214,7 +321,7 @@
     },
     "theme": {
       "title": "Theme",
-      "description": "Switch between light and dark appearance. Your preference is saved in this browser.",
+      "description": "Light, dark, or following the system. The choice is also saved in Home Assistant.",
       "light": "Light",
       "dark": "Dark",
       "notifications": {
@@ -223,7 +330,8 @@
         "failedTitle": "Failed to save theme",
         "failedMessage": "{{message}}",
         "unknown": "Unknown error"
-      }
+      },
+      "system": "System"
     },
     "temperatureUnit": {
       "title": "Temperature Unit",
@@ -388,7 +496,53 @@
       "pasteOverwriteBody": "{{day}} holds {{count}} events. Pasting deletes them and replaces the day.",
       "pasteOverwriteConfirm": "Overwrite",
       "seasonSwitchBlocked": "Finish or close the open dialog first - otherwise the save would land in a different season.",
-      "seasonSwitchBlockedTitle": "Cannot switch season"
+      "seasonSwitchBlockedTitle": "Cannot switch season",
+      "band": {
+        "label": "Seasons",
+        "active": "active",
+        "unconfigured": "Modes not set up: {{count}}",
+        "today": "today",
+        "plans": "Custom plans",
+        "empty": "empty",
+        "activeNote": "<b>{{season}}</b> is the active season · {{range}} · {{days}} left.",
+        "viewingNote": "You are viewing <b>{{viewed}}</b>. {{active}} is active – changes apply once {{viewed}} begins (in {{days}}).",
+        "days_one": "{{count}} day",
+        "days_other": "{{count}} days"
+      },
+      "today": "Today",
+      "running": "Running",
+      "eventToggle": "Enable event {{time}} {{mode}}",
+      "eventActions": "Actions for event {{time}}",
+      "eventDeleteTitle": "Delete event?",
+      "eventDeleteBody": "Event {{time}} · {{mode}} on {{day}} will be deleted.",
+      "eventDeleteEveryDay": "Event {{time}} · {{mode}} applies to every day and will be deleted from all of them.",
+      "eventDeleteConfirm": "Delete event",
+      "weekRow": "{{day}}{{today}}, enabled events: {{count}}",
+      "weekToday": ", today",
+      "dayPicker": "Day of the week",
+      "coverageLegend": "Mode in a custom plan",
+      "coverageMissing": "Missing in {{missing}} of {{count}} seasons.",
+      "coverageAll": "Set up in every season.",
+      "modeDeleteLoading": "Checking where the mode is used…",
+      "modeDeleteUsage": "Events to be deleted",
+      "weekLegend": "The week on one axis",
+      "modeEditor": {
+        "legend": "Timeline",
+        "legendSeason": "Timeline · {{season}}",
+        "summary": "Mode summary",
+        "newMode": "New mode",
+        "valves": "Valves",
+        "valvesTitle": "{{open}} open, {{partial}} partly, {{closed}} closed",
+        "testRunningTitle": "Test running",
+        "testRunningBody": "The unit and valves now follow this form. After 60 s they return to the timeline.",
+        "cancelTest": "Cancel test",
+        "seconds": "{{count}} s",
+        "unconfiguredTitle": "Not set up for this season",
+        "color": "Colour",
+        "valvesDescription": "For each valve, the position this mode sets.",
+        "noScripts": "No scripts.",
+        "scriptOnlyEmpty": "Empty: the mode only runs its scripts."
+      }
     },
     "hru": {
       "title": "Heat Recovery Unit",
@@ -435,7 +589,9 @@
         "minPowerHint": "Default: {{default}} {{unit}}",
         "minPowerRequired": "Min power is required for this unit",
         "minPowerAboveMax": "Minimum must not exceed the maximum"
-      }
+      },
+      "sectionDescription": "Model, Modbus TCP and power limits",
+      "notConfigured": "Not set up"
     },
     "mqtt": {
       "title": "MQTT Integration",
@@ -461,6 +617,12 @@
         "saveFailedMessage": "{{message}}",
         "testFailedTitle": "Connection failed",
         "unknown": "Unknown error"
+      },
+      "sectionDescription": "Broker and Home Assistant discovery",
+      "state": {
+        "connected": "Connected",
+        "disconnected": "Disconnected",
+        "off": "Off"
       }
     },
     "database": {
@@ -479,6 +641,15 @@
         "importFailedTitle": "Import failed",
         "importFailedMessage": "{{message}}",
         "unknown": "An unexpected error occurred."
+      },
+      "sectionDescription": "Backup and restore",
+      "backup": {
+        "legend": "Backup",
+        "description": "Downloads the whole database: settings, modes, the timeline and custom plans."
+      },
+      "restore": {
+        "legend": "Restore",
+        "description": "Replaces the current data with a backup file. The current database is backed up first."
       }
     },
     "help": {
@@ -497,7 +668,8 @@
         }
       },
       "contact": {
-        "prefix": "If you cannot find an answer to your question in the documentation, contact us at:"
+        "prefix": "If you cannot find an answer to your question in the documentation, contact us at:",
+        "title": "Contact"
       },
       "bugReport": {
         "title": "Bug report data",
@@ -507,7 +679,8 @@
         "successMessage": "The bug report file was downloaded. Attach it to your message to support.",
         "errorTitle": "Download failed",
         "errorMessage": "Could not generate the bug report. Please try again."
-      }
+      },
+      "description": "Documentation, common mistakes, data for support"
     },
     "developer": {
       "title": "Developer settings",
@@ -517,7 +690,10 @@
       "debugDisabled": "Debug Mode disabled",
       "logLevel": "Log Level",
       "logLevelDescription": "Controls the verbosity of console logging.",
-      "logLevelChanged": "Log level changed to {{level}}"
+      "logLevelChanged": "Log level changed to {{level}}",
+      "description": "Debug mode and logging",
+      "debugOn": "Debug on",
+      "debugOff": "Debug off"
     },
     "seasons": {
       "title": "Seasons",
@@ -533,7 +709,7 @@
       "active": "active",
       "noEvents": "no events",
       "disabledHint": "Disabled - its data is kept",
-      "disablePreview": "Switch off and {{neighbour}} takes over {{start}} - {{end}}. Events and mode values are kept.",
+      "disablePreview": "Switch off and <strong>{{neighbour}}</strong> takes over {{start}} – {{end}}. Events and mode values are kept.",
       "lastEnabledBlocked": "This is the only season left on. At least one has to stay on, otherwise no schedule would apply on any day.",
       "startsOn": "starts",
       "day": "day",
@@ -546,16 +722,31 @@
       "enabledTitle": "Seasons enabled",
       "enabledCloned": "Every season holds a copy of the current schedule; nothing changed.",
       "enabledEmpty": "The other seasons are empty - add events before they become active.",
+      "enabledRestored": "The seasons are back with their boundaries, events and mode values.",
       "disableTitle": "Turn seasons off?",
       "disableWarning": "One season keeps applying all year. The others are parked - their events and mode values stay exactly as they are and come back when you switch seasons on again.",
       "keepLabel": "Season to keep",
       "disableConfirm": "Turn off",
+      "disableSeasonConfirm": "Turn off {{season}}",
       "errorTitle": "Season change failed",
       "mqttActiveSeason": "Active Season",
       "disableParkedRow": "{{season}}: {{count}} events parked",
       "rename": "Rename season",
       "renameTitle": "Rename season",
-      "restoreName": "Restore default name"
+      "restoreName": "Restore default name",
+      "summary": "{{season}} · until {{end}}",
+      "off": "Off",
+      "use": "Use seasons",
+      "dragHint": "You can also drag the boundaries.",
+      "handle": "Start of {{season}}",
+      "toggle": "Turn on {{season}}",
+      "enableRestoreBody": "The seasons come back with the boundaries they had before they were turned off. Their events and mode values were kept.",
+      "events_one": "{{count}} event",
+      "events_other": "{{count}} events",
+      "nowActive": "active now",
+      "parkedLegend": "Parked",
+      "renameLegend": "Seasons",
+      "dateFloat": "{{season}} from {{date}}"
     },
     "plans": {
       "title": "Plans"
@@ -575,6 +766,7 @@
       "save": "Save",
       "delete": "Delete",
       "deleteBlocked": "This plan is running or scheduled. End it on the dashboard first.",
+      "deleteBlockedOk": "Got it",
       "deleteTitle": "Delete {{name}}?",
       "deleteBody": "The plan and its events ({{count}}) will be deleted.",
       "newLabel": "New custom plan",
@@ -597,11 +789,24 @@
       "fillReplaces": "The existing events of this plan ({{count}}) will be replaced.",
       "fillConfirm": "Fill",
       "filled": "{{name}} now runs one mode all week.",
-      "modeDeleteEndsOverride": "{{name}} would have no events left, so it stops running."
-    }
+      "modeDeleteEndsOverride": "{{name}} would have no events left, so it stops running.",
+      "sectionDescription": "Holiday, cottage, home office",
+      "running": "{{name}} running",
+      "scheduled": "{{name}} scheduled",
+      "count_one": "{{count}} plan",
+      "count_other": "{{count}} plans",
+      "actions": "Actions for {{name}}",
+      "renameAria": "New name for {{name}}"
+    },
+    "unsavedChanges": "Unsaved changes",
+    "discard": "Discard",
+    "save": "Save",
+    "saved": "Saved",
+    "indexLabel": "Settings sections",
+    "testFormHint": "The test uses the values in the form, unsaved ones too."
   },
   "debug": {
-    "title": "Debug Tools",
+    "title": "Debug",
     "description": "Advanced diagnostics and register inspection.",
     "haEntities": {
       "openLink": "HA Entities",
@@ -615,44 +820,34 @@
       "colEntity": "Entity",
       "colName": "Name",
       "colState": "State",
-      "colUnit": "Unit",
       "colDeviceClass": "Device class",
       "loadFailed": "Failed to load entities.",
-      "unavailable": "Home Assistant is not available."
+      "unavailable": "Home Assistant is not available.",
+      "loading": "Loading entities…",
+      "noMatches": "No entity matches the search.",
+      "onlyOurs": "LUFTaTOR only",
+      "domain": "Domain",
+      "attributes": "Attributes",
+      "lastChanged": "Last changed {{time}}"
     },
-    "backendValues": "Backend Debug Values",
     "copy": "Copy",
-    "copied": "Copied",
     "copyValues": "Copy values",
-    "copySuccessTitle": "Copied",
-    "copySuccess": "Debug values copied to clipboard.",
-    "copyFailedTitle": "Copy failed",
-    "copyFailed": "Failed to copy debug values.",
     "downloadValues": "Download values",
     "downloadValuesFailedTitle": "Download failed",
     "downloadValuesFailed": "Failed to download debug values: HTTP {{status}}",
     "downloadValuesFailedUnknown": "Failed to download debug values.",
     "refresh": "Refresh",
     "loading": "Loading debug values…",
-    "lastUpdated": "Last updated: {{time}}",
     "noData": "No debug values received.",
     "serverLogs": "Server Logs",
     "homeAssistantApi": "Home Assistant API",
     "loadFailed": "Failed to load debug values: {{message}}",
-    "loadFailedUnknown": "Failed to load debug values.",
-    "table": {
-      "key": "Key",
-      "value": "Value"
-    },
     "logs": {
       "loading": "Loading server logs…",
       "searchPlaceholder": "Search in messages and context…",
-      "allLevels": "All levels",
-      "count": "{{shown}} of {{total}} lines, {{buffered}} buffered on the server",
       "noMatches": "No log lines match the current filter.",
       "noData": "No server logs captured yet.",
       "loadFailed": "Failed to load server logs: {{message}}",
-      "loadFailedUnknown": "Failed to load server logs.",
       "download": "Download log",
       "pauseAutoRefresh": "Pause auto-refresh",
       "resumeAutoRefresh": "Resume auto-refresh",
@@ -660,24 +855,21 @@
       "downloadFailedTitle": "Download failed",
       "downloadFailed": "Failed to download server logs: HTTP {{status}}",
       "downloadFailedUnknown": "Failed to download server logs.",
-      "table": {
-        "time": "Time",
-        "level": "Level",
-        "message": "Message"
-      }
+      "legend": "Live output",
+      "live": "Live",
+      "paused": "Paused",
+      "level": "Level",
+      "all": "All",
+      "clearFilter": "Clear filter",
+      "footer": "{{shown}} of {{total}} lines · {{buffered}} kept on the server"
     },
     "haApi": {
       "loading": "Loading Home Assistant API data…",
-      "noData": "No Home Assistant API data received.",
-      "loadFailed": "Failed to load Home Assistant API data: {{message}}",
-      "loadFailedUnknown": "Failed to load Home Assistant API data."
+      "loadFailed": "Failed to load Home Assistant API data: {{message}}"
     },
-    "onboardingTools": "Onboarding Tools",
     "resetOnboarding": "Reset Onboarding Flag",
     "refreshDiscovery": "Refresh MQTT Discovery",
     "refreshValves": "Refresh Valve Snapshot",
-    "valvesRefreshSuccess": "Valves Refreshed",
-    "valvesRefreshSuccessMessage": "Valve snapshot has been manually refreshed from Home Assistant.",
     "restartScheduler": "Restart Scheduler",
     "stopOverride": "Stop Plan Override",
     "resetDatabase": "Reset Database",
@@ -685,7 +877,6 @@
     "databaseResetSuccess": "Database Reset",
     "databaseResetSuccessMessage": "The database has been reset and the backend is restarting. The page will reload in 15 seconds.",
     "commissioning": {
-      "tabLabel": "Commissioning",
       "title": "Commissioning",
       "description": "Cycles through selected modes automatically, holding each for the configured interval.",
       "start": "Start Test Run",
@@ -699,7 +890,66 @@
       "noModes": "No modes configured.",
       "currentMode": "Active mode",
       "step": "Step {{current}} / {{total}}",
-      "secondsRemaining": "{{seconds}} s remaining"
+      "legend": "Mode test",
+      "running": "Running",
+      "left": "Left",
+      "next": "then {{name}}",
+      "modeCount_one": "{{count}} mode",
+      "modeCount_other": "{{count}} modes",
+      "totalPrefix": "total",
+      "minutes": "{{minutes}} min",
+      "minutesSeconds": "{{minutes}} min {{seconds}} s",
+      "seconds": "{{seconds}} s",
+      "pickOne": "Pick at least one mode.",
+      "progress": "Test progress"
+    },
+    "inspector": {
+      "legend": "State",
+      "title": "Values",
+      "backend": "Backend",
+      "source": "Source",
+      "searchPlaceholder": "Search keys or values…",
+      "noMatches": "No value matches the search.",
+      "general": "general",
+      "copyKey": "Copy {{key}}",
+      "footer": "{{shown}} of {{total}} values",
+      "updated": "last updated {{time}}"
+    },
+    "tools": {
+      "legend": "Manual actions",
+      "title": "Tools",
+      "refresh": "Refresh",
+      "stop": "Stop",
+      "restart": "Restart",
+      "reset": "Reset",
+      "deleteAll": "Delete everything",
+      "done": "Done",
+      "failed": "That did not work. The log has the details.",
+      "irreversible": "Irreversible",
+      "discoveryDescription": "Announces LUFTaTOR's entities to Home Assistant again.",
+      "valvesDescription": "Reads the current damper positions from Home Assistant.",
+      "overrideDescription": "Ends the manual mode and hands control back to the timeline.",
+      "schedulerDescription": "Starts the timeline scheduler again.",
+      "onboardingDescription": "The setup wizard runs again on the next load.",
+      "onboardingConfirm": "The page reloads and the setup wizard starts. Saved settings are kept.",
+      "databaseDescription": "Deletes the settings, modes and timeline events."
+    },
+    "stats": {
+      "version": "Version",
+      "uptime": "Uptime",
+      "memory": "Memory",
+      "valves": "Dampers",
+      "connected": "Connected",
+      "disconnected": "Disconnected",
+      "notConfigured": "Not configured",
+      "off": "Off",
+      "since": "since {{time}}",
+      "discovery": "discovery {{time}}",
+      "unavailable_one": "{{count}} unavailable",
+      "unavailable_other": "{{count}} unavailable",
+      "uptimeDays": "{{days}} d {{hours}} h",
+      "uptimeHours": "{{hours}} h {{minutes}} min",
+      "uptimeMinutes": "{{minutes}} min {{seconds}} s"
     }
   },
   "schedule": {
@@ -851,6 +1101,74 @@
       "activatedMessage": "{{name}} is running.",
       "scheduledMessage": "{{name}} is scheduled.",
       "errorTitle": "The custom plan could not be switched"
+    },
+    "modeReadout": {
+      "until": "until {{time}}, then {{mode}}",
+      "nativeMode": "Unit mode: {{mode}}",
+      "today": "Today's plan",
+      "sources": {
+        "schedule": "Schedule",
+        "manual": "Manual",
+        "boost": "Manual mode",
+        "custom": "Custom plan",
+        "fallback": "Safe mode"
+      }
+    },
+    "unitPanel": {
+      "legend": "Heat recovery unit",
+      "flags": "Unit status",
+      "on": "On",
+      "off": "Off",
+      "yes": "Yes",
+      "no": "No",
+      "notResponding": "The unit is not responding",
+      "limit": "Configured limit {{value}} {{unit}}"
+    },
+    "connections": {
+      "legend": "Connections",
+      "title": "Services",
+      "allOk": "All connected",
+      "issues_one": "{{count}} service has trouble",
+      "issues_other": "{{count}} services have trouble",
+      "attempt": "Attempt",
+      "lastError": "Last error",
+      "reason": "Reason",
+      "reconnecting": "Reconnecting",
+      "openMqttSettings": "Open MQTT settings",
+      "openUnitSettings": "Open unit settings",
+      "unitUnreachable": "The Modbus device is not reachable."
+    },
+    "manual": {
+      "runningDescription": "When it ends, the unit returns to the timeline."
+    },
+    "duration": {
+      "label": "Duration",
+      "untilCancelled": "Until cancelled",
+      "untilCancelledUnit": "until cancelled",
+      "runsUntilCancelled": "Runs until you cancel it",
+      "ends": "Ends",
+      "endsAt": "Ends at",
+      "whenCancelled": "when you cancel it",
+      "other": "Other",
+      "every5": "in 5 min steps",
+      "untilTime": "until {{time}}",
+      "shorter": "Shorter",
+      "longer": "Longer",
+      "min": "min",
+      "hours_one": "hour",
+      "hours_other": "hours"
+    },
+    "planStart": {
+      "now": "now",
+      "summary": "Runs from {{start}} to {{end}} ({{length}}).",
+      "summaryOpen": "Runs from {{start}} until ended.",
+      "days_one": "{{count}} day",
+      "days_other": "{{count}} days",
+      "events_one": "{{count}} event",
+      "events_other": "{{count}} events",
+      "emptyPlan": "empty – add events on the Timeline",
+      "running": "running",
+      "addEvents": "Add events on the Timeline"
     }
   },
   "apiErrors": {
@@ -935,25 +1253,21 @@
       "importButton": "Import backup",
       "importText": "Skip setup by restoring a previous backup.",
       "importSuccess": "Database imported successfully. Redirecting...",
-      "importError": "Failed to import database backup."
+      "importError": "Failed to import database backup.",
+      "duration": "It takes a few minutes.",
+      "importTitle": "Have a backup?"
     },
     "preferences": {
       "label": "Preferences",
       "description": "Language & Theme",
       "languageLabel": "Language",
-      "languagePlaceholder": "Select language",
       "themeLabel": "Appearance",
-      "themePlaceholder": "Select theme",
-      "themes": {
-        "light": "Light",
-        "dark": "Dark"
-      },
       "tempUnitLabel": "Temperature Unit",
-      "tempUnitPlaceholder": "Select unit",
       "tempUnits": {
         "c": "Celsius (°C)",
         "f": "Fahrenheit (°F)"
-      }
+      },
+      "title": "Language and appearance"
     },
     "modbus": {
       "label": "Modbus",
@@ -966,8 +1280,6 @@
       "hostPlaceholder": "192.168.1.10",
       "portLabel": "Port",
       "unitIdLabel": "Unit ID",
-      "test": "Test Connection",
-      "connected": "Connected to HRU",
       "failed": "Connection to HRU failed"
     },
     "mqtt": {
@@ -981,11 +1293,8 @@
       "portLabel": "Port",
       "userLabel": "Username",
       "passLabel": "Password",
-      "test": "Test Connection",
-      "testing": "Testing...",
-      "connected": "Connected!",
-      "failed": "Connection Failed",
-      "warning": "Disabling MQTT means no integration with Home Assistant. You can enable it later in Settings."
+      "warning": "Disabling MQTT means no integration with Home Assistant. You can enable it later in Settings.",
+      "enableDescription": "Publishes sensors and controls to Home Assistant through MQTT Discovery."
     },
     "unit": {
       "label": "Unit",
@@ -1003,14 +1312,30 @@
     "status": {
       "label": "Status",
       "description": "System Check",
-      "found": "LUFTaTOR Found!",
-      "notFound": "LUFTaTOR not found yet.",
-      "integrationStatus": "Integration Status",
-      "waitingTitle": "Waiting for Home Assistant...",
+      "waitingTitle": "Waiting for Home Assistant…",
       "waitingHA": "We are configured, but Home Assistant hasn't picked up the devices yet. This usually takes about 60 seconds after MQTT connects.\n\nYou can proceed to the dashboard, entities will appear automatically.",
-      "readyTitle": "Ready!",
       "ready": "System is fully operational and connected to Home Assistant.",
-      "dashboard": "Go to Dashboard"
+      "dashboard": "Go to Dashboard",
+      "title": "System check",
+      "doneTitle": "Done!",
+      "unitReadyTitle": "The unit is ready",
+      "unitReady": "The Home Assistant integration is off. Turn it on in Settings → MQTT Integration.",
+      "waitingUnitTitle": "Waiting for the unit…",
+      "waitingUnit": "The heat recovery unit has not answered yet. Check the address in the Modbus step, or go on to the Dashboard and watch it there.",
+      "state": {
+        "done": "done",
+        "waiting": "waiting",
+        "error": "not working"
+      },
+      "checks": {
+        "unit": "Heat recovery unit answers",
+        "mqtt": "MQTT broker connected",
+        "ha": "Home Assistant registers the LUFTaTOR device",
+        "haWaiting": "waiting for MQTT Discovery",
+        "mqttOff": "Off – turn it on in Settings",
+        "entities_one": "{{count}} entity",
+        "entities_other": "{{count}} entities"
+      }
     },
     "errors": {
       "prefSaveFailed": "Failed to save preferences",
@@ -1018,6 +1343,8 @@
       "finishFailed": "Failed to finalise onboarding. Please try again."
     },
     "back": "Back",
-    "next": "Next"
+    "next": "Next",
+    "stepDone": "done",
+    "optional": "Optional"
   }
 }

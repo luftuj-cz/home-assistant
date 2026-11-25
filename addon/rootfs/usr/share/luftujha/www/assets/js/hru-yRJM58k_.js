@@ -1,1 +1,0 @@
-import{t as e}from"./client-D-hDM_-g.js";async function t(){return e.get(`/api/hru/units`)}export{t};

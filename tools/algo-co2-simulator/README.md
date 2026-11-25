@@ -12,8 +12,12 @@ nothing between page loads. It is made for a desktop screen and stays usable dow
 ## Setup
 
 ```bash
-# At the repo root: React, Mantine, Vite+ and Zod come from here.
+# At the repo root: React, Vite+ and Zod come from here.
 npm install
+
+# Here: Mantine. The app itself no longer uses it, so the simulator keeps its own copy until it is migrated too.
+# .npmrc sets legacy-peer-deps, so npm does not add a second React here (it would break every hook).
+cd tools/algo-co2-simulator && npm install
 
 # In the backend, only needed to run the tests (they use its Vitest).
 cd addon/rootfs/usr/src/app && npm install

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { notifications } from "@mantine/notifications";
+import { notify } from "@luftuj/shared/ui/notify";
 import type { Mode } from "@luftuj/shared/types/timeline";
 import * as api from "@luftuj/features/timeline/api";
 import { mapModeForUi } from "@luftuj/features/timeline/utils";
@@ -52,14 +52,14 @@ export function useTimelineModesQuery(unitId?: string, seasonId?: number) {
         logger.info("Timeline mode created", { id: mappedSaved.id, name: mappedSaved.name });
         return [...prev, mappedSaved];
       });
-      notifications.show({
+      notify({
         title: t("settings.timeline.notifications.saveSuccessTitle"),
         message: t(
           isEdit
             ? "settings.timeline.notifications.modeUpdated"
             : "settings.timeline.notifications.modeCreated",
         ),
-        color: "green",
+        variant: "success",
       });
     },
     onError: (err, { mode }) => {
@@ -68,10 +68,10 @@ export function useTimelineModesQuery(unitId?: string, seasonId?: number) {
         modeId: mode.id,
         name: mode.name,
       });
-      notifications.show({
+      notify({
         title: t("settings.timeline.notifications.saveFailedTitle"),
         message: translateApiError(err, t),
-        color: "red",
+        variant: "error",
       });
     },
   });
@@ -83,18 +83,18 @@ export function useTimelineModesQuery(unitId?: string, seasonId?: number) {
         prev ? prev.filter((m) => m.id !== id) : [],
       );
       logger.info("Timeline mode deleted", { id });
-      notifications.show({
+      notify({
         title: t("settings.timeline.notifications.modeDeleteSuccessTitle"),
         message: t("settings.timeline.notifications.modeDeleteSuccessMessage"),
-        color: "green",
+        variant: "success",
       });
     },
     onError: (err, id) => {
       logger.error("Failed to delete timeline mode", { error: err, id });
-      notifications.show({
+      notify({
         title: t("settings.timeline.notifications.deleteFailedTitle"),
         message: translateApiError(err, t),
-        color: "red",
+        variant: "error",
       });
     },
   });

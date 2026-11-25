@@ -1,0 +1,1 @@
+import{k as e}from"./useMediaQuery-BlLYNp3Z.js";import{v as t}from"./tanstack-CEvSAvWu.js";var n=t();function r({className:t,...r}){return(0,n.jsx)(`div`,{"data-slot":`skeleton`,"aria-hidden":`true`,className:e(`h-4 w-full animate-skeleton rounded-sm bg-muted`,t),...r})}export{r as t};

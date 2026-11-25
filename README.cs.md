@@ -2,7 +2,7 @@
 
 [![English](https://img.shields.io/badge/lang-en-blue)](README.md) [![Čeština](https://img.shields.io/badge/lang-cs-red)](README.cs.md)
 
-React + TypeScript UI dodávané **LUFTaTOR** pro správu ventilačních klapek **Luftatoru**. Jeden Home Assistant může dohlížet na více řídicích jednotek Luftatoru přes tento add-on. Aplikace je postavená na Vite a Mantine a pro frontend i backend add-onu používá **npm + Node.js**.
+React + TypeScript UI dodávané **LUFTaTOR** pro správu ventilačních klapek **Luftatoru**. Jeden Home Assistant může dohlížet na více řídicích jednotek Luftatoru přes tento add-on. Aplikace je postavená na Vite, Tailwindu a Radixu a pro frontend i backend add-onu používá **npm + Node.js**.
 
 ## Požadavky
 

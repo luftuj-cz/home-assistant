@@ -19,6 +19,7 @@ import {
   enableSeasonsFeature,
   getDisableImpact,
   isSeasonsFeatureEnabled,
+  previewEnabledSeasons,
 } from "../services/db/seasonsFeature.js";
 import {
   seasonKeySchema,
@@ -154,6 +155,18 @@ export function createSeasonsRouter(
     } catch (error) {
       if (error instanceof ApiError) return next(error);
       logger.error({ error }, "Failed to compute disable impact");
+      next(error);
+    }
+  });
+
+  /** Dry run for the enable dialog: the boundaries enabling would produce, before anything is written. */
+  router.get("/enable-preview", (request: Request, response: Response, next: NextFunction) => {
+    try {
+      const hruId = getCurrentUnitId(request.query.unitId as string);
+      response.json(previewEnabledSeasons(hruId));
+    } catch (error) {
+      if (error instanceof ApiError) return next(error);
+      logger.error({ error }, "Failed to preview enabling seasons");
       next(error);
     }
   });

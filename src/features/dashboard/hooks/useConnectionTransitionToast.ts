@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { notifications } from "@mantine/notifications";
+import { notify } from "@luftuj/shared/ui/notify";
 import { translateConnectionError } from "@luftuj/shared/utils/connectionError";
 
 const MIN_TOAST_INTERVAL_MS = 30_000;
@@ -54,13 +54,13 @@ export function useConnectionTransitionToast(params: ConnectionTransitionToastPa
       lastToastAtRef.current = Date.now();
       lastAnnouncedRef.current = connected;
       if (connected) {
-        notifications.show({
+        notify({
           title: t(reconnectedTitleKey),
           message: t(reconnectedMessageKey),
-          color: "green",
+          variant: "success",
         });
       } else {
-        notifications.show({
+        notify({
           title: t(disconnectedTitleKey),
           message: translateConnectionError(
             namespace,
@@ -68,7 +68,7 @@ export function useConnectionTransitionToast(params: ConnectionTransitionToastPa
             errorRef.current.message,
             t,
           ),
-          color: "red",
+          variant: "error",
         });
       }
     }

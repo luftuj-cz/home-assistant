@@ -1,0 +1,1 @@
+import{n as e}from"./tanstack-CEvSAvWu.js";import{p as t}from"./seasonsApi-hlBOdYOi.js";function n(n){return e({queryKey:[`custom-timelines`,n??`current`],queryFn:()=>t(n),refetchInterval:3e4})}export{n as t};

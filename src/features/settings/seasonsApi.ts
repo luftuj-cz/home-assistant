@@ -2,6 +2,7 @@ import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import { parseApiError } from "@luftuj/shared/utils/apiError";
 import type {
   DisableImpactResponse,
+  EnablePreview,
   Season,
   SeasonKey,
   SeasonsResponse,
@@ -30,6 +31,13 @@ export async function updateSeason(
   if (!res.ok) throw await parseApiError(res);
   const data = (await res.json()) as { seasons: Season[] };
   return data.seasons;
+}
+
+/** The boundaries enabling seasons would produce; nothing is written. */
+export async function fetchEnablePreview(): Promise<EnablePreview> {
+  const res = await fetch(resolveApiUrl("/api/seasons/enable-preview"));
+  if (!res.ok) throw await parseApiError(res);
+  return (await res.json()) as EnablePreview;
 }
 
 export async function enableSeasons(cloneCurrent: boolean): Promise<Season[]> {

@@ -1,78 +1,92 @@
-import { Badge, Group, rem, Stack, Text, ThemeIcon, Tooltip } from "@mantine/core";
-import { IconAdjustments } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
 import type { Valve } from "@luftuj/shared/types/valve";
-import { formatValveValue, getValveStatusColor } from "@luftuj/shared/utils/valve";
-import { BaseCard, ValveSlider } from "@luftuj/shared/ui";
+import { damperAngle, damperState } from "@luftuj/shared/ui/damper-geometry";
+import { DamperModule } from "@luftuj/shared/ui/damper-module";
+import { Legend } from "@luftuj/shared/ui/legend";
+import { Slider } from "@luftuj/shared/ui/slider";
+import { cn } from "@luftuj/shared/utils/cn";
+import { damperScale } from "@luftuj/shared/utils/valve";
 
-export interface ValveCardProps {
+const VALUE_TONE = {
+  open: "text-valve-open",
+  partial: "text-foreground",
+  closed: "text-valve-closed",
+  offline: "text-valve-closed",
+} as const;
+
+const SLIDER_TONE = {
+  open: "air",
+  partial: "valve-partial",
+  closed: "valve-closed",
+  offline: "valve-closed",
+} as const;
+
+interface ValveCardProps {
   valve: Valve;
   onPreview: (entityId: string, value: number) => void;
   onCommit: (entityId: string, value: number) => void | Promise<void>;
 }
 
+/**
+ * One damper: the module drawn as it really stands, its name and entity id, the value and a pointer slider. The
+ * blade follows the slider while it moves; Home Assistant gets the value on release. Offline: no fill, an inset
+ * ring, the slider off.
+ */
 export function ValveCard({ valve, onPreview, onCommit }: Readonly<ValveCardProps>) {
   const { t } = useTranslation();
-  const isUnavailable = !valve.isAvailable;
-  const statusColor = getValveStatusColor(valve.value, valve.min, valve.max, isUnavailable);
+  const { entityId, name, value, min, max, step, isAvailable } = valve;
+  const state = damperState(value, min, max, isAvailable);
+  const scale = damperScale(t, min, max);
+  let reading = <Legend className="text-current">{t("valves.status.offlineLabel")}</Legend>;
+  if (state === "partial") reading = <span className="readout-sm">{Math.round(value)}°</span>;
+  else if (state === "open") {
+    reading = <Legend className="text-current">{t("valves.status.open")}</Legend>;
+  } else if (state === "closed") {
+    reading = <Legend className="text-current">{t("valves.status.closed")}</Legend>;
+  }
 
   return (
-    <BaseCard>
-      <Stack gap="lg">
-        <Group justify="space-between" align="flex-start" wrap="nowrap">
-          <Group gap="sm" align="flex-start" style={{ flex: 1, minWidth: 0 }}>
-            <ThemeIcon
-              size={42}
-              radius="md"
-              variant="light"
-              color={statusColor}
-              style={{ transition: "all 0.3s ease", opacity: isUnavailable ? 0.4 : 1 }}
+    <div
+      data-slot="valve-card"
+      data-state={state}
+      className={cn(
+        "grid min-w-0 grid-cols-[minmax(0,1fr)] gap-4 rounded-xl bg-card p-5 shadow-plane [--dm-ground:var(--card)]",
+        "data-[state=offline]:bg-transparent data-[state=offline]:shadow-[inset_0_0_0_1.5px_var(--border)] data-[state=offline]:[--dm-ground:var(--background)]",
+      )}
+    >
+      <div className="flex min-w-0 items-center gap-4">
+        <DamperModule angle={damperAngle(value, min, max)} state={state} size={92} />
+        <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)] gap-2">
+          <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-1">
+            <p
+              className={cn("card-title truncate", state === "offline" && "text-muted-foreground")}
+              title={name}
             >
-              <IconAdjustments size={24} />
-            </ThemeIcon>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <Tooltip label={valve.name} openDelay={500} withArrow>
-                <Text fw={600} size="lg" truncate style={{ lineHeight: 1.2, cursor: "pointer" }}>
-                  {valve.name}
-                </Text>
-              </Tooltip>
-              <Tooltip label={valve.entityId} openDelay={500} withArrow>
-                <Text size="xs" c="dimmed" truncate mt={2} style={{ cursor: "pointer" }}>
-                  {valve.entityId}
-                </Text>
-              </Tooltip>
-            </div>
-          </Group>
-          <Badge
-            size="xl"
-            variant={isUnavailable ? "outline" : "light"}
-            color={statusColor}
-            style={{
-              transition: "all 0.3s ease",
-              minWidth: rem(80),
-              justifyContent: "center",
-              opacity: isUnavailable ? 0.7 : 1,
-            }}
-          >
-            {isUnavailable
-              ? t("valves.status.offlineLabel", { defaultValue: "Offline" })
-              : formatValveValue(valve.value, valve.min, valve.max, t)}
-          </Badge>
-        </Group>
-
-        <ValveSlider
-          value={valve.value}
-          min={valve.min}
-          max={valve.max}
-          step={valve.step}
-          label={(val) => formatValveValue(val, valve.min, valve.max, t)}
-          onChange={(val) => onPreview(valve.entityId, val)}
-          onChangeEnd={(val) => void onCommit(valve.entityId, val)}
-          disabled={isUnavailable}
-          color={statusColor}
-        />
-      </Stack>
-    </BaseCard>
+              {name}
+            </p>
+            <p className="code truncate text-muted-foreground" title={entityId}>
+              {entityId}
+            </p>
+          </div>
+          <div className={cn("flex min-h-6 items-center", VALUE_TONE[state])}>{reading}</div>
+        </div>
+      </div>
+      <Slider
+        value={value}
+        min={min}
+        max={max}
+        step={step}
+        disabled={!isAvailable}
+        fill="none"
+        tone={SLIDER_TONE[state]}
+        ticks={6}
+        labels={scale}
+        format={(v) => `${v}°`}
+        aria-label={t("valves.valveAria", { name })}
+        onValueChange={(v) => onPreview(entityId, v)}
+        onValueCommit={(v) => void onCommit(entityId, v)}
+      />
+    </div>
   );
 }

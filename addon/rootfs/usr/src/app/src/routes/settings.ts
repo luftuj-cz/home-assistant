@@ -12,6 +12,7 @@ import {
   HRU_SETTINGS_KEY,
   type HruSettings,
   LANGUAGE_SETTING_KEY,
+  TEMPERATURE_UNIT_SETTING_KEY,
   LOG_LEVEL_KEY,
   type LogLevel,
   MQTT_SETTINGS_KEY,
@@ -28,7 +29,9 @@ import {
   type HruSettingsInput,
   hruSettingsInputSchema,
   type LanguageSettingInput,
+  type TemperatureUnitInput,
   languageSettingInputSchema,
+  temperatureUnitInputSchema,
   type LogLevelInput,
   logLevelInputSchema,
   type MqttSettingsInput,
@@ -150,9 +153,12 @@ export function createSettingsRouter(
     const mqttConfigured = !!(mqttSettings && JSON.parse(String(mqttSettings)).enabled);
 
     let luftatorAvailable = false;
+    // How many LUFTaTOR entities Home Assistant knows; the onboarding checklist shows it. Null without HA.
+    let luftatorEntityCount: number | null = null;
     if (haClient) {
       try {
         const entities = await haClient.fetchLuftatorEntities();
+        luftatorEntityCount = entities.length;
         luftatorAvailable = entities.length > 0;
       } catch (err) {
         logger.warn({ err }, "Failed to check Luftator status in HASS");
@@ -168,6 +174,7 @@ export function createSettingsRouter(
       hruConfigured,
       mqttConfigured,
       luftatorAvailable,
+      luftatorEntityCount,
     });
   });
 
@@ -540,6 +547,31 @@ export function createSettingsRouter(
         response.status(204).end();
       } catch (error) {
         logger.error({ error }, "Failed to update theme");
+        next(error);
+      }
+    },
+  );
+
+  router.get("/temperature-unit", (_request: Request, response: Response) => {
+    const unit = getAppSetting(TEMPERATURE_UNIT_SETTING_KEY) ?? "celsius";
+    response.json({ unit });
+  });
+
+  router.post(
+    "/temperature-unit",
+    validateRequest(temperatureUnitInputSchema),
+    (
+      request: Request<Record<string, unknown>, Record<string, unknown>, TemperatureUnitInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const { unit } = request.body;
+        setAppSetting(TEMPERATURE_UNIT_SETTING_KEY, unit);
+        logger.info({ unit }, "Temperature unit updated");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to update temperature unit");
         next(error);
       }
     },

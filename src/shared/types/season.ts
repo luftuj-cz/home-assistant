@@ -48,3 +48,11 @@ export interface DisableImpactResponse {
   keepSeasonKey: SeasonKey;
   seasons: DisableImpact[];
 }
+
+/** What enabling the feature would produce (`GET /api/seasons/enable-preview`), before anything is written. */
+export interface EnablePreview {
+  seasons: Array<Pick<Season, "seasonKey" | "name" | "spanStart" | "spanEnd" | "enabled">>;
+  activeSeasonKey: SeasonKey | null;
+  /** Enable brings back the seasons an earlier disable parked, with their own boundaries. */
+  restoresParked: boolean;
+}

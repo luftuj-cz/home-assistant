@@ -1,0 +1,557 @@
+/*
+ * LUFTaTOR design system: Tailwind v4 (with its preflight) + the design tokens.
+ */
+@import "tailwindcss";
+
+/* Self-hosted: the add-on runs offline. The packages register the families as "Geist Variable" and
+   "Geist Mono Variable". */
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
+
+/* `dark:` follows the theme the app picked, not the OS preference. */
+@custom-variant dark (&:where(.dark, .dark *, [data-theme="dark"], [data-theme="dark"] *));
+
+/* Tokens, from the design system's tokens.css. The dark block applies to `.dark` and `[data-theme="dark"]`;
+   the font families are renamed to the names the fontsource packages register. */
+:root,
+[data-theme="light"] {
+  --background: #eef2f1;
+  --foreground: #132022;
+  --card: #ffffff;
+  --card-foreground: var(--foreground);
+  --popover: #ffffff;
+  --popover-foreground: var(--foreground);
+  --muted: #f2f5f4;
+  --muted-foreground: #56656a;
+  --primary: #16282b;
+  --primary-foreground: #f4f8f7;
+  --secondary: #e4eae9;
+  --secondary-foreground: #132022;
+  --accent: #e8eeed;
+  --accent-foreground: #132022;
+  --air: #0b6f80;
+  --air-foreground: #ffffff;
+  --air-soft: #ddf0f2;
+  --ring: var(--air);
+  --border: #dfe6e4;
+  --input: #7d8c89;
+  --destructive: #b8323c;
+  --destructive-foreground: #ffffff;
+  --destructive-soft: #fbe7e8;
+  --success: #1d7344;
+  --success-foreground: #ffffff;
+  --success-soft: #e1f3e8;
+  --warning: #8d5c00;
+  --warning-foreground: #ffffff;
+  --warning-soft: #fbf0d6;
+  --manual: #b4470f;
+  --manual-foreground: #ffffff;
+  --manual-soft: #fcebe0;
+  --plan: #8b3a7e;
+  --plan-foreground: #ffffff;
+  --plan-soft: #f6e6f2;
+  --valve-open: var(--air);
+  --valve-partial: #3f8f9c;
+  --valve-closed: var(--muted-foreground);
+  --damper-body: #23292b;
+  --damper-rim: #3a4245;
+  --damper-inner: #121618;
+  --damper-blade: #6b777c;
+  --damper-blade-edge: #a3adb1;
+  --damper-servo: #45b3c2;
+  --damper-servo-ink: #23808c;
+  --season-spring: #2f7d4f;
+  --season-summer: #8a6400;
+  --season-autumn: #ad4a1c;
+  --season-winter: #3567a6;
+  --mode-1: #0b6f80;
+  --mode-2: #2f7d4f;
+  --mode-3: #6a5bc4;
+  --mode-4: #b4470f;
+  --mode-5: #8b3a7e;
+  --mode-6: #3567a6;
+  --mode-7: #8a6400;
+  --mode-8: #56656a;
+  --shadow-plane: 0 1px 2px rgba(19, 32, 34, 0.04), 0 8px 24px -12px rgba(19, 32, 34, 0.1);
+  --shadow-float: 0 12px 32px -8px rgba(19, 32, 34, 0.18);
+}
+
+.dark,
+[data-theme="dark"] {
+  --background: #0d1313;
+  --foreground: #e5eeec;
+  --card: #151d1d;
+  --card-foreground: var(--foreground);
+  --popover: #1b2525;
+  --popover-foreground: var(--foreground);
+  --muted: #1c2626;
+  --muted-foreground: #94a4a2;
+  --primary: #e5eeec;
+  --primary-foreground: #0d1313;
+  --secondary: #243030;
+  --secondary-foreground: #e5eeec;
+  --accent: #212c2c;
+  --accent-foreground: #e5eeec;
+  --air: #4fc3d4;
+  --air-foreground: #06191c;
+  --air-soft: #12303a;
+  --ring: var(--air);
+  --border: #263131;
+  --input: #667774;
+  --destructive: #f27a7a;
+  --destructive-foreground: #200606;
+  --destructive-soft: #331a1c;
+  --success: #62cf8f;
+  --success-foreground: #04170c;
+  --success-soft: #14301f;
+  --warning: #eec056;
+  --warning-foreground: #1e1400;
+  --warning-soft: #2f2712;
+  --manual: #f5975a;
+  --manual-foreground: #220b00;
+  --manual-soft: #35210f;
+  --plan: #e092d1;
+  --plan-foreground: #22071d;
+  --plan-soft: #331a2e;
+  --valve-open: var(--air);
+  --valve-partial: #2d93a3;
+  --valve-closed: var(--muted-foreground);
+  --damper-body: #343e40;
+  --damper-rim: #687678;
+  --damper-inner: #0c1011;
+  --damper-blade: #8a989b;
+  --damper-blade-edge: #b9c4c6;
+  --damper-servo: #3fb1c1;
+  --damper-servo-ink: #23808c;
+  --season-spring: #6bd197;
+  --season-summer: #e8b94d;
+  --season-autumn: #f2955d;
+  --season-winter: #7fb0ea;
+  --mode-1: #4fc3d4;
+  --mode-2: #62cf8f;
+  --mode-3: #a99cf2;
+  --mode-4: #f5975a;
+  --mode-5: #e092d1;
+  --mode-6: #7fb0ea;
+  --mode-7: #e8b94d;
+  --mode-8: #94a4a2;
+  --shadow-plane: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --shadow-float: 0 12px 32px -8px rgba(0, 0, 0, 0.6);
+}
+
+/* Theme-independent tokens. `--radius-*` deliberately replace Tailwind's radius scale, so `rounded-xl` is the
+   design's radius-xl (24px, planes) and `rounded-md` its radius-md (12px, buttons). */
+:root {
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-full: 9999px;
+  --duration-fast: 120ms;
+  --duration-base: 220ms;
+  --duration-slow: 320ms;
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.3, 1.4, 0.5, 1);
+  --ease-in-out: cubic-bezier(0.6, 0, 0.2, 1);
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SFMono-Regular", monospace;
+}
+
+/* shadcn's colour names, plus LUFTaTOR's own, as Tailwind colours (`bg-card`, `text-air`, `bg-manual-soft` …). */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-air: var(--air);
+  --color-air-foreground: var(--air-foreground);
+  --color-air-soft: var(--air-soft);
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning-soft: var(--warning-soft);
+  --color-destructive-soft: var(--destructive-soft);
+  --color-manual: var(--manual);
+  --color-manual-foreground: var(--manual-foreground);
+  --color-manual-soft: var(--manual-soft);
+  --color-plan: var(--plan);
+  --color-plan-foreground: var(--plan-foreground);
+  --color-plan-soft: var(--plan-soft);
+  --color-valve-open: var(--valve-open);
+  --color-valve-partial: var(--valve-partial);
+  --color-valve-closed: var(--valve-closed);
+  --font-sans: "Geist Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --radius: 12px;
+}
+
+/* Shadows change per theme, so they are utilities, not theme values (same-name theme variables would
+   reference themselves). */
+@utility shadow-plane {
+  box-shadow: var(--shadow-plane);
+}
+
+@utility shadow-float {
+  box-shadow: var(--shadow-float);
+}
+
+/* Type styles from tokens.css. In the components layer, so a utility on the same element still wins. */
+@layer components {
+  .page-title {
+    font-family: var(--font-sans);
+    font-size: 32px;
+    line-height: 38px;
+    font-weight: 500;
+    letter-spacing: -0.025em;
+  }
+  .section-title {
+    font-family: var(--font-sans);
+    font-size: 20px;
+    line-height: 28px;
+    font-weight: 500;
+    letter-spacing: -0.015em;
+  }
+  .card-title {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 22px;
+    font-weight: 600;
+    letter-spacing: -0.005em;
+  }
+  .body {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 400;
+  }
+  .lead {
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 24px;
+    font-weight: 400;
+  }
+  .label {
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 20px;
+    font-weight: 500;
+  }
+  .caption {
+    font-family: var(--font-sans);
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 400;
+  }
+  .legend {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+  }
+  .readout-xl {
+    font-family: var(--font-sans);
+    font-size: 56px;
+    line-height: 56px;
+    font-weight: 300;
+    letter-spacing: -0.04em;
+  }
+  .readout {
+    font-family: var(--font-sans);
+    font-size: 36px;
+    line-height: 40px;
+    font-weight: 300;
+    letter-spacing: -0.03em;
+  }
+  .readout-sm {
+    font-family: var(--font-sans);
+    font-size: 18px;
+    line-height: 24px;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+  .code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 16px;
+    font-weight: 400;
+  }
+}
+
+/* Type details the reference adds on top of tokens.css: legends are uppercase and muted, numbers are tabular. */
+@layer components {
+  .legend {
+    display: block;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    font-variant-numeric: tabular-nums;
+  }
+  .code,
+  .readout-xl,
+  .readout,
+  .readout-sm {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/*
+ * The page baseline on top of Tailwind's preflight: the colour scheme for native controls and scrollbars, the
+ * ground and text colours, and what the app adds (pointer on buttons, the focus ring). Zero specificity in the base
+ * layer, so every utility wins.
+ */
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+  :root:where(.dark, [data-theme="dark"]) {
+    color-scheme: dark;
+  }
+  body {
+    min-height: 100vh;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.55;
+    color: var(--foreground);
+    /* The design system's ground (the shell paints it too; this covers overscroll). */
+    background-color: var(--background);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-size-adjust: 100%;
+  }
+  #root {
+    min-height: 100vh;
+  }
+  :where(button, [role="button"]):not(:disabled) {
+    cursor: pointer;
+  }
+  :where(*):focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+
+  /* Touch: no double-tap zoom on controls, no grey tap flash. */
+  :where(
+    button,
+    [role="button"],
+    [role="radio"],
+    [role="switch"],
+    [role="checkbox"],
+    [role="slider"],
+    [role="option"],
+    [role="menuitem"],
+    a,
+    label,
+    input
+  ) {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Motion: every duration and curve is a token. Overlays arrive from where they live. */
+@theme inline {
+  --animate-fade: ui-fade var(--duration-base) var(--ease-out) both;
+  --animate-pop: ui-pop var(--duration-slow) var(--ease-spring) both;
+  --animate-sheet-in: ui-sheet-in 380ms var(--ease-out) both;
+  --animate-menu-in: ui-menu-in 160ms var(--ease-out) both;
+  --animate-tooltip-in: ui-tooltip-in var(--duration-fast) var(--ease-out) both;
+  --animate-toast-in: ui-toast-in var(--duration-slow) var(--ease-spring) both;
+  --animate-radio-in: ui-radio-in var(--duration-base) var(--ease-spring) both;
+  --animate-draw: ui-draw 220ms var(--ease-out) both;
+  --animate-ping: ui-ping 2.4s ease-out infinite;
+  --animate-skeleton: ui-skeleton 1.6s ease-in-out infinite;
+  --animate-spin: ui-spin 0.9s linear infinite;
+  --animate-flow: ui-flow var(--flow, 2s) linear infinite;
+  --animate-attempt: ui-attempt 1.2s ease-in-out infinite;
+  --animate-tick-in: ui-tick-in var(--duration-base) var(--ease-spring) both;
+  --animate-indeterminate: ui-indeterminate 1.1s cubic-bezier(0.6, 0, 0.4, 1) infinite;
+  --animate-rise: ui-rise 420ms var(--ease-out) both;
+  --animate-blink: ui-blink 1.2s ease-in-out infinite;
+  --animate-log-in: ui-log-in 1400ms var(--ease-out) both;
+  --animate-value-flash: ui-value-flash 1400ms var(--ease-out) both;
+
+  @keyframes ui-fade {
+    from {
+      opacity: 0;
+    }
+  }
+  @keyframes ui-pop {
+    from {
+      opacity: 0;
+      transform: translateY(10px) scale(0.97);
+    }
+  }
+  @keyframes ui-sheet-in {
+    from {
+      transform: translateY(100%);
+    }
+  }
+  @keyframes ui-menu-in {
+    from {
+      opacity: 0;
+      transform: translateY(-4px) scale(0.96);
+    }
+  }
+  @keyframes ui-tooltip-in {
+    from {
+      opacity: 0;
+      transform: translateY(3px);
+    }
+  }
+  @keyframes ui-toast-in {
+    from {
+      opacity: 0;
+      transform: translateX(-24px) scale(0.98);
+    }
+  }
+  @keyframes ui-radio-in {
+    from {
+      transform: scale(0);
+    }
+  }
+  @keyframes ui-draw {
+    from {
+      stroke-dashoffset: 24;
+    }
+  }
+  @keyframes ui-ping {
+    0% {
+      transform: scale(0.6);
+      opacity: 0.7;
+    }
+    70%,
+    100% {
+      transform: scale(1.4);
+      opacity: 0;
+    }
+  }
+  @keyframes ui-skeleton {
+    50% {
+      opacity: 0.5;
+    }
+  }
+  @keyframes ui-spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  @keyframes ui-flow {
+    to {
+      stroke-dashoffset: -18;
+    }
+  }
+  @keyframes ui-attempt {
+    50% {
+      opacity: 0.25;
+    }
+  }
+  @keyframes ui-tick-in {
+    from {
+      transform: scaleY(0);
+    }
+  }
+  @keyframes ui-indeterminate {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(250%);
+    }
+  }
+  @keyframes ui-log-in {
+    from {
+      background: var(--air-soft);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    60% {
+      background: var(--air-soft);
+    }
+  }
+  @keyframes ui-value-flash {
+    from,
+    30% {
+      background: var(--air-soft);
+      color: var(--air);
+      box-shadow: 0 0 0 3px var(--air-soft);
+    }
+  }
+  @keyframes ui-blink {
+    50% {
+      opacity: 0.5;
+    }
+  }
+  @keyframes ui-rise {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+  }
+}
+
+/* Reduced motion: every animation and transition becomes instant; only the spinner keeps turning (it is
+   information, not decoration). */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0s !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .animate-spin {
+    animation: ui-spin 1.8s linear infinite !important;
+  }
+}
+
+/* iOS zooms the page into any field under 16px when it gets focus. */
+@media (pointer: coarse) {
+  [data-slot="input"],
+  [data-slot="command-input"],
+  [data-slot="select-trigger"] {
+    font-size: 16px;
+  }
+}
+
+/* Toasts slide in from the left with a spring (sonner animates from the bottom by default). Unlayered, because
+   sonner injects its own unlayered stylesheet. */
+[data-sonner-toaster] [data-sonner-toast] {
+  transition:
+    transform var(--duration-slow) var(--ease-spring),
+    opacity var(--duration-slow) var(--ease-out),
+    height 400ms,
+    box-shadow 200ms;
+}
+[data-sonner-toaster][data-x-position="left"] [data-sonner-toast][data-mounted="false"] {
+  --y: translateX(-24px) scale(0.98);
+}

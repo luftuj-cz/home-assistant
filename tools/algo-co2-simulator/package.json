@@ -7,5 +7,11 @@
     "build": "vp build",
     "typecheck": "tsc -p tsconfig.json",
     "test": "node ../../addon/rootfs/usr/src/app/node_modules/vitest/vitest.mjs run --config vitest.config.mjs"
+  },
+  "dependencies": {
+    "@mantine/core": "9.7.3",
+    "@mantine/dates": "9.7.3",
+    "@mantine/hooks": "9.7.3",
+    "dayjs": "^1.11.23"
   }
 }

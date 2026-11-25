@@ -1,4 +1,14 @@
 {
   "files": [],
-  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }]
+  "references": [{ "path": "./tsconfig.app.json" }, { "path": "./tsconfig.node.json" }],
+  // The shadcn CLI resolves components.json aliases from this file, not from the referenced projects.
+  "compilerOptions": {
+    "paths": {
+      "@luftuj/app/*": ["./src/app/*"],
+      "@luftuj/shared/*": ["./src/shared/*"],
+      "@luftuj/features/*": ["./src/features/*"],
+      "@luftuj/config": ["./src/config.ts"],
+      "@luftuj/assets/*": ["./src/assets/*"]
+    }
+  }
 }

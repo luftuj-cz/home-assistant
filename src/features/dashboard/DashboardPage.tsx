@@ -1,16 +1,64 @@
-import { Container, Stack, Title, Group, Text } from "@mantine/core";
-import { IconLayoutDashboard } from "@tabler/icons-react";
+import { IconHome, IconSettings } from "@tabler/icons-react";
+import { useNavigate } from "@tanstack/react-router";
+import type { TFunction } from "i18next";
+import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+
+import mqttMark from "@luftuj/assets/mqtt-icon-solid.svg";
+import {
+  ConnectionList,
+  type ConnectionItem,
+} from "@luftuj/features/dashboard/components/ConnectionList";
+import { CustomPlanCard } from "@luftuj/features/dashboard/components/CustomPlanCard";
+import { ManualModeCard } from "@luftuj/features/dashboard/components/ManualModeCard";
+import { UnitPanel } from "@luftuj/features/dashboard/components/UnitPanel";
+import { useCustomPlans } from "@luftuj/features/dashboard/hooks/useCustomPlans";
 import { useDashboardStatus } from "@luftuj/features/dashboard/hooks/useDashboardStatus";
+import { useTodayPlan } from "@luftuj/features/dashboard/hooks/useTodayPlan";
 import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimelineModesQuery";
-import { StatusCard } from "@luftuj/features/dashboard/components/StatusCard";
-import { HruStatusCard } from "@luftuj/features/dashboard/components/HruStatusCard";
-import { BoostButtons } from "@luftuj/features/dashboard/components/BoostButtons";
-import { CustomOverrideCard } from "@luftuj/features/dashboard/components/CustomOverrideCard";
+import { Button } from "@luftuj/shared/ui/button";
+import { IconModbus } from "@luftuj/shared/ui/icons";
+import { PageHeader } from "@luftuj/shared/ui/page-header";
 import { translateConnectionError } from "@luftuj/shared/utils/connectionError";
 
+/** Ticks every second while `enabled`, for "před 8 s" ages. */
+function useSecondClock(enabled: boolean) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!enabled) return;
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, [enabled]);
+  return now;
+}
+
+function age(t: TFunction, since: number | null, now: number) {
+  if (since === null) return undefined;
+  const seconds = Math.max(0, Math.round((now - since) / 1000));
+  return seconds < 60
+    ? t("app.unit.ageSeconds", { count: seconds })
+    : t("app.unit.ageMinutes", { count: Math.floor(seconds / 60) });
+}
+
+/** Planes rise in on load, staggered 45 ms apart. */
+function Rise({ index, children }: Readonly<{ index: number; children: ReactNode }>) {
+  return (
+    <div
+      className="grid min-w-0 grid-cols-[minmax(0,1fr)] animate-rise empty:hidden"
+      style={{ animationDelay: `${Math.min(index, 5) * 45}ms` } as CSSProperties}
+    >
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Přehled. Desktop: a 12-column grid, UnitPanel then ManualModeCard on the left 8, CustomPlanCard (only with plans or
+ * one running) then ConnectionList on the right 4. Phones stack them in that order: the unit's state comes first.
+ */
 export function DashboardPage() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const {
     haStatus,
     haLoading,
@@ -18,6 +66,8 @@ export function DashboardPage() {
     modbusLive,
     hruStatus,
     hruName,
+    modbusHost,
+    modbusPort,
     mqttStatus,
     mqttLastDiscovery,
     mqttError,
@@ -27,143 +77,161 @@ export function DashboardPage() {
   } = useDashboardStatus();
 
   const { modes } = useTimelineModesQuery(unitId);
+  const { data: customPlans } = useCustomPlans(unitId);
+  const today = useTodayPlan(unitId, activeMode, customPlans?.override);
+  const address = modbusHost ? `${modbusHost}${modbusPort ? `:${modbusPort}` : ""}` : undefined;
 
-  function getHaStatusType() {
-    if (haLoading) return "neutral";
-    if (haStatus === "connected") return "success";
-    if (haStatus === "connecting") return "warning";
-    return "error";
+  const modbusTrouble = Boolean(modbusLive?.reconnecting) || modbusStatus === "unreachable";
+  const mqttTrouble = mqttStatus === "disconnected";
+  const now = useSecondClock(modbusTrouble || mqttTrouble);
+
+  /** A fix button that opens the settings section about the failing connection. */
+  function settingsAction(label: string, section: "hru" | "mqtt") {
+    return (
+      <Button
+        variant="secondary"
+        icon={IconSettings}
+        onClick={() => void navigate({ to: "/settings", search: { section } })}
+      >
+        {label}
+      </Button>
+    );
   }
 
-  function getModbusStatusType() {
-    if (modbusLive?.reconnecting) return "warning";
-    if (modbusStatus === "loading") return "neutral";
-    if (modbusStatus === "reachable") return "success";
-    return "error";
+  let haItem: ConnectionItem;
+  {
+    let status: ConnectionItem["status"] = "error";
+    if (haLoading) status = "neutral";
+    else if (haStatus === "connected") status = "success";
+    else if (haStatus === "connecting") status = "warning";
+    haItem = {
+      name: t("dashboard.haStatusTitle"),
+      description: t("dashboard.haStatusDescription"),
+      icon: IconHome,
+      status,
+      label: haLoading ? t("dashboard.haStatus.loading") : t(`dashboard.haStatus.${haStatus}`),
+    };
   }
 
-  function getModbusStatusLabel() {
+  let modbusItem: ConnectionItem;
+  {
+    const error =
+      modbusLive?.lastErrorCode || modbusLive?.lastErrorMessage
+        ? translateConnectionError(
+            "modbusErrors",
+            modbusLive.lastErrorCode,
+            modbusLive.lastErrorMessage,
+            t,
+          )
+        : undefined;
+    const code = modbusLive?.lastErrorCode
+      ? [modbusLive.lastErrorCode, address].filter(Boolean).join(" ")
+      : undefined;
+    const base = {
+      name: t("dashboard.modbusStatusTitle"),
+      description: t("dashboard.modbusStatusDescription"),
+      icon: IconModbus,
+    };
     if (modbusLive?.reconnecting) {
-      return t("dashboard.modbusStatus.reconnecting", {
-        count: modbusLive.consecutiveFailures,
-        defaultValue: "Reconnecting (attempt {{count}})",
-      });
+      modbusItem = {
+        ...base,
+        status: "warning",
+        label: t("dashboard.connections.reconnecting"),
+        attempts: modbusLive.consecutiveFailures + 1,
+        error,
+        errorCode: code,
+        errorAge: age(t, modbusLive.lastErrorAt, now),
+      };
+    } else if (modbusStatus === "unreachable") {
+      modbusItem = {
+        ...base,
+        status: "error",
+        label: t("dashboard.modbusStatus.unreachable"),
+        error: error ?? t("dashboard.connections.unitUnreachable"),
+        errorCode: code,
+        errorAge: age(t, modbusLive?.lastErrorAt ?? null, now),
+        action: settingsAction(t("dashboard.connections.openUnitSettings"), "hru"),
+      };
+    } else {
+      modbusItem = {
+        ...base,
+        status: modbusStatus === "loading" ? "neutral" : "success",
+        label:
+          modbusStatus === "loading"
+            ? t("dashboard.haStatus.loading")
+            : t("dashboard.modbusStatus.reachable"),
+      };
     }
-    if (modbusStatus === "loading") return t("dashboard.haStatus.loading");
-    if (modbusStatus === "reachable") return t("dashboard.modbusStatus.reachable");
-    return t("dashboard.modbusStatus.unreachable");
   }
 
-  function getMqttStatusType() {
-    if (mqttStatus === "loading") return "neutral";
-    if (mqttStatus === "connected") return "success";
-    return "error";
-  }
-
-  function formatDiscoveryTime(timeStr: string | null) {
-    if (!timeStr) return t("dashboard.haStatus.loading");
-    try {
-      const date = new Date(timeStr);
-      return date.toLocaleString();
-    } catch {
-      return timeStr;
+  let mqttItem: ConnectionItem;
+  {
+    const description = mqttLastDiscovery
+      ? t("dashboard.mqttStatus.lastDiscovery", {
+          time: new Date(mqttLastDiscovery).toLocaleString(),
+        })
+      : t("dashboard.mqttStatusDescription");
+    const base = { name: t("dashboard.mqttStatusTitle"), description, mark: mqttMark };
+    if (mqttStatus === "disconnected") {
+      const hasError = Boolean(mqttError?.lastErrorCode || mqttError?.lastErrorMessage);
+      mqttItem = {
+        ...base,
+        status: "error",
+        label: t("dashboard.mqttStatus.disconnected"),
+        error: hasError
+          ? translateConnectionError(
+              "mqttErrors",
+              mqttError?.lastErrorCode ?? null,
+              mqttError?.lastErrorMessage ?? null,
+              t,
+            )
+          : undefined,
+        errorCode: mqttError?.lastErrorCode ?? undefined,
+        errorAge: age(t, mqttError?.lastErrorAt ?? null, now),
+        action: hasError
+          ? settingsAction(t("dashboard.connections.openMqttSettings"), "mqtt")
+          : undefined,
+      };
+    } else {
+      mqttItem = {
+        ...base,
+        status: mqttStatus === "loading" ? "neutral" : "success",
+        label:
+          mqttStatus === "loading"
+            ? t("dashboard.haStatus.loading")
+            : t("dashboard.mqttStatus.connected"),
+      };
     }
   }
 
   return (
-    <Container size="xl">
-      <Stack gap="xl">
-        <Stack gap={0}>
-          <Group gap="sm">
-            <IconLayoutDashboard size={32} color="var(--mantine-primary-color-5)" />
-            <Title order={1}>{t("dashboard.title")}</Title>
-          </Group>
-          <Text size="lg" c="dimmed" mt="xs">
-            {t("dashboard.systemStatus", { defaultValue: "System status overview" })}
-          </Text>
-        </Stack>
-
-        <BoostButtons modes={modes} t={t} activeUnitId={unitId} />
-
-        <CustomOverrideCard unitId={unitId} />
-
-        <HruStatusCard
-          status={hruStatus}
-          hruName={hruName}
-          t={t}
-          activeMode={activeMode}
-          configuredMaxPower={configuredMaxPower}
-        />
-
-        <StatusCard
-          title={t("dashboard.haStatusTitle", { defaultValue: "Home Assistant" })}
-          description={t("dashboard.haStatusDescription", {
-            defaultValue: "Backend connection to Home Assistant WebSocket",
-          })}
-          status={getHaStatusType()}
-          statusLabel={
-            haLoading ? t("dashboard.haStatus.loading") : t(`dashboard.haStatus.${haStatus}`)
-          }
-        />
-
-        <StatusCard
-          title={t("dashboard.modbusStatusTitle", { defaultValue: "Modbus TCP" })}
-          description={t("dashboard.modbusStatusDescription", {
-            defaultValue: "Reachability of the configured Modbus TCP server",
-          })}
-          status={getModbusStatusType()}
-          statusLabel={getModbusStatusLabel()}
-        >
-          {modbusLive?.reconnecting && (
-            <Text size="sm" c="dimmed">
-              {t("dashboard.modbusStatus.reconnectingDetail", {
-                count: modbusLive.consecutiveFailures,
-                error: translateConnectionError(
-                  "modbusErrors",
-                  modbusLive.lastErrorCode,
-                  modbusLive.lastErrorMessage,
-                  t,
-                ),
-                defaultValue: "Failed attempts: {{count}} — last error: {{error}}",
-              })}
-            </Text>
-          )}
-        </StatusCard>
-
-        <StatusCard
-          title={t("dashboard.mqttStatusTitle", { defaultValue: "MQTT Discovery" })}
-          description={
-            mqttLastDiscovery
-              ? t("dashboard.mqttStatus.lastDiscovery", {
-                  time: formatDiscoveryTime(mqttLastDiscovery),
-                })
-              : t("dashboard.mqttStatusDescription", {
-                  defaultValue: "MQTT connection status and sensor publishing",
-                })
-          }
-          status={getMqttStatusType()}
-          statusLabel={
-            mqttStatus === "loading"
-              ? t("dashboard.haStatus.loading")
-              : t(`dashboard.mqttStatus.${mqttStatus}`)
-          }
-        >
-          {mqttStatus === "disconnected" &&
-            (mqttError?.lastErrorCode || mqttError?.lastErrorMessage) && (
-              <Text size="sm" c="dimmed">
-                {t("dashboard.mqttStatus.disconnectedDetail", {
-                  error: translateConnectionError(
-                    "mqttErrors",
-                    mqttError.lastErrorCode,
-                    mqttError.lastErrorMessage,
-                    t,
-                  ),
-                  defaultValue: "Reason: {{error}}",
-                })}
-              </Text>
-            )}
-        </StatusCard>
-      </Stack>
-    </Container>
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-6 font-sans text-sm leading-5 text-foreground max-md:gap-4">
+      <PageHeader title={t("dashboard.title")} description={t("dashboard.systemStatus")} />
+      <div className="grid grid-cols-12 items-start gap-6 max-lg:grid-cols-[minmax(0,1fr)] max-md:gap-4">
+        <div className="col-span-8 grid grid-cols-[minmax(0,1fr)] gap-6 max-lg:col-span-1 max-md:gap-4">
+          <Rise index={0}>
+            <UnitPanel
+              status={hruStatus}
+              name={hruName}
+              address={address}
+              activeMode={activeMode}
+              configuredMaxPower={configuredMaxPower}
+              today={today}
+            />
+          </Rise>
+          <Rise index={1}>
+            <ManualModeCard modes={modes} unitId={unitId} />
+          </Rise>
+        </div>
+        <div className="col-span-4 grid grid-cols-[minmax(0,1fr)] gap-6 max-lg:col-span-1 max-md:gap-4">
+          <Rise index={2}>
+            <CustomPlanCard unitId={unitId} />
+          </Rise>
+          <Rise index={3}>
+            <ConnectionList items={[haItem, modbusItem, mqttItem]} />
+          </Rise>
+        </div>
+      </div>
+    </div>
   );
 }

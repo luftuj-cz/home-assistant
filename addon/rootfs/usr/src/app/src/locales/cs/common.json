@@ -1,6 +1,96 @@
 {
+  "ui": {
+    "loading": "Načítání",
+    "close": "Zavřít",
+    "showPassword": "Zobrazit heslo",
+    "hidePassword": "Skrýt heslo",
+    "moreActions": "Další akce",
+    "previousMonth": "Předchozí měsíc",
+    "nextMonth": "Další měsíc",
+    "moreToasts": "+{{count}} další",
+    "search": "Hledat…",
+    "searchLabel": "Hledat",
+    "clearSearch": "Vymazat hledání",
+    "nothingFound": "Nic nenalezeno",
+    "choose": "Vyberte…",
+    "options": "Možnosti",
+    "clearSelection": "Vymazat výběr",
+    "selectedCount": "{{count}} vybráno",
+    "deselectAll": "Zrušit výběr",
+    "remove": "Odebrat {{name}}",
+    "decrease": "Snížit",
+    "increase": "Zvýšit",
+    "hours": "Hodiny",
+    "minutes": "Minuty",
+    "time": "Čas",
+    "dateTime": "Datum a čas",
+    "pickDateTime": "Vyberte datum a čas",
+    "done": "Hotovo",
+    "palette": "Paleta",
+    "customColor": "Vlastní barva",
+    "colorHex": "Barva (hex)",
+    "copy": "Kopírovat",
+    "copied": "Zkopírováno",
+    "chooseFile": "Vybrat soubor",
+    "retry": "Zkusit znovu",
+    "colors": {
+      "mode1": "Petrolejová",
+      "mode2": "Zelená",
+      "mode3": "Fialová",
+      "mode4": "Oranžová",
+      "mode5": "Švestková",
+      "mode6": "Modrá",
+      "mode7": "Okrová",
+      "mode8": "Břidlicová"
+    },
+    "cancel": "Zrušit",
+    "reorder": {
+      "pickedUp": "Zvednuto: {{name}}.",
+      "position": "{{name}}: pozice {{position}} z {{count}}.",
+      "cancelled": "Přesun zrušen."
+    },
+    "connectionTest": {
+      "label": "Testovat připojení",
+      "testing": "Testování…",
+      "success": "Připojení úspěšné",
+      "failed": "Připojení selhalo"
+    }
+  },
   "app": {
     "title": "Ovládací panel LUFTaTOR",
+    "header": {
+      "devTag": "Vývojová verze – není určena pro běžný provoz",
+      "homeSuffix": " – Přehled"
+    },
+    "unit": {
+      "ageSeconds": "před {{count}} s",
+      "ageMinutes": "před {{count}} min",
+      "disconnected": "odpojeno",
+      "notResponding": "Jednotka neodpovídá",
+      "updated": "Aktualizováno {{age}}"
+    },
+    "version": {
+      "whatsNew": ", co je nového"
+    },
+    "changelog": {
+      "title": "Co je nového",
+      "installedVersion": "Nainstalovaná verze {{version}} ({{channel}}).",
+      "installed": "Nainstalováno",
+      "unreleased": "Nevydáno",
+      "devTitle": "Vývojová verze",
+      "devText": "Obsahuje změny, které ještě nejsou v seznamu. Na ostrém provozu používejte stable.",
+      "fullHistory": "Celá historie na GitHubu",
+      "sections": {
+        "Added": "Přidáno",
+        "Changed": "Změněno",
+        "Fixed": "Opraveno",
+        "Removed": "Odebráno",
+        "Deprecated": "Zastaralé",
+        "Security": "Zabezpečení",
+        "Thanks": "Poděkování"
+      }
+    },
+    "notificationsRegion": "Oznámení",
     "units": {
       "level": "stupeň",
       "m3/h": "m³/h",
@@ -19,7 +109,8 @@
       "debug": "Ladění",
       "navigate": "Navigace",
       "toggle": "Přepnout navigaci",
-      "optional": "Volitelné"
+      "optional": "Volitelné",
+      "main": "Hlavní navigace"
     },
     "footer": {
       "company": "Luftuj s.r.o.",
@@ -33,7 +124,7 @@
       "contact": "Kontakt",
       "location": "Adresa",
       "allRightsReserved": "Všechna práva vyhrazena.",
-      "github": "Dejte nám hvězdu na GitHubu"
+      "github": "GitHub"
     }
   },
   "hru": {
@@ -147,9 +238,10 @@
   },
   "settings": {
     "title": "Nastavení",
-    "description": "Zálohujte nebo obnovte data LUFTaTOR spravovaná touto instalací Home Assistanta.",
+    "description": "Jednotka, roční období, integrace a záloha dat.",
     "appearance": {
-      "title": "Vzhled"
+      "title": "Vzhled",
+      "description": "Jazyk, motiv a jednotky teploty"
     },
     "language": {
       "title": "Jazyk",
@@ -168,7 +260,7 @@
     },
     "theme": {
       "title": "Motiv",
-      "description": "Přepínejte mezi světlým a tmavým vzhledem. Vaše volba se ukládá do tohoto prohlížeče.",
+      "description": "Světlý, tmavý, nebo podle nastavení systému. Volba se ukládá i do Home Assistanta.",
       "light": "Světlý",
       "dark": "Tmavý",
       "notifications": {
@@ -177,7 +269,8 @@
         "failedTitle": "Nepodařilo se uložit motiv",
         "failedMessage": "{{message}}",
         "unknown": "Neznámá chyba"
-      }
+      },
+      "system": "Podle systému"
     },
     "temperatureUnit": {
       "title": "Jednotky teploty",
@@ -229,7 +322,7 @@
       "modeUpdateAction": "Aktualizovat",
       "modeIsBoost": "Zobrazit jako tlačítko manuální akce",
       "modeIsBoostBadge": "MANUÁLNÍ",
-      "modeIsBoostDescription": "Zobrazí tento režim jako tlačítko rychlé akce na palubní desce.",
+      "modeIsBoostDescription": "Zobrazí tento režim jako tlačítko rychlé akce na Přehledu.",
       "modeScripts": "Spustit skripty při aktivaci",
       "modeScriptsDescription": "Skripty Home Assistant, které se spustí při každé aktivaci tohoto režimu (boost, plán i test).",
       "modeScriptPlaceholder": "Vyberte skript",
@@ -342,7 +435,55 @@
       "pasteOverwriteBody": "V dni {{day}} je {{count}} událostí. Vložením se smažou a nahradí zkopírovaným dnem.",
       "pasteOverwriteConfirm": "Přepsat",
       "seasonSwitchBlocked": "Nejdřív dokonči nebo zavři otevřený dialog – jinak by se uložení zapsalo do jiného období.",
-      "seasonSwitchBlockedTitle": "Nelze přepnout období"
+      "seasonSwitchBlockedTitle": "Nelze přepnout období",
+      "band": {
+        "label": "Roční období",
+        "active": "aktivní",
+        "unconfigured": "Nenastavené režimy: {{count}}",
+        "today": "dnes",
+        "plans": "Vlastní plány",
+        "empty": "prázdný",
+        "activeNote": "<b>{{season}}</b> je aktivní období · {{range}} · ještě {{days}}.",
+        "viewingNote": "Prohlížíte období <b>{{viewed}}</b>. Aktivní je {{active}} – změny se projeví, až {{viewed}} začne (za {{days}}).",
+        "days_one": "{{count}} den",
+        "days_few": "{{count}} dny",
+        "days_many": "{{count}} dne",
+        "days_other": "{{count}} dní"
+      },
+      "today": "Dnes",
+      "running": "Běží",
+      "eventToggle": "Povolit událost {{time}} {{mode}}",
+      "eventActions": "Akce události {{time}}",
+      "eventDeleteTitle": "Smazat událost?",
+      "eventDeleteBody": "Událost {{time}} · {{mode}} v dni {{day}} se smaže.",
+      "eventDeleteEveryDay": "Událost {{time}} · {{mode}} platí pro všechny dny a smaže se ze všech.",
+      "eventDeleteConfirm": "Smazat událost",
+      "weekRow": "{{day}}{{today}}, zapnuté události: {{count}}",
+      "weekToday": ", dnes",
+      "dayPicker": "Den v týdnu",
+      "coverageLegend": "Mód ve vlastním plánu",
+      "coverageMissing": "Chybí v {{missing}} z {{count}} období.",
+      "coverageAll": "Nastaveno ve všech obdobích.",
+      "modeDeleteLoading": "Zjišťuji, kde se mód používá…",
+      "modeDeleteUsage": "Smažou se události",
+      "weekLegend": "Týden na jedné ose",
+      "modeEditor": {
+        "legend": "Časová osa",
+        "legendSeason": "Časová osa · {{season}}",
+        "summary": "Shrnutí režimu",
+        "newMode": "Nový režim",
+        "valves": "Klapky",
+        "valvesTitle": "{{open}} otevřeno, {{partial}} částečně, {{closed}} zavřeno",
+        "testRunningTitle": "Test běží",
+        "testRunningBody": "Jednotka a klapky teď jedou podle tohoto formuláře. Po 60 s se vrátí k časové ose.",
+        "cancelTest": "Zrušit test",
+        "seconds": "{{count}} s",
+        "unconfiguredTitle": "Nenastaveno pro toto období",
+        "color": "Barva",
+        "valvesDescription": "Pro každou klapku poloha, do které ji režim nastaví.",
+        "noScripts": "Žádné skripty.",
+        "scriptOnlyEmpty": "Prázdné: režim jen spustí skripty."
+      }
     },
     "hru": {
       "title": "Rekuperační jednotka",
@@ -389,7 +530,9 @@
         "minPowerHint": "Výchozí: {{default}} {{unit}}",
         "minPowerRequired": "Minimální průtok/výkon je povinný pro tuto jednotku",
         "minPowerAboveMax": "Minimum nesmí být vyšší než maximum"
-      }
+      },
+      "sectionDescription": "Model, Modbus TCP a limity výkonu",
+      "notConfigured": "Nenastaveno"
     },
     "mqtt": {
       "title": "Integrace MQTT",
@@ -415,6 +558,12 @@
         "saveFailedMessage": "{{message}}",
         "testFailedTitle": "Připojení selhalo",
         "unknown": "Neznámá chyba"
+      },
+      "sectionDescription": "Broker a Home Assistant discovery",
+      "state": {
+        "connected": "Připojeno",
+        "disconnected": "Odpojeno",
+        "off": "Vypnuto"
       }
     },
     "database": {
@@ -433,6 +582,15 @@
         "importFailedTitle": "Import selhal",
         "importFailedMessage": "{{message}}",
         "unknown": "Došlo k neočekávané chybě."
+      },
+      "sectionDescription": "Záloha a obnova",
+      "backup": {
+        "legend": "Záloha",
+        "description": "Stáhne celou databázi: nastavení, režimy, časovou osu i vlastní plány."
+      },
+      "restore": {
+        "legend": "Obnova",
+        "description": "Nahradí současná data souborem ze zálohy. Původní databáze se před tím zazálohuje."
       }
     },
     "help": {
@@ -451,7 +609,8 @@
         }
       },
       "contact": {
-        "prefix": "Pokud v dokumentaci nenajdete odpověď na svou otázku, kontaktujte nás na:"
+        "prefix": "Pokud v dokumentaci nenajdete odpověď na svou otázku, kontaktujte nás na:",
+        "title": "Kontakt"
       },
       "bugReport": {
         "title": "Data pro hlášení chyby",
@@ -461,7 +620,8 @@
         "successMessage": "Soubor s daty pro hlášení chyby byl stažen. Přiložte ho ke zprávě pro podporu.",
         "errorTitle": "Stažení selhalo",
         "errorMessage": "Data pro hlášení chyby se nepodařilo vytvořit. Zkuste to prosím znovu."
-      }
+      },
+      "description": "Dokumentace, časté chyby, data pro podporu"
     },
     "developer": {
       "title": "Vývojářské nastavení",
@@ -471,7 +631,10 @@
       "debugDisabled": "Ladicí režim zakázán",
       "logLevel": "Úroveň logování",
       "logLevelDescription": "Ovládá podrobnost logování do konzole.",
-      "logLevelChanged": "Úroveň logování změněna na {{level}}"
+      "logLevelChanged": "Úroveň logování změněna na {{level}}",
+      "description": "Ladicí režim a logování",
+      "debugOn": "Ladění zap.",
+      "debugOff": "Ladění vyp."
     },
     "seasons": {
       "title": "Roční období",
@@ -487,7 +650,7 @@
       "active": "aktivní",
       "noEvents": "bez událostí",
       "disabledHint": "Vypnuto – data zůstávají zachována",
-      "disablePreview": "Po vypnutí převezme {{neighbour}} období {{start}} – {{end}}. Události a hodnoty módů zůstanou zachované.",
+      "disablePreview": "Po vypnutí převezme <strong>{{neighbour}}</strong> období {{start}} – {{end}}. Události a hodnoty režimů zůstanou zachované.",
       "lastEnabledBlocked": "Tohle je jediné zapnuté období. Aspoň jedno musí zůstat zapnuté, jinak by žádný den neplatil žádný plán.",
       "startsOn": "začíná",
       "day": "den",
@@ -500,16 +663,33 @@
       "enabledTitle": "Roční období zapnuta",
       "enabledCloned": "Všechna období mají kopii současného plánu, chování se nezměnilo.",
       "enabledEmpty": "Ostatní období jsou prázdná – než se aktivují, přidej do nich události.",
+      "enabledRestored": "Období se vrátila s původními hranicemi, událostmi i hodnotami režimů.",
       "disableTitle": "Vypnout období?",
       "disableWarning": "Jedno období bude platit celý rok. Ostatní se odloží – jejich události i hodnoty módů zůstanou beze změny a vrátí se, až období zase zapneš.",
       "keepLabel": "Které období zachovat",
       "disableConfirm": "Vypnout",
+      "disableSeasonConfirm": "Vypnout {{season}}",
       "errorTitle": "Změna období selhala",
       "mqttActiveSeason": "Aktivní období",
       "disableParkedRow": "{{season}}: {{count}} událostí odloženo",
       "rename": "Přejmenovat období",
       "renameTitle": "Přejmenovat roční období",
-      "restoreName": "Obnovit výchozí název"
+      "restoreName": "Obnovit výchozí název",
+      "summary": "{{season}} · do {{end}}",
+      "off": "Vypnuto",
+      "use": "Používat roční období",
+      "dragHint": "Hranice můžete i přetáhnout.",
+      "handle": "Začátek období {{season}}",
+      "toggle": "Zapnout období {{season}}",
+      "enableRestoreBody": "Vrátí se období s hranicemi, jaké měla před vypnutím. Jejich události i hodnoty režimů zůstaly zachované.",
+      "events_one": "{{count}} událost",
+      "events_few": "{{count}} události",
+      "events_many": "{{count}} události",
+      "events_other": "{{count}} událostí",
+      "nowActive": "teď aktivní",
+      "parkedLegend": "Odloží se",
+      "renameLegend": "Roční období",
+      "dateFloat": "{{season}} od {{date}}"
     },
     "plans": {
       "title": "Plány"
@@ -529,6 +709,7 @@
       "save": "Uložit",
       "delete": "Smazat",
       "deleteBlocked": "Plán právě běží nebo je naplánovaný. Nejdřív ho ukonči na Přehledu.",
+      "deleteBlockedOk": "Rozumím",
       "deleteTitle": "Smazat {{name}}?",
       "deleteBody": "Plán se smaže i s událostmi ({{count}}).",
       "newLabel": "Nový vlastní plán",
@@ -551,8 +732,23 @@
       "fillReplaces": "Stávající události plánu ({{count}}) se nahradí.",
       "fillConfirm": "Vyplnit",
       "filled": "{{name}} teď celý týden běží v jednom módu.",
-      "modeDeleteEndsOverride": "Plánu {{name}} nezůstane žádná událost, proto přestane běžet."
-    }
+      "modeDeleteEndsOverride": "Plánu {{name}} nezůstane žádná událost, proto přestane běžet.",
+      "sectionDescription": "Dovolená, chata, home office",
+      "running": "{{name}} běží",
+      "scheduled": "{{name}} naplánován",
+      "count_one": "{{count}} plán",
+      "count_few": "{{count}} plány",
+      "count_many": "{{count}} plánu",
+      "count_other": "{{count}} plánů",
+      "actions": "Akce plánu {{name}}",
+      "renameAria": "Nový název plánu {{name}}"
+    },
+    "unsavedChanges": "Neuložené změny",
+    "discard": "Zahodit",
+    "save": "Uložit",
+    "saved": "Uloženo",
+    "indexLabel": "Sekce nastavení",
+    "testFormHint": "Test použije hodnoty z formuláře, i neuložené."
   },
   "validation": {
     "required": "Povinné",
@@ -564,7 +760,7 @@
     "temperatureRequired": "Teplota je povinná"
   },
   "debug": {
-    "title": "Ladicí nástroje",
+    "title": "Ladění",
     "description": "Pokročilá diagnostika a inspektor registrů.",
     "haEntities": {
       "openLink": "Entity HA",
@@ -578,44 +774,34 @@
       "colEntity": "Entita",
       "colName": "Název",
       "colState": "Stav",
-      "colUnit": "Jednotka",
       "colDeviceClass": "Třída zařízení",
       "loadFailed": "Nepodařilo se načíst entity.",
-      "unavailable": "Home Assistant není dostupný."
+      "unavailable": "Home Assistant není dostupný.",
+      "loading": "Načítám entity…",
+      "noMatches": "Hledání neodpovídá žádná entita.",
+      "onlyOurs": "Jen LUFTaTOR",
+      "domain": "Doména",
+      "attributes": "Atributy",
+      "lastChanged": "Naposledy změněno {{time}}"
     },
-    "backendValues": "Ladicí hodnoty backendu",
     "copy": "Kopírovat",
-    "copied": "Zkopírováno",
     "copyValues": "Kopírovat hodnoty",
-    "copySuccessTitle": "Zkopírováno",
-    "copySuccess": "Ladicí hodnoty byly zkopírovány do schránky.",
-    "copyFailedTitle": "Kopírování selhalo",
-    "copyFailed": "Nepodařilo se zkopírovat ladicí hodnoty.",
     "downloadValues": "Stáhnout hodnoty",
     "downloadValuesFailedTitle": "Stažení selhalo",
     "downloadValuesFailed": "Nepodařilo se stáhnout ladicí hodnoty: HTTP {{status}}",
     "downloadValuesFailedUnknown": "Nepodařilo se stáhnout ladicí hodnoty.",
     "refresh": "Obnovit",
     "loading": "Načítám ladicí hodnoty…",
-    "lastUpdated": "Naposledy aktualizováno: {{time}}",
     "noData": "Nebyla přijata žádná ladicí data.",
     "serverLogs": "Serverové logy",
     "homeAssistantApi": "Home Assistant API",
     "loadFailed": "Nepodařilo se načíst ladicí hodnoty: {{message}}",
-    "loadFailedUnknown": "Nepodařilo se načíst ladicí hodnoty.",
-    "table": {
-      "key": "Klíč",
-      "value": "Hodnota"
-    },
     "logs": {
       "loading": "Načítám serverové logy…",
       "searchPlaceholder": "Hledat ve zprávách a kontextu…",
-      "allLevels": "Všechny úrovně",
-      "count": "{{shown}} z {{total}} řádků, {{buffered}} uloženo na serveru",
       "noMatches": "Aktuálnímu filtru neodpovídá žádný řádek logu.",
       "noData": "Zatím nebyly zachyceny žádné serverové logy.",
       "loadFailed": "Nepodařilo se načíst serverové logy: {{message}}",
-      "loadFailedUnknown": "Nepodařilo se načíst serverové logy.",
       "download": "Stáhnout log",
       "pauseAutoRefresh": "Pozastavit obnovování",
       "resumeAutoRefresh": "Obnovovat dál",
@@ -623,24 +809,21 @@
       "downloadFailedTitle": "Stažení selhalo",
       "downloadFailed": "Nepodařilo se stáhnout serverové logy: HTTP {{status}}",
       "downloadFailedUnknown": "Nepodařilo se stáhnout serverové logy.",
-      "table": {
-        "time": "Čas",
-        "level": "Úroveň",
-        "message": "Zpráva"
-      }
+      "legend": "Živý výpis",
+      "live": "Živě",
+      "paused": "Pozastaveno",
+      "level": "Úroveň",
+      "all": "Vše",
+      "clearFilter": "Zrušit filtr",
+      "footer": "{{shown}} z {{total}} řádků · {{buffered}} uloženo na serveru"
     },
     "haApi": {
       "loading": "Načítám data Home Assistant API…",
-      "noData": "Nebyla přijata žádná data z Home Assistant API.",
-      "loadFailed": "Nepodařilo se načíst data Home Assistant API: {{message}}",
-      "loadFailedUnknown": "Nepodařilo se načíst data Home Assistant API."
+      "loadFailed": "Nepodařilo se načíst data Home Assistant API: {{message}}"
     },
-    "onboardingTools": "Nástroje pro nastavení",
     "resetOnboarding": "Resetovat příznak nastavení",
     "refreshDiscovery": "Obnovit MQTT discovery",
     "refreshValves": "Obnovit stav ventilů",
-    "valvesRefreshSuccess": "Ventily obnoveny",
-    "valvesRefreshSuccessMessage": "Stav ventilů byl ručně obnoven z Home Assistant.",
     "restartScheduler": "Restartovat plánovač",
     "stopOverride": "Zrušit override plánu",
     "resetDatabase": "Resetovat databázi",
@@ -648,7 +831,6 @@
     "databaseResetSuccess": "Reset databáze",
     "databaseResetSuccessMessage": "Databáze byla resetována a backend se restartuje. Stránka se znovu načte za 15 sekund.",
     "commissioning": {
-      "tabLabel": "Zaregulování",
       "title": "Zaregulování",
       "description": "Postupně přepíná vybrané režimy a každý drží po nastavenou dobu.",
       "start": "Spustit test",
@@ -662,7 +844,70 @@
       "noModes": "Žádné režimy nejsou nastaveny.",
       "currentMode": "Aktivní režim",
       "step": "Krok {{current}} / {{total}}",
-      "secondsRemaining": "zbývá {{seconds}} s"
+      "legend": "Test režimů",
+      "running": "Běží",
+      "left": "Zbývá",
+      "next": "potom {{name}}",
+      "modeCount_one": "{{count}} režim",
+      "modeCount_few": "{{count}} režimy",
+      "modeCount_many": "{{count}} režimů",
+      "modeCount_other": "{{count}} režimů",
+      "totalPrefix": "celkem",
+      "minutes": "{{minutes}} min",
+      "minutesSeconds": "{{minutes}} min {{seconds}} s",
+      "seconds": "{{seconds}} s",
+      "pickOne": "Vyberte aspoň jeden režim.",
+      "progress": "Průběh testu"
+    },
+    "inspector": {
+      "legend": "Stav",
+      "title": "Hodnoty",
+      "backend": "Backend",
+      "source": "Zdroj",
+      "searchPlaceholder": "Hledat klíč nebo hodnotu…",
+      "noMatches": "Hledání neodpovídá žádná hodnota.",
+      "general": "obecné",
+      "copyKey": "Kopírovat {{key}}",
+      "footer": "{{shown}} z {{total}} hodnot",
+      "updated": "naposledy aktualizováno {{time}}"
+    },
+    "tools": {
+      "legend": "Ruční zásahy",
+      "title": "Nástroje",
+      "refresh": "Obnovit",
+      "stop": "Zrušit",
+      "restart": "Restartovat",
+      "reset": "Resetovat",
+      "deleteAll": "Smazat vše",
+      "done": "Hotovo",
+      "failed": "Nepovedlo se. Podrobnosti najdete v logu.",
+      "irreversible": "Nevratné",
+      "discoveryDescription": "Znovu ohlásí entity LUFTaTORu do Home Assistanta.",
+      "valvesDescription": "Načte aktuální polohy klapek z Home Assistanta.",
+      "overrideDescription": "Ukončí manuální režim a vrátí řízení časové ose.",
+      "schedulerDescription": "Znovu spustí plánovač časové osy.",
+      "onboardingDescription": "Při dalším načtení se znovu spustí průvodce.",
+      "onboardingConfirm": "Stránka se obnoví a spustí se průvodce nastavením. Uložená nastavení zůstanou zachována.",
+      "databaseDescription": "Smaže nastavení, režimy a události časové osy."
+    },
+    "stats": {
+      "version": "Verze",
+      "uptime": "Běží",
+      "memory": "Paměť",
+      "valves": "Klapky",
+      "connected": "Připojeno",
+      "disconnected": "Odpojeno",
+      "notConfigured": "Nenastaveno",
+      "off": "Vypnuto",
+      "since": "od {{time}}",
+      "discovery": "discovery {{time}}",
+      "unavailable_one": "{{count}} nedostupná",
+      "unavailable_few": "{{count}} nedostupné",
+      "unavailable_many": "{{count}} nedostupných",
+      "unavailable_other": "{{count}} nedostupných",
+      "uptimeDays": "{{days}} d {{hours}} h",
+      "uptimeHours": "{{hours}} h {{minutes}} min",
+      "uptimeMinutes": "{{minutes}} min {{seconds}} s"
     }
   },
   "schedule": {
@@ -814,6 +1059,82 @@
       "activatedMessage": "{{name}} běží.",
       "scheduledMessage": "{{name}} je naplánovaný.",
       "errorTitle": "Vlastní plán se nepodařilo přepnout"
+    },
+    "modeReadout": {
+      "until": "do {{time}}, potom {{mode}}",
+      "nativeMode": "Režim rekuperační jednotky: {{mode}}",
+      "today": "Dnešní plán",
+      "sources": {
+        "schedule": "Plán",
+        "manual": "Manuální",
+        "boost": "Manuální režim",
+        "custom": "Vlastní plán",
+        "fallback": "Bezpečný režim"
+      }
+    },
+    "unitPanel": {
+      "legend": "Rekuperační jednotka",
+      "flags": "Stav jednotky",
+      "on": "Zap.",
+      "off": "Vyp.",
+      "yes": "Ano",
+      "no": "Ne",
+      "notResponding": "Jednotka neodpovídá",
+      "limit": "Nastavený limit {{value}} {{unit}}"
+    },
+    "connections": {
+      "legend": "Připojení",
+      "title": "Služby",
+      "allOk": "Vše připojeno",
+      "issues_one": "{{count}} služba má potíže",
+      "issues_few": "{{count}} služby mají potíže",
+      "issues_many": "{{count}} služby má potíže",
+      "issues_other": "{{count}} služeb má potíže",
+      "attempt": "Pokus",
+      "lastError": "Poslední chyba",
+      "reason": "Důvod",
+      "reconnecting": "Znovu se připojuje",
+      "openMqttSettings": "Otevřít nastavení MQTT",
+      "openUnitSettings": "Otevřít nastavení jednotky",
+      "unitUnreachable": "Modbus zařízení není dostupné."
+    },
+    "manual": {
+      "runningDescription": "Po uplynutí se jednotka vrátí k časové ose."
+    },
+    "duration": {
+      "label": "Trvání",
+      "untilCancelled": "Do zrušení",
+      "untilCancelledUnit": "do zrušení",
+      "runsUntilCancelled": "Poběží, dokud ho nezrušíte",
+      "ends": "Skončí",
+      "endsAt": "Skončí v",
+      "whenCancelled": "až ho zrušíte",
+      "other": "Jiný",
+      "every5": "po 5 min",
+      "untilTime": "do {{time}}",
+      "shorter": "Kratší",
+      "longer": "Delší",
+      "min": "min",
+      "hours_one": "hodina",
+      "hours_few": "hodiny",
+      "hours_many": "hodiny",
+      "hours_other": "hodin"
+    },
+    "planStart": {
+      "now": "teď",
+      "summary": "Poběží od {{start}} do {{end}} ({{length}}).",
+      "summaryOpen": "Poběží od {{start}} do odvolání.",
+      "days_one": "{{count}} den",
+      "days_few": "{{count}} dny",
+      "days_many": "{{count}} dne",
+      "days_other": "{{count}} dní",
+      "events_one": "{{count}} událost",
+      "events_few": "{{count}} události",
+      "events_many": "{{count}} události",
+      "events_other": "{{count}} událostí",
+      "emptyPlan": "prázdný – přidejte události na Časové ose",
+      "running": "běží",
+      "addEvents": "Přidejte události na Časové ose"
     }
   },
   "valves": {
@@ -845,9 +1166,6 @@
       "manage": "Spravovat skupiny",
       "ungrouped": "Bez skupiny",
       "bulkSetValue": "Nastavit vše",
-      "valveCount": "{{count}} klapka",
-      "valveCount_few": "{{count}} klapky",
-      "valveCount_other": "{{count}} klapek",
       "create": "Vytvořit",
       "delete": "Smazat skupinu",
       "reorder": "Táhněte pro změnu pořadí",
@@ -860,7 +1178,26 @@
       "reorderFailedMessage": "Nepodařilo se uložit nové pořadí skupin. Zkuste to prosím znovu.",
       "actionFailedTitle": "Akce selhala",
       "actionFailedMessage": "Zkuste to prosím znovu.",
-      "mixedValues": "Různé"
+      "mixedValues": "Různé",
+      "bulkAria": "Nastavit vše – {{name}}",
+      "someOffline": "Některé klapky jsou v Home Assistantu nedostupné.",
+      "legend": "Klapky",
+      "done": "Hotovo",
+      "name": "Název skupiny",
+      "membersAria": "Klapky ve skupině {{name}}",
+      "newGroupPlaceholder": "např. Přízemí",
+      "emptyDescription": "Skupina sdruží klapky, které nastavujete spolu, třeba ložnice nebo přízemí.",
+      "deleteConfirm": "Skupina {{name}} se smaže. Klapky zůstanou, jen budou bez skupiny.",
+      "valveCount_one": "{{count}} klapka",
+      "valveCount_few": "{{count}} klapky",
+      "valveCount_many": "{{count}} klapky",
+      "valveCount_other": "{{count}} klapek"
+    },
+    "emptyTitle": "Žádné klapky",
+    "valveAria": "Klapka {{name}}",
+    "scale": {
+      "open": "Otev.",
+      "closed": "Zavř."
     }
   },
   "apiErrors": {
@@ -936,25 +1273,21 @@
       "importButton": "Importovat zálohu",
       "importText": "Přeskočte nastavení obnovením předchozí zálohy.",
       "importSuccess": "Databáze úspěšně importována. Přesměrování...",
-      "importError": "Nepodařilo se importovat zálohu databáze."
+      "importError": "Nepodařilo se importovat zálohu databáze.",
+      "duration": "Zabere to pár minut.",
+      "importTitle": "Máte zálohu?"
     },
     "preferences": {
       "label": "Předvolby",
       "description": "Jazyk a vzhled",
       "languageLabel": "Jazyk",
-      "languagePlaceholder": "Vyberte jazyk",
       "themeLabel": "Vzhled",
-      "themePlaceholder": "Vyberte vzhled",
-      "themes": {
-        "light": "Světlý",
-        "dark": "Tmavý"
-      },
       "tempUnitLabel": "Jednotka teploty",
-      "tempUnitPlaceholder": "Vyberte jednotku",
       "tempUnits": {
         "c": "Celsius (°C)",
         "f": "Fahrenheit (°F)"
-      }
+      },
+      "title": "Jazyk a vzhled"
     },
     "modbus": {
       "label": "Modbus",
@@ -967,8 +1300,6 @@
       "hostPlaceholder": "192.168.1.10",
       "portLabel": "Port",
       "unitIdLabel": "ID jednotky",
-      "test": "Testovat připojení",
-      "connected": "Připojeno k rekuperaci",
       "failed": "Připojení k rekuperaci selhalo"
     },
     "mqtt": {
@@ -982,11 +1313,8 @@
       "portLabel": "Port",
       "userLabel": "Uživatelské jméno",
       "passLabel": "Heslo",
-      "test": "Testovat připojení",
-      "testing": "Testování...",
-      "connected": "Připojeno!",
-      "failed": "Připojení selhalo",
-      "warning": "Vypnutí MQTT znamená, že nebude fungovat integrace s Home Assistantem. Můžete jej povolit později v nastavení."
+      "warning": "Vypnutí MQTT znamená, že nebude fungovat integrace s Home Assistantem. Můžete jej povolit později v nastavení.",
+      "enableDescription": "Publikuje senzory a ovládání do Home Assistanta přes MQTT Discovery."
     },
     "unit": {
       "label": "Jednotka",
@@ -1004,14 +1332,32 @@
     "status": {
       "label": "Status",
       "description": "Kontrola systému",
-      "found": "LUFTaTOR nalezen!",
-      "notFound": "LUFTaTOR zatím nebyl nalezen.",
-      "integrationStatus": "Stav integrace",
-      "waitingTitle": "Čekání na Home Assistant...",
-      "waitingHA": "Jsme nakonfigurováni, ale Home Assistant zatím zařízení nezaregistroval. To obvykle trvá asi 60 sekund po připojení MQTT.\n\nMůžete pokračovat na hlavní panel, entity se objeví automaticky.",
-      "readyTitle": "HOTOVO!",
+      "waitingTitle": "Čekání na Home Assistant…",
+      "waitingHA": "Jsme nakonfigurováni, ale Home Assistant zatím zařízení nezaregistroval. To obvykle trvá asi 60 sekund po připojení MQTT.\n\nMůžete pokračovat na Přehled, entity se objeví automaticky.",
       "ready": "Systém je plně funkční a připojen k Home Assistantu.",
-      "dashboard": "Přejít na hlavní panel"
+      "dashboard": "Přejít na Přehled",
+      "title": "Kontrola systému",
+      "doneTitle": "Hotovo!",
+      "unitReadyTitle": "Jednotka je připravená",
+      "unitReady": "Integrace s Home Assistantem je vypnutá. Zapnete ji v Nastavení → Integrace MQTT.",
+      "waitingUnitTitle": "Čekání na jednotku…",
+      "waitingUnit": "Rekuperační jednotka zatím neodpověděla. Zkontrolujte adresu v kroku Modbus, nebo pokračujte na Přehled a sledujte ji tam.",
+      "state": {
+        "done": "hotovo",
+        "waiting": "čeká se",
+        "error": "nefunguje"
+      },
+      "checks": {
+        "unit": "Rekuperační jednotka odpovídá",
+        "mqtt": "MQTT broker připojen",
+        "ha": "Home Assistant registruje zařízení LUFTaTOR",
+        "haWaiting": "čeká se na MQTT Discovery",
+        "mqttOff": "Vypnuto – zapnete v Nastavení",
+        "entities_one": "{{count}} entita",
+        "entities_few": "{{count}} entity",
+        "entities_many": "{{count}} entit",
+        "entities_other": "{{count}} entit"
+      }
     },
     "errors": {
       "prefSaveFailed": "Nepodařilo se uložit předvolby",
@@ -1019,6 +1365,8 @@
       "finishFailed": "Nepodařilo se dokončit nastavení. Zkuste to prosím znovu."
     },
     "back": "Zpět",
-    "next": "Další"
+    "next": "Další",
+    "stepDone": "hotovo",
+    "optional": "Volitelné"
   }
 }

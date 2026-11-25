@@ -1,3 +1,4 @@
+import tailwindcss from "@tailwindcss/vite";
 import type { Logger } from "vite-plus";
 import { defineConfig } from "vite-plus";
 import type { Oxfmtrc } from "vite-plus/fmt";
@@ -67,6 +68,7 @@ export default defineConfig({
   // pathnames (e.g. /wdawd/) then return 404 instead of booting the app at a
   // wrong base URL — mirroring the narrowed backend static handling.
   appType: "mpa",
+  plugins: [tailwindcss()],
   resolve: {
     alias: {
       "@luftuj/app": path.resolve(rootDir, "src/app"),
@@ -82,15 +84,12 @@ export default defineConfig({
     minify: true,
     sourcemap: false,
     rollupOptions: {
-      // Mantine and TanStack mark their modules "use client", which only means something
+      // TanStack and Radix mark their modules "use client", which only means something
       // to React Server Components; in this client-only SPA it produced ~970 warnings.
       checks: { moduleLevelDirective: false },
       output: {
         manualChunks: (id) => {
           if (id.includes("node_modules")) {
-            if (id.includes("@mantine")) {
-              return "mantine";
-            }
             if (id.includes("@tanstack")) {
               return "tanstack";
             }

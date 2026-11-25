@@ -26,10 +26,10 @@ export function SortableItem({ id, children }: Readonly<SortableItemProps>) {
 
   return children({
     setNodeRef,
+    // The consumer styles the lifted item (isDragging); the style only moves it.
     style: {
       transform: CSS.Transform.toString(transform),
       transition,
-      opacity: isDragging ? 0.5 : 1,
     },
     isDragging,
     dragHandleProps: { ...attributes, ...listeners },

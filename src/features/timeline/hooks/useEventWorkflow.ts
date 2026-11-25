@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { notifications } from "@mantine/notifications";
+import { notify } from "@luftuj/shared/ui/notify";
 import type { TFunction } from "i18next";
 import type { TimelineEvent } from "@luftuj/shared/types/timeline";
 import { createLogger } from "@luftuj/shared/utils/logger";
@@ -37,10 +37,10 @@ export function useEventWorkflow(
     if (editingEvent) {
       const errorMessage = validateEvent(editingEvent, t);
       if (errorMessage) {
-        notifications.show({
+        notify({
           title: t("settings.timeline.notifications.validationFailedTitle"),
           message: errorMessage,
-          color: "red",
+          variant: "error",
         });
         return;
       }

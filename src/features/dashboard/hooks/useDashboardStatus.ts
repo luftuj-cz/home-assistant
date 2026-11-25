@@ -20,6 +20,8 @@ export function useDashboardStatus() {
     modbusLive: system.modbusLive,
     hruStatus,
     hruName: config.hruName,
+    modbusHost: config.modbusHost,
+    modbusPort: config.modbusPort,
     mqttStatus: system.mqttStatus,
     mqttLastDiscovery: system.mqttLastDiscovery,
     mqttError: system.mqttError,

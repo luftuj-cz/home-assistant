@@ -33,3 +33,8 @@ export function formatValveValue(value: number, min: number, max: number, t: TFu
   if (value >= max) return t("valves.status.closed");
   return `${Math.round(value)}`;
 }
+
+/** "Otev.", the middle angle, "Zavř." under a damper slider. */
+export function damperScale(t: TFunction, min: number, max: number) {
+  return [t("valves.scale.open"), `${Math.round((min + max) / 2)}°`, t("valves.scale.closed")];
+}

@@ -24,6 +24,21 @@ export function createDatabaseRouter(
 ) {
   const router = Router();
 
+  /** Size of the database on disk (main file plus the write-ahead log), for the settings summary. */
+  router.get("/info", (_request: Request, response: Response, next: NextFunction) => {
+    try {
+      const dbPath = getDatabasePath();
+      let sizeBytes = 0;
+      for (const path of [dbPath, `${dbPath}-wal`]) {
+        if (fs.existsSync(path)) sizeBytes += fs.statSync(path).size;
+      }
+      response.json({ sizeBytes });
+    } catch (error) {
+      logger.error({ error }, "Failed to read database size");
+      next(error);
+    }
+  });
+
   router.get("/export", async (_request: Request, response: Response, next: NextFunction) => {
     try {
       const dbPath = getDatabasePath();

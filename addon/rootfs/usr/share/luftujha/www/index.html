@@ -17,29 +17,45 @@
     <title>LUFTaTOR HASS Add-on</title>
 
     <script>
+      // Applies the saved theme (.dark, data-theme) before the app loads, so there is no flash; ThemeProvider keeps
+      // it in sync afterwards. Dark unless the user chose otherwise.
       (function () {
+        let scheme = "dark";
         try {
           const saved = globalThis.localStorage.getItem("luftujha-color-scheme");
           if (saved === "dark" || saved === "light") {
-            document.documentElement.dataset.mantineColorScheme = saved;
-          } else {
-            document.documentElement.dataset.mantineColorScheme = "dark";
+            scheme = saved;
+          } else if (saved === "system") {
+            scheme = globalThis.matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
           }
         } catch {
-          document.documentElement.dataset.mantineColorScheme = "dark";
+          // Storage unavailable: keep the dark default.
         }
+        const root = document.documentElement;
+        root.dataset.theme = scheme;
+        root.classList.toggle("dark", scheme === "dark");
       })();
     </script>
-    <script type="module" crossorigin src="./assets/js/index-CWouMXs6.js"></script>
-    <link rel="modulepreload" crossorigin href="./assets/js/rolldown-runtime-Bh1tDfsg.js">
-    <link rel="modulepreload" crossorigin href="./assets/js/icons-C785htkC.js">
-    <link rel="modulepreload" crossorigin href="./assets/js/mantine-CX4fB_MU.js">
-    <link rel="modulepreload" crossorigin href="./assets/js/tanstack-C41fIbV6.js">
-    <link rel="modulepreload" crossorigin href="./assets/js/api-DjySBZTR.js">
-    <link rel="modulepreload" crossorigin href="./assets/js/i18n-DHXjSCj9.js">
-    <link rel="modulepreload" crossorigin href="./assets/js/ui-CHgNZV4G.js">
-    <link rel="stylesheet" crossorigin href="./assets/mantine-DmkP2cxF.css">
-    <link rel="stylesheet" crossorigin href="./assets/index-D6_DbWdW.css">
+    <script type="module" crossorigin src="./assets/js/index-ZbZWcshS.js"></script>
+    <link rel="modulepreload" crossorigin href="./assets/js/rolldown-runtime-XKyaHtl9.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/icons-CyfqJQmK.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/tanstack-CEvSAvWu.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/useMediaQuery-BlLYNp3Z.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/notify-FrMhoKNb.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/i18n-k0aMxYIK.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/dist-CVOAGMw5.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/tooltip-Bf_GSjTK.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/badge-X6IUhD2p.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/text-link-CRXxnz86.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/logo-mark-light-DdwPFyXx.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/use-indicator-BAO3y32o.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/icons-0HXcJOHE.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/temperatureContext-ssDtvFCu.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/client-C2bXGPSw.js">
+    <link rel="modulepreload" crossorigin href="./assets/js/error-state-IeqMLerh.js">
+    <link rel="stylesheet" crossorigin href="./assets/index-D0FpbVaV.css">
   </head>
   <body>
     <div id="root"></div>
