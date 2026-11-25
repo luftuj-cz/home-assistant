@@ -14,6 +14,7 @@ import type {
 import { DayStrip } from "@luftuj/features/timeline/components/DayStrip";
 import { Card, CardHeader } from "@luftuj/shared/ui/card";
 import { Dot, type Tone } from "@luftuj/shared/ui/dot";
+import { FitText } from "@luftuj/shared/ui/fit-text";
 import { ErrorState } from "@luftuj/shared/ui/error-state";
 import { ICON_STROKE } from "@luftuj/shared/ui/icon-types";
 import { Legend } from "@luftuj/shared/ui/legend";
@@ -124,22 +125,26 @@ function ModeReadout({ activeMode, name, nativeMode, today }: Readonly<ModeReado
     : null;
 
   return (
-    <Well legend={t("dashboard.hruMode")} className="flex min-w-0 flex-col gap-2 p-5">
-      <span
-        className={cn(
-          "inline-flex h-[26px] w-fit items-center gap-2 rounded-full bg-card px-2.5 font-sans text-xs leading-4 font-medium",
-          CHIP_TEXT[tone],
-        )}
-      >
-        <Dot tone={tone} pulse={source !== "schedule"} />
-        {t(`dashboard.modeReadout.sources.${source}`)}
-      </span>
-      <p
+    <Well className="flex min-w-0 flex-col gap-2 p-5">
+      {/* Where the mode comes from sits on the legend's row, at the right. */}
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <Legend>{t("dashboard.hruMode")}</Legend>
+        <span
+          className={cn(
+            "inline-flex h-[26px] min-w-0 items-center gap-2 rounded-full bg-card px-2.5 font-sans text-xs leading-4 font-medium",
+            CHIP_TEXT[tone],
+          )}
+        >
+          <Dot tone={tone} pulse={source !== "schedule"} />
+          <span className="truncate">{t(`dashboard.modeReadout.sources.${source}`)}</span>
+        </span>
+      </div>
+      {/* The name takes the room the well has left (the well is as tall as the power gauge beside it). */}
+      <FitText
         key={name}
-        className="animate-fade font-sans text-4xl leading-10 font-normal tracking-[-.03em] [overflow-wrap:anywhere] @max-[560px]:text-[30px] @max-[560px]:leading-[34px]"
-      >
-        {name}
-      </p>
+        text={name}
+        className="animate-fade font-sans font-normal tracking-[-.03em] text-foreground"
+      />
       {(until || nativeMode) && (
         <p className="caption text-muted-foreground">
           {until}
