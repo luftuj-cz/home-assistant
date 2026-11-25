@@ -14,6 +14,10 @@ import { useFieldControl, type FieldControlProps } from "./field-context";
 import { ICON_STROKE, type IconComponent } from "./icon-types";
 import { fieldSurface } from "./input";
 import { Popover, PopoverAnchor, PopoverContent } from "./popover";
+import { Sheet, SheetContent, SheetHeader } from "./sheet";
+
+/** Below this width the list opens in a bottom sheet, like a Dialog turns into one. */
+const PHONE = "(max-width: 560px)";
 
 export interface ComboOption {
   value: string;
@@ -120,6 +124,7 @@ function OptionList({
   emptyText,
   label,
   multi,
+  className,
 }: Readonly<{
   options: ComboOption[];
   query: string;
@@ -128,10 +133,11 @@ function OptionList({
   emptyText?: ReactNode;
   label: string;
   multi?: boolean;
+  className?: string;
 }>) {
   const { t } = useTranslation();
   return (
-    <CommandList aria-label={label} aria-multiselectable={multi || undefined}>
+    <CommandList aria-label={label} aria-multiselectable={multi || undefined} className={className}>
       <CommandEmpty>{emptyText ?? t("ui.nothingFound")}</CommandEmpty>
       {groupOptions(options).map(([group, items]) => (
         <CommandGroup key={group || "_"} heading={group || undefined}>
@@ -155,6 +161,18 @@ function OptionList({
       ))}
     </CommandList>
   );
+}
+
+/** The control's accessible name as text (its Field label without the required mark), for the sheet's title. */
+function accessibleName(field: FieldControlProps) {
+  if (field["aria-label"]) return field["aria-label"];
+  const names = (field["aria-labelledby"] ?? "").split(/\s+/).map((id) => {
+    const label = id ? document.getElementById(id)?.cloneNode(true) : null;
+    if (!(label instanceof HTMLElement)) return "";
+    for (const hidden of label.querySelectorAll('[aria-hidden="true"]')) hidden.remove();
+    return label.textContent?.trim() ?? "";
+  });
+  return names.filter(Boolean).join(" ");
 }
 
 /** The id of the highlighted option, for `aria-activedescendant` on a trigger that keeps focus. */
@@ -186,7 +204,8 @@ interface ComboboxProps extends FieldControlProps {
  * A select whose list opens in a popover: search (diacritics ignored, matches marked), groups, a second line, a dot
  * or icon and an optional clear button. ↓ or Enter opens, ↑ ↓ move, Enter picks, Esc
  * closes; the highlight starts on the selected option. The list opens upwards when the room below is short. On
- * touch the search field does not take focus by itself, so the keyboard does not push the page.
+ * touch the search field does not take focus by itself, so the keyboard does not push the page. On a phone the list
+ * opens in a bottom sheet titled with the field's label, with larger rows.
  */
 export function Combobox({
   options,
@@ -207,6 +226,8 @@ export function Combobox({
   const { t } = useTranslation();
   const field = useFieldControl({ ...props, invalid });
   const coarse = useMediaQuery("(pointer: coarse)");
+  const phone = useMediaQuery(PHONE);
+  const [sheetTitle, setSheetTitle] = useState("");
   const [inner, setInner] = useState<string | null>(defaultValue);
   const [open, setOpenState] = useState(defaultOpen);
   const [query, setQuery] = useState("");
@@ -229,6 +250,7 @@ export function Combobox({
     setQuery("");
     if (next) {
       setActive(current ?? options.find((o) => !o.disabled)?.value ?? "");
+      if (phone) setSheetTitle(accessibleName(field));
     }
   }
 
@@ -249,6 +271,92 @@ export function Combobox({
     }
   }
 
+  const trigger = (
+    <button
+      type="button"
+      role="combobox"
+      aria-haspopup="listbox"
+      aria-expanded={open}
+      ref={triggerRef}
+      aria-activedescendant={canSearch ? undefined : activeId}
+      disabled={disabled}
+      {...field}
+      onClick={() => setOpen(!open)}
+      onKeyDown={onTriggerKeyDown}
+      className={cn(
+        fieldSurface,
+        "flex cursor-pointer items-center gap-2.5 text-left",
+        open && "bg-card shadow-[inset_0_0_0_2px_var(--ring)]",
+        Icon && "pl-3",
+      )}
+    >
+      {Icon && (
+        <Icon
+          size={16}
+          stroke={ICON_STROKE}
+          className="flex-none text-muted-foreground"
+          aria-hidden
+        />
+      )}
+      {selected ? (
+        <span
+          className={cn("flex min-w-0 flex-1 items-center gap-2", clearable && !disabled && "mr-7")}
+        >
+          {selected.dot && <Dot color={selected.dot} />}
+          <span className={cn("truncate", selected.mono && "font-mono text-sm")}>
+            {selected.label}
+          </span>
+        </span>
+      ) : (
+        <span className="min-w-0 flex-1 truncate text-muted-foreground">
+          {placeholder ?? t("ui.choose")}
+        </span>
+      )}
+      <IconSelector
+        size={16}
+        stroke={ICON_STROKE}
+        className="flex-none text-muted-foreground"
+        aria-hidden
+      />
+    </button>
+  );
+  const clearButton = clearable && selected && !disabled && (
+    <button
+      type="button"
+      aria-label={t("ui.clearSelection")}
+      onClick={() => {
+        setInner(null);
+        onValueChange?.(null);
+      }}
+      className="absolute top-1/2 right-9 grid size-6 -translate-y-1/2 cursor-pointer place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+    >
+      <IconX size={14} stroke={ICON_STROKE} aria-hidden />
+    </button>
+  );
+  const search = canSearch && (
+    <CommandInput
+      placeholder={t("ui.search")}
+      aria-label={t("ui.searchLabel")}
+      value={query}
+      onValueChange={setQuery}
+    />
+  );
+  function list(className?: string) {
+    return (
+      <div ref={setListEl} className="contents">
+        <OptionList
+          options={options}
+          query={canSearch ? query : ""}
+          isSelected={(v) => v === current}
+          onPick={pick}
+          emptyText={emptyText}
+          label={t("ui.options")}
+          className={className}
+        />
+      </div>
+    );
+  }
+
   return (
     <CommandPrimitive
       data-slot="combobox"
@@ -258,107 +366,51 @@ export function Combobox({
       onValueChange={setActive}
       className={cn("relative min-w-0", className)}
     >
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverAnchor asChild>
-          <button
-            type="button"
-            role="combobox"
-            aria-haspopup="listbox"
-            aria-expanded={open}
-            ref={triggerRef}
-            aria-activedescendant={canSearch ? undefined : activeId}
-            disabled={disabled}
-            {...field}
-            onClick={() => setOpen(!open)}
-            onKeyDown={onTriggerKeyDown}
-            className={cn(
-              fieldSurface,
-              "flex cursor-pointer items-center gap-2.5 text-left",
-              open && "bg-card shadow-[inset_0_0_0_2px_var(--ring)]",
-              Icon && "pl-3",
-            )}
+      {phone ? (
+        <Sheet open={open} onOpenChange={setOpen} autoFocus={canSearch && !coarse}>
+          {trigger}
+          {clearButton}
+          <SheetContent
+            aria-describedby={undefined}
+            // Searchable lists keep their height while filtering, so the sheet does not jump under the finger.
+            className={cn(canSearch && "h-[min(600px,85dvh)]")}
           >
-            {Icon && (
-              <Icon
-                size={16}
-                stroke={ICON_STROKE}
-                className="flex-none text-muted-foreground"
-                aria-hidden
-              />
-            )}
-            {selected ? (
-              <span
-                className={cn(
-                  "flex min-w-0 flex-1 items-center gap-2",
-                  clearable && !disabled && "mr-7",
-                )}
-              >
-                {selected.dot && <Dot color={selected.dot} />}
-                <span className={cn("truncate", selected.mono && "font-mono text-sm")}>
-                  {selected.label}
-                </span>
-              </span>
-            ) : (
-              <span className="min-w-0 flex-1 truncate text-muted-foreground">
-                {placeholder ?? t("ui.choose")}
-              </span>
-            )}
-            <IconSelector
-              size={16}
-              stroke={ICON_STROKE}
-              className="flex-none text-muted-foreground"
-              aria-hidden
-            />
-          </button>
-        </PopoverAnchor>
-        {clearable && selected && !disabled && (
-          <button
-            type="button"
-            aria-label={t("ui.clearSelection")}
-            onClick={() => {
-              setInner(null);
-              onValueChange?.(null);
+            <SheetHeader title={sheetTitle || t("ui.options")} />
+            <div
+              className={cn(
+                "grid min-h-0 [&_[cmdk-item]]:min-h-11",
+                canSearch ? "grid-rows-[auto_minmax(0,1fr)]" : "grid-rows-[minmax(0,1fr)]",
+              )}
+            >
+              {search}
+              {list("max-h-none min-h-0")}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <Popover open={open} onOpenChange={setOpen}>
+          <PopoverAnchor asChild>{trigger}</PopoverAnchor>
+          {clearButton}
+          <PopoverContent
+            className="w-(--radix-popover-trigger-width) min-w-[220px]"
+            onOpenAutoFocus={(e) => {
+              // Focus stays on the trigger without a search field, and on touch (no keyboard popping up).
+              if (!canSearch || coarse) {
+                e.preventDefault();
+              }
             }}
-            className="absolute top-1/2 right-9 grid size-6 -translate-y-1/2 cursor-pointer place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
+            onInteractOutside={(e) => {
+              // The trigger toggles on its own click; closing here first would reopen it.
+              if (triggerRef.current?.contains(e.target as Node)) {
+                e.preventDefault();
+              }
+            }}
           >
-            <IconX size={14} stroke={ICON_STROKE} aria-hidden />
-          </button>
-        )}
-        <PopoverContent
-          className="w-(--radix-popover-trigger-width) min-w-[220px]"
-          onOpenAutoFocus={(e) => {
-            // Focus stays on the trigger without a search field, and on touch (no keyboard popping up).
-            if (!canSearch || coarse) {
-              e.preventDefault();
-            }
-          }}
-          onInteractOutside={(e) => {
-            // The trigger toggles on its own click; closing here first would reopen it.
-            if (triggerRef.current?.contains(e.target as Node)) {
-              e.preventDefault();
-            }
-          }}
-        >
-          {canSearch && (
-            <CommandInput
-              placeholder={t("ui.search")}
-              aria-label={t("ui.searchLabel")}
-              value={query}
-              onValueChange={setQuery}
-            />
-          )}
-          <div ref={setListEl} className="contents">
-            <OptionList
-              options={options}
-              query={canSearch ? query : ""}
-              isSelected={(v) => v === current}
-              onPick={pick}
-              emptyText={emptyText}
-              label={t("ui.options")}
-            />
-          </div>
-        </PopoverContent>
-      </Popover>
+            {search}
+            {list()}
+          </PopoverContent>
+        </Popover>
+      )}
     </CommandPrimitive>
   );
 }
