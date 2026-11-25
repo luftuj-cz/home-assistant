@@ -39,9 +39,10 @@ export function useSeasonView() {
     return activeSeasonId;
   }, [search.season, seasons, activeSeasonId]);
 
+  // View state in the URL: the router would scroll to the top on every change (resetScroll defaults to true).
   const setViewedSeason = useCallback(
     (id: number) => {
-      void navigate({ search: { season: id }, replace: true });
+      void navigate({ search: { season: id }, replace: true, resetScroll: false });
     },
     [navigate],
   );
@@ -87,14 +88,14 @@ export function usePlanView(unitId?: string) {
 
   const setViewedCustom = useCallback(
     (id: number) => {
-      void navigate({ search: { custom: id }, replace: true });
+      void navigate({ search: { custom: id }, replace: true, resetScroll: false });
     },
     [navigate],
   );
 
   /** Back to the season plan, for installs where there is no season to pick. */
   const clearCustomView = useCallback(() => {
-    void navigate({ search: {}, replace: true });
+    void navigate({ search: {}, replace: true, resetScroll: false });
   }, [navigate]);
 
   const ref: TimelineRef = viewedCustom

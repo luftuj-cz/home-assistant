@@ -25,6 +25,48 @@ const SECTIONS = [
   { value: "developer", title: "settings.developer.title" },
 ] as const;
 
+/** A little longer than Collapse's height transition (--duration-slow, 320 ms), so the stack has settled. */
+const FOLLOW_MS = 450;
+
+/**
+ * Scrolls a section's top under the sticky header (its scroll-margin) while the section above it closes and it
+ * opens. The target is measured again every frame: a one-off scrollIntoView aims where the section was before the
+ * stack moved and overshoots by the height of the closing section. Wheel or touch hands the scroll back.
+ */
+function followSection(id: string) {
+  const section = document.getElementById(id);
+  if (!section) return;
+  const instant = globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+  const from = scrollY;
+  let start = 0;
+  let raf = 0;
+
+  function target(el: HTMLElement) {
+    const margin = Number.parseFloat(getComputedStyle(el).scrollMarginTop) || 0;
+    const max = document.documentElement.scrollHeight - innerHeight;
+    return Math.max(0, Math.min(max, scrollY + el.getBoundingClientRect().top - margin));
+  }
+
+  function stop() {
+    cancelAnimationFrame(raf);
+    removeEventListener("wheel", stop);
+    removeEventListener("touchstart", stop);
+  }
+
+  function frame(now: number) {
+    start ||= now;
+    const t = instant ? 1 : Math.min(1, (now - start) / FOLLOW_MS);
+    const eased = 1 - (1 - t) ** 3;
+    scrollTo({ top: from + (target(section as HTMLElement) - from) * eased, behavior: "instant" });
+    if (t < 1) raf = requestAnimationFrame(frame);
+    else stop();
+  }
+
+  addEventListener("wheel", stop, { passive: true });
+  addEventListener("touchstart", stop, { passive: true });
+  raf = requestAnimationFrame(frame);
+}
+
 /**
  * Nastavení: a sticky numbered index on the left (desktop), the section stack on the right, one section open at a
  * time. `?section=` opens one and scrolls to it, so other pages can link to the setting they talk about.
@@ -59,7 +101,12 @@ export function SettingsPage() {
       open,
       setOpen: (value: string | null) => {
         setOpenState(value);
-        void navigate({ search: value ? { section: value } : {}, replace: true });
+        // Only the open section changes: keep the scroll (the router resets it to the top by default).
+        void navigate({
+          search: value ? { section: value } : {},
+          replace: true,
+          resetScroll: false,
+        });
       },
     }),
     [navigate, open],
@@ -67,11 +114,7 @@ export function SettingsPage() {
 
   function jump(value: string) {
     context.setOpen(value);
-    requestAnimationFrame(() =>
-      document
-        .getElementById(`section-${value}`)
-        ?.scrollIntoView({ block: "start", behavior: "smooth" }),
-    );
+    followSection(`section-${value}`);
   }
 
   return (
