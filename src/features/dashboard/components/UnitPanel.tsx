@@ -24,6 +24,7 @@ import { StatusBadge } from "@luftuj/shared/ui/status-badge";
 import { Well } from "@luftuj/shared/ui/well";
 import { translateConnectionError } from "@luftuj/shared/utils/connectionError";
 import { cn } from "@luftuj/shared/utils/cn";
+import { flagWord } from "@luftuj/shared/utils/hruFlag";
 
 import { PowerGauge } from "./PowerGauge";
 
@@ -186,12 +187,7 @@ function FlagList({ flags }: Readonly<{ flags: Flag[] }>) {
         if (flag.active) {
           tone = flag.negative ? "destructive" : "success";
         }
-        let word: string;
-        if (flag.negative) {
-          word = flag.active ? t("dashboard.unitPanel.yes") : t("dashboard.unitPanel.no");
-        } else {
-          word = flag.active ? t("dashboard.unitPanel.on") : t("dashboard.unitPanel.off");
-        }
+        const word = flagWord(flag.active, flag.negative, t);
         return (
           <li
             key={flag.label}

@@ -5,6 +5,7 @@ import type { HruVariable } from "@luftuj/shared/api/hru";
 import type { StatItem } from "@luftuj/shared/ui/stat-strip";
 import { resolveApiUrl } from "@luftuj/shared/utils/api";
 import { parseApiError } from "@luftuj/shared/utils/apiError";
+import { flagWord } from "@luftuj/shared/utils/hruFlag";
 
 /** What `/api/hru/test` sends: the unit, where it is, and its own power limits. */
 export interface HruTestInput {
@@ -41,7 +42,7 @@ interface TemperatureDisplay {
 
 /**
  * What a test read, for a StatStrip: the variables the dashboard shows, with their units, option labels in place of
- * raw codes, and temperatures in the chosen unit.
+ * raw codes, flags as Ano/Ne or Zap./Vyp. (as on the dashboard) and temperatures in the chosen unit.
  */
 export function hruTestValues(
   result: HruTestResult | null,
@@ -54,9 +55,16 @@ export function hruTestValues(
       const raw = result?.displayValues?.[variable.name] ?? result?.values?.[variable.name];
       const option = variable.options?.find((entry) => entry.value === Number(raw));
       const isTemperature = variable.class === "temperature" && typeof raw === "number";
+      const isFlag = variable.class === "flag" || typeof raw === "boolean";
       let value = raw == null ? "—" : String(raw);
       if (option) value = localizedText(option.label, t);
-      else if (isTemperature) value = temperature.show(raw).toFixed(1);
+      else if (isFlag && raw != null) {
+        value = flagWord(
+          Boolean(result?.values?.[variable.name] ?? raw),
+          variable.flag === "negative",
+          t,
+        );
+      } else if (isTemperature) value = temperature.show(raw).toFixed(1);
       let unit = variable.unit ? localizedText(variable.unit, t) : undefined;
       if (isTemperature) unit = temperature.label;
       return { legend: localizedText(variable.label, t), value, unit };

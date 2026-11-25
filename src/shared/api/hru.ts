@@ -2,7 +2,7 @@ import { apiClient } from "@luftuj/shared/api/client";
 
 export type LocalizedText = string | { text: string; translate: boolean };
 
-export type VariableClass = "power" | "temperature" | "mode" | "other";
+export type VariableClass = "power" | "temperature" | "mode" | "flag" | "other";
 
 export interface HruVariable {
   name: string;
@@ -12,6 +12,8 @@ export interface HruVariable {
   label: LocalizedText;
   unit?: LocalizedText;
   class?: VariableClass;
+  /** For a `flag`: negative ones (a fault) read Ano/Ne, positive ones Zap./Vyp. */
+  flag?: "positive" | "negative";
   min?: number;
   max?: number;
   minDefault?: number;
