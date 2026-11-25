@@ -88,17 +88,50 @@ function region(p: V3) {
   return p[2] > G.ZF ? 1 : 0;
 }
 
-/** Open polylines of a closed loop that lie in one z-region (−1 behind the duct, 0 inside it, 1 in front). */
+const REGION_Z: Record<number, [number, number]> = {
+  [-1]: [-Infinity, G.ZB],
+  0: [G.ZB, G.ZF],
+  1: [G.ZF, Infinity],
+};
+
+function lerp(a: V3, b: V3, t: number): V3 {
+  return [a[0] + t * (b[0] - a[0]), a[1] + t * (b[1] - a[1]), a[2] + t * (b[2] - a[2])];
+}
+
+/**
+ * Open polylines of a closed loop that lie in one z-region (−1 behind the duct, 0 inside it, 1 in front). Each run
+ * starts and ends exactly on the duct plane it crosses, so the runs of neighbouring regions meet without a gap.
+ */
 function runs(loop: V3[], wanted: number) {
   const n = loop.length;
-  const out: string[] = [];
   const start = loop.findIndex((p) => region(p) !== wanted);
   if (start < 0) return [pathOf(loop)];
+  const [lo, hi] = REGION_Z[wanted];
+  const out: string[] = [];
   let current: V3[] = [];
-  for (let k = 1; k <= n; k++) {
-    const p = loop[(start + k) % n];
-    if (region(p) === wanted) current.push(p);
-    else if (current.length) {
+  for (let k = 0; k < n; k++) {
+    const a = loop[(start + k) % n];
+    const b = loop[(start + k + 1) % n];
+    // The part of segment a→b inside [lo, hi], as parameters t0 ≤ t1 along it.
+    let t0 = 0;
+    let t1 = 1;
+    const dz = b[2] - a[2];
+    if (dz === 0) {
+      if (a[2] < lo || a[2] > hi) t1 = -1;
+    } else {
+      const tLo = (lo - a[2]) / dz;
+      const tHi = (hi - a[2]) / dz;
+      t0 = Math.max(0, Math.min(tLo, tHi));
+      t1 = Math.min(1, Math.max(tLo, tHi));
+    }
+    // Outside, or only touching the plane where no run is open (a lone point would draw a dot).
+    if (t1 < t0 || (t1 === t0 && current.length === 0)) continue;
+    if (current.length === 0 || t0 > 0) {
+      if (current.length) out.push(pathOf(current, false));
+      current = [lerp(a, b, t0)];
+    }
+    current.push(lerp(a, b, t1));
+    if (t1 < 1) {
       out.push(pathOf(current, false));
       current = [];
     }
