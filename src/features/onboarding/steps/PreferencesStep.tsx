@@ -13,6 +13,16 @@ import { Field } from "@luftuj/shared/ui/field";
 import { ToggleGroup } from "@luftuj/shared/ui/toggle-group";
 import { isTemperatureUnit } from "@luftuj/shared/utils/temperature";
 
+/**
+ * On narrow screens the three toggles span the full width, so their right edges line up. Segments share the width
+ * equally where their labels fit; a longer label keeps its width and the others split the rest.
+ */
+const FULL_ON_MOBILE =
+  "justify-self-start @max-[520px]:flex @max-[520px]:w-full @max-[520px]:[&>button]:flex-1";
+/** The theme toggle drops its icons on phones and tightens on the narrowest ones (320px), where it would scroll. */
+const THEME_ON_SMALL =
+  "@max-[400px]:[&_svg]:hidden @max-[340px]:[&>button]:px-2 @max-[340px]:[&>button]:text-[13px]";
+
 function isPreference(value: string): value is ThemePreference {
   return value === "light" || value === "dark" || value === "system";
 }
@@ -67,7 +77,7 @@ export function PreferencesStep() {
             void setLanguage(value);
           }}
           aria-label={t("onboarding.preferences.languageLabel")}
-          className="justify-self-start"
+          className={FULL_ON_MOBILE}
         />
       </Field>
       <Field label={t("onboarding.preferences.themeLabel")}>
@@ -82,7 +92,7 @@ export function PreferencesStep() {
             if (isPreference(value)) setPreference(value);
           }}
           aria-label={t("onboarding.preferences.themeLabel")}
-          className="justify-self-start @max-[400px]:[&_svg]:hidden"
+          className={`${FULL_ON_MOBILE} ${THEME_ON_SMALL}`}
         />
       </Field>
       <Field label={t("onboarding.preferences.tempUnitLabel")}>
@@ -96,7 +106,7 @@ export function PreferencesStep() {
             if (isTemperatureUnit(value)) temperature.setUnit(value);
           }}
           aria-label={t("onboarding.preferences.tempUnitLabel")}
-          className="justify-self-start"
+          className={FULL_ON_MOBILE}
         />
       </Field>
       {failed && <Alert variant="destructive">{t("onboarding.errors.prefSaveFailed")}</Alert>}

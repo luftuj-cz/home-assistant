@@ -81,15 +81,19 @@ interface HruSaveInput {
   maxPower?: number;
 }
 
-/** The six steps, in order. */
+/** The seven steps, in order. */
 export const ONBOARDING_STEPS = [
   "welcome",
   "preferences",
+  "control",
   "unit",
   "mqtt",
   "modbus",
   "status",
 ] as const;
+
+/** How LUFTaTOR is to drive the ventilation: the weekly plan or automatic control by CO₂. */
+export type ControlMode = "schedule" | "automatic";
 
 async function postJson(path: string, body: unknown, failure: string) {
   const res = await fetch(resolveApiUrl(path), {
@@ -112,6 +116,8 @@ function useWizardState() {
   // False until the user moves between steps, so the first step does not grab focus on page load.
   const [navigated, setNavigated] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(i18n.language);
+  // Only shown for now: the choice is not saved and changes nothing yet.
+  const [controlMode, setControlMode] = useState<ControlMode>("schedule");
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [minPower, setMinPower] = useState<number | undefined>(undefined);
   const [maxPower, setMaxPower] = useState<number | undefined>(undefined);
@@ -139,7 +145,7 @@ function useWizardState() {
       logger.info("Fetched units successfully", { count: units.length });
       return units;
     },
-    enabled: currentStep >= 2,
+    enabled: currentStep >= ONBOARDING_STEPS.indexOf("unit"),
   });
   const units = useMemo(() => unitsQuery.data ?? [], [unitsQuery.data]);
 
@@ -332,6 +338,8 @@ function useWizardState() {
     navigated,
     nextStep,
     prevStep,
+    controlMode,
+    setControlMode,
     selectedUnit,
     setSelectedUnit: selectUnit,
     minPower,

@@ -14,9 +14,15 @@ const MAX_SPEED = 420;
  * overshoots by about 5% and settles in ~300 ms. Frames go straight to `onFrame` (write them to the DOM); React
  * renders only when motion starts and stops. With reduced motion the value jumps.
  *
+ * `maxSpeed` (°/s) lowers the speed cap for a slow, demonstrative turn; the spring still brakes softly at the end.
+ *
  * Returns `start`, the value at mount (render with it once and let `onFrame` take over), and `moving`.
  */
-export function useServo(target: number, onFrame: (value: number) => void) {
+export function useServo(
+  target: number,
+  onFrame: (value: number) => void,
+  maxSpeed: number = MAX_SPEED,
+) {
   const state = useRef({ x: target, v: 0, raf: 0, last: 0 });
   const callback = useRef(onFrame);
   const [start] = useState(target);
@@ -46,7 +52,7 @@ export function useServo(target: number, onFrame: (value: number) => void) {
       const dt = Math.min(0.032, (now - s.last) / 1000);
       s.last = now;
       s.v += (STIFFNESS * STIFFNESS * (target - s.x) - 2 * DAMPING * STIFFNESS * s.v) * dt;
-      s.v = Math.max(-MAX_SPEED, Math.min(MAX_SPEED, s.v));
+      s.v = Math.max(-maxSpeed, Math.min(maxSpeed, s.v));
       s.x += s.v * dt;
       if (Math.abs(target - s.x) < 0.05 && Math.abs(s.v) < 0.6) {
         s.x = target;
@@ -60,7 +66,7 @@ export function useServo(target: number, onFrame: (value: number) => void) {
     }
     s.raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(s.raf);
-  }, [target]);
+  }, [target, maxSpeed]);
 
   return { start, moving };
 }

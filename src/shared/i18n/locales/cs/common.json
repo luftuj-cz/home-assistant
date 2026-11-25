@@ -1268,7 +1268,7 @@
       "label": "Vítejte",
       "description": "Začínáme",
       "title": "Pojďme nastavit váš systém",
-      "text": "Nakonfigurujeme připojení k rekuperační jednotce (Modbus) a Home Assistantu (MQTT).",
+      "text": "Nakonfigurujeme připojení k\u00a0rekuperační jednotce (Modbus) a\u00a0Home Assistantu (MQTT).",
       "button": "Spustit nastavení",
       "importButton": "Importovat zálohu",
       "importText": "Přeskočte nastavení obnovením předchozí zálohy.",
@@ -1288,6 +1288,21 @@
         "f": "Fahrenheit (°F)"
       },
       "title": "Jazyk a vzhled"
+    },
+    "control": {
+      "label": "Řízení",
+      "description": "Způsob ovládání",
+      "title": "Jak má LUFTaTOR řídit větrání?",
+      "groupLabel": "Způsob řízení",
+      "schedule": {
+        "title": "Týdenní plánování",
+        "text": "Nastavíte si režimy větrání a\u00a0rozvrhnete je do týdne, třeba silnější větrání ráno a\u00a0večer a\u00a0útlum přes noc. LUFTaTOR pak podle plánu přepíná výkon rekuperační jednotky i\u00a0klapky v\u00a0místnostech. Plán můžete kdykoli upravit na Časové ose."
+      },
+      "automatic": {
+        "title": "Automatické ovládání",
+        "text": "LUFTaTOR sleduje čidla CO₂ v\u00a0místnostech a\u00a0větrá tam, kde je vzduch vydýchaný. Nejdřív přesměruje vzduch otevřením klapek, a\u00a0když to nestačí, zvýší výkon jednotky. V\u00a0každé řízené místnosti je potřeba čidlo CO₂."
+      },
+      "beta": "BETA"
     },
     "modbus": {
       "label": "Modbus",

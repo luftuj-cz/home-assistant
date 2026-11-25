@@ -12,7 +12,7 @@ type StepFrameProps = Omit<
   "step" | "steps" | "onBack" | "focusTitle"
 >;
 
-/** OnboardingLayout with the wizard's step, the six step names and Zpět filled in; a step adds its title and body. */
+/** OnboardingLayout with the wizard's step, the step names and Zpět filled in; a step adds its title and body. */
 export function StepFrame(props: Readonly<StepFrameProps>) {
   const { t } = useTranslation();
   const { currentStep, prevStep, navigated } = useOnboardingWizard();

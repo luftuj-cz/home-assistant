@@ -40,14 +40,10 @@ export function HruDiscoveryStep() {
   const [attempted, setAttempted] = useState(false);
   const [saveFailed, setSaveFailed] = useState(false);
 
+  // No brand groups: every name starts with its brand, and most brands have a single unit, so a heading would only
+  // repeat the name and double the list on a phone.
   const unitOptions = useMemo(
-    () =>
-      units.map((unit) => ({
-        value: unit.id,
-        label: unit.name,
-        // The brand is the first word of the name: Atrea, Brink, Elektrodesign…
-        group: unit.name.split(" ")[0],
-      })),
+    () => units.map((unit) => ({ value: unit.id, label: unit.name })),
     [units],
   );
 

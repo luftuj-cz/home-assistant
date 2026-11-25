@@ -131,6 +131,8 @@ interface DamperModuleProps {
   state?: DamperState;
   /** Width in px; the height follows. */
   size?: number;
+  /** Top speed of the blade in °/s; defaults to the real servo's. Lower it for a slow demonstration. */
+  speed?: number;
   /** `auto`: while moving, 2.4 s after, and on hover. `always` for hero use, `off` for static grids. */
   airflow?: "auto" | "always" | "off";
   /** The luftuj.cz engraving on the servo; on by default from 140px. */
@@ -149,6 +151,7 @@ export function DamperModule({
   angle,
   state,
   size = 120,
+  speed,
   airflow = "auto",
   engraving,
   label,
@@ -170,7 +173,7 @@ export function DamperModule({
     for (const key of BLADE_PARTS) paths.current[key]?.style.setProperty("fill", geometry.fill);
   }
 
-  const { start, moving } = useServo(target, paint);
+  const { start, moving } = useServo(target, paint, speed);
   const [initial] = useState(() => bladeGeometry(start));
   useEffect(() => {
     openness.current = offline ? 0 : bladeGeometry(target).openness;

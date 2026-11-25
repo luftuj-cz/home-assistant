@@ -41,8 +41,8 @@ export function Stepper({ steps, current, compact, className }: Readonly<Stepper
             />
           ))}
         </div>
-        <p className="caption m-0 text-muted-foreground">
-          <span className="legend inline">
+        <p className="caption m-0 text-[13px] leading-[18px] text-muted-foreground">
+          <span className="legend inline text-[12px] leading-[16px]">
             {t("onboarding.step", { current: current + 1, total: steps.length })}
           </span>
           {" · "}
@@ -55,10 +55,9 @@ export function Stepper({ steps, current, compact, className }: Readonly<Stepper
   return (
     <ol
       data-slot="stepper"
-      className={cn(
-        "m-0 grid list-none grid-cols-[repeat(auto-fit,minmax(110px,1fr))] gap-2 p-0",
-        className,
-      )}
+      // One column per step, so the last one never wraps to a row of its own; narrow screens use `compact`.
+      style={{ gridTemplateColumns: `repeat(${steps.length}, minmax(0, 1fr))` }}
+      className={cn("m-0 grid list-none gap-2 p-0", className)}
     >
       {steps.map((step, index) => {
         const done = index < current;
@@ -68,7 +67,7 @@ export function Stepper({ steps, current, compact, className }: Readonly<Stepper
             key={step.label}
             aria-current={isCurrent ? "step" : undefined}
             className={cn(
-              "grid gap-3 border-t-2 border-border pt-3 transition-[border-color] duration-(--duration-base)",
+              "grid content-start gap-3 border-t-2 border-border pt-3 transition-[border-color] duration-(--duration-base)",
               done && "border-air",
               isCurrent && "border-foreground",
             )}

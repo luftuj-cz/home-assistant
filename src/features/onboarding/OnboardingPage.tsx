@@ -2,6 +2,7 @@ import {
   OnboardingWizard,
   useOnboardingWizard,
 } from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
+import { ControlStep } from "@luftuj/features/onboarding/steps/ControlStep";
 import { HruDiscoveryStep } from "@luftuj/features/onboarding/steps/HruDiscoveryStep";
 import { ModbusStep } from "@luftuj/features/onboarding/steps/ModbusStep";
 import { MqttStep } from "@luftuj/features/onboarding/steps/MqttStep";
@@ -12,6 +13,7 @@ import { WelcomeStep } from "@luftuj/features/onboarding/steps/WelcomeStep";
 const STEP_COMPONENTS = [
   WelcomeStep,
   PreferencesStep,
+  ControlStep,
   HruDiscoveryStep,
   MqttStep,
   ModbusStep,

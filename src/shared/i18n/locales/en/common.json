@@ -1269,6 +1269,21 @@
       },
       "title": "Language and appearance"
     },
+    "control": {
+      "label": "Control",
+      "description": "How it runs",
+      "title": "How should LUFTaTOR control the ventilation?",
+      "groupLabel": "Control method",
+      "schedule": {
+        "title": "Weekly schedule",
+        "text": "You set up ventilation modes and arrange them over the week, for example stronger ventilation in the morning and evening and a low setting at night. LUFTaTOR then switches the unit's power and the room dampers according to the plan. You can change the plan at any time on the Timeline."
+      },
+      "automatic": {
+        "title": "Automatic control",
+        "text": "LUFTaTOR watches the CO₂ sensors in the rooms and ventilates where the air is stale. It first redirects air by opening dampers, and only when that is not enough does it raise the unit's power. Every controlled room needs a CO₂ sensor."
+      },
+      "beta": "BETA"
+    },
     "modbus": {
       "label": "Modbus",
       "description": "Connect unit",
