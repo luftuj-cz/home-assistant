@@ -42,6 +42,11 @@ function sensorText(sensor: SensorStatus, t: TFunction): string {
   return `${value}: ${Math.round(sensor.ppm)} ppm${age}`;
 }
 
+/** Engine power on the 0–10 scale, to one decimal ("3.3"). */
+function power(value: number): string {
+  return String(Math.round(value * 10) / 10);
+}
+
 function ppm(value: number | null): string {
   return value === null ? "—" : `${Math.round(value)}`;
 }
@@ -131,7 +136,7 @@ export function StatusCard() {
               <dt className="legend">{t("automatic.status.power")}</dt>
               <dd className="m-0 tabular-nums">
                 {status.power
-                  ? `${status.power.before} → ${status.power.after} / ${status.power.max}`
+                  ? `${power(status.power.before)} → ${power(status.power.after)} / ${power(status.power.max)}`
                   : "—"}
                 {unit && (
                   <span className="caption block text-muted-foreground">
