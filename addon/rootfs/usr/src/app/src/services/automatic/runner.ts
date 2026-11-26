@@ -43,6 +43,8 @@ export interface RunnerHru {
 
 export interface RunnerSensors {
   get(entityId: string): HassState | null | undefined;
+  /** When the value last changed, in ms, when the store tracks it. */
+  changedAt?(entityId: string, attribute: string | null): number | undefined;
 }
 
 export interface RunnerDeps {
@@ -279,6 +281,7 @@ export class AutomaticRunner {
           source.attribute,
           now.getTime(),
           maxAge,
+          this.deps.sensors.changedAt?.(source.entityId, source.attribute),
         );
         const sensor = setup.sensors.get(source.entityId);
         if (sensor) sensor.co2 = reading.ppm;

@@ -7,17 +7,18 @@ export interface Reading {
   /** CO2 in ppm, or null when the source gives no reading. */
   ppm: number | null;
   problem?: ReadingProblem;
-  /** Seconds since Home Assistant last heard from the sensor, when known. */
+  /** Seconds since the value last changed, when known. */
   ageSeconds?: number;
 }
 
-export const DEFAULT_MAX_READING_AGE_SECONDS = 1800;
+/** A value unchanged this long counts as a frozen sensor. Long, so a calm room with a steady sensor still counts. */
+export const DEFAULT_MAX_READING_AGE_SECONDS = 7200;
 
 const UNAVAILABLE_STATES = new Set(["unavailable", "unknown"]);
 
-/** When Home Assistant last heard from the sensor: `last_reported` (2024.3+), else `last_updated`. */
-function reportedAt(state: HassState): number | null {
-  const stamp = state.last_reported ?? state.last_updated;
+/** Home Assistant's own time of the last change, for a caller that does not track changes itself. */
+function haChangedAt(state: HassState, attribute: string | null): number | null {
+  const stamp = attribute ? state.last_updated : (state.last_changed ?? state.last_updated);
   if (!stamp) return null;
   const parsed = Date.parse(stamp);
   return Number.isFinite(parsed) ? parsed : null;
@@ -26,18 +27,20 @@ function reportedAt(state: HassState): number | null {
 /**
  * Turns a Home Assistant state into a CO2 reading. The value is the state, or `attribute` when set. Any sensor
  * works: no device class is required. There is no upper limit, because the engine reads a sensor stuck at its
- * ceiling as "ventilate".
+ * ceiling as "ventilate". The age is the time since the value last changed: `changedAtMs` when the caller tracks
+ * it (the sensor store does), else Home Assistant's change time.
  */
 export function readingFrom(
   state: HassState | null | undefined,
   attribute: string | null,
   nowMs: number,
   maxAgeSeconds: number = DEFAULT_MAX_READING_AGE_SECONDS,
+  changedAtMs?: number,
 ): Reading {
   if (!state) return { ppm: null, problem: "missing" };
   if (UNAVAILABLE_STATES.has(state.state)) return { ppm: null, problem: "unavailable" };
 
-  const at = reportedAt(state);
+  const at = changedAtMs ?? haChangedAt(state, attribute);
   const ageSeconds = at === null ? undefined : Math.max(0, (nowMs - at) / 1000);
 
   const raw = attribute ? state.attributes?.[attribute] : state.state;

@@ -23,6 +23,14 @@ function stateBadge(status: AutomaticStatus, t: TFunction) {
   return <Badge variant="success">{t("automatic.status.running")}</Badge>;
 }
 
+/** "45 s", "12 min", "2 h 5 min". */
+function formatAge(seconds: number): string {
+  if (seconds < 120) return `${seconds} s`;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 120) return `${minutes} min`;
+  return `${Math.floor(minutes / 60)} h ${minutes % 60} min`;
+}
+
 function sensorText(sensor: SensorStatus, t: TFunction): string {
   const value = sensor.attribute ? `${sensor.entityId} · ${sensor.attribute}` : sensor.entityId;
   if (sensor.problem) return `${value}: ${t(`automatic.problems.${sensor.problem}`)}`;
@@ -30,7 +38,7 @@ function sensorText(sensor: SensorStatus, t: TFunction): string {
   const age =
     sensor.ageSeconds === null
       ? ""
-      : ` · ${t("automatic.status.age", { seconds: sensor.ageSeconds })}`;
+      : ` · ${t("automatic.status.age", { age: formatAge(sensor.ageSeconds) })}`;
   return `${value}: ${Math.round(sensor.ppm)} ppm${age}`;
 }
 

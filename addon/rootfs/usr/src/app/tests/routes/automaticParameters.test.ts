@@ -42,7 +42,7 @@ describe("automatic control parameters API", () => {
     expect(result.body).toMatchObject({
       overrides: {},
       problems: [],
-      maxReadingAgeSeconds: 1800,
+      maxReadingAgeSeconds: 7200,
       values: { th1: 800, hruMinPower: 2 },
     });
   });
@@ -89,6 +89,6 @@ describe("automatic control parameters API", () => {
       overrides: {},
       maxReadingAgeSeconds: null,
     });
-    expect(reset.body).toMatchObject({ overrides: {}, maxReadingAgeSeconds: 1800 });
+    expect(reset.body).toMatchObject({ overrides: {}, maxReadingAgeSeconds: 7200 });
   });
 });

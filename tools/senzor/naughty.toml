@@ -4,12 +4,12 @@
 #
 # | device               | what it does                                   | expected in LUFTaTOR            |
 # | -------------------- | ---------------------------------------------- | ------------------------------- |
-# | sim_bez_dostupnosti  | no availability; Stop it and HA keeps the value | `stale` after the age limit     |
-# | sim_stale_stejne     | always 760 ppm (HA only fires state_reported)  | a reading; age from last report |
+# | sim_bez_dostupnosti  | no availability; Stop it and HA keeps the value | `stale` 2 h after the last change |
+# | sim_stale_stejne     | always 760 ppm (HA drops the repeats)          | `stale` 2 h after the start      |
 # | sim_restart          | 820, 830, then 0 and 65535 as after a restart  | 0 → `notNumber`; 65535 is read  |
 # | sim_spatna_jednotka  | humidity-like value with unit %                | `wrongUnit`                     |
 # | sim_text             | now and then "err" instead of a number         | `notNumber` on "err"            |
-# | sim_pomaly           | reports every 5 minutes                        | a reading, never `stale` (30 m) |
+# | sim_pomaly           | reports every 5 minutes                        | a reading while the value moves |
 # | sim_vypadek          | availability with Last Will; Kill it           | `unavailable` at once           |
 #
 # Run: SENZOR_MQTT_PASSWORD=… senzor tools/senzor/naughty.toml

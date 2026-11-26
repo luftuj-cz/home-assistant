@@ -238,4 +238,17 @@ describe("AutomaticRunner", () => {
     expect(runner.status().branch).not.toBe("th2");
     expect(h.journal).toHaveBeenCalledWith("stop", { source: "boost" }, expect.any(Date));
   });
+
+  it("treats a value unchanged longer than the limit as no reading", async () => {
+    const h = house({ rooms: twoRooms });
+    h.co2.set("sensor.obyvak_co2", 700);
+    h.co2.set("sensor.loznice_co2", 650);
+    const frozenSince = Date.parse("2026-11-26T08:00:00");
+    const runner = new runnerModule.AutomaticRunner({
+      ...h.deps,
+      sensors: { ...h.deps.sensors, changedAt: () => frozenSince },
+    });
+    expect(await runner.tick()).toBe("noReadings");
+    expect(runner.status().rooms[0]!.sensors[0]).toMatchObject({ problem: "stale" });
+  });
 });

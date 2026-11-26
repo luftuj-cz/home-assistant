@@ -191,14 +191,15 @@ export function ParametersCard() {
           />
           <Field
             label={t("automatic.parameters.fields.maxReadingAge")}
-            description={t("automatic.parameters.default", {
-              value: String(Math.round(data.defaultMaxReadingAgeSeconds / 60)),
-            })}
+            description={`${t("automatic.parameters.maxReadingAgeHelp")} ${t(
+              "automatic.parameters.default",
+              { value: String(Math.round(data.defaultMaxReadingAgeSeconds / 60)) },
+            )} min`}
           >
             <NumberInput
               value={maxAgeMinutes}
               unit="min"
-              step={5}
+              step={15}
               min={1}
               onValueChange={setMaxAgeMinutes}
             />

@@ -1405,14 +1405,14 @@
       "valves": "Valves",
       "sensors": "Sensors",
       "cooldown": "waiting before acting again",
-      "age": "{{seconds}} s ago"
+      "age": "changed {{age}} ago"
     },
     "problems": {
       "missing": "Home Assistant does not know the entity",
       "unavailable": "unavailable",
       "notNumber": "not a number",
       "wrongUnit": "unit other than ppm",
-      "stale": "value too old"
+      "stale": "value unchanged for too long"
     },
     "conditions": {
       "belowTh1": "below TH1",
@@ -1519,8 +1519,9 @@
         "dayStart": "Day from",
         "dayEnd": "Day until",
         "fluctuationEnabled": "People moving around",
-        "maxReadingAge": "A sensor value is valid for"
-      }
+        "maxReadingAge": "Sensor unchanged for at most"
+      },
+      "maxReadingAgeHelp": "A value unchanged for this long counts as a frozen sensor."
     },
     "journal": {
       "legend": "Journal",

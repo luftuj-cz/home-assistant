@@ -14,8 +14,8 @@ function state(
     entity_id: "sensor.x",
     state: value,
     attributes,
+    last_changed: at,
     last_updated: at,
-    last_reported: at,
   };
 }
 
@@ -69,26 +69,29 @@ describe("readingFrom", () => {
     expect(readingFrom(state("65535", { unit_of_measurement: "ppm" }), null, NOW).ppm).toBe(65535);
   });
 
-  it("gives no reading for a value older than the limit", () => {
-    expect(readingFrom(state("900", {}, 31 * 60), null, NOW)).toMatchObject({
+  it("gives no reading for a value unchanged longer than the limit (a frozen sensor)", () => {
+    expect(readingFrom(state("900", {}, 121 * 60), null, NOW)).toMatchObject({
       ppm: null,
       problem: "stale",
     });
-    expect(readingFrom(state("900", {}, 31 * 60), null, NOW, 3600).ppm).toBe(900);
+    expect(readingFrom(state("900", {}, 119 * 60), null, NOW).ppm).toBe(900);
+    expect(readingFrom(state("900", {}, 31 * 60), null, NOW, 1800).problem).toBe("stale");
   });
 
-  it("measures the age from last_reported, falling back to last_updated", () => {
-    const old = new Date(NOW - 40 * 60_000).toISOString();
-    const recent = new Date(NOW - 60_000).toISOString();
-    const reported: HassState = {
+  it("measures the age from the caller's change time, else Home Assistant's", () => {
+    const old = new Date(NOW - 3 * 3600_000).toISOString();
+    const steady: HassState = {
       entity_id: "sensor.x",
       state: "800",
-      attributes: {},
-      last_updated: old,
-      last_reported: recent,
+      attributes: { co2: 800 },
+      last_changed: old,
+      last_updated: new Date(NOW - 60_000).toISOString(),
+      // Ignored: Home Assistant does not move it for a repeated MQTT value, and repeats prove nothing anyway.
+      last_reported: new Date(NOW).toISOString(),
     };
-    expect(readingFrom(reported, null, NOW).ppm).toBe(800);
-    const { last_reported: _ignored, ...withoutReported } = reported;
-    expect(readingFrom(withoutReported, null, NOW).problem).toBe("stale");
+    expect(readingFrom(steady, null, NOW).problem).toBe("stale");
+    expect(readingFrom(steady, null, NOW, undefined, NOW - 60_000).ppm).toBe(800);
+    // An attribute counts from the entity's last update.
+    expect(readingFrom(steady, "co2", NOW).ppm).toBe(800);
   });
 });

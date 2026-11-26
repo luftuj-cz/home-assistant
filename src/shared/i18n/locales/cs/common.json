@@ -1427,14 +1427,14 @@
       "valves": "Klapky",
       "sensors": "Čidla",
       "cooldown": "čeká, než znovu zasáhne",
-      "age": "před {{seconds}} s"
+      "age": "změna před {{age}}"
     },
     "problems": {
       "missing": "Home Assistant entitu nezná",
       "unavailable": "nedostupné",
       "notNumber": "není číslo",
       "wrongUnit": "jiná jednotka než ppm",
-      "stale": "hodnota je stará"
+      "stale": "hodnota se dlouho nezměnila"
     },
     "conditions": {
       "belowTh1": "pod TH1",
@@ -1541,8 +1541,9 @@
         "dayStart": "Den od",
         "dayEnd": "Den do",
         "fluctuationEnabled": "Pohyb osob po domě",
-        "maxReadingAge": "Hodnota čidla platí nejdéle"
-      }
+        "maxReadingAge": "Čidlo beze změny nejdéle"
+      },
+      "maxReadingAgeHelp": "Hodnota, která se tak dlouho nezměnila, se bere jako zamrzlé čidlo."
     },
     "journal": {
       "legend": "Deník",
