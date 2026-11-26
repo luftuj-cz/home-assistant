@@ -33,6 +33,8 @@ import { seasonLabel } from "@luftuj/shared/utils/seasonLabel";
 const MIN_DAYS = 7;
 /** Keyboard and typed changes are saved after this pause, so holding an arrow key sends one request. */
 const COMMIT_DELAY = 700;
+/** Room a segment leaves beside a boundary: the 10px gap between two segments holds the handle's 4px grip. */
+const HANDLE_CLEARANCE = 5;
 
 type Starts = Partial<Record<SeasonKey, number>>;
 
@@ -209,9 +211,12 @@ export function SeasonEditor({
 
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
-      <div ref={barRef} className="relative mt-[18px] h-[66px] touch-none select-none">
+      <div ref={barRef} className="relative mt-[22px] h-[66px] touch-none select-none">
         {pieces.map(({ season, from, length }, index) => {
           const active = season.id === activeSeasonId;
+          // Clear of the handles: one on every boundary between segments, none at the band's two ends.
+          const insetStart = index > 0 ? HANDLE_CLEARANCE : 0;
+          const insetEnd = index < pieces.length - 1 ? HANDLE_CLEARANCE : 0;
           const start = monthDayOf((from + origin) % YEAR_DAYS);
           const end = monthDayOf((from + length - 1 + origin) % YEAR_DAYS);
           return (
@@ -219,13 +224,15 @@ export function SeasonEditor({
               key={season.id}
               style={
                 {
-                  left: `calc(${(from / YEAR_DAYS) * 100}% + 3px)`,
-                  width: `calc(${(length / YEAR_DAYS) * 100}% - 6px)`,
+                  left: `calc(${(from / YEAR_DAYS) * 100}% + ${insetStart}px)`,
+                  width: `calc(${(length / YEAR_DAYS) * 100}% - ${insetStart + insetEnd}px)`,
                   "--sc": `var(--season-${season.seasonKey})`,
                 } as CSSProperties
               }
               className={cn(
                 "absolute inset-y-0 flex min-w-0 flex-col justify-center gap-0.5 overflow-hidden rounded-lg px-3 pb-1.5",
+                // A dragged boundary glides the neighbouring segments instead of snapping them day by day.
+                "transition-[left,width] duration-(--duration-fast)",
                 "bg-[color-mix(in_oklab,var(--sc)_12%,var(--muted))]",
                 "after:absolute after:inset-x-0 after:bottom-0 after:h-[5px] after:bg-(--sc)",
                 active && "shadow-[inset_0_0_0_1.5px_var(--sc)]",
@@ -272,19 +279,43 @@ export function SeasonEditor({
                 onStartChange(season.seasonKey, monthDayOf(day));
               }}
               onPointerCancel={() => setDragging(null)}
+              data-drag={held || undefined}
               style={{ left: `${(from / YEAR_DAYS) * 100}%` }}
               className={cn(
-                "absolute -inset-y-1 z-2 -ml-[5px] w-2.5 cursor-ew-resize touch-none rounded-full",
-                "before:absolute before:inset-y-0 before:left-1/2 before:w-1 before:-translate-x-1/2 before:rounded-full before:bg-foreground before:shadow-[0_0_0_2px_var(--card)]",
-                "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring",
+                // A 24px grab area over the whole bar height, centred on the boundary; the visible grip is the <i>.
+                "group/handle absolute inset-y-0 z-2 -ml-3 grid w-6 cursor-ew-resize touch-none place-items-center outline-none",
                 "aria-disabled:cursor-default aria-disabled:opacity-50",
               )}
             >
-              {held && (
-                <span className="absolute bottom-[calc(100%+6px)] left-1/2 -translate-x-1/2 rounded-sm bg-popover px-2 py-0.5 font-mono text-[11px] whitespace-nowrap text-foreground shadow-float">
-                  {date}
-                </span>
-              )}
+              {/* A small muted grip in the gap between two segments. On hover (pointer devices only), keyboard
+                  focus and drag it grows and turns air. */}
+              <i
+                aria-hidden="true"
+                className={cn(
+                  "block h-6 w-1 rounded-full bg-muted-foreground",
+                  "transition-[height,background-color] duration-(--duration-fast) ease-(--ease-spring)",
+                  "group-hover/handle:h-10 group-hover/handle:bg-air",
+                  "group-focus-visible/handle:h-10 group-focus-visible/handle:bg-air",
+                  "group-focus-visible/handle:shadow-[0_0_0_2px_var(--card),0_0_0_4px_var(--ring)]",
+                  "group-data-drag/handle:h-10 group-data-drag/handle:bg-air",
+                  "group-aria-disabled/handle:h-6 group-aria-disabled/handle:bg-muted-foreground",
+                )}
+              />
+              {/* The date rises into view with the same states; the slider's aria-valuetext says it already. */}
+              <b
+                aria-hidden="true"
+                className={cn(
+                  "pointer-events-none absolute -top-[22px] translate-y-1 rounded-[4px] bg-foreground px-1.5 py-px",
+                  "text-[11px] leading-4 font-medium whitespace-nowrap text-background opacity-0",
+                  "transition-[opacity,translate] duration-(--duration-fast)",
+                  "group-hover/handle:translate-y-0 group-hover/handle:opacity-100",
+                  "group-focus-visible/handle:translate-y-0 group-focus-visible/handle:opacity-100",
+                  "group-data-drag/handle:translate-y-0 group-data-drag/handle:opacity-100",
+                  "group-aria-disabled/handle:opacity-0",
+                )}
+              >
+                {date}
+              </b>
             </div>
           );
         })}
