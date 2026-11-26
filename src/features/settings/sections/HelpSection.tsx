@@ -1,16 +1,46 @@
-import { IconDownload, IconHelpCircle } from "@tabler/icons-react";
+import { IconBook, IconDownload, IconFileZip, IconHelpCircle, IconMail } from "@tabler/icons-react";
+import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { SettingsSection } from "@luftuj/features/settings/components/SettingsSection";
 import { useDownloadBugReport } from "@luftuj/features/settings/hooks/useDownloadBugReport";
 import { Button } from "@luftuj/shared/ui/button";
+import { ICON_STROKE, type IconComponent } from "@luftuj/shared/ui/icon-types";
+import { IconModbus } from "@luftuj/shared/ui/icons";
 import { TextLink } from "@luftuj/shared/ui/text-link";
-import { Well } from "@luftuj/shared/ui/well";
 
 const LUFTATOR_WEBSITE_URL = "https://www.luftator.eu";
 const HRU_DOCUMENTATION_URL = "https://www.luftator.eu/docs/rekuperacni-jednotky";
+const SUPPORT_EMAIL = "info@luftuj.cz";
 
-/** Nápověda: the website, the bug-report download, common mistakes and the contact, as wells. */
+interface HelpRowProps {
+  icon: IconComponent;
+  title: string;
+  description: string;
+  action: ReactNode;
+}
+
+/** One way to get help, laid out like a row of Služby on Přehled: icon tile, title and line, the action at the end. */
+function HelpRow({ icon: Icon, title, description, action }: Readonly<HelpRowProps>) {
+  return (
+    <li className="flex items-center gap-3 border-t border-border py-3 first:border-t-0 first:pt-0 last:pb-0 @max-[520px]:flex-wrap">
+      <span className="grid size-9 flex-none place-items-center rounded-md bg-muted text-muted-foreground">
+        <Icon size={20} stroke={ICON_STROKE} aria-hidden />
+      </span>
+      <div className="grid min-w-0 flex-1 gap-0.5">
+        <p className="label">{title}</p>
+        <p className="caption text-muted-foreground">{description}</p>
+      </div>
+      {/* Narrow section: under the text, in line with it (past the 36px tile and its 12px gap). */}
+      <div className="flex-none @max-[520px]:w-full @max-[520px]:pl-12">{action}</div>
+    </li>
+  );
+}
+
+/**
+ * Nápověda: where to find help (documentation, the unit guide, the data for support, the e-mail) as rows like the
+ * Služby card on Přehled.
+ */
 export function HelpSection() {
   const { t } = useTranslation();
   const { download, loading } = useDownloadBugReport();
@@ -23,46 +53,50 @@ export function HelpSection() {
       title={t("settings.help.title")}
       description={t("settings.help.description")}
     >
-      <div className="grid grid-cols-2 gap-4 @max-[520px]:grid-cols-[minmax(0,1fr)]">
-        <Well legend={t("settings.help.website.title")} className="content-start gap-3">
-          <p className="body">{t("settings.help.website.description")}</p>
-          <TextLink href={LUFTATOR_WEBSITE_URL} external className="justify-self-start">
-            {t("settings.help.website.link")}
-          </TextLink>
-        </Well>
-        <Well legend={t("settings.help.bugReport.title")} className="content-start gap-3">
-          <p className="body">{t("settings.help.bugReport.description")}</p>
-          <Button
-            variant="secondary"
-            icon={IconDownload}
-            loading={loading}
-            onClick={() => void download()}
-            className="justify-self-start"
-          >
-            {t("settings.help.bugReport.download")}
-          </Button>
-        </Well>
-      </div>
-      <Well legend={t("settings.help.commonMistakes.title")}>
-        <ul className="body m-0 grid list-disc gap-2 pl-5">
-          <li>{t("settings.help.commonMistakes.mqttCredentials")}</li>
-          <li>
-            {t("settings.help.commonMistakes.modbusConnection.prefix")}{" "}
-            <TextLink href={HRU_DOCUMENTATION_URL} external>
-              {t("settings.help.commonMistakes.modbusConnection.link")}
+      <ul className="m-0 flex list-none flex-col p-0">
+        <HelpRow
+          icon={IconBook}
+          title={t("settings.help.docs.title")}
+          description={t("settings.help.docs.description")}
+          action={
+            <TextLink href={LUFTATOR_WEBSITE_URL} external>
+              {t("settings.help.docs.link")}
             </TextLink>
-          </li>
-        </ul>
-      </Well>
-      <Well
-        legend={t("settings.help.contact.title")}
-        className="max-w-[calc(50%-8px)] @max-[520px]:max-w-none"
-      >
-        <p className="body">
-          {t("settings.help.contact.prefix")}{" "}
-          <TextLink href="mailto:info@luftuj.cz">info@luftuj.cz</TextLink>
-        </p>
-      </Well>
+          }
+        />
+        <HelpRow
+          icon={IconModbus}
+          title={t("settings.help.hruDocs.title")}
+          description={t("settings.help.hruDocs.description")}
+          action={
+            <TextLink href={HRU_DOCUMENTATION_URL} external>
+              {t("settings.help.hruDocs.link")}
+            </TextLink>
+          }
+        />
+        <HelpRow
+          icon={IconFileZip}
+          title={t("settings.help.bugReport.title")}
+          description={t("settings.help.bugReport.description")}
+          action={
+            <Button
+              variant="secondary"
+              size="sm"
+              icon={IconDownload}
+              loading={loading}
+              onClick={() => void download()}
+            >
+              {t("settings.help.bugReport.download")}
+            </Button>
+          }
+        />
+        <HelpRow
+          icon={IconMail}
+          title={t("settings.help.contact.title")}
+          description={t("settings.help.contact.description")}
+          action={<TextLink href={`mailto:${SUPPORT_EMAIL}`}>{SUPPORT_EMAIL}</TextLink>}
+        />
+      </ul>
     </SettingsSection>
   );
 }

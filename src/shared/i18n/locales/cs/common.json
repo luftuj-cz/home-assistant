@@ -593,33 +593,30 @@
     },
     "help": {
       "title": "Nápověda",
-      "website": {
-        "title": "Web LUFTaTOR",
-        "description": "Najdete zde instalační návody, dokumentaci a aktuální informace o systému LUFTaTOR.",
-        "link": "Otevřít luftator.eu"
+      "description": "Dokumentace, data pro podporu a kontakt",
+      "docs": {
+        "title": "Dokumentace",
+        "description": "Instalační návody, popis funkcí a novinky o systému LUFTaTOR.",
+        "link": "luftator.eu"
       },
-      "commonMistakes": {
-        "title": "Časté chyby",
-        "mqttCredentials": "Pokud se vám nedaří nastavit MQTT, ověřte, že máte v Mosquitto brokeru nastavené uživatelské jméno a heslo.",
-        "modbusConnection": {
-          "prefix": "Pokud se vám nedaří připojit rekuperační jednotku přes Modbus, před kontaktováním podpory nejdříve nahlédněte do dokumentace:",
-          "link": "Rekuperační jednotky"
-        }
-      },
-      "contact": {
-        "prefix": "Pokud v dokumentaci nenajdete odpověď na svou otázku, kontaktujte nás na:",
-        "title": "Kontakt"
+      "hruDocs": {
+        "title": "Rekuperační jednotky",
+        "description": "Jak připojit jednotku přes Modbus a co nastavit na její straně.",
+        "link": "Otevřít návod"
       },
       "bugReport": {
-        "title": "Data pro hlášení chyby",
-        "description": "Stáhněte jeden ZIP soubor s logy a diagnostikou. Přiložte ho, když nás kontaktujete, abychom vám mohli rychleji pomoci. Hesla a tokeny jsou automaticky odstraněny.",
-        "download": "Stáhnout data pro hlášení chyby",
+        "title": "Data pro podporu",
+        "description": "Jeden ZIP s logy a diagnostikou. Hesla a tokeny se z něj odstraní.",
+        "download": "Stáhnout ZIP",
         "successTitle": "Data připravena",
         "successMessage": "Soubor s daty pro hlášení chyby byl stažen. Přiložte ho ke zprávě pro podporu.",
         "errorTitle": "Stažení selhalo",
         "errorMessage": "Data pro hlášení chyby se nepodařilo vytvořit. Zkuste to prosím znovu."
       },
-      "description": "Dokumentace, časté chyby, data pro podporu"
+      "contact": {
+        "title": "Napište nám",
+        "description": "Nenašli jste odpověď? Přiložte k e-mailu data pro podporu."
+      }
     },
     "developer": {
       "title": "Vývojářské nastavení",

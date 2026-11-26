@@ -653,33 +653,30 @@
     },
     "help": {
       "title": "Help",
-      "website": {
-        "title": "LUFTaTOR website",
-        "description": "Find installation guides, documentation and the latest information about LUFTaTOR.",
-        "link": "Open luftator.eu"
+      "description": "Documentation, data for support and contact",
+      "docs": {
+        "title": "Documentation",
+        "description": "Installation guides, a description of every feature and news about LUFTaTOR.",
+        "link": "luftator.eu"
       },
-      "commonMistakes": {
-        "title": "Common mistakes",
-        "mqttCredentials": "If you cannot configure MQTT, make sure that a username and password have been set up in the Mosquitto broker.",
-        "modbusConnection": {
-          "prefix": "If you cannot connect your heat recovery unit through Modbus, check the documentation before contacting support:",
-          "link": "HRU documentation"
-        }
-      },
-      "contact": {
-        "prefix": "If you cannot find an answer to your question in the documentation, contact us at:",
-        "title": "Contact"
+      "hruDocs": {
+        "title": "Heat recovery units",
+        "description": "How to connect your unit over Modbus and what to set on its side.",
+        "link": "Open the guide"
       },
       "bugReport": {
-        "title": "Bug report data",
-        "description": "Download a single ZIP file with logs and diagnostics. Attach it when you contact us so we can help you faster. Passwords and tokens are removed automatically.",
-        "download": "Download bug report",
+        "title": "Data for support",
+        "description": "One ZIP with logs and diagnostics. Passwords and tokens are removed from it.",
+        "download": "Download ZIP",
         "successTitle": "Bug report ready",
         "successMessage": "The bug report file was downloaded. Attach it to your message to support.",
         "errorTitle": "Download failed",
         "errorMessage": "Could not generate the bug report. Please try again."
       },
-      "description": "Documentation, common mistakes, data for support"
+      "contact": {
+        "title": "Write to us",
+        "description": "Didn't find an answer? Attach the data for support to your e-mail."
+      }
     },
     "developer": {
       "title": "Developer settings",
