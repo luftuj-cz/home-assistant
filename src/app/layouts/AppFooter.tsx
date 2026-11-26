@@ -30,18 +30,24 @@ export function AppFooter() {
       className="border-t border-border font-sans text-sm leading-5 max-md:hidden"
     >
       <div className="mx-auto grid max-w-[1328px] grid-cols-3 gap-6 px-6 pt-8 pb-6">
-        <a href={companyLink} target="_blank" rel="noopener noreferrer" className="w-fit">
+        {/* A little shorter than the contact and address columns beside it, centred on them; the SVG has no margins. */}
+        <a
+          href={companyLink}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-fit self-center"
+        >
           <img
             src={logoFullLight}
             alt={t("app.footer.company")}
-            height={36}
-            className="h-9 w-auto dark:hidden"
+            height={50}
+            className="h-[50px] w-auto dark:hidden"
           />
           <img
             src={logoFullDark}
             alt={t("app.footer.company")}
-            height={36}
-            className="hidden h-9 w-auto dark:block"
+            height={50}
+            className="hidden h-[50px] w-auto dark:block"
           />
         </a>
         <div className="grid content-start gap-1">
