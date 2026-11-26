@@ -237,6 +237,7 @@
   "valves": {
     "title": "LUFTaTOR Zones",
     "description": "Control LUFTaTOR valve actuators across each room.",
+    "refresh": "Refresh",
     "refreshAria": "Refresh valves",
     "errors": {
       "load": "Failed to load valves: {{message}}",

@@ -139,9 +139,10 @@ export function useValveStates() {
     }
   }, []);
 
+  // `loading` is only the first load (skeletons); a later refresh keeps the cards and swaps the values in place,
+  // so the page does not blink.
   const fetchSnapshot = useCallback(async () => {
     try {
-      setLoading(true);
       const url = resolveApiUrl("/api/valves");
       logger.debug("Requesting valve snapshot via REST", { url });
       const response = await logger.timeAsync("valves.fetchSnapshot", async () => fetch(url));

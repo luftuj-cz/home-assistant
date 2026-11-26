@@ -21,11 +21,14 @@ import { IconDamper } from "@luftuj/shared/ui/icons";
 import { PageHeader } from "@luftuj/shared/ui/page-header";
 import { Skeleton } from "@luftuj/shared/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@luftuj/shared/ui/tooltip";
+import { cn } from "@luftuj/shared/utils/cn";
 import { createLogger } from "@luftuj/shared/utils/logger";
 
 const logger = createLogger("ValvesPage");
 
 const UNGROUPED = "ungrouped";
+/** One turn of animate-spin (`--animate-spin` in globals.css). */
+const SPIN_MS = 900;
 
 /**
  * Klapky: one ValveGroup per saved group (reorder by its grip, ↑ ↓ too), then the dampers without a group. Values
@@ -48,6 +51,7 @@ export function ValvesPage() {
   const { groups, refetch: refetchGroups, saveOrder } = useValveGroups();
   const { isCollapsed, setGroupCollapsed } = useCollapsedGroups();
   const [managerOpen, setManagerOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const { orderedItems, sensors, handleDragEnd, move } = useSortableReorder(
     groups,
     (group) => group.id,
@@ -72,6 +76,21 @@ export function ValvesPage() {
     if (!group || !neighbour) return;
     move(orderedItems.indexOf(group), orderedItems.indexOf(neighbour), saveOrder);
     announcer.announceMove(group, index + delta);
+  }
+
+  // The refresh icon turns while the snapshot loads and stops on a whole turn, so it never jumps back.
+  async function refreshNow() {
+    if (refreshing) return;
+    setRefreshing(true);
+    const started = performance.now();
+    try {
+      await refresh();
+    } finally {
+      const elapsed = performance.now() - started;
+      const rest = Math.ceil(Math.max(elapsed, 1) / SPIN_MS) * SPIN_MS - elapsed;
+      await new Promise((resolve) => setTimeout(resolve, rest));
+      setRefreshing(false);
+    }
   }
 
   async function bulkCommit(groupId: number, value: number) {
@@ -180,13 +199,21 @@ export function ValvesPage() {
             </Button>
             <Tooltip>
               <TooltipTrigger asChild>
+                {/* Phones: icon and label, half the row beside Spravovat skupiny. Wider: the square icon
+                    button with its tooltip; the label stays for screen readers. */}
                 <Button
                   variant="secondary"
-                  size="icon"
                   icon={IconRefresh}
                   aria-label={t("valves.refreshAria")}
-                  onClick={() => void refresh()}
-                />
+                  aria-busy={refreshing || undefined}
+                  className={cn(
+                    "md:size-10 md:p-0",
+                    refreshing && "[&_svg]:animate-spin motion-reduce:[&_svg]:animate-none",
+                  )}
+                  onClick={() => void refreshNow()}
+                >
+                  <span className="md:sr-only">{t("valves.refresh")}</span>
+                </Button>
               </TooltipTrigger>
               <TooltipContent>{t("valves.refreshAria")}</TooltipContent>
             </Tooltip>

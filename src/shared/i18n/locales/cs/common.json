@@ -1138,6 +1138,7 @@
   "valves": {
     "title": "Zóny LUFTaTORu",
     "description": "Ovládejte servopohony ventilů LUFTaTORu v jednotlivých místnostech.",
+    "refresh": "Obnovit",
     "refreshAria": "Obnovit klapky",
     "status": {
       "open": "OTEVŘENO",
