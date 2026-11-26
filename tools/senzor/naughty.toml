@@ -1,16 +1,18 @@
 #:schema https://senzor.kankaj.cz/schema/project.json
-# Sensors that misbehave, one problem each, for the CO2 reading rules (spec co2-sensor-readings).
-# Each is a Home Assistant device with one CO2 entity: sensor.<device id>_co2.
+# Failures a real Tuya TS0601 air quality sensor behind Zigbee2MQTT 2.14.3 runs into, one per device, for the CO2
+# reading rules (spec co2-sensor-readings). Same device imitation as rooms.toml, under its own Zigbee2MQTT
+# (base topic "zigbee2mqtt_senzor_b", its own bridge), so one failure never hides another. Put each sensor in a
+# room of its own: a room counts the highest reading of its sensors.
 #
-# | device               | what it does                                   | expected in LUFTaTOR            |
-# | -------------------- | ---------------------------------------------- | ------------------------------- |
-# | sim_bez_dostupnosti  | no availability; Stop it and HA keeps the value | `stale` 2 h after the last change |
-# | sim_stale_stejne     | always 760 ppm (HA drops the repeats)          | `stale` 2 h after the start      |
-# | sim_restart          | 820, 830, then 0 and 65535 as after a restart  | 0 → `notNumber`; 65535 is read  |
-# | sim_spatna_jednotka  | humidity-like value with unit %                | `wrongUnit`                     |
-# | sim_text             | now and then "err" instead of a number         | `notNumber` on "err"            |
-# | sim_pomaly           | reports every 5 minutes                        | a reading while the value moves |
-# | sim_vypadek          | availability with Last Will; Kill it           | `unavailable` at once           |
+# | device        | what happens                                              | expected in LUFTaTOR               |
+# | ------------- | --------------------------------------------------------- | ---------------------------------- |
+# | eco2_flat     | eCO2 sitting at 360-380 ppm, as users report (#8154)      | a reading, below TH1               |
+# | out_of_range  | Stop it: the device stops reporting; Zigbee2MQTT keeps     | `stale` once the value has not     |
+# |               | its entities available (no per-device availability)      | changed for the limit (2 h)        |
+# | bridge_b      | Kill it: Last Will {"state":"offline"} on bridge/state    | every sensor of this file          |
+# |               |                                                           | `unavailable` at once              |
+# | steady        | a value that does not change (Home Assistant drops the    | `stale` after the limit            |
+# |               | repeats, so nothing tells an alive sensor from a frozen)  |                                    |
 #
 # Run: SENZOR_MQTT_PASSWORD=… senzor tools/senzor/naughty.toml
 
@@ -24,72 +26,101 @@ password_env = "SENZOR_MQTT_PASSWORD"
 [simulation]
 seed = 44
 
+# --- Zigbee2MQTT bridge -----------------------------------------------------------------------------------
+# bridge/state is the only availability Zigbee2MQTT gives by default: retained {"state":"online"}, QoS 1, and the
+# same topic as its Last Will with {"state":"offline"}. Every entity's availability points at it.
 [[templates]]
-id = "co2-only"
-interval = "30s"
-home_assistant = true
+id = "z2m-bridge"
+interval = "1h"
+qos = 1
+retain = true
+availability = { topic = "{{ base }}/bridge/state", online = '{"state":"online"}', offline = '{"state":"offline"}' }
+fields.version = { generator = "constant", value = "2.14.3" }
 
 [[templates.messages]]
-topic = "senzor/{{ device_id }}/co2"
-payload = "{{ co2 }}"
+topic = "{{ base }}/bridge/state"
+payload = '{"state":"online"}'
 
-[templates.fields.co2]
-generator = "random_walk"
-start = 700
-min = 420
-max = 1600
-step = 10
-unit = "ppm"
-name = "CO2"
-
+# --- Tuya TS0601 air quality sensor (_TZE200_yvx5lh6k): state -------------------------------------------------
+# Zigbee2MQTT publishes the whole cached state, keys sorted, no retain, QoS 0, on every Zigbee frame. The device
+# sends one datapoint per frame every 1-3 s; here the whole state goes out every 2 s. Temperature and humidity are
+# raw tenths, CO2 (an eCO2 estimate on the real device), VOC (ppb) and formaldehyde (µg/m³) whole numbers,
+# linkquality 0-255. A whole number prints without ".0", as JavaScript does.
 [[templates]]
-id = "co2-only-available"
-interval = "30s"
-home_assistant = true
-availability = { topic = "senzor/{{ device_id }}/status", online = "online", offline = "offline" }
+id = "tuya-air-quality"
+interval = "2s"
+fields.co2 = { generator = "random_walk", start = 600, min = 400, max = 2500, step = 12 }
+fields.temperature = { generator = "sine", center = 22, amplitude = 1, period = "24h", noise = 0.05 }
+fields.humidity = { generator = "random_walk", start = 45, min = 30, max = 65, step = 0.3 }
+fields.voc = { generator = "random_walk", start = 8, min = 0, max = 60, step = 1 }
+fields.formaldehyd = { generator = "random_walk", start = 2, min = 0, max = 12, step = 1 }
+fields.linkquality = { generator = "random_walk", start = 120, min = 20, max = 255, step = 6 }
 
 [[templates.messages]]
-topic = "senzor/{{ device_id }}/co2"
-payload = "{{ co2 }}"
+topic = "{{ base }}/{{ name }}"
+payload = '''{"co2":{{ co2 | round | int }},"formaldehyd":{{ formaldehyd | round | int }},"humidity":{% set v = humidity | round(1) %}{% if v == v | int %}{{ v | int }}{% else %}{{ v }}{% endif %},"linkquality":{{ linkquality | round | int }},"temperature":{% set v = temperature | round(1) %}{% if v == v | int %}{{ v | int }}{% else %}{{ v }}{% endif %},"voc":{{ voc | round | int }}}'''
 
-[templates.fields.co2]
-generator = "random_walk"
-start = 700
-min = 420
-max = 1600
-step = 10
-unit = "ppm"
-name = "CO2"
+# --- Same sensor: Home Assistant discovery, as Zigbee2MQTT 2.14.3 generates it ---------------------------------
+# One retained QoS 1 config per entity at homeassistant/sensor/<ieee>/<key>/config, keys sorted, full key names.
+# Zigbee2MQTT sends them 5 s after start; Senzor sends a device's first message after one interval, so 30 s.
+[[templates]]
+id = "tuya-air-quality-discovery"
+interval = "30s"
+qos = 1
+retain = true
+fields.version = { generator = "constant", value = "2.14.3" }
+
+[[templates.messages]]
+topic = "homeassistant/sensor/{{ ieee }}/co2/config"
+payload = '''{"availability":[{"topic":"{{ base }}/bridge/state",{% raw %}"value_template":"{{ value_json.state }}"{% endraw %}}],"default_entity_id":"sensor.{{ name | lower | replace(" ", "_") }}_co2","device":{"hw_version":"1","identifiers":["zigbee2mqtt_{{ ieee }}"],"manufacturer":"Tuya","model":"Air quality sensor","model_id":"TS0601_air_quality_sensor","name":"{{ name }}","sw_version":"Zigbee2MQTT 2.14.3","via_device":"zigbee2mqtt_bridge_{{ coordinator }}"},"device_class":"carbon_dioxide","enabled_by_default":true,"object_id":"{{ name | lower | replace(" ", "_") }}_co2","origin":{"name":"Zigbee2MQTT","sw":"2.14.3","url":"https://www.zigbee2mqtt.io"},"state_class":"measurement","state_topic":"{{ base }}/{{ name }}","unique_id":"{{ ieee }}_co2_{{ base }}","unit_of_measurement":"ppm",{% raw %}"value_template":"{% if \"co2\" in value_json %}{{ value_json[\"co2\"] }}{% endif %}"{% endraw %}}'''
+[[templates.messages]]
+topic = "homeassistant/sensor/{{ ieee }}/formaldehyd/config"
+payload = '''{"availability":[{"topic":"{{ base }}/bridge/state",{% raw %}"value_template":"{{ value_json.state }}"{% endraw %}}],"default_entity_id":"sensor.{{ name | lower | replace(" ", "_") }}_formaldehyd","device":{"hw_version":"1","identifiers":["zigbee2mqtt_{{ ieee }}"],"manufacturer":"Tuya","model":"Air quality sensor","model_id":"TS0601_air_quality_sensor","name":"{{ name }}","sw_version":"Zigbee2MQTT 2.14.3","via_device":"zigbee2mqtt_bridge_{{ coordinator }}"},"enabled_by_default":true,"name":"Formaldehyd","object_id":"{{ name | lower | replace(" ", "_") }}_formaldehyd","origin":{"name":"Zigbee2MQTT","sw":"2.14.3","url":"https://www.zigbee2mqtt.io"},"state_class":"measurement","state_topic":"{{ base }}/{{ name }}","unique_id":"{{ ieee }}_formaldehyd_{{ base }}","unit_of_measurement":"µg/m³",{% raw %}"value_template":"{% if \"formaldehyd\" in value_json %}{{ value_json[\"formaldehyd\"] }}{% endif %}"{% endraw %}}'''
+[[templates.messages]]
+topic = "homeassistant/sensor/{{ ieee }}/humidity/config"
+payload = '''{"availability":[{"topic":"{{ base }}/bridge/state",{% raw %}"value_template":"{{ value_json.state }}"{% endraw %}}],"default_entity_id":"sensor.{{ name | lower | replace(" ", "_") }}_humidity","device":{"hw_version":"1","identifiers":["zigbee2mqtt_{{ ieee }}"],"manufacturer":"Tuya","model":"Air quality sensor","model_id":"TS0601_air_quality_sensor","name":"{{ name }}","sw_version":"Zigbee2MQTT 2.14.3","via_device":"zigbee2mqtt_bridge_{{ coordinator }}"},"device_class":"humidity","enabled_by_default":true,"object_id":"{{ name | lower | replace(" ", "_") }}_humidity","origin":{"name":"Zigbee2MQTT","sw":"2.14.3","url":"https://www.zigbee2mqtt.io"},"state_class":"measurement","state_topic":"{{ base }}/{{ name }}","unique_id":"{{ ieee }}_humidity_{{ base }}","unit_of_measurement":"%",{% raw %}"value_template":"{% if \"humidity\" in value_json %}{{ value_json[\"humidity\"] }}{% endif %}"{% endraw %}}'''
+[[templates.messages]]
+topic = "homeassistant/sensor/{{ ieee }}/linkquality/config"
+payload = '''{"availability":[{"topic":"{{ base }}/bridge/state",{% raw %}"value_template":"{{ value_json.state }}"{% endraw %}}],"default_entity_id":"sensor.{{ name | lower | replace(" ", "_") }}_linkquality","device":{"hw_version":"1","identifiers":["zigbee2mqtt_{{ ieee }}"],"manufacturer":"Tuya","model":"Air quality sensor","model_id":"TS0601_air_quality_sensor","name":"{{ name }}","sw_version":"Zigbee2MQTT 2.14.3","via_device":"zigbee2mqtt_bridge_{{ coordinator }}"},"enabled_by_default":false,"entity_category":"diagnostic","icon":"mdi:signal","name":"Linkquality","object_id":"{{ name | lower | replace(" ", "_") }}_linkquality","origin":{"name":"Zigbee2MQTT","sw":"2.14.3","url":"https://www.zigbee2mqtt.io"},"state_class":"measurement","state_topic":"{{ base }}/{{ name }}","unique_id":"{{ ieee }}_linkquality_{{ base }}","unit_of_measurement":"lqi",{% raw %}"value_template":"{% if \"linkquality\" in value_json %}{{ value_json[\"linkquality\"] }}{% endif %}"{% endraw %}}'''
+[[templates.messages]]
+topic = "homeassistant/sensor/{{ ieee }}/temperature/config"
+payload = '''{"availability":[{"topic":"{{ base }}/bridge/state",{% raw %}"value_template":"{{ value_json.state }}"{% endraw %}}],"default_entity_id":"sensor.{{ name | lower | replace(" ", "_") }}_temperature","device":{"hw_version":"1","identifiers":["zigbee2mqtt_{{ ieee }}"],"manufacturer":"Tuya","model":"Air quality sensor","model_id":"TS0601_air_quality_sensor","name":"{{ name }}","sw_version":"Zigbee2MQTT 2.14.3","via_device":"zigbee2mqtt_bridge_{{ coordinator }}"},"device_class":"temperature","enabled_by_default":true,"object_id":"{{ name | lower | replace(" ", "_") }}_temperature","origin":{"name":"Zigbee2MQTT","sw":"2.14.3","url":"https://www.zigbee2mqtt.io"},"state_class":"measurement","state_topic":"{{ base }}/{{ name }}","unique_id":"{{ ieee }}_temperature_{{ base }}","unit_of_measurement":"°C",{% raw %}"value_template":"{% if \"temperature\" in value_json %}{{ value_json[\"temperature\"] }}{% endif %}"{% endraw %}}'''
+[[templates.messages]]
+topic = "homeassistant/sensor/{{ ieee }}/voc/config"
+payload = '''{"availability":[{"topic":"{{ base }}/bridge/state",{% raw %}"value_template":"{{ value_json.state }}"{% endraw %}}],"default_entity_id":"sensor.{{ name | lower | replace(" ", "_") }}_voc","device":{"hw_version":"1","identifiers":["zigbee2mqtt_{{ ieee }}"],"manufacturer":"Tuya","model":"Air quality sensor","model_id":"TS0601_air_quality_sensor","name":"{{ name }}","sw_version":"Zigbee2MQTT 2.14.3","via_device":"zigbee2mqtt_bridge_{{ coordinator }}"},"device_class":"volatile_organic_compounds_parts","enabled_by_default":true,"object_id":"{{ name | lower | replace(" ", "_") }}_voc","origin":{"name":"Zigbee2MQTT","sw":"2.14.3","url":"https://www.zigbee2mqtt.io"},"state_class":"measurement","state_topic":"{{ base }}/{{ name }}","unique_id":"{{ ieee }}_voc_{{ base }}","unit_of_measurement":"ppb",{% raw %}"value_template":"{% if \"voc\" in value_json %}{{ value_json[\"voc\"] }}{% endif %}"{% endraw %}}'''
+# --- Devices --------------------------------------------------------------------------------------------------
+[[devices]]
+id = "bridge_b"
+template = "z2m-bridge"
+params = { base = "zigbee2mqtt_senzor_b" }
 
 [[devices]]
-id = "sim_bez_dostupnosti"
-template = "co2-only"
+id = "eco2_flat"
+template = "tuya-air-quality"
+params = { base = "zigbee2mqtt_senzor_b", name = "Eco2 flat" }
+fields.co2 = { generator = "random_walk", start = 368, min = 360, max = 380, step = 2 }
+[[devices]]
+id = "eco2_flat_discovery"
+template = "tuya-air-quality-discovery"
+params = { base = "zigbee2mqtt_senzor_b", name = "Eco2 flat", ieee = "0x0c4314fffe8293b0", coordinator = "0x00124b0031def79f" }
 
 [[devices]]
-id = "sim_stale_stejne"
-template = "co2-only"
+id = "out_of_range"
+template = "tuya-air-quality"
+params = { base = "zigbee2mqtt_senzor_b", name = "Out of range" }
+
+[[devices]]
+id = "out_of_range_discovery"
+template = "tuya-air-quality-discovery"
+params = { base = "zigbee2mqtt_senzor_b", name = "Out of range", ieee = "0xa4c1385e19c7d208", coordinator = "0x00124b0031def79f" }
+
+[[devices]]
+id = "steady"
+template = "tuya-air-quality"
+params = { base = "zigbee2mqtt_senzor_b", name = "Steady" }
 fields.co2 = { generator = "constant", value = 760 }
-
 [[devices]]
-id = "sim_restart"
-template = "co2-only"
-fields.co2 = { generator = "sequence", values = [820, 830, 840, 0, 65535, 850, 860, 870] }
+id = "steady_discovery"
+template = "tuya-air-quality-discovery"
+params = { base = "zigbee2mqtt_senzor_b", name = "Steady", ieee = "0xa4c1387a40f1b6e5", coordinator = "0x00124b0031def79f" }
 
-[[devices]]
-id = "sim_spatna_jednotka"
-template = "co2-only"
-fields.co2 = { generator = "random_walk", start = 45, min = 30, max = 65, step = 1, unit = "%" }
-
-[[devices]]
-id = "sim_text"
-template = "co2-only"
-fields.co2 = { generator = "sequence", values = [850, 860, "err", 870, 880, "err"] }
-
-[[devices]]
-id = "sim_pomaly"
-template = "co2-only"
-interval = "5m"
-
-[[devices]]
-id = "sim_vypadek"
-template = "co2-only-available"
