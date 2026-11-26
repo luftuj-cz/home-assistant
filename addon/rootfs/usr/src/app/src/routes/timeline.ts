@@ -53,6 +53,7 @@ import {
 import {
   findTimelineModeByReference,
   hasResolvableTimelineModeReference,
+  isAutomaticModeReference,
 } from "../services/timeline/modeReference.js";
 import {
   ApiError,
@@ -297,6 +298,8 @@ export function createTimelineRouter(
     unitId: string | null,
     seasonId?: number,
   ): void {
+    // The built-in Automatika has no stored mode and no values to check.
+    if (isAutomaticModeReference(payload.hruConfig?.mode)) return;
     if (payload.hruConfig?.mode !== undefined) {
       const modes = getTimelineModes(unitId || undefined, seasonId);
       const referencedMode = findTimelineModeByReference(modes, payload.hruConfig.mode);

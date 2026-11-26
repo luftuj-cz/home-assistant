@@ -1,0 +1,95 @@
+#:schema https://senzor.kankaj.cz/schema/project.json
+# Sensors that misbehave, one problem each, for the CO2 reading rules (spec co2-sensor-readings).
+# Each is a Home Assistant device with one CO2 entity: sensor.<device id>_co2.
+#
+# | device               | what it does                                   | expected in LUFTaTOR            |
+# | -------------------- | ---------------------------------------------- | ------------------------------- |
+# | sim_bez_dostupnosti  | no availability; Stop it and HA keeps the value | `stale` after the age limit     |
+# | sim_stale_stejne     | always 760 ppm (HA only fires state_reported)  | a reading; age from last report |
+# | sim_restart          | 820, 830, then 0 and 65535 as after a restart  | 0 → `notNumber`; 65535 is read  |
+# | sim_spatna_jednotka  | humidity-like value with unit %                | `wrongUnit`                     |
+# | sim_text             | now and then "err" instead of a number         | `notNumber` on "err"            |
+# | sim_pomaly           | reports every 5 minutes                        | a reading, never `stale` (30 m) |
+# | sim_vypadek          | availability with Last Will; Kill it           | `unavailable` at once           |
+#
+# Run: SENZOR_MQTT_PASSWORD=… senzor tools/senzor/naughty.toml
+
+[broker]
+host = "homeassistant.local"
+port = 1883
+client_id_prefix = "senzor-luftator-"
+username = "senzor"
+password_env = "SENZOR_MQTT_PASSWORD"
+
+[simulation]
+seed = 44
+
+[[templates]]
+id = "co2-only"
+interval = "30s"
+home_assistant = true
+
+[[templates.messages]]
+topic = "senzor/{{ device_id }}/co2"
+payload = "{{ co2 }}"
+
+[templates.fields.co2]
+generator = "random_walk"
+start = 700
+min = 420
+max = 1600
+step = 10
+unit = "ppm"
+name = "CO2"
+
+[[templates]]
+id = "co2-only-available"
+interval = "30s"
+home_assistant = true
+availability = { topic = "senzor/{{ device_id }}/status", online = "online", offline = "offline" }
+
+[[templates.messages]]
+topic = "senzor/{{ device_id }}/co2"
+payload = "{{ co2 }}"
+
+[templates.fields.co2]
+generator = "random_walk"
+start = 700
+min = 420
+max = 1600
+step = 10
+unit = "ppm"
+name = "CO2"
+
+[[devices]]
+id = "sim_bez_dostupnosti"
+template = "co2-only"
+
+[[devices]]
+id = "sim_stale_stejne"
+template = "co2-only"
+fields.co2 = { generator = "constant", value = 760 }
+
+[[devices]]
+id = "sim_restart"
+template = "co2-only"
+fields.co2 = { generator = "sequence", values = [820, 830, 840, 0, 65535, 850, 860, 870] }
+
+[[devices]]
+id = "sim_spatna_jednotka"
+template = "co2-only"
+fields.co2 = { generator = "random_walk", start = 45, min = 30, max = 65, step = 1, unit = "%" }
+
+[[devices]]
+id = "sim_text"
+template = "co2-only"
+fields.co2 = { generator = "sequence", values = [850, 860, "err", 870, 880, "err"] }
+
+[[devices]]
+id = "sim_pomaly"
+template = "co2-only"
+interval = "5m"
+
+[[devices]]
+id = "sim_vypadek"
+template = "co2-only-available"

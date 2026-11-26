@@ -278,7 +278,8 @@ function useWizardState() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["onboarding-status"] });
-      await navigate({ to: "/" });
+      // Where to go next follows the Řízení choice: set up rooms for automatic control, or build the plan.
+      await navigate({ to: controlMode === "automatic" ? "/automatic" : "/timeline" });
     },
   });
 

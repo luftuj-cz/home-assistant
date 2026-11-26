@@ -128,7 +128,8 @@ function assertEventAllowed(timeline: CustomTimeline, event: CustomTimelineEvent
       "DUPLICATE_EVENT_TIME",
     );
   }
-  if (event.enabled) {
+  // Automatika (no mode) has no values to check.
+  if (event.enabled && event.modeId !== null) {
     const missing = findModesMissingInEnabledSeasons(timeline.hruId, [event.modeId]);
     if (missing.length > 0) throw modeRuleError(missing);
   }
@@ -404,9 +405,11 @@ export function createCustomTimelinesRouter(
     validateRequest(customTimelineFillInputSchema),
     handle("fill custom timeline", (request, response) => {
       const timeline = timelineInScope(request);
-      const { modeId } = request.body as { modeId: number };
-      const missing = findModesMissingInEnabledSeasons(timeline.hruId, [modeId]);
-      if (missing.length > 0) throw modeRuleError(missing);
+      const { modeId } = request.body as { modeId: number | null };
+      if (modeId !== null) {
+        const missing = findModesMissingInEnabledSeasons(timeline.hruId, [modeId]);
+        if (missing.length > 0) throw modeRuleError(missing);
+      }
 
       const events = replaceCustomTimelineEvents(
         timeline.id,

@@ -87,6 +87,9 @@ const DashboardPage = lazy(() =>
 const ValvesPage = lazy(() =>
   import("../features/valves/ValvesPage").then((m) => ({ default: m.ValvesPage })),
 );
+const AutomaticPage = lazy(() =>
+  import("../features/automatic/AutomaticPage").then((m) => ({ default: m.AutomaticPage })),
+);
 const SettingsPage = lazy(() =>
   import("../features/settings/SettingsPage").then((m) => ({ default: m.SettingsPage })),
 );
@@ -119,6 +122,12 @@ const valvesRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/valves",
   component: ValvesPage,
+});
+
+const automaticRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/automatic",
+  component: AutomaticPage,
 });
 
 const settingsRoute = createRoute({
@@ -192,6 +201,7 @@ const devRoutes = import.meta.env.DEV
 const routeTree = rootRoute.addChildren([
   dashboardRoute,
   valvesRoute,
+  automaticRoute,
   settingsRoute,
   timelineRoute,
   debugRoute,

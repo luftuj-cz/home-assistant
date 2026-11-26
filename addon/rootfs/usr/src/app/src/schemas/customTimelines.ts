@@ -21,7 +21,8 @@ export const customTimelineRenameInputSchema = z.object({ name: customTimelineNa
  */
 export const customTimelineEventInputSchema = z
   .object({
-    modeId: z.number().int().positive("Mode ID is required"),
+    // Null runs Automatika (automatic control) instead of a mode.
+    modeId: z.number().int().positive("Mode ID is required").nullable(),
     dayOfWeek: z.number().int().min(0).max(6).nullable(),
     startTime: startTimeSchema,
     enabled: z.boolean().default(true),
@@ -30,7 +31,7 @@ export const customTimelineEventInputSchema = z
   .strict();
 
 export const customTimelineFillInputSchema = z.object({
-  modeId: z.number().int().positive("Mode ID is required"),
+  modeId: z.number().int().positive("Mode ID is required").nullable(),
 });
 
 export const customOverrideInputSchema = z

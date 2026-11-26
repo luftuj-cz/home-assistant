@@ -102,6 +102,7 @@
       },
       "dashboard": "Přehled",
       "valves": "Klapky",
+      "automatic": "Automatika",
       "timeline": "Časová osa",
       "settings": "Nastavení",
       "debug": "Ladění",
@@ -952,7 +953,8 @@
       "boost": "Manuální režim: {{name}}",
       "schedule": "Plán: {{name}}",
       "custom": "{{timeline}}: {{name}}",
-      "fallback": "Bezpečný režim"
+      "fallback": "Bezpečný režim",
+      "automatic": "Automatika"
     },
     "haStatusTitle": "Home Assistant",
     "haStatusDescription": "Připojení k WebSocketu Home Assistanta",
@@ -1064,7 +1066,8 @@
         "manual": "Manuální",
         "boost": "Manuální režim",
         "custom": "Vlastní plán",
-        "fallback": "Bezpečný režim"
+        "fallback": "Bezpečný režim",
+        "automatic": "Automatika"
       }
     },
     "unitPanel": {
@@ -1130,7 +1133,8 @@
       "emptyPlan": "prázdný – přidejte události na Časové ose",
       "running": "běží",
       "addEvents": "Přidejte události na Časové ose"
-    }
+    },
+    "automaticOpen": "Otevřít Automatiku"
   },
   "valves": {
     "title": "Zóny LUFTaTORu",
@@ -1194,7 +1198,10 @@
     "scale": {
       "open": "Otev.",
       "closed": "Zavř."
-    }
+    },
+    "lockedByAutomatic": "Řídí Automatika · {{room}}",
+    "automaticTitle": "Část klapek řídí Automatika",
+    "automaticNote": "Klapky místností automatiky teď nastavuje algoritmus podle CO₂. Ručně je změníte spuštěním ručního režimu."
   },
   "apiErrors": {
     "DUPLICATE_EVENT_TIME": "Událost pro tento čas v daný den již existuje",
@@ -1230,7 +1237,13 @@
     "CUSTOM_TIMELINE_LAST_EVENT": "Běžící plán musí mít aspoň jednu zapnutou událost",
     "OVERRIDE_END_BEFORE_START": "Konec musí být po začátku",
     "MODE_VALUES_IN_USE_BY_CUSTOM_TIMELINE": "Mód používají vlastní plány, jeho hodnoty proto musí zůstat",
-    "MODE_NOT_CONFIGURED_FOR_CUSTOM_TIMELINES": "Vlastní plány používají módy, které v tom období nemají hodnoty"
+    "MODE_NOT_CONFIGURED_FOR_CUSTOM_TIMELINES": "Vlastní plány používají módy, které v tom období nemají hodnoty",
+    "ROOM_NAME_TAKEN": "Místnost s tímto názvem už existuje",
+    "ROOM_VALVE_TAKEN": "Klapka už patří jiné místnosti",
+    "ROOM_SENSOR_TAKEN": "Čidlo už patří jiné místnosti",
+    "ROOM_NOT_FOUND": "Místnost nebyla nalezena",
+    "VALVE_LOCKED": "Klapku teď řídí automatika. Zastavíte ji ručním režimem.",
+    "HA_OFFLINE": "Home Assistant není připojený"
   },
   "errors": {
     "i18n": {
@@ -1380,5 +1393,187 @@
     "next": "Další",
     "stepDone": "hotovo",
     "optional": "Volitelné"
+  },
+  "automatic": {
+    "title": "Automatika",
+    "description": "Automatické řízení podle CO₂ (LUFTaTOR Algo CO2): místnosti, parametry a co algoritmus dělá. Běží tam, kde plán nemá žádný režim, a v čase s režimem Automatika.",
+    "actions": {
+      "save": "Uložit"
+    },
+    "eventHint": "Řídí podle CO₂ v místnostech",
+    "emptySeason": "Aktivní období {{season}} nemá žádné události, proto běží Automatika.",
+    "emptySchedule": "Plán nemá žádné události, proto běží Automatika.",
+    "status": {
+      "legend": "Stav",
+      "title": "Co automatika dělá",
+      "inactive": "Neběží",
+      "cannotRun": "Nemůže běžet",
+      "starting": "Rozbíhá se",
+      "running": "Běží",
+      "inactiveBecause": "Teď neběží, platí: {{source}}.",
+      "safeState": "Platí bezpečný stav: jednotka na minimu, klapky beze změny.",
+      "loadFailed": "Stav automatiky se nepodařilo načíst.",
+      "branch": "Rozhodnutí",
+      "power": "Výkon (0–10)",
+      "powerUnit": "{{before}} → {{after}} / {{max}} v jednotkách jednotky",
+      "fluctuation": "Pohyb osob",
+      "on": "zapnuto",
+      "off": "vypnuto",
+      "engineTime": "Čas algoritmu",
+      "room": "Místnost",
+      "co2": "CO₂ (ppm)",
+      "filtered": "Vyhlazené",
+      "condition": "Stav",
+      "valves": "Klapky",
+      "sensors": "Čidla",
+      "cooldown": "čeká, než znovu zasáhne",
+      "age": "před {{seconds}} s"
+    },
+    "problems": {
+      "missing": "Home Assistant entitu nezná",
+      "unavailable": "nedostupné",
+      "notNumber": "není číslo",
+      "wrongUnit": "jiná jednotka než ppm",
+      "stale": "hodnota je stará"
+    },
+    "conditions": {
+      "belowTh1": "pod TH1",
+      "aboveTh1": "nad TH1",
+      "aboveTh2": "nad TH2",
+      "noReading": "bez hodnoty"
+    },
+    "reasons": {
+      "noRooms": "Žádná místnost není nastavená",
+      "noReadings": "Žádné čidlo nemá platnou hodnotu",
+      "noPowerMax": "Jednotka nemá známý maximální výkon",
+      "hruUnavailable": "Jednotka neodpovídá"
+    },
+    "branches": {
+      "th2": "místnost nad TH2: větrá ji a přidává výkon",
+      "th1": "místnost nad TH1: přesměrovává vzduch klapkami",
+      "fluctuation": "pohyb osob po domě: výkon Pmove",
+      "allBelow": "všude dobře: klapky otevřené, výkon klesá",
+      "none": "čeká, než se stav potvrdí"
+    },
+    "rooms": {
+      "legend": "Místnosti",
+      "title": "Místnosti automatiky",
+      "description": "Místnost potřebuje aspoň jedno čidlo CO₂ a aspoň jednu přívodní klapku. Nenastavené místnosti a klapky mimo místnosti automatika nechává být.",
+      "add": "Přidat místnost",
+      "loadFailed": "Místnosti se nepodařilo načíst.",
+      "empty": "Zatím žádné místnosti",
+      "emptyDescription": "Přidejte místnost, přiřaďte jí čidlo CO₂ a přívodní klapky.",
+      "counts": "Čidla: {{sensors}} · Klapky: {{valves}}",
+      "setUp": "Nastavená",
+      "notSetUp": "Nenastavená",
+      "edit": "Upravit místnost {{name}}",
+      "delete": "Smazat místnost {{name}}",
+      "deleteTitle": "Smazat místnost?",
+      "deleteConfirm": "Smazat",
+      "deleteText": "Místnost {{name}} se smaže. Klapky i čidla zůstanou, jen je automatika přestane řídit.",
+      "saved": "Místnost je uložená.",
+      "saveFailed": "Místnost se nepodařilo uložit",
+      "deleteFailed": "Místnost se nepodařilo smazat",
+      "newTitle": "Nová místnost",
+      "editTitle": "Upravit místnost",
+      "dialogDescription": "Vyberte čidla CO₂ v místnosti a klapky, které do ní přivádějí vzduch.",
+      "name": "Název",
+      "sensors": "Čidla CO₂",
+      "sensorsHint": "Jakékoli čidlo z Home Assistantu. Vyberte entitu a pak hodnotu, ve které je CO₂: stav entity, nebo jeden z jejích atributů. Má-li místnost víc čidel, platí nejvyšší hodnota.",
+      "sensorEntity": "Čidlo",
+      "pickSensor": "Vyberte čidlo",
+      "noCandidates": "Žádné číselné čidlo",
+      "sensorValue": "Hodnota s CO₂",
+      "pickValue": "Vyberte hodnotu",
+      "stateValue": "stav",
+      "noValue": "bez hodnoty",
+      "addSensor": "Přidat",
+      "removeSensor": "Odebrat čidlo",
+      "candidatesFailed": "Čidla z Home Assistantu se nepodařilo načíst.",
+      "co2Sensors": "Čidla CO₂",
+      "otherSensors": "Ostatní čidla",
+      "valves": "Přívodní klapky",
+      "valvesHint": "Jen klapky, které do místnosti přivádějí vzduch. Odtahy automatika zatím neřídí.",
+      "pickValves": "Vyberte klapky",
+      "addGroup": "Přidat klapky ze skupiny",
+      "pickGroup": "Vyberte skupinu"
+    },
+    "parameters": {
+      "legend": "Parametry",
+      "title": "Parametry algoritmu",
+      "description": "Uložené hodnoty platí hned, bez restartu. Výkon je na stupnici 0–10, kde 10 je maximum jednotky.",
+      "loadFailed": "Parametry se nepodařilo načíst.",
+      "saved": "Parametry jsou uložené.",
+      "saveFailed": "Parametry se nepodařilo uložit",
+      "reset": "Obnovit výchozí",
+      "default": "Výchozí {{value}}",
+      "inUnit": "teď {{value}} {{unit}}",
+      "problems": "Algoritmus má k hodnotám výhrady",
+      "fluctuationHelp": "Když se lidé pohybují po domě a CO₂ mírně stoupá ve více místnostech, drží výkon na Pmove.",
+      "groups": {
+        "thresholds": "Hranice CO₂",
+        "power": "Výkon jednotky",
+        "times": "Časy",
+        "valves": "Klapky",
+        "day": "Den a noc, čidla"
+      },
+      "fields": {
+        "th1": "TH1",
+        "th2": "TH2",
+        "th1Hysteresis": "Hystereze TH1",
+        "th2Hysteresis": "Hystereze TH2",
+        "fluctuationOffset": "Pohyb osob pod TH1",
+        "co2FallingMargin": "Pokles, který se počítá",
+        "hruMinPower": "Pmin",
+        "hruMaxPowerDay": "Pmax ve dne",
+        "hruMaxPowerNight": "Pmax v noci",
+        "hruMovePower": "Pmove",
+        "hruPowerStep": "Krok výkonu",
+        "thresholdTimeLimit": "Tzone (nad hranicí)",
+        "belowTimeLimit": "Topen (pod hranicí)",
+        "hruPowerStepDownInterval": "Krok dolů každých",
+        "powerReviewInterval": "Kontrola výkonu každých",
+        "missingReadingHold": "Tichá místnost se počítá",
+        "powerReviewStepLimit": "Kroky nahoru za sebou",
+        "co2FilterAlpha": "Vyhlazení (alfa)",
+        "partialCloseValue": "Přivřená klapka",
+        "fullyOpenValue": "Otevřená klapka",
+        "dayStart": "Den od",
+        "dayEnd": "Den do",
+        "fluctuationEnabled": "Pohyb osob po domě",
+        "maxReadingAge": "Hodnota čidla platí nejdéle"
+      }
+    },
+    "journal": {
+      "legend": "Deník",
+      "title": "Rozhodnutí automatiky",
+      "description": "Jen změny, za posledních 7 dní. Stejný deník je i v balíčku pro nahlášení chyby.",
+      "loadFailed": "Deník se nepodařilo načíst.",
+      "empty": "Zatím žádné záznamy",
+      "branch": "{{to}}",
+      "power": "{{before}} → {{after}}{{unit}}{{lane}}",
+      "lanes": {
+        "fast": "rychlá kontrola",
+        "slow": "pomalá kontrola"
+      },
+      "canRun": "zase může běžet",
+      "stop": "převzal zdroj {{source}}",
+      "rooms": {
+        "created": "přidána místnost {{name}}",
+        "updated": "upravena místnost {{name}}",
+        "deleted": "smazána místnost",
+        "groupAdded": "do místnosti {{name}} přidána skupina"
+      },
+      "kinds": {
+        "start": "Start",
+        "stop": "Konec",
+        "cannotRun": "Nemůže běžet",
+        "branch": "Rozhodnutí",
+        "valves": "Klapky",
+        "power": "Výkon",
+        "parameters": "Parametry změněny",
+        "rooms": "Místnosti"
+      }
+    }
   }
 }

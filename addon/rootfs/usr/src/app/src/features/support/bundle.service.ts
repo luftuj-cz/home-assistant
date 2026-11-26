@@ -17,6 +17,12 @@ import {
   loadSavedHruSettings,
 } from "./diagnostics.js";
 import { collectSecrets, maskConfig, redactSecrets } from "./redact.js";
+import {
+  getEffectiveParameters,
+  getMaxReadingAgeSeconds,
+  getParameterOverrides,
+} from "../../services/automatic/parameters.js";
+import { listRooms } from "../../services/db/rooms.js";
 
 export const BUNDLE_SCHEMA_VERSION = 1;
 
@@ -190,6 +196,27 @@ export async function buildBugReportBundle(
         lastSuccessAtMs: diagnostics.mqttService.getLastSuccessAt(),
       },
       modbus: modbus ? { host: savedHru?.host, port: savedHru?.port ?? 502, ...modbus } : null,
+    };
+    return JSON.stringify(redactSecrets(payload, secrets), null, 2);
+  });
+
+  await addSource("automatic", "automatic.json", async () => {
+    let sensors: unknown;
+    try {
+      sensors = diagnostics.automatic ? await diagnostics.automatic.sensorStates() : null;
+    } catch (error) {
+      sensors = { error: error instanceof Error ? error.message : String(error) };
+    }
+    const payload = {
+      capturedAt: new Date().toISOString(),
+      status: diagnostics.automatic?.status() ?? null,
+      parameters: {
+        values: getEffectiveParameters(),
+        overrides: getParameterOverrides(),
+        maxReadingAgeSeconds: getMaxReadingAgeSeconds(),
+      },
+      rooms: listRooms(),
+      sensors,
     };
     return JSON.stringify(redactSecrets(payload, secrets), null, 2);
   });

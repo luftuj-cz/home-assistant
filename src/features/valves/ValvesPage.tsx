@@ -1,15 +1,17 @@
 import { closestCenter, DndContext } from "@dnd-kit/core";
 import { SortableContext, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { IconAdjustmentsHorizontal, IconRefresh } from "@tabler/icons-react";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
+import { useAutomaticStatus } from "@luftuj/features/automatic/hooks";
 import { bulkSetValveGroupValue } from "@luftuj/features/valves/api";
 import { GroupManagerDialog } from "@luftuj/features/valves/components/GroupManagerDialog";
 import { ValveGroup } from "@luftuj/features/valves/components/ValveGroup";
 import { useCollapsedGroups } from "@luftuj/features/valves/hooks/useCollapsedGroups";
 import { useValveGroups } from "@luftuj/features/valves/hooks/useValveGroups";
 import { useValveStates } from "@luftuj/features/valves/hooks/useValveStates";
+import { ValveLocksContext } from "@luftuj/features/valves/valveLocks";
 import { SortableGrip } from "@luftuj/shared/dnd/SortableGrip";
 import { SortableItem } from "@luftuj/shared/dnd/SortableItem";
 import { useReorderAnnouncer } from "@luftuj/shared/dnd/useReorderAnnouncer";
@@ -36,6 +38,12 @@ const SPIN_MS = 900;
  */
 export function ValvesPage() {
   const { t } = useTranslation();
+  const automatic = useAutomaticStatus();
+  const lockedValves = automatic.data?.lockedValves;
+  const locks = useMemo(
+    () => new Map((lockedValves ?? []).map((valve) => [valve.entityId, valve.roomName])),
+    [lockedValves],
+  );
   const {
     valves,
     loading,
@@ -250,7 +258,12 @@ export function ValvesPage() {
         </Alert>
       )}
 
-      {content}
+      {locks.size > 0 && (
+        <Alert variant="info" title={t("valves.automaticTitle")}>
+          {t("valves.automaticNote")}
+        </Alert>
+      )}
+      <ValveLocksContext.Provider value={locks}>{content}</ValveLocksContext.Provider>
       <p role="status" className="sr-only">
         {announcer.message}
       </p>

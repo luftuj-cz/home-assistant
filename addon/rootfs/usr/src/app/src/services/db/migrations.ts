@@ -327,6 +327,69 @@ export const migrations: Migration[] = [
       `INSERT OR IGNORE INTO app_settings (key, value) VALUES ('control.mode', 'schedule')`,
     ],
   },
+  {
+    id: "018_automatic_mode",
+    statements: [
+      // Rooms for automatic control (LUFTaTOR Algo CO2). Their own structure, not valve groups: groups are a
+      // planning aid. A valve and a sensor entity each belong to at most one room (primary key / UNIQUE).
+      `CREATE TABLE IF NOT EXISTS rooms (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL UNIQUE,
+        sort_order INTEGER NOT NULL DEFAULT 0
+      )`,
+      `CREATE TABLE IF NOT EXISTS room_valves (
+        entity_id TEXT PRIMARY KEY,
+        room_id INTEGER NOT NULL,
+        FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_room_valves_room ON room_valves(room_id)`,
+      // A CO2 source: the entity's state, or one of its attributes when `attribute` is set.
+      `CREATE TABLE IF NOT EXISTS room_sensors (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        room_id INTEGER NOT NULL,
+        entity_id TEXT NOT NULL UNIQUE,
+        attribute TEXT,
+        FOREIGN KEY (room_id) REFERENCES rooms(id) ON DELETE CASCADE
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_room_sensors_room ON room_sensors(room_id)`,
+      // What automatic control decided, one row per change; bounded by the application.
+      `CREATE TABLE IF NOT EXISTS automatic_journal (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        at TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        data TEXT NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS idx_automatic_journal_at ON automatic_journal(at)`,
+    ],
+  },
+  {
+    id: "019_custom_events_automatic",
+    statements: [
+      // A custom timeline event may run Automatika (automatic control) instead of a mode: mode_id NULL. SQLite
+      // cannot drop NOT NULL in place, so the table is rebuilt with the same columns, keys and index.
+      `CREATE TABLE custom_timeline_events_new (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        custom_timeline_id INTEGER NOT NULL,
+        mode_id INTEGER,
+        day_of_week INTEGER,
+        start_time TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        priority INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (custom_timeline_id) REFERENCES custom_timelines(id) ON DELETE CASCADE,
+        FOREIGN KEY (mode_id) REFERENCES timeline_modes(id) ON DELETE CASCADE
+      )`,
+      `INSERT INTO custom_timeline_events_new
+         (id, custom_timeline_id, mode_id, day_of_week, start_time, enabled, priority, created_at, updated_at)
+       SELECT id, custom_timeline_id, mode_id, day_of_week, start_time, enabled, priority, created_at, updated_at
+       FROM custom_timeline_events`,
+      `DROP TABLE custom_timeline_events`,
+      `ALTER TABLE custom_timeline_events_new RENAME TO custom_timeline_events`,
+      `CREATE INDEX IF NOT EXISTS idx_custom_timeline_events_timeline
+        ON custom_timeline_events(custom_timeline_id)`,
+    ],
+  },
 ];
 
 export function applyMigrations(database: DatabaseType): void {

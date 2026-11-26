@@ -1,6 +1,7 @@
 import { getDatabase, setupDatabase } from "../database.js";
 import { cachedStatement } from "./statementCache.js";
 import type { TimelineEvent } from "./timeline.js";
+import { AUTOMATIC_MODE_REFERENCE } from "../timeline/modeReference.js";
 
 /**
  * User-created weekly timelines that can override the season schedule.
@@ -24,7 +25,8 @@ export interface CustomTimelineSummary extends CustomTimeline {
 export interface CustomTimelineEvent {
   id?: number;
   customTimelineId: number;
-  modeId: number;
+  /** The mode to run, or null for Automatika (automatic control). */
+  modeId: number | null;
   /** 0-6 (Monday = 0), or null for every day. */
   dayOfWeek: number | null;
   startTime: string;
@@ -41,7 +43,7 @@ interface CustomTimelineRecord {
 interface CustomTimelineEventRecord {
   id: number;
   custom_timeline_id: number;
-  mode_id: number;
+  mode_id: number | null;
   day_of_week: number | null;
   start_time: string;
   enabled: number;
@@ -264,7 +266,7 @@ export function getModeIdsUsedByCustomTimelines(hruId: string): number[] {
     `SELECT DISTINCT e.mode_id
      FROM custom_timeline_events e
      JOIN custom_timelines t ON t.id = e.custom_timeline_id
-     WHERE t.hru_id = ? AND e.enabled = 1
+     WHERE t.hru_id = ? AND e.enabled = 1 AND e.mode_id IS NOT NULL
      ORDER BY e.mode_id`,
   ).all(hruId) as { mode_id: number }[];
   return rows.map((row) => row.mode_id);
@@ -306,14 +308,14 @@ export function getCustomModeUsage(hruId: string, modeId: number): CustomTimelin
 
 /**
  * The event in the shape the picker and the week editor already use, with the
- * mode referenced by id - the only kind of reference a custom event can hold.
+ * mode referenced by id, or the built-in Automatika for an event without a mode.
  */
 export function toTimelineEvent(event: CustomTimelineEvent, hruId: string): TimelineEvent {
   return {
     id: event.id,
     startTime: event.startTime,
     dayOfWeek: event.dayOfWeek,
-    hruConfig: { mode: event.modeId },
+    hruConfig: { mode: event.modeId ?? AUTOMATIC_MODE_REFERENCE },
     luftatorConfig: null,
     enabled: event.enabled,
     priority: event.priority,

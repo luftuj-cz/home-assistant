@@ -9,9 +9,16 @@ import {
   type ValveUpdateParams,
   valveUpdateParamsSchema,
 } from "../schemas/valves.js";
-import { ApiError } from "../shared/errors/apiErrors.js";
+import { ApiError, ConflictError } from "../shared/errors/apiErrors.js";
 
-export function createValvesRouter(valveManager: ValveController, logger: Logger) {
+/** The room whose automatic control holds a valve right now, or null when the valve is free. */
+export type ValveLockLookup = (entityId: string) => string | null;
+
+export function createValvesRouter(
+  valveManager: ValveController,
+  logger: Logger,
+  lockedBy: ValveLockLookup = () => null,
+) {
   const router = Router();
 
   router.get("/", async (_request: Request, response: Response, next: NextFunction) => {
@@ -44,6 +51,14 @@ export function createValvesRouter(valveManager: ValveController, logger: Logger
       const { entityId } = request.params as unknown as ValveUpdateParams;
       const body = request.body as unknown as ValveUpdateBody;
       const numericValue = body.value;
+
+      const room = lockedBy(entityId);
+      if (room !== null) {
+        logger.info({ entityId, room }, "Valve write refused: automatic control holds the valve");
+        return next(
+          new ConflictError(`Automatic control of ${room} holds this valve`, "VALVE_LOCKED"),
+        );
+      }
 
       try {
         logger.debug({ entityId, value: numericValue }, "Valve value POST received");

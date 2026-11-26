@@ -125,9 +125,10 @@ export function assertActivatable(
       `Custom timeline "${timeline.name}" has no enabled event`,
     );
   }
+  // Automatika events (no mode) need no values in any season.
   const usedModes = getCustomTimelineEvents(timeline.id)
     .filter((event) => event.enabled)
-    .map((event) => event.modeId);
+    .flatMap((event) => (event.modeId === null ? [] : [event.modeId]));
   const missing = findModesMissingInEnabledSeasons(timeline.hruId, usedModes);
   if (missing.length > 0) {
     throw new CustomOverrideRejectedError(

@@ -364,13 +364,10 @@ export function TimelinePage() {
     [coverage, handleDropAndEdit, t, viewingCustom],
   );
 
-  // The scheduler falls back to minimum values only with the seasons feature on and some schedule on the unit.
-  const showEmptySeasonWarning =
+  // Time without a schedule event runs automatic control (Automatika), so an empty active season is not a gap.
+  const showEmptyScheduleHint =
     !viewingCustom &&
-    seasonsEnabled &&
-    unitHasEnabledEvents &&
-    activeSeason !== undefined &&
-    activeSeason.enabledEvents === 0;
+    (activeSeason === undefined ? !unitHasEnabledEvents : activeSeason.enabledEvents === 0);
   const dragAnnouncements = {
     onDragStart: ({ active }: { active: { data: { current?: Record<string, unknown> } } }) =>
       t("ui.reorder.pickedUp", {
@@ -455,6 +452,7 @@ export function TimelinePage() {
         onEdit={handleEditEvent}
         onDelete={(event, day) => setEventPendingDelete({ event, day })}
         onToggle={handleToggleEvent}
+        allowAutomatic
         className={className}
       />
     );
@@ -506,11 +504,11 @@ export function TimelinePage() {
           }}
           seasonsEnabled={seasonsEnabled}
         />
-        {showEmptySeasonWarning && (
-          <Alert variant="destructive">
-            {t("settings.timeline.seasonEmptyWarning", {
-              season: activeSeason ? seasonLabel(activeSeason, t) : "",
-            })}
+        {showEmptyScheduleHint && (
+          <Alert variant="info">
+            {activeSeason && seasonsEnabled
+              ? t("automatic.emptySeason", { season: seasonLabel(activeSeason, t) })
+              : t("automatic.emptySchedule")}
           </Alert>
         )}
       </div>
@@ -578,6 +576,7 @@ export function TimelinePage() {
         event={editingEvent}
         dayLabel={dayLabelOf(editingEvent)}
         modes={modes}
+        allowAutomatic
         powerUnit={t(`app.units.${powerUnit}`, { defaultValue: powerUnit })}
         saving={isMutating}
         onChange={handleEventChange}

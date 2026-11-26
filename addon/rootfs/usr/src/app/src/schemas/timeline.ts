@@ -1,7 +1,12 @@
 import { z } from "zod";
 
 export const timelineModeInputSchema = z.object({
-  name: z.string().trim().min(1, "Mode name is required"),
+  name: z
+    .string()
+    .trim()
+    .min(1, "Mode name is required")
+    // "@" names are reserved for built-in modes such as "@automatic" (Automatika).
+    .refine((name) => !name.startsWith("@"), "Mode name must not start with @"),
   color: z.string().optional(),
   power: z
     .number()

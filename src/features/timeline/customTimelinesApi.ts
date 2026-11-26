@@ -5,6 +5,7 @@ import type {
   CustomTimelineSummary,
   CustomTimelinesResponse,
 } from "@luftuj/shared/types/customTimeline";
+import { AUTOMATIC_MODE_REFERENCE } from "@luftuj/features/timeline/utils/utils";
 import type { ApiTimelineEvent, TimelineEvent } from "@luftuj/shared/types/timeline";
 
 function scoped(path: string, unitId?: string): string {
@@ -99,8 +100,10 @@ export async function saveCustomTimelineEvent(
   event: TimelineEvent,
   unitId?: string,
 ): Promise<TimelineEvent> {
+  const mode = event.hruConfig?.mode;
   const body = {
-    modeId: Number(event.hruConfig?.mode),
+    // Automatika is an event without a mode.
+    modeId: mode === AUTOMATIC_MODE_REFERENCE ? null : Number(mode),
     dayOfWeek: event.dayOfWeek,
     startTime: event.startTime,
     enabled: event.enabled,

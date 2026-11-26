@@ -30,6 +30,13 @@ export type TimelineSchedulerLike = {
   getFormattedActiveMode?: () => string;
 };
 
+/** What the bug report needs from automatic control (LUFTaTOR Algo CO2). */
+export type AutomaticDiagnostics = {
+  status: () => unknown;
+  /** Full Home Assistant states of every assigned sensor entity, fetched fresh when possible. */
+  sensorStates: () => Promise<Record<string, unknown>>;
+};
+
 export type DiagnosticsDeps = {
   valveManager: ValveController;
   haClient: HomeAssistantClient | null;
@@ -37,6 +44,7 @@ export type DiagnosticsDeps = {
   timelineScheduler: TimelineSchedulerLike;
   baseUrl: string;
   appStartedAt: Date;
+  automatic?: AutomaticDiagnostics;
 };
 
 export function formatDuration(totalSeconds: number): string {

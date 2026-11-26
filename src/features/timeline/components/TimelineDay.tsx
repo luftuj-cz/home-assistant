@@ -48,6 +48,8 @@ interface TimelineDayProps {
   onEdit: (event: TimelineEvent) => void;
   onDelete: (event: TimelineEvent, day: number) => void;
   onToggle: (event: TimelineEvent, enabled: boolean) => void;
+  /** Events may be Automatika, so adding needs no stored mode. */
+  allowAutomatic?: boolean;
   className?: string;
 }
 
@@ -75,6 +77,7 @@ export function TimelineDay({
   onEdit,
   onDelete,
   onToggle,
+  allowAutomatic = false,
   className,
 }: Readonly<TimelineDayProps>) {
   const { t } = useTranslation();
@@ -82,7 +85,8 @@ export function TimelineDay({
   const sorted = events.toSorted((a, b) => a.startTime.localeCompare(b.startTime));
   const source = copyActive && copyDay === dayIdx;
   const target = copyActive && !source;
-  const noModes = modes.length === 0;
+  // Automatika needs no mode of its own, so a season view can take events before any mode exists.
+  const noModes = modes.length === 0 && !allowAutomatic;
 
   let copyButton = (
     <Button

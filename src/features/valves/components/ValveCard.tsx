@@ -7,6 +7,7 @@ import { Legend } from "@luftuj/shared/ui/legend";
 import { Slider } from "@luftuj/shared/ui/slider";
 import { cn } from "@luftuj/shared/utils/cn";
 import { damperScale } from "@luftuj/shared/utils/valve";
+import { useValveLock } from "@luftuj/features/valves/valveLocks";
 
 const VALUE_TONE = {
   open: "text-valve-open",
@@ -36,6 +37,7 @@ interface ValveCardProps {
 export function ValveCard({ valve, onPreview, onCommit }: Readonly<ValveCardProps>) {
   const { t } = useTranslation();
   const { entityId, name, value, min, max, step, isAvailable } = valve;
+  const lockedBy = useValveLock(entityId);
   const state = damperState(value, min, max, isAvailable);
   const scale = damperScale(t, min, max);
   let reading = <Legend className="text-current">{t("valves.status.offlineLabel")}</Legend>;
@@ -70,6 +72,11 @@ export function ValveCard({ valve, onPreview, onCommit }: Readonly<ValveCardProp
             </p>
           </div>
           <div className={cn("flex min-h-6 items-center", VALUE_TONE[state])}>{reading}</div>
+          {lockedBy !== undefined && (
+            <p className="caption m-0 text-muted-foreground">
+              {t("valves.lockedByAutomatic", { room: lockedBy })}
+            </p>
+          )}
         </div>
       </div>
       <Slider
@@ -77,7 +84,7 @@ export function ValveCard({ valve, onPreview, onCommit }: Readonly<ValveCardProp
         min={min}
         max={max}
         step={step}
-        disabled={!isAvailable}
+        disabled={!isAvailable || lockedBy !== undefined}
         fill="none"
         tone={SLIDER_TONE[state]}
         ticks={6}

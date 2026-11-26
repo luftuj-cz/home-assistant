@@ -41,6 +41,10 @@ import { createValveGroupsRouter } from "./routes/valveGroups.js";
 import { createStatusRouter } from "./routes/status.js";
 import { createSupportBundleRouter } from "./features/support/support.routes.js";
 import { createCommissioningRouter } from "./routes/commissioning.js";
+import { createAutomaticRouter } from "./routes/automatic.js";
+import { AutomaticRunner } from "./services/automatic/runner.js";
+import { SensorReadingStore } from "./services/automatic/sensorStore.js";
+import { listRooms } from "./services/db/rooms.js";
 import { CommissioningRunner } from "./services/commissioningRunner.js";
 import {
   closeAllSharedClients,
@@ -107,13 +111,35 @@ const hruRepo = new HruRepository(logger);
 const hruService = new HruService(hruRepo, settingsRepo, logger);
 const appStartedAt = new Date();
 
+// Automatic control (LUFTaTOR Algo CO2): the sensors of its rooms, and the runner the scheduler ticks.
+const sensorStore = new SensorReadingStore(haClient, logger);
+const automaticRunner = new AutomaticRunner({
+  valves: valveManager,
+  hru: hruService,
+  sensors: sensorStore,
+  logger,
+});
+
+async function syncAutomaticSensors(): Promise<void> {
+  const entityIds = listRooms().flatMap((room) => room.sensors.map((sensor) => sensor.entityId));
+  await sensorStore.track(entityIds);
+}
+
 const timelineScheduler = new TimelineScheduler(
   valveManager,
   hruService,
   settingsRepo,
   logger,
   haClient,
+  automaticRunner,
 );
+
+/** The room whose automatic control holds a valve, or null. */
+function automaticValveLock(entityId: string): string | null {
+  return (
+    automaticRunner.lockedValves().find((valve) => valve.entityId === entityId)?.roomName ?? null
+  );
+}
 
 const mqttService = new MqttService(
   config.mqtt,
@@ -166,8 +192,26 @@ app.use(
   "/api/database",
   createDatabaseRouter(valveManager, mqttService, timelineScheduler, hruMonitor, logger),
 );
-app.use("/api/valves", createValvesRouter(valveManager, logger));
-app.use("/api/valve-groups", createValveGroupsRouter(valveManager, logger));
+app.use("/api/valves", createValvesRouter(valveManager, logger, automaticValveLock));
+app.use("/api/valve-groups", createValveGroupsRouter(valveManager, logger, automaticValveLock));
+app.use(
+  "/api/automatic",
+  createAutomaticRouter({
+    logger,
+    onRoomsChanged: () => {
+      automaticRunner.roomsChanged();
+      void syncAutomaticSensors().then(() => timelineScheduler.executeScheduledEvent());
+    },
+    onParametersChanged: () => automaticRunner.parametersChanged(),
+    powerScale: () => automaticRunner.currentScale(),
+    status: () => automaticRunner.status(),
+    activeSource: () => ({
+      source: timelineScheduler.getActiveState()?.source ?? null,
+      name: timelineScheduler.getFormattedActiveMode(),
+    }),
+    homeAssistant: haClient,
+  }),
+);
 app.use(
   "/api/support",
   createSupportBundleRouter({
@@ -179,6 +223,13 @@ app.use(
     appStartedAt,
     config,
     logger,
+    automatic: {
+      status: () => automaticRunner.status(),
+      sensorStates: async () => {
+        await sensorStore.refresh();
+        return sensorStore.snapshot();
+      },
+    },
   }),
 );
 app.use(
@@ -351,6 +402,14 @@ async function start() {
   }
 
   try {
+    sensorStore.start();
+    await syncAutomaticSensors();
+  } catch (err) {
+    // Automatic control then reads no sensor until the rooms change; the rest of the add-on runs.
+    logger.error({ err }, "Failed to start following the sensors of automatic control");
+  }
+
+  try {
     logger.info("Starting Timeline Scheduler...");
     timelineScheduler.start();
     logger.info("Timeline Scheduler started successfully");
@@ -390,6 +449,7 @@ async function shutdown(signal: string, exitCodeOverride?: number) {
 
   hruMonitor.stop();
   timelineScheduler.stop();
+  sensorStore.stop();
 
   logger.debug({ clientCount: clients.size }, "Terminating all WebSocket clients");
   for (const client of clients) {

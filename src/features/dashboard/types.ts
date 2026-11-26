@@ -17,8 +17,8 @@ export interface ModbusLiveStatus extends ConnectionErrorInfo {
 export type MqttLiveStatus = ConnectionErrorInfo;
 
 export interface ActiveMode {
-  /** "fallback" is the automatic safe state; "custom" a custom timeline override. */
-  source: "manual" | "schedule" | "boost" | "fallback" | "custom";
+  /** "fallback" is the automatic safe state; "custom" a custom timeline override; "automatic" Automatika. */
+  source: "manual" | "schedule" | "boost" | "fallback" | "custom" | "automatic";
   modeName?: string;
   /** Set when the source is "custom". */
   customTimelineName?: string;

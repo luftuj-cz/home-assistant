@@ -1,7 +1,7 @@
 import { IconAlertTriangle, IconTrash } from "@tabler/icons-react";
 import { useTranslation } from "react-i18next";
 
-import { modeNumber } from "@luftuj/features/timeline/utils";
+import { AUTOMATIC_MODE_REFERENCE, modeNumber } from "@luftuj/features/timeline/utils";
 import type { Mode, TimelineEvent } from "@luftuj/shared/types/timeline";
 import { Button } from "@luftuj/shared/ui/button";
 import { Combobox } from "@luftuj/shared/ui/combobox";
@@ -28,6 +28,8 @@ interface EventDialogProps {
   onClose: () => void;
   /** Adds Smazat on the left, for an event that exists. */
   onDelete?: () => void;
+  /** Offer the built-in Automatika (season schedules and custom timelines). */
+  allowAutomatic?: boolean;
 }
 
 /**
@@ -45,10 +47,21 @@ export function EventDialog({
   onSave,
   onClose,
   onDelete,
+  allowAutomatic = false,
 }: Readonly<EventDialogProps>) {
   const { t } = useTranslation();
-  const noModes = modes.length === 0;
+  const noModes = modes.length === 0 && !allowAutomatic;
   const mode = event?.hruConfig?.mode;
+  const automatic = allowAutomatic
+    ? [
+        {
+          value: AUTOMATIC_MODE_REFERENCE,
+          label: t("automatic.title"),
+          description: t("automatic.eventHint"),
+          dot: "var(--air)",
+        },
+      ]
+    : [];
   const options = modes.map((candidate) => {
     const power = modeNumber(candidate, "power");
     return {
@@ -78,7 +91,7 @@ export function EventDialog({
               description={noModes ? t("settings.timeline.noModesCreatedDescription") : undefined}
             >
               <Combobox
-                options={options}
+                options={[...automatic, ...options]}
                 value={mode == null ? null : String(mode)}
                 onValueChange={(value) => {
                   if (value) onChange({ ...event, hruConfig: { ...event.hruConfig, mode: value } });

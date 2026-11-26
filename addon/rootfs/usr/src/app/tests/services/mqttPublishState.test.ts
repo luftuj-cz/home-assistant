@@ -138,3 +138,11 @@ describe("publishState localisation", () => {
     expect(payload.temperature).toBe(21.5);
   });
 });
+
+describe("active mode of automatic control", () => {
+  it("publishes Automatika as the add-on mode", async () => {
+    expect(await publish({ mode_formatted: "Automatika" })).toMatchObject({
+      mode_formatted: "Automatika",
+    });
+  });
+});

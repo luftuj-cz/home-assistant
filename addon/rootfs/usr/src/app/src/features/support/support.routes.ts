@@ -7,7 +7,7 @@ import { APP_VERSION } from "../../constants.js";
 import type { HomeAssistantClient } from "../../services/homeAssistantClient.js";
 import type { MqttService } from "../../services/mqttService.js";
 import type { ValveController } from "../../core/valveManager.js";
-import type { TimelineSchedulerLike } from "./diagnostics.js";
+import type { AutomaticDiagnostics, TimelineSchedulerLike } from "./diagnostics.js";
 import { buildBugReportBundle } from "./bundle.service.js";
 
 export type SupportBundleDeps = {
@@ -19,6 +19,7 @@ export type SupportBundleDeps = {
   appStartedAt: Date;
   config: AppConfig;
   logger: Logger;
+  automatic?: AutomaticDiagnostics;
 };
 
 export function createSupportBundleRouter(deps: SupportBundleDeps) {
@@ -73,6 +74,7 @@ export function createSupportBundleRouter(deps: SupportBundleDeps) {
             timelineScheduler: deps.timelineScheduler,
             baseUrl: deps.baseUrl,
             appStartedAt: deps.appStartedAt,
+            automatic: deps.automatic,
           },
           config: deps.config,
           logger,

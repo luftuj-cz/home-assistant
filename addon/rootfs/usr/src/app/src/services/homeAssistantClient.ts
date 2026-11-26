@@ -13,6 +13,8 @@ export interface HassState {
   attributes: Record<string, unknown>;
   last_changed?: string;
   last_updated?: string;
+  /** When the integration last reported, also with an unchanged value (Home Assistant 2024.3+). */
+  last_reported?: string;
   context?: Record<string, unknown>;
 }
 
@@ -81,6 +83,8 @@ export class HomeAssistantClient {
   private readonly headers: Record<string, string>;
   private connectionState: ConnectionState = "disconnected";
   private statusListeners: Array<(state: ConnectionState) => void> = [];
+  /** Listeners for every entity's state changes, not only LUFTaTOR valves (automatic control's sensors). */
+  private readonly stateListeners = new Set<(state: HassState) => void>();
 
   constructor(
     baseUrl: string,
@@ -100,6 +104,29 @@ export class HomeAssistantClient {
 
   async fetchAllStates(): Promise<HassState[]> {
     return this.fetchJson<HassState[]>("/api/states");
+  }
+
+  /** One entity's state, or null when Home Assistant does not know the entity. */
+  async fetchState(entityId: string): Promise<HassState | null> {
+    const response = await fetch(`${this.baseUrl}/api/states/${encodeURIComponent(entityId)}`, {
+      headers: this.headers,
+    });
+    if (response.status === 404) return null;
+    if (!response.ok) {
+      throw new Error(`Failed to fetch state of ${entityId}: ${response.status}`);
+    }
+    return (await response.json()) as HassState;
+  }
+
+  /**
+   * Calls `listener` with the new state of every entity that changes, over the WebSocket that
+   * `subscribeLuftatorEvents` keeps open. Returns the unsubscribe function.
+   */
+  addStateListener(listener: (state: HassState) => void): () => void {
+    this.stateListeners.add(listener);
+    return () => {
+      this.stateListeners.delete(listener);
+    };
   }
 
   async fetchLuftatorEntities(): Promise<HassState[]> {
@@ -342,7 +369,19 @@ export class HomeAssistantClient {
     const newState = data?.new_state;
     const oldState = data?.old_state;
 
-    if (!entityId || !newState || !entityId.startsWith(LUFTATOR_ENTITY_PREFIX)) {
+    if (!entityId || !newState) {
+      return;
+    }
+
+    for (const listener of this.stateListeners) {
+      try {
+        listener(newState);
+      } catch (error) {
+        this.logger.error({ error, entityId }, "Unhandled error in state listener");
+      }
+    }
+
+    if (!entityId.startsWith(LUFTATOR_ENTITY_PREFIX)) {
       return;
     }
 

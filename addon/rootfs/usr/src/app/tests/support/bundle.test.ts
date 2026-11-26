@@ -118,6 +118,7 @@ describe("buildBugReportBundle", () => {
     const names = entries.map((entry) => entry.name).sort();
     expect(names).toEqual(
       [
+        "automatic.json",
         "config.json",
         "connections.json",
         "debug-snapshot.json",
@@ -128,7 +129,7 @@ describe("buildBugReportBundle", () => {
     );
 
     // Manifest records every source as included.
-    expect(manifest.sources).toHaveLength(6);
+    expect(manifest.sources).toHaveLength(7);
     expect(manifest.sources.every((source) => source.included)).toBe(true);
     expect(manifest.appVersion).toBeTruthy();
 
@@ -166,5 +167,88 @@ describe("buildBugReportBundle", () => {
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }
+  });
+
+  it("carries automatic control: status, parameters, rooms and the assigned sensors' full states", async () => {
+    const { createRoom } = await import("../../src/services/db/rooms.js");
+    createRoom({
+      name: "Obývák",
+      valves: ["number.luftator_obyvak"],
+      sensors: [{ entityId: "sensor.luftaq_obyvak", attribute: null }],
+    });
+    const { buildBugReportBundle } = await import("../../src/features/support/bundle.service.js");
+    const luftaq = {
+      entity_id: "sensor.luftaq_obyvak",
+      state: "812",
+      attributes: { unit_of_measurement: "ppm", firmware: "1.2", token: HA_TOKEN },
+    };
+    const entries: AppendedEntry[] = [];
+    const pending: Promise<void>[] = [];
+    await buildBugReportBundle(
+      {
+        diagnostics: {
+          valveManager: { getSnapshot: async () => [] } as never,
+          haClient: null,
+          mqttService: {
+            getStatus: () => ({ connected: false }),
+            getLastDiscoveryTime: () => null,
+            getLastSuccessAt: () => null,
+          } as never,
+          timelineScheduler: { getActiveState: () => null },
+          baseUrl: "http://supervisor/core",
+          appStartedAt: new Date(),
+          automatic: {
+            status: () => ({ active: true, branch: "th1" }),
+            sensorStates: async () => ({ "sensor.luftaq_obyvak": luftaq }),
+          },
+        },
+        config: makeConfig(),
+        logger: noopLogger,
+      },
+      makeFakeArchive(entries, pending) as never,
+    );
+    await Promise.all(pending);
+    const entry = entries.find((candidate) => candidate.name === "automatic.json");
+    const content = JSON.parse(entry!.content as string);
+    expect(content.status).toEqual({ active: true, branch: "th1" });
+    expect(content.rooms[0]).toMatchObject({ name: "Obývák", setUp: true });
+    expect(content.sensors["sensor.luftaq_obyvak"].attributes.firmware).toBe("1.2");
+    expect(entry!.content as string).not.toContain(HA_TOKEN);
+    expect(content.parameters.values.th1).toBe(800);
+  });
+
+  it("still produces automatic.json when the sensors cannot be fetched", async () => {
+    const { buildBugReportBundle } = await import("../../src/features/support/bundle.service.js");
+    const entries: AppendedEntry[] = [];
+    const manifest = await buildBugReportBundle(
+      {
+        diagnostics: {
+          valveManager: { getSnapshot: async () => [] } as never,
+          haClient: null,
+          mqttService: {
+            getStatus: () => ({ connected: false }),
+            getLastDiscoveryTime: () => null,
+            getLastSuccessAt: () => null,
+          } as never,
+          timelineScheduler: { getActiveState: () => null },
+          baseUrl: "http://supervisor/core",
+          appStartedAt: new Date(),
+          automatic: {
+            status: () => null,
+            sensorStates: async () => {
+              throw new Error("Home Assistant unreachable");
+            },
+          },
+        },
+        config: makeConfig(),
+        logger: noopLogger,
+      },
+      makeFakeArchive(entries, []) as never,
+    );
+    const entry = entries.find((candidate) => candidate.name === "automatic.json");
+    expect(JSON.parse(entry!.content as string).sensors).toEqual({
+      error: "Home Assistant unreachable",
+    });
+    expect(manifest.sources.find((source) => source.source === "automatic")?.included).toBe(true);
   });
 });

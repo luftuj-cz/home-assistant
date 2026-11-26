@@ -340,4 +340,28 @@ describe("custom timelines API", () => {
       expect(storedOverride()).toMatchObject({ customTimelineId: chata });
     });
   });
+
+  describe("Automatika events", () => {
+    it("stores an event without a mode as Automatika and runs an override of it", async () => {
+      const id = await create("Dovolená");
+      const created = await api.call("POST", `${BASE}/${id}/events`, {
+        ...event(UTLUM, "00:00"),
+        modeId: null,
+      });
+      expect(created.status).toBe(201);
+      expect(created.body).toMatchObject({ hruConfig: { mode: "@automatic" } });
+
+      const started = await api.call("PUT", `${BASE}/override`, { customTimelineId: id });
+      expect(started.status).toBe(200);
+    });
+
+    it("fills a week with Automatika", async () => {
+      const id = await create("Chata");
+      const result = await api.call("POST", `${BASE}/${id}/fill`, { modeId: null });
+      expect(result.status).toBe(200);
+      const events = result.body!.events as { hruConfig: { mode: unknown } }[];
+      expect(events).toHaveLength(7);
+      expect(events.every((e) => e.hruConfig.mode === "@automatic")).toBe(true);
+    });
+  });
 });

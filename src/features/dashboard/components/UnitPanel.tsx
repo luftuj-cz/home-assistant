@@ -37,10 +37,12 @@ const SOURCE_TONE: Record<ActiveMode["source"], Tone> = {
   boost: "manual",
   custom: "plan",
   fallback: "warning",
+  automatic: "success",
 };
 
 const CHIP_TEXT: Partial<Record<Tone, string>> = {
   air: "text-air",
+  success: "text-success",
   manual: "text-manual",
   plan: "text-plan",
   warning: "text-warning",
@@ -314,6 +316,7 @@ export function UnitPanel({
     : undefined;
   let readoutName = modeName ?? nativeMode ?? "—";
   if (activeMode?.source === "fallback") readoutName = t("dashboard.activeMode.fallback");
+  if (activeMode?.source === "automatic") readoutName = t("dashboard.activeMode.automatic");
   if (activeMode?.source === "manual") readoutName = nativeMode ?? t("dashboard.activeMode.manual");
 
   const powerRaw = powerVar ? Number(values[powerVar.name]) : Number.NaN;

@@ -1,7 +1,18 @@
 import type { TimelineMode } from "../../types/index.js";
 
 /**
- * Finds a timeline mode by its reference (id or name).
+ * The built-in mode "Automatika": automatic control (LUFTaTOR Algo CO2) instead of a stored mode. It belongs to
+ * no season and has no values. User modes cannot be named like it, since mode names starting with "@" are
+ * rejected.
+ */
+export const AUTOMATIC_MODE_REFERENCE = "@automatic";
+
+export function isAutomaticModeReference(reference: unknown): boolean {
+  return reference === AUTOMATIC_MODE_REFERENCE;
+}
+
+/**
+ * Finds a timeline mode by its reference (id or name). Never resolves the built-in "Automatika".
  *
  * @param modes - Array of timeline modes to search through
  * @param reference - Mode reference to resolve (mode id as number/string, or mode name as string)
@@ -14,6 +25,7 @@ export function findTimelineModeByReference(
   if (reference === undefined || reference === null || reference === "") {
     return null;
   }
+  if (isAutomaticModeReference(reference)) return null;
 
   if (typeof reference === "number" || /^\d+$/.test(String(reference))) {
     const id = Number.parseInt(String(reference), 10);
@@ -25,7 +37,8 @@ export function findTimelineModeByReference(
 
 /**
  * Checks whether a timeline mode reference can be resolved against the available modes.
- * Returns true for empty/undefined references (allowing events without mode constraints)
+ * Returns true for empty/undefined references (allowing events without mode constraints), for the built-in
+ * "Automatika",
  * or when a matching mode exists.
  *
  * @param modes - Array of timeline modes to validate against
@@ -39,6 +52,7 @@ export function hasResolvableTimelineModeReference(
   if (reference === undefined || reference === null || reference === "") {
     return true;
   }
+  if (isAutomaticModeReference(reference)) return true;
 
   return findTimelineModeByReference(modes, reference) !== null;
 }

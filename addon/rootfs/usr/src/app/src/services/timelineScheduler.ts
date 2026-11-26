@@ -16,7 +16,8 @@ import {
   pickActiveEventWithContext,
   timeToMinutes,
 } from "./timeline/eventPicker.js";
-import { findTimelineModeByReference } from "./timeline/modeReference.js";
+import { findTimelineModeByReference, isAutomaticModeReference } from "./timeline/modeReference.js";
+import type { AutomaticRunner, CannotRunReason } from "./automatic/runner.js";
 import {
   getCustomTimeline,
   getCustomTimelineEvents,
@@ -40,8 +41,10 @@ import { INFINITE_BOOST_DURATION_MINUTES } from "../constants.js";
  * "fallback" is the automatic safe state: distinct from "manual" so the
  * dashboard and MQTT never present an automatic low state as user control.
  * "custom" is a custom timeline overriding the season schedule.
+ * "automatic" is automatic control (LUFTaTOR Algo CO2): the built-in mode
+ * "Automatika" in the schedule, or no schedule event at all.
  */
-export type TimelineSource = "manual" | "schedule" | "boost" | "fallback" | "custom";
+export type TimelineSource = "manual" | "schedule" | "boost" | "fallback" | "custom" | "automatic";
 
 /** Setpoint written by the safe state, clamped into the unit's declared range. */
 export const SAFE_STATE_TEMPERATURE_C = 20;
@@ -75,6 +78,15 @@ type ActivePayload = {
   activationToken?: string;
 };
 
+/** The active payload of automatic control: the runner writes valves and power, not the scheduler. */
+const AUTOMATIC_PAYLOAD: ActivePayload = {
+  hruConfig: null,
+  luftatorConfig: null,
+  source: "automatic",
+  scriptEntityIds: [],
+  activationToken: "automatic",
+};
+
 export class TimelineScheduler {
   private static readonly TRANSLATIONS = {
     cs: {
@@ -82,12 +94,14 @@ export class TimelineScheduler {
       boost: "Manuální režim",
       schedule: "Plán",
       fallback: "Bezpečný režim",
+      automatic: "Automatika",
     },
     en: {
       manual: "Manual",
       boost: "Boost",
       schedule: "Schedule",
       fallback: "Safe state",
+      automatic: "Automatic",
     },
   };
   /**
@@ -120,7 +134,14 @@ export class TimelineScheduler {
     private readonly settingsRepo: SettingsRepository,
     private readonly logger: Logger,
     private readonly haClient: HomeAssistantClient | null = null,
+    /** Automatic control; without it, time without a schedule event behaves as before automatic control. */
+    private readonly automatic: AutomaticRunner | null = null,
   ) {}
+
+  /** Why automatic control is the active source but cannot run, or null. */
+  public getAutomaticReason(): CannotRunReason | null {
+    return this.automatic?.getReason() ?? null;
+  }
 
   public start(): void {
     if (this.schedulerTimer) return;
@@ -167,6 +188,9 @@ export class TimelineScheduler {
     // Never render the automatic safe state as user control.
     if (state.source === "fallback") {
       return translations.fallback;
+    }
+    if (state.source === "automatic") {
+      return translations.automatic;
     }
     // The timeline's name is user data and is shown as typed.
     if (state.source === "custom") {
@@ -220,6 +244,12 @@ export class TimelineScheduler {
     await this.reportValveStates();
 
     const activePayload = await this.resolveActiveEvent();
+
+    if (activePayload?.source === "automatic") {
+      await this.runAutomatic(throwOnApplyError);
+      return;
+    }
+    this.automatic?.deactivate(activePayload?.source ?? "manual");
 
     if (!activePayload) {
       this.logger.debug("TimelineScheduler: no active event or boost for current time");
@@ -322,11 +352,43 @@ export class TimelineScheduler {
     if (customPayload) return customPayload;
 
     const { event, modes } = pickActiveEventWithContext(currentUnitId, nowMinutes, today);
+    if (this.automatic && (!event || isAutomaticModeReference(event.hruConfig?.mode))) {
+      return AUTOMATIC_PAYLOAD;
+    }
     if (!event) {
       return this.resolveNoEventPayload(currentUnitId);
     }
 
     return this.buildScheduledEventPayload(event, modes);
+  }
+
+  /**
+   * One run of automatic control. When it cannot run, the safe state applies (written once on entry, as for a
+   * schedule gap) and the runner keeps the reason for the status.
+   */
+  private async runAutomatic(throwOnApplyError: boolean): Promise<void> {
+    const runner = this.automatic!;
+    // A scriptless activation: consumes the script dedup slot, like a boost.
+    this.maybeRunActivationScripts(AUTOMATIC_PAYLOAD, "automatic");
+    let reason: CannotRunReason | null;
+    try {
+      reason = await runner.tick();
+    } catch (error) {
+      this.logger.error({ error }, "TimelineScheduler: automatic control failed");
+      if (throwOnApplyError) throw error;
+      return;
+    }
+    if (!reason) {
+      this.safeStateApplied = false;
+      this.lastActiveState = { source: "automatic", modeName: undefined };
+      return;
+    }
+    const safeState = this.resolveSafeStatePayload(this.getCurrentUnitId());
+    if (safeState) {
+      await this.applyEventValues(safeState, throwOnApplyError);
+    } else {
+      this.lastActiveState = { source: "fallback", modeName: undefined };
+    }
   }
 
   /**
@@ -394,6 +456,11 @@ export class TimelineScheduler {
       toTimelineEvent(event, timeline.hruId),
     );
     const event = pickActiveEventFrom(events, modes, nowMinutes, today);
+    // Automatika in a custom timeline: automatic control runs, the timeline stays the override.
+    if (event && this.automatic && isAutomaticModeReference(event.hruConfig?.mode)) {
+      this.customOverrideDegraded = false;
+      return AUTOMATIC_PAYLOAD;
+    }
     const mode = event ? findTimelineModeByReference(modes, event.hruConfig?.mode) : null;
 
     // Write-side checks make this unreachable: every mode a custom timeline
@@ -466,6 +533,11 @@ export class TimelineScheduler {
       return null;
     }
 
+    return this.resolveSafeStatePayload(currentUnitId);
+  }
+
+  /** The safe state, written once on entry and then only reported until another source applies. */
+  private resolveSafeStatePayload(currentUnitId: string | undefined): ActivePayload | null {
     // Written on entry into the no-event condition and not re-asserted after
     // that: applyEventValues writes on every tick, and an automatic low state
     // that reappears ten seconds after every manual adjustment is indisting-

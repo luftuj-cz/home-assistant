@@ -102,6 +102,7 @@
       },
       "dashboard": "Dashboard",
       "valves": "Valves",
+      "automatic": "Automatic",
       "timeline": "Timeline",
       "settings": "Settings",
       "debug": "Debug",
@@ -294,7 +295,10 @@
     "scale": {
       "open": "Open",
       "closed": "Closed"
-    }
+    },
+    "lockedByAutomatic": "Driven by automatic control · {{room}}",
+    "automaticTitle": "Automatic control drives some valves",
+    "automaticNote": "The algorithm sets the valves of its rooms by CO₂ now. Start a boost to set them by hand."
   },
   "settings": {
     "title": "Settings",
@@ -995,7 +999,8 @@
       "boost": "Boost: {{name}}",
       "schedule": "Schedule: {{name}}",
       "custom": "{{timeline}}: {{name}}",
-      "fallback": "Safe state"
+      "fallback": "Safe state",
+      "automatic": "Automatic"
     },
     "haStatusTitle": "Home Assistant",
     "haStatusDescription": "Backend connection to Home Assistant WebSocket",
@@ -1107,7 +1112,8 @@
         "manual": "Manual",
         "boost": "Manual mode",
         "custom": "Custom plan",
-        "fallback": "Safe mode"
+        "fallback": "Safe mode",
+        "automatic": "Automatic"
       }
     },
     "unitPanel": {
@@ -1165,7 +1171,8 @@
       "emptyPlan": "empty – add events on the Timeline",
       "running": "running",
       "addEvents": "Add events on the Timeline"
-    }
+    },
+    "automaticOpen": "Open Automatic"
   },
   "apiErrors": {
     "DUPLICATE_EVENT_TIME": "An event already exists at this time for the selected day",
@@ -1201,7 +1208,13 @@
     "CUSTOM_TIMELINE_LAST_EVENT": "A running plan must keep at least one enabled event",
     "OVERRIDE_END_BEFORE_START": "The end must be after the start",
     "MODE_VALUES_IN_USE_BY_CUSTOM_TIMELINE": "Custom plans use this mode, so its values must stay",
-    "MODE_NOT_CONFIGURED_FOR_CUSTOM_TIMELINES": "Custom plans use modes that have no values in that season"
+    "MODE_NOT_CONFIGURED_FOR_CUSTOM_TIMELINES": "Custom plans use modes that have no values in that season",
+    "ROOM_NAME_TAKEN": "A room with this name already exists",
+    "ROOM_VALVE_TAKEN": "The valve already belongs to another room",
+    "ROOM_SENSOR_TAKEN": "The sensor already belongs to another room",
+    "ROOM_NOT_FOUND": "Room not found",
+    "VALVE_LOCKED": "Automatic control drives this valve now. A boost overrides it.",
+    "HA_OFFLINE": "Home Assistant is not connected"
   },
   "errors": {
     "i18n": {
@@ -1358,5 +1371,187 @@
     "next": "Next",
     "stepDone": "done",
     "optional": "Optional"
+  },
+  "automatic": {
+    "title": "Automatic",
+    "description": "Automatic control by CO₂ (LUFTaTOR Algo CO2): rooms, parameters and what the algorithm does. It runs where the schedule has no mode, and during the Automatic mode.",
+    "actions": {
+      "save": "Save"
+    },
+    "eventHint": "Controls by the CO₂ in the rooms",
+    "emptySeason": "The active season {{season}} has no events, so automatic control runs.",
+    "emptySchedule": "The schedule has no events, so automatic control runs.",
+    "status": {
+      "legend": "Status",
+      "title": "What automatic control does",
+      "inactive": "Not running",
+      "cannotRun": "Cannot run",
+      "starting": "Starting",
+      "running": "Running",
+      "inactiveBecause": "Not running now; in effect: {{source}}.",
+      "safeState": "The safe state applies: the unit at its minimum, valves unchanged.",
+      "loadFailed": "Could not load the status of automatic control.",
+      "branch": "Decision",
+      "power": "Power (0–10)",
+      "powerUnit": "{{before}} → {{after}} / {{max}} in the unit's terms",
+      "fluctuation": "People moving",
+      "on": "on",
+      "off": "off",
+      "engineTime": "Algorithm time",
+      "room": "Room",
+      "co2": "CO₂ (ppm)",
+      "filtered": "Smoothed",
+      "condition": "State",
+      "valves": "Valves",
+      "sensors": "Sensors",
+      "cooldown": "waiting before acting again",
+      "age": "{{seconds}} s ago"
+    },
+    "problems": {
+      "missing": "Home Assistant does not know the entity",
+      "unavailable": "unavailable",
+      "notNumber": "not a number",
+      "wrongUnit": "unit other than ppm",
+      "stale": "value too old"
+    },
+    "conditions": {
+      "belowTh1": "below TH1",
+      "aboveTh1": "above TH1",
+      "aboveTh2": "above TH2",
+      "noReading": "no reading"
+    },
+    "reasons": {
+      "noRooms": "No room is set up",
+      "noReadings": "No sensor has a valid reading",
+      "noPowerMax": "The unit has no known maximum power",
+      "hruUnavailable": "The unit does not respond"
+    },
+    "branches": {
+      "th2": "a room above TH2: ventilating it and adding power",
+      "th1": "a room above TH1: redirecting air with the valves",
+      "fluctuation": "people moving around: power Pmove",
+      "allBelow": "all fine: valves open, power coming down",
+      "none": "waiting for the state to settle"
+    },
+    "rooms": {
+      "legend": "Rooms",
+      "title": "Rooms of automatic control",
+      "description": "A room needs at least one CO₂ sensor and at least one supply valve. Rooms not set up and valves outside rooms are left alone.",
+      "add": "Add room",
+      "loadFailed": "Could not load the rooms.",
+      "empty": "No rooms yet",
+      "emptyDescription": "Add a room, give it a CO₂ sensor and its supply valves.",
+      "counts": "Sensors: {{sensors}} · Valves: {{valves}}",
+      "setUp": "Set up",
+      "notSetUp": "Not set up",
+      "edit": "Edit room {{name}}",
+      "delete": "Delete room {{name}}",
+      "deleteTitle": "Delete the room?",
+      "deleteConfirm": "Delete",
+      "deleteText": "Room {{name}} will be deleted. Its valves and sensors stay; automatic control just stops driving them.",
+      "saved": "The room is saved.",
+      "saveFailed": "Could not save the room",
+      "deleteFailed": "Could not delete the room",
+      "newTitle": "New room",
+      "editTitle": "Edit room",
+      "dialogDescription": "Pick the room's CO₂ sensors and the valves that supply air to it.",
+      "name": "Name",
+      "sensors": "CO₂ sensors",
+      "sensorsHint": "Any sensor in Home Assistant. Pick the entity, then the value that holds CO₂: the entity's state or one of its attributes. With several sensors, the highest value counts.",
+      "sensorEntity": "Sensor",
+      "pickSensor": "Pick a sensor",
+      "noCandidates": "No numeric sensor",
+      "sensorValue": "Value with CO₂",
+      "pickValue": "Pick a value",
+      "stateValue": "state",
+      "noValue": "no value",
+      "addSensor": "Add",
+      "removeSensor": "Remove sensor",
+      "candidatesFailed": "Could not load the sensors from Home Assistant.",
+      "co2Sensors": "CO₂ sensors",
+      "otherSensors": "Other sensors",
+      "valves": "Supply valves",
+      "valvesHint": "Only valves that supply air to the room. Exhaust is not controlled yet.",
+      "pickValves": "Pick valves",
+      "addGroup": "Add valves from a group",
+      "pickGroup": "Pick a group"
+    },
+    "parameters": {
+      "legend": "Parameters",
+      "title": "Algorithm parameters",
+      "description": "Saved values apply at once, without a restart. Power is on a 0–10 scale where 10 is the unit's maximum.",
+      "loadFailed": "Could not load the parameters.",
+      "saved": "The parameters are saved.",
+      "saveFailed": "Could not save the parameters",
+      "reset": "Restore defaults",
+      "default": "Default {{value}}",
+      "inUnit": "now {{value}} {{unit}}",
+      "problems": "The algorithm objects to these values",
+      "fluctuationHelp": "When people move around the house and CO₂ rises a little in several rooms, holds the power at Pmove.",
+      "groups": {
+        "thresholds": "CO₂ thresholds",
+        "power": "Unit power",
+        "times": "Times",
+        "valves": "Valves",
+        "day": "Day and night, sensors"
+      },
+      "fields": {
+        "th1": "TH1",
+        "th2": "TH2",
+        "th1Hysteresis": "TH1 hysteresis",
+        "th2Hysteresis": "TH2 hysteresis",
+        "fluctuationOffset": "People moving, below TH1",
+        "co2FallingMargin": "Drop that counts",
+        "hruMinPower": "Pmin",
+        "hruMaxPowerDay": "Pmax by day",
+        "hruMaxPowerNight": "Pmax at night",
+        "hruMovePower": "Pmove",
+        "hruPowerStep": "Power step",
+        "thresholdTimeLimit": "Tzone (above a threshold)",
+        "belowTimeLimit": "Topen (below a threshold)",
+        "hruPowerStepDownInterval": "Step down every",
+        "powerReviewInterval": "Power review every",
+        "missingReadingHold": "A silent room counts for",
+        "powerReviewStepLimit": "Steps up in a row",
+        "co2FilterAlpha": "Smoothing (alpha)",
+        "partialCloseValue": "Partly closed valve",
+        "fullyOpenValue": "Open valve",
+        "dayStart": "Day from",
+        "dayEnd": "Day until",
+        "fluctuationEnabled": "People moving around",
+        "maxReadingAge": "A sensor value is valid for"
+      }
+    },
+    "journal": {
+      "legend": "Journal",
+      "title": "Decisions of automatic control",
+      "description": "Changes only, for the last 7 days. The same journal is in the bug report bundle.",
+      "loadFailed": "Could not load the journal.",
+      "empty": "No entries yet",
+      "branch": "{{to}}",
+      "power": "{{before}} → {{after}}{{unit}}{{lane}}",
+      "lanes": {
+        "fast": "fast review",
+        "slow": "slow review"
+      },
+      "canRun": "can run again",
+      "stop": "taken over by {{source}}",
+      "rooms": {
+        "created": "room {{name}} added",
+        "updated": "room {{name}} edited",
+        "deleted": "a room deleted",
+        "groupAdded": "group added to room {{name}}"
+      },
+      "kinds": {
+        "start": "Start",
+        "stop": "End",
+        "cannotRun": "Cannot run",
+        "branch": "Decision",
+        "valves": "Valves",
+        "power": "Power",
+        "parameters": "Parameters changed",
+        "rooms": "Rooms"
+      }
+    }
   }
 }

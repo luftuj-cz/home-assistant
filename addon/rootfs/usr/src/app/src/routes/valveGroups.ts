@@ -21,8 +21,13 @@ import {
   valveGroupMembersBodySchema,
 } from "../schemas/valveGroups.js";
 import { ConflictError, NotFoundError } from "../shared/errors/apiErrors.js";
+import type { ValveLockLookup } from "./valves.js";
 
-export function createValveGroupsRouter(valveManager: ValveController, logger: Logger) {
+export function createValveGroupsRouter(
+  valveManager: ValveController,
+  logger: Logger,
+  lockedBy: ValveLockLookup = () => null,
+) {
   const router = Router();
 
   router.get("/", (_request: Request, response: Response, next: NextFunction) => {
@@ -151,9 +156,12 @@ export function createValveGroupsRouter(valveManager: ValveController, logger: L
 
         const snapshot = await valveManager.getSnapshot();
         const snapshotByEntityId = new Map(snapshot.map((valve) => [valve.entity_id, valve]));
+        // Valves held by automatic control are left alone and reported, not written.
+        const locked = group.entityIds.filter((entityId) => lockedBy(entityId) !== null);
+        const writable = group.entityIds.filter((entityId) => lockedBy(entityId) === null);
 
         const settled = await Promise.allSettled(
-          group.entityIds.map((entityId) => {
+          writable.map((entityId) => {
             const valve = snapshotByEntityId.get(entityId);
             const min = Number(valve?.attributes?.min ?? 0);
             const max = Number(valve?.attributes?.max ?? 90);
@@ -163,7 +171,7 @@ export function createValveGroupsRouter(valveManager: ValveController, logger: L
         );
 
         const failed = settled
-          .map((result, index) => ({ entityId: group.entityIds[index], result }))
+          .map((result, index) => ({ entityId: writable[index], result }))
           .filter(
             (entry): entry is { entityId: string; result: PromiseRejectedResult } =>
               entry.entityId !== undefined && entry.result.status === "rejected",
@@ -180,9 +188,10 @@ export function createValveGroupsRouter(valveManager: ValveController, logger: L
           "Bulk set valve group values",
         );
 
-        response.status(failed.length > 0 ? 207 : 200).json({
+        response.status(failed.length > 0 || locked.length > 0 ? 207 : 200).json({
           succeeded: settled.length - failed.length,
           failed: failed.map((f) => f.entityId),
+          locked,
         });
       } catch (error) {
         logger.error({ error, groupId, value }, "Failed to bulk set valve group values");

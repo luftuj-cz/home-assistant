@@ -1,0 +1,84 @@
+#:schema https://senzor.kankaj.cz/schema/project.json
+# Simulated rooms for developing LUFTaTOR automatic control (Algo CO2).
+#
+# One air sensor per room, announced to Home Assistant over MQTT Discovery: each becomes a device with
+# three entities (CO2, Temperature, Humidity), so the room editor's "which value is CO2" choice has
+# something to choose from. Pin `co2` in the Senzor window (e.g. 1300 ppm) to drive a room over TH1/TH2.
+#
+# Entities in Home Assistant: sensor.sim_obyvak_co2, sensor.sim_obyvak_temperature, …
+# Run: SENZOR_MQTT_PASSWORD=… senzor tools/senzor/rooms.toml   (or senzor-cli run …)
+
+[broker]
+host = "homeassistant.local"
+port = 1883
+client_id_prefix = "senzor-luftator-"
+username = "senzor"
+password_env = "SENZOR_MQTT_PASSWORD"
+
+[simulation]
+seed = 42
+
+[[templates]]
+id = "air"
+interval = "30s"
+home_assistant = true
+availability = { topic = "senzor/{{ device_id }}/status", online = "online", offline = "offline" }
+
+[[templates.messages]]
+topic = "senzor/{{ device_id }}/state"
+payload = '{"co2": {{ co2 | round | int }}, "temperature": {{ temperature | round(1) }}, "humidity": {{ humidity | round | int }}}'
+
+[templates.fields.co2]
+generator = "random_walk"
+start = 600
+min = 420
+max = 2500
+step = 10
+unit = "ppm"
+name = "CO2"
+
+[templates.fields.temperature]
+generator = "sine"
+center = 22
+amplitude = 1
+period = "24h"
+noise = 0.1
+unit = "°C"
+name = "Temperature"
+
+[templates.fields.humidity]
+generator = "random_walk"
+start = 45
+min = 30
+max = 65
+step = 1
+unit = "%"
+name = "Humidity"
+
+[[devices]]
+id = "sim_obyvak"
+template = "air"
+fields.co2 = { start = 650 }
+
+[[devices]]
+id = "sim_loznice"
+template = "air"
+fields.co2 = { start = 550 }
+
+[[devices]]
+id = "sim_detsky"
+template = "air"
+fields.co2 = { start = 700 }
+
+[[devices]]
+id = "sim_pracovna"
+template = "air"
+fields.co2 = { start = 500 }
+
+# A room that fills up: +10 ppm per report from 600 to 1300 ppm, then holds. About 35 minutes to TH2 1200.
+# Off by default; start it in the window or with `senzor-cli run … --only sim_ramp`.
+[[devices]]
+id = "sim_ramp"
+template = "air"
+autostart = false
+fields.co2 = { generator = "script", start = 600, script = "clamp(value + 10.0, 400.0, 1300.0)" }

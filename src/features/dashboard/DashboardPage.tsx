@@ -9,6 +9,7 @@ import {
   ConnectionList,
   type ConnectionItem,
 } from "@luftuj/features/dashboard/components/ConnectionList";
+import { useAutomaticStatus } from "@luftuj/features/automatic/hooks";
 import { CustomPlanCard } from "@luftuj/features/dashboard/components/CustomPlanCard";
 import { ManualModeCard } from "@luftuj/features/dashboard/components/ManualModeCard";
 import { UnitPanel } from "@luftuj/features/dashboard/components/UnitPanel";
@@ -16,6 +17,7 @@ import { useCustomPlans } from "@luftuj/features/dashboard/hooks/useCustomPlans"
 import { useDashboardStatus } from "@luftuj/features/dashboard/hooks/useDashboardStatus";
 import { useTodayPlan } from "@luftuj/features/dashboard/hooks/useTodayPlan";
 import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimelineModesQuery";
+import { Alert } from "@luftuj/shared/ui/alert";
 import { Button } from "@luftuj/shared/ui/button";
 import { IconModbus } from "@luftuj/shared/ui/icons";
 import { PageHeader } from "@luftuj/shared/ui/page-header";
@@ -66,6 +68,7 @@ function Rise({
 export function DashboardPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const automatic = useAutomaticStatus();
   const {
     haStatus,
     haLoading,
@@ -214,6 +217,19 @@ export function DashboardPage() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6 font-sans text-sm leading-5 text-foreground max-md:gap-4">
       <PageHeader title={t("dashboard.title")} description={t("dashboard.systemStatus")} />
+      {automatic.data?.active && automatic.data.reason && (
+        <Alert
+          variant="warning"
+          title={t(`automatic.reasons.${automatic.data.reason}`)}
+          action={
+            <Button variant="ghost" size="sm" onClick={() => void navigate({ to: "/automatic" })}>
+              {t("dashboard.automaticOpen")}
+            </Button>
+          }
+        >
+          {t("automatic.status.safeState")}
+        </Alert>
+      )}
       <div className="grid grid-cols-12 gap-6 max-lg:grid-cols-[minmax(0,1fr)] max-md:gap-4">
         <Rise index={0} className="col-span-8 row-start-1 max-lg:col-span-1 max-lg:row-start-auto">
           <UnitPanel

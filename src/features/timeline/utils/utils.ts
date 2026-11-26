@@ -1,6 +1,7 @@
 import type { Mode, TimelineEvent } from "@luftuj/shared/types/timeline";
 import type { HruVariable, LocalizedText } from "@luftuj/shared/api/hru";
 import type { TFunction } from "i18next";
+import i18n from "@luftuj/shared/i18n";
 
 export const DAY_ORDER = [0, 1, 2, 3, 4, 5, 6] as const;
 export const DEFAULT_START_TIME = "08:00" as const;
@@ -76,9 +77,22 @@ export function toMinutes(time: string): number {
   return (hours ?? 0) * 60 + (minutes ?? 0);
 }
 
+/** The built-in mode "Automatika": automatic control by CO₂ instead of a stored mode (`@automatic`). */
+export const AUTOMATIC_MODE_REFERENCE = "@automatic";
+
+/** Automatika shown like a mode: a fixed id no stored mode has, the air colour, no values. */
+export function automaticMode(): Mode {
+  return { id: -1, name: i18n.t("automatic.title"), color: "var(--air)" };
+}
+
+export function isAutomaticEvent(event: TimelineEvent): boolean {
+  return event.hruConfig?.mode === AUTOMATIC_MODE_REFERENCE;
+}
+
 /** The mode an event switches to, by id or (older events) by name; undefined when it names none. */
 export function modeOfEvent(event: TimelineEvent, modes: Mode[]): Mode | undefined {
   const reference = event.hruConfig?.mode;
+  if (reference === AUTOMATIC_MODE_REFERENCE) return automaticMode();
   if (typeof reference !== "string" && typeof reference !== "number") return undefined;
   const key = String(reference);
   return modes.find((mode) => String(mode.id) === key || mode.name === reference);
@@ -87,6 +101,7 @@ export function modeOfEvent(event: TimelineEvent, modes: Mode[]): Mode | undefin
 function hasResolvableMode(event: TimelineEvent, modes: Mode[]): boolean {
   const reference = event.hruConfig?.mode;
   if (reference === undefined || reference === null || reference === "") return true;
+  if (reference === AUTOMATIC_MODE_REFERENCE) return true;
   if (typeof reference !== "string" && typeof reference !== "number") return false;
   const key = String(reference);
   return modes.some((mode) => String(mode.id) === key || mode.name === reference);
