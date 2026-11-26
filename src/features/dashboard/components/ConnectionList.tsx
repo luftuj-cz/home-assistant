@@ -60,7 +60,7 @@ export function ConnectionList({ items }: Readonly<{ items: ConnectionItem[] }>)
   const down = items.some((item) => item.status === "error");
 
   return (
-    <Card>
+    <Card className="grid-rows-[auto_minmax(0,1fr)] content-stretch">
       <CardHeader
         legend={t("dashboard.connections.legend")}
         title={t("dashboard.connections.title")}
@@ -79,7 +79,8 @@ export function ConnectionList({ items }: Readonly<{ items: ConnectionItem[] }>)
           </span>
         }
       />
-      <ul className="m-0 grid list-none p-0">
+      {/* Stretched beside a taller UnitPanel: the rows share the extra height and stay centred in it. */}
+      <ul className="m-0 flex list-none flex-col p-0">
         {items.map((item) => {
           const retrying = item.attempts !== undefined;
           const issue = retrying || item.error !== undefined;
@@ -90,7 +91,7 @@ export function ConnectionList({ items }: Readonly<{ items: ConnectionItem[] }>)
           return (
             <li
               key={item.name}
-              className="grid grid-cols-[minmax(0,1fr)] gap-3 border-t border-border py-3 first:border-t-0 first:pt-0 last:pb-0"
+              className="grid grow grid-cols-[minmax(0,1fr)] content-center gap-3 border-t border-border py-3 first:border-t-0 first:pt-0 last:pb-0"
             >
               <div className="flex items-center gap-3 @max-[380px]:flex-wrap">
                 <span

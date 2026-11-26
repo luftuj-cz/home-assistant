@@ -144,7 +144,8 @@ function ModeReadout({ activeMode, name, nativeMode, today }: Readonly<ModeReado
       <FitText
         key={name}
         text={name}
-        className="animate-fade font-sans font-normal tracking-[-.03em] text-foreground"
+        // Centred when the well is taller than the name needs (UnitPanel stretched beside the side column).
+        className="animate-fade content-center font-sans font-normal tracking-[-.03em] text-foreground"
       />
       {(until || nativeMode) && (
         <p className="caption text-muted-foreground">
@@ -342,9 +343,10 @@ export function UnitPanel({
   ];
 
   return (
-    <Card>
+    // Stretched to the side column's height on desktop: the extra goes to the hero row (gauge and mode).
+    <Card className="grid-rows-[auto_minmax(0,1fr)] content-stretch">
       <CardHeader legend={legend} title={title} action={<AgeChip fetchedAt={fetchedAt} />} />
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-3">
+      <div className="grid grid-cols-[minmax(0,1fr)] grid-rows-[1fr] gap-3">
         <div
           className={cn(
             "grid gap-3 @max-[560px]:grid-cols-[minmax(0,1fr)]",

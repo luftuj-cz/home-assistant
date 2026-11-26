@@ -13,6 +13,8 @@ interface FitTextProps {
   /** The largest size in that stacked layout, where only the width limits it. */
   stackedMax?: number;
   className?: string;
+  /** Classes for the box around the text (its size in the caller's layout). */
+  boxClassName?: string;
 }
 
 const LINE_HEIGHT = 1.08;
@@ -29,9 +31,10 @@ export function FitText({
   maxLines = 2,
   stackedMax = 56,
   className,
+  boxClassName,
 }: Readonly<FitTextProps>) {
-  const boxRef = useRef<HTMLDivElement>(null);
-  const textRef = useRef<HTMLParagraphElement>(null);
+  const boxRef = useRef<HTMLSpanElement>(null);
+  const textRef = useRef<HTMLSpanElement>(null);
   const [size, setSize] = useState(min);
 
   useLayoutEffect(() => {
@@ -77,11 +80,15 @@ export function FitText({
       if (key === measured) return;
       measured = key;
       el.style.overflowWrap = "normal";
+      // A caller may centre or bottom-align the text (`content-center`, `content-end`); the glyphs' overflow below
+      // a shifted line then counts into scrollHeight and every size looks too tall. Measure top-aligned.
+      el.style.alignContent = "normal";
       // Stacked: one line if it fits at all, two only for names too long for that.
       let px = largest(1);
       if (!bounded && !fits(px, 1)) px = largest(maxLines);
       // Not even the smallest size keeps whole words in the box: break inside them rather than overflow.
       if (!fits(px, maxLines)) el.style.overflowWrap = "anywhere";
+      el.style.alignContent = "";
       el.style.fontSize = `${px}px`;
       setSize(px);
     }
@@ -98,14 +105,18 @@ export function FitText({
   }, [text, min, max, maxLines, stackedMax]);
 
   return (
-    <div ref={boxRef} className="relative min-h-11 flex-1 @max-[560px]:flex-none">
-      <p
+    // Spans, not div and p: the text can sit inside a button (the mode tiles in ManualModeCard).
+    <span
+      ref={boxRef}
+      className={cn("relative block min-h-11 flex-1 @max-[560px]:flex-none", boxClassName)}
+    >
+      <span
         ref={textRef}
         style={{ fontSize: size, lineHeight: LINE_HEIGHT }}
-        className={cn("absolute inset-0 m-0 overflow-hidden @max-[560px]:static", className)}
+        className={cn("absolute inset-0 block overflow-hidden @max-[560px]:static", className)}
       >
         {text}
-      </p>
-    </div>
+      </span>
+    </span>
   );
 }

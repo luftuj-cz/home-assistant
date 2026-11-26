@@ -7,6 +7,7 @@ import type { Mode } from "@luftuj/shared/types/timeline";
 import { Button } from "@luftuj/shared/ui/button";
 import { Card, CardHeader } from "@luftuj/shared/ui/card";
 import { Dot } from "@luftuj/shared/ui/dot";
+import { FitText } from "@luftuj/shared/ui/fit-text";
 import { ICON_STROKE } from "@luftuj/shared/ui/icon-types";
 import { Legend } from "@luftuj/shared/ui/legend";
 import { notify } from "@luftuj/shared/ui/notify";
@@ -208,14 +209,16 @@ export function ManualModeCard({ modes, unitId }: Readonly<ManualModeCardProps>)
         ) : (
           <DurationPicker value={duration} onValueChange={setDuration} disabled={busy} />
         )}
-        <div className="grid content-start gap-3">
-          <Legend>
+        {/* Beside the taller duration well the tiles take its height and the row's width; the legend would only
+            push them below the well's top edge, so there it is left to screen readers. Stacked, it heads the tiles. */}
+        <div className="grid grid-rows-[1fr] gap-3 @max-[640px]:grid-rows-[auto_1fr]">
+          <Legend className="@min-[640px]:sr-only">
             {running ? t("dashboard.boostActiveMode") : t("dashboard.boostSelectMode")}
           </Legend>
           <span className="sr-only" role="status">
             {busy ? t("dashboard.boostActivating") : ""}
           </span>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-3 @max-[640px]:grid-cols-2">
+          <div className="grid grid-cols-[repeat(auto-fit,minmax(140px,1fr))] gap-3 @max-[640px]:grid-cols-2">
             {boostModes.map((mode) => {
               const on = active?.modeId === mode.id;
               const pending = activating === mode.id;
@@ -243,7 +246,7 @@ export function ManualModeCard({ modes, unitId }: Readonly<ManualModeCardProps>)
                     else if (!busy) void activate(mode.id);
                   }}
                   className={cn(
-                    "relative grid min-h-[116px] cursor-pointer content-start gap-2 overflow-hidden rounded-lg bg-muted p-4 text-left font-sans text-foreground",
+                    "relative flex min-h-[116px] cursor-pointer flex-col gap-2 overflow-hidden rounded-lg bg-muted p-4 text-left font-sans text-foreground",
                     "transition-[background-color,color,box-shadow,scale] duration-(--duration-base)",
                     "hover:not-disabled:shadow-[inset_0_0_0_1.5px_var(--manual)] pointer-fine:active:not-disabled:scale-[.98]",
                     "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-40",
@@ -253,7 +256,8 @@ export function ManualModeCard({ modes, unitId }: Readonly<ManualModeCardProps>)
                 >
                   <span
                     className={cn(
-                      "flex items-center justify-between text-muted-foreground",
+                      // mb-auto: on phones FitText is as tall as its text; the room left goes above the name.
+                      "mb-auto flex items-center justify-between text-muted-foreground",
                       state !== "off" && "text-current",
                     )}
                   >
@@ -271,9 +275,15 @@ export function ManualModeCard({ modes, unitId }: Readonly<ManualModeCardProps>)
                       })()
                     )}
                   </span>
-                  <span className="mt-auto font-sans text-base leading-[22px] font-medium">
-                    {mode.name}
-                  </span>
+                  {/* The name fills the tile's free room, bottom-aligned above the values. */}
+                  <FitText
+                    text={mode.name}
+                    min={16}
+                    max={64}
+                    stackedMax={28}
+                    boxClassName="@max-[560px]:min-h-0"
+                    className="content-end font-sans font-normal tracking-[-.03em]"
+                  />
                   <span
                     className={cn("code text-muted-foreground", state !== "off" && "text-current")}
                   >

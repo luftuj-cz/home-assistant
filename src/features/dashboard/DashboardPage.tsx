@@ -19,6 +19,7 @@ import { useTimelineModesQuery } from "@luftuj/features/timeline/hooks/useTimeli
 import { Button } from "@luftuj/shared/ui/button";
 import { IconModbus } from "@luftuj/shared/ui/icons";
 import { PageHeader } from "@luftuj/shared/ui/page-header";
+import { cn } from "@luftuj/shared/utils/cn";
 import { translateConnectionError } from "@luftuj/shared/utils/connectionError";
 
 /** Ticks every second while `enabled`, for "před 8 s" ages. */
@@ -41,10 +42,14 @@ function age(t: TFunction, since: number | null, now: number) {
 }
 
 /** Planes rise in on load, staggered 45 ms apart. */
-function Rise({ index, children }: Readonly<{ index: number; children: ReactNode }>) {
+function Rise({
+  index,
+  className,
+  children,
+}: Readonly<{ index: number; className?: string; children: ReactNode }>) {
   return (
     <div
-      className="grid min-w-0 grid-cols-[minmax(0,1fr)] animate-rise empty:hidden"
+      className={cn("grid min-w-0 grid-cols-[minmax(0,1fr)] animate-rise empty:hidden", className)}
       style={{ animationDelay: `${Math.min(index, 5) * 45}ms` } as CSSProperties}
     >
       {children}
@@ -53,8 +58,10 @@ function Rise({ index, children }: Readonly<{ index: number; children: ReactNode
 }
 
 /**
- * Přehled. Desktop: a 12-column grid, UnitPanel then ManualModeCard on the left 8, CustomPlanCard (only with plans or
- * one running) then ConnectionList on the right 4. Phones stack them in that order: the unit's state comes first.
+ * Přehled. Desktop: UnitPanel on the left 8 columns beside a side column of CustomPlanCard (only with plans or one
+ * running) and ConnectionList; both halves stretch to one height, the extra going to the unit's hero and the
+ * connection rows. ManualModeCard spans the full width below. Below 1024px everything stacks in DOM order: the unit's
+ * state first, then the manual modes, then the side column.
  */
 export function DashboardPage() {
   const { t } = useTranslation();
@@ -207,27 +214,25 @@ export function DashboardPage() {
   return (
     <div className="grid grid-cols-[minmax(0,1fr)] gap-6 font-sans text-sm leading-5 text-foreground max-md:gap-4">
       <PageHeader title={t("dashboard.title")} description={t("dashboard.systemStatus")} />
-      <div className="grid grid-cols-12 items-start gap-6 max-lg:grid-cols-[minmax(0,1fr)] max-md:gap-4">
-        <div className="col-span-8 grid grid-cols-[minmax(0,1fr)] gap-6 max-lg:col-span-1 max-md:gap-4">
-          <Rise index={0}>
-            <UnitPanel
-              status={hruStatus}
-              name={hruName}
-              address={address}
-              activeMode={activeMode}
-              configuredMaxPower={configuredMaxPower}
-              today={today}
-            />
-          </Rise>
+      <div className="grid grid-cols-12 gap-6 max-lg:grid-cols-[minmax(0,1fr)] max-md:gap-4">
+        <Rise index={0} className="col-span-8 row-start-1 max-lg:col-span-1 max-lg:row-start-auto">
+          <UnitPanel
+            status={hruStatus}
+            name={hruName}
+            address={address}
+            activeMode={activeMode}
+            configuredMaxPower={configuredMaxPower}
+            today={today}
+          />
+        </Rise>
+        <Rise index={3} className="col-span-12 row-start-2 max-lg:col-span-1 max-lg:row-start-auto">
+          <ManualModeCard modes={modes} unitId={unitId} />
+        </Rise>
+        <div className="col-span-4 col-start-9 row-start-1 flex flex-col gap-6 max-lg:col-span-1 max-lg:col-start-auto max-lg:row-start-auto max-md:gap-4">
           <Rise index={1}>
-            <ManualModeCard modes={modes} unitId={unitId} />
-          </Rise>
-        </div>
-        <div className="col-span-4 grid grid-cols-[minmax(0,1fr)] gap-6 max-lg:col-span-1 max-md:gap-4">
-          <Rise index={2}>
             <CustomPlanCard unitId={unitId} />
           </Rise>
-          <Rise index={3}>
+          <Rise index={2} className="flex-1">
             <ConnectionList items={[haItem, modbusItem, mqttItem]} />
           </Rise>
         </div>
