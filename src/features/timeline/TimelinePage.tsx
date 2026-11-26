@@ -487,7 +487,8 @@ export function TimelinePage() {
         title={t("settings.timeline.title")}
         description={t("settings.timeline.description")}
       />
-      <div className="grid grid-cols-[minmax(0,1fr)] gap-4">
+      {/* empty:hidden: with no seasons, plans or warning the band renders nothing and would leave a bare gap. */}
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-4 empty:hidden">
         <SeasonBand
           seasons={seasons}
           activeSeasonId={activeSeasonId}

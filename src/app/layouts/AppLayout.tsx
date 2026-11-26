@@ -96,7 +96,7 @@ export function AppLayout() {
       <main
         className={
           navItems.length > 0
-            ? "mx-auto w-full max-w-[1328px] flex-1 px-6 pt-2 pb-8 max-md:px-4 max-md:pb-[calc(96px+env(safe-area-inset-bottom))]"
+            ? "mx-auto w-full max-w-[1328px] flex-1 px-6 pt-2 pb-8 max-md:px-4 max-md:pt-4 max-md:pb-[calc(96px+env(safe-area-inset-bottom))]"
             : "mx-auto w-full max-w-[1328px] flex-1 px-6 pt-2 pb-8 max-md:px-4"
         }
       >
