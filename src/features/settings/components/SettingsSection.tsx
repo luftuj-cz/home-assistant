@@ -130,7 +130,8 @@ export function SettingsSection({
       </h2>
       <div id={`${id}-body`} role="region" aria-labelledby={`${id}-title`}>
         <Collapse open={open}>
-          <div className="@container grid grid-cols-[minmax(0,1fr)] gap-4 pr-6 pb-6 pl-[84px] max-[560px]:px-5 max-[560px]:pb-5">
+          {/* Bottom padding as the header's top (py-5, py-4 on phones), so the card closes as it opens. */}
+          <div className="@container grid grid-cols-[minmax(0,1fr)] gap-4 pr-6 pb-5 pl-[84px] max-[560px]:px-5 max-[560px]:pb-4">
             {children}
           </div>
         </Collapse>

@@ -17,9 +17,10 @@ interface SaveBarProps {
 }
 
 /**
- * The bottom of a settings form. Its 52px slot is always reserved so the first change pushes nothing; once
- * something changes it rises and sticks to the bottom of the viewport with "Neuložené změny", Zahodit and Uložit,
- * and after saving says "✓ Uloženo" for two seconds.
+ * The bottom of a settings form. Takes no room while there is nothing to say (a reserved empty slot read as random
+ * space under the form); it stays in the DOM, visually hidden, so the status region exists before its first
+ * announcement. Once something changes it rises and sticks to the bottom of the viewport with "Neuložené změny",
+ * Zahodit and Uložit, and after saving says "✓ Uloženo" for two seconds.
  */
 export function SaveBar({
   dirty,
@@ -54,10 +55,10 @@ export function SaveBar({
       role="status"
       data-slot="save-bar"
       className={cn(
-        "sticky bottom-3 z-5 flex min-h-13 items-center justify-end gap-2 max-md:bottom-[104px]",
-        !shown && "pointer-events-none",
-        shown &&
-          "animate-rise rounded-lg bg-popover py-2 pr-2 pl-4 shadow-[var(--shadow-float),0_0_0_1px_var(--border)]",
+        "z-5 flex items-center justify-end gap-2",
+        shown
+          ? "sticky bottom-3 min-h-13 animate-rise rounded-lg bg-popover py-2 pr-2 pl-4 shadow-[var(--shadow-float),0_0_0_1px_var(--border)] max-md:bottom-[104px]"
+          : "pointer-events-none sr-only",
       )}
     >
       {dirty && (
