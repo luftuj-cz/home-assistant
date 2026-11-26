@@ -24,16 +24,32 @@ function TabsList({ className, ...props }: ComponentProps<typeof TabsPrimitive.L
   );
 }
 
-function TabsTrigger({ className, ...props }: ComponentProps<typeof TabsPrimitive.Trigger>) {
+function TabsTrigger({
+  className,
+  onMouseDown,
+  ...props
+}: ComponentProps<typeof TabsPrimitive.Trigger>) {
   return (
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
+      onMouseDown={(event) => {
+        onMouseDown?.(event);
+        // Radix focuses the trigger from script on mousedown. On the page's first interaction Chrome treats that as
+        // keyboard focus and shows the ring after a plain click or tap. Focus it first without the ring; Radix's
+        // focus() on the focused trigger is then a no-op. Keyboard focus keeps its ring.
+        if (!event.defaultPrevented && event.button === 0 && !props.disabled) {
+          event.currentTarget.focus({ focusVisible: false });
+        }
+      }}
       className={cn(
-        "inline-flex shrink-0 cursor-pointer items-center gap-2 border-b-2 border-transparent py-2.5",
+        // justify-center: a stretched trigger (flex-1, as the phone tabs on Časová osa) keeps its label centred.
+        "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 border-b-2 border-transparent py-2.5",
         "font-sans text-sm leading-5 font-medium whitespace-nowrap text-muted-foreground",
         "transition-[color,border-color] duration-(--duration-fast) hover:text-foreground",
         "data-[state=active]:border-air data-[state=active]:text-foreground",
         "disabled:cursor-not-allowed disabled:opacity-45 [&_svg]:shrink-0",
+        // The list clips overflow (it scrolls sideways), so the keyboard ring is drawn inside the trigger.
+        "focus-visible:rounded-sm focus-visible:outline-offset-[-2px]",
         className,
       )}
       {...props}
