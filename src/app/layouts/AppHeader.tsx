@@ -19,7 +19,7 @@ interface AppHeaderProps {
 
 /**
  * The top bar: logo and pill navigation with a sliding ink pill. Sticky and translucent. Below 768px it is
- * compact (no navigation; the TabBar takes over).
+ * compact: just the centred brand line, the TabBar takes over the navigation.
  */
 export function AppHeader({ items, pathname, channel }: Readonly<AppHeaderProps>) {
   const { t } = useTranslation();
@@ -35,7 +35,7 @@ export function AppHeader({ items, pathname, channel }: Readonly<AppHeaderProps>
         "supports-[backdrop-filter]:backdrop-blur-[14px] supports-[backdrop-filter]:backdrop-saturate-150",
       )}
     >
-      <div className="mx-auto flex h-[72px] max-w-[1328px] items-center gap-6 px-6 max-[1100px]:gap-4 max-md:h-[60px] max-md:justify-between max-md:px-4">
+      <div className="mx-auto flex h-[72px] max-w-[1328px] items-center gap-6 px-6 max-[1100px]:gap-4 max-md:h-[60px] max-md:justify-center max-md:px-4">
         <Link
           to="/"
           className="inline-flex flex-none items-center gap-2.5 whitespace-nowrap text-foreground no-underline"
