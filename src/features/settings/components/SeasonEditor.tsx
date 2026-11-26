@@ -231,8 +231,9 @@ export function SeasonEditor({
               }
               className={cn(
                 "absolute inset-y-0 flex min-w-0 flex-col justify-center gap-0.5 overflow-hidden rounded-lg px-3 pb-1.5",
-                // A dragged boundary glides the neighbouring segments instead of snapping them day by day.
-                "transition-[left,width] duration-(--duration-fast)",
+                // Keyboard and typed changes glide the segments. Not while dragging: each pointer move would restart
+                // the transition and the segments would trail the grip like rubber.
+                dragging === null && "transition-[left,width] duration-(--duration-fast)",
                 "bg-[color-mix(in_oklab,var(--sc)_12%,var(--muted))]",
                 "after:absolute after:inset-x-0 after:bottom-0 after:h-[5px] after:bg-(--sc)",
                 active && "shadow-[inset_0_0_0_1.5px_var(--sc)]",
