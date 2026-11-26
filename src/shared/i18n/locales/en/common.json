@@ -1353,6 +1353,7 @@
     },
     "errors": {
       "prefSaveFailed": "Failed to save preferences",
+      "controlSaveFailed": "Failed to save the control mode",
       "mqttSaveFailed": "Failed to save MQTT settings",
       "finishFailed": "Failed to finalise onboarding. Please try again."
     },

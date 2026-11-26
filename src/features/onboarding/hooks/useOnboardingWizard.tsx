@@ -116,7 +116,7 @@ function useWizardState() {
   // False until the user moves between steps, so the first step does not grab focus on page load.
   const [navigated, setNavigated] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(i18n.language);
-  // Only shown for now: the choice is not saved and changes nothing yet.
+  // Saved as `control.mode` when the step is left; nothing acts on it until LUFTaTOR Algo CO2 is wired in.
   const [controlMode, setControlMode] = useState<ControlMode>("schedule");
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [minPower, setMinPower] = useState<number | undefined>(undefined);
@@ -260,6 +260,11 @@ function useWizardState() {
       postJson("/api/settings/theme", { theme }, "Failed to save theme"),
   });
 
+  const saveControlModeMutation = useMutation({
+    mutationFn: (mode: ControlMode) =>
+      postJson("/api/settings/control-mode", { mode }, "Failed to save control mode"),
+  });
+
   const finishMutation = useMutation({
     mutationFn: async () => {
       const res = await fetch(resolveApiUrl("/api/settings/onboarding-finish"), { method: "POST" });
@@ -363,6 +368,7 @@ function useWizardState() {
     testMqttMutation,
     saveLanguageMutation,
     saveThemeMutation,
+    saveControlModeMutation,
     finishMutation,
     importDbMutation,
     unitsQuery,

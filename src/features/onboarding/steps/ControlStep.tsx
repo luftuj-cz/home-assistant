@@ -1,5 +1,5 @@
 import { IconCalendarWeek, IconSparkles } from "@tabler/icons-react";
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 import { StepFrame } from "@luftuj/features/onboarding/components/StepFrame";
@@ -7,6 +7,7 @@ import {
   type ControlMode,
   useOnboardingWizard,
 } from "@luftuj/features/onboarding/hooks/useOnboardingWizard";
+import { Alert } from "@luftuj/shared/ui/alert";
 import { Badge } from "@luftuj/shared/ui/badge";
 import { ICON_STROKE } from "@luftuj/shared/ui/icon-types";
 import { RadioGroup } from "@luftuj/shared/ui/radio-group";
@@ -22,16 +23,31 @@ function isControlMode(value: string): value is ControlMode {
 }
 
 /**
- * Řízení: the weekly plan or automatic control by CO₂, as two tiles, and below them how the chosen one works. Only
- * shown for now: the choice is kept while the wizard is open, but it is not saved and changes nothing.
+ * Řízení: the weekly plan or automatic control by CO₂, as two tiles, and below them how the chosen one works. Další
+ * stores the choice as `control.mode`; nothing acts on it yet, it waits for LUFTaTOR Algo CO2 to be wired in.
  */
 export function ControlStep() {
   const { t } = useTranslation();
-  const { nextStep, controlMode, setControlMode } = useOnboardingWizard();
+  const { nextStep, controlMode, setControlMode, saveControlModeMutation } = useOnboardingWizard();
   const descriptionId = useId();
+  const [failed, setFailed] = useState(false);
+
+  async function handleNext() {
+    setFailed(false);
+    try {
+      await saveControlModeMutation.mutateAsync(controlMode);
+      nextStep();
+    } catch {
+      setFailed(true);
+    }
+  }
 
   return (
-    <StepFrame title={t("onboarding.control.title")} onNext={nextStep}>
+    <StepFrame
+      title={t("onboarding.control.title")}
+      onNext={() => void handleNext()}
+      busy={saveControlModeMutation.isPending}
+    >
       <RadioGroup
         aria-label={t("onboarding.control.groupLabel")}
         aria-describedby={descriptionId}
@@ -62,6 +78,7 @@ export function ControlStep() {
           {t(`onboarding.control.${controlMode}.text`)}
         </p>
       </Well>
+      {failed && <Alert variant="destructive">{t("onboarding.errors.controlSaveFailed")}</Alert>}
     </StepFrame>
   );
 }

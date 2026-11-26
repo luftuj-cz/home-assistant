@@ -35,6 +35,14 @@ export const ADDON_MODE_KEY = "addon.mode";
 export const ADDON_MODES = ["manual", "timeline"] as const;
 export type AddonMode = (typeof ADDON_MODES)[number];
 
+/**
+ * How LUFTaTOR is to drive the ventilation, chosen in the onboarding step Řízení: the weekly plan or automatic
+ * control by CO₂ (LUFTaTOR Algo CO2). Only stored for now; nothing reads it until the algorithm is wired in.
+ */
+export const CONTROL_MODE_KEY = "control.mode";
+export const CONTROL_MODES = ["schedule", "automatic"] as const;
+export type ControlMode = (typeof CONTROL_MODES)[number];
+
 export const TIMELINE_MODES_KEY = "timeline.modes";
 /** Opt-in flag for seasons. Off by default; gates the feature, never the schema. */
 export const SEASONS_ENABLED_KEY = "timeline.seasons_enabled";

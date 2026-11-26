@@ -1375,6 +1375,7 @@
     },
     "errors": {
       "prefSaveFailed": "Nepodařilo se uložit předvolby",
+      "controlSaveFailed": "Nepodařilo se uložit způsob řízení",
       "mqttSaveFailed": "Nepodařilo se uložit nastavení MQTT",
       "finishFailed": "Nepodařilo se dokončit nastavení. Zkuste to prosím znovu."
     },

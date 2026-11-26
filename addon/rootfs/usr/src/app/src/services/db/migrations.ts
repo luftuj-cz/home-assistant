@@ -317,6 +317,16 @@ export const migrations: Migration[] = [
       `ALTER TABLE timelines ADD COLUMN name TEXT`,
     ],
   },
+  {
+    id: "017_control_mode",
+    statements: [
+      // Řízení (onboarding): weekly plan or automatic control. Every installation
+      // before this one could only run the weekly plan, so store that explicitly
+      // rather than leave the setting missing. A new database gets the same
+      // value, and the wizard overwrites it with the user's choice.
+      `INSERT OR IGNORE INTO app_settings (key, value) VALUES ('control.mode', 'schedule')`,
+    ],
+  },
 ];
 
 export function applyMigrations(database: DatabaseType): void {

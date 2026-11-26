@@ -8,6 +8,9 @@ import {
   ADDON_MODE_KEY,
   ADDON_MODES,
   type AddonMode,
+  CONTROL_MODE_KEY,
+  CONTROL_MODES,
+  type ControlMode,
   DEBUG_MODE_KEY,
   HRU_SETTINGS_KEY,
   type HruSettings,
@@ -24,6 +27,8 @@ import {
 import {
   type AddonModeInput,
   addonModeInputSchema,
+  type ControlModeInput,
+  controlModeInputSchema,
   type DebugModeInput,
   debugModeInputSchema,
   type HruSettingsInput,
@@ -522,6 +527,36 @@ export function createSettingsRouter(
         response.status(204).end();
       } catch (error) {
         logger.error({ error }, "Failed to update addon mode");
+        next(error);
+      }
+    },
+  );
+
+  // Řízení from the onboarding wizard. A missing or unknown value reads as the weekly plan, which is what every
+  // installation did before the choice existed.
+  router.get("/control-mode", (_request: Request, response: Response) => {
+    const raw = getAppSetting(CONTROL_MODE_KEY);
+    const mode: ControlMode = CONTROL_MODES.includes(raw as ControlMode)
+      ? (raw as ControlMode)
+      : "schedule";
+    response.json({ mode });
+  });
+
+  router.post(
+    "/control-mode",
+    validateRequest(controlModeInputSchema),
+    (
+      request: Request<Record<string, unknown>, Record<string, unknown>, ControlModeInput>,
+      response: Response,
+      next: NextFunction,
+    ) => {
+      try {
+        const { mode } = request.body;
+        setAppSetting(CONTROL_MODE_KEY, mode);
+        logger.info({ mode }, "Control mode updated");
+        response.status(204).end();
+      } catch (error) {
+        logger.error({ error }, "Failed to update control mode");
         next(error);
       }
     },
