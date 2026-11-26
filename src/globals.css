@@ -335,6 +335,12 @@
   /* Keep the scrollbar's room on short pages too, so the header and page do not shift when switching pages. */
   html {
     scrollbar-gutter: stable;
+    /* Inherited: every scroll area gets the quiet thumb on a clear track, in both themes. */
+    scrollbar-color: color-mix(in oklab, var(--muted-foreground) 45%, transparent) transparent;
+  }
+  /* Thin scrollbars everywhere (not inherited, hence each element); a utility such as [scrollbar-width:none] wins. */
+  * {
+    scrollbar-width: thin;
   }
   /* The gutter stays while a Radix dialog locks scrolling; drop react-remove-scroll's compensating margin. */
   html body[data-scroll-locked] {
