@@ -12,7 +12,6 @@ import { AppFooter } from "./AppFooter";
 import { AppHeader } from "./AppHeader";
 import { navigationItems } from "./navigation";
 import { TabBar } from "./TabBar";
-import { useUnitStatus } from "./useUnitStatus";
 
 const CHANNEL = parseVersion(APP_VERSION).channel;
 
@@ -67,9 +66,6 @@ export function AppLayout() {
     [t, showNav, debugMode?.enabled],
   );
 
-  // The unit chip is for the pages where the unit is otherwise out of sight; Přehled shows it in UnitPanel.
-  const unit = useUnitStatus(showNav && location.pathname !== "/");
-
   function content() {
     if (isLoadingStatus && !isOnboarding) {
       return (
@@ -95,7 +91,7 @@ export function AppLayout() {
     >
       {/* Onboarding draws its own brand line above the wizard card, as in the design. */}
       {!isOnboarding && (
-        <AppHeader items={navItems} pathname={location.pathname} unit={unit} channel={CHANNEL} />
+        <AppHeader items={navItems} pathname={location.pathname} channel={CHANNEL} />
       )}
       <main
         className={

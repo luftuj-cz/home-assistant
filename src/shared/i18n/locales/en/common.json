@@ -65,8 +65,6 @@
     "unit": {
       "ageSeconds": "{{count}} s ago",
       "ageMinutes": "{{count}} min ago",
-      "disconnected": "disconnected",
-      "notResponding": "The unit is not responding",
       "updated": "Updated {{age}}"
     },
     "version": {

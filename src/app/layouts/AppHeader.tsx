@@ -1,4 +1,3 @@
-import { IconPlugConnectedX, IconWind } from "@tabler/icons-react";
 import { Link } from "@tanstack/react-router";
 import { useRef } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,76 +9,19 @@ import { indicatorClass, useIndicator } from "@luftuj/shared/ui/use-indicator";
 import { cn } from "@luftuj/shared/utils/cn";
 
 import { isActivePath, type NavItem } from "./navigation";
-import type { UnitStatus } from "./useUnitStatus";
 
 interface AppHeaderProps {
   items: NavItem[];
   pathname: string;
-  /** Leave out on Přehled: UnitPanel right below already shows the unit. */
-  unit?: UnitStatus | null;
   /** "dev", "beta"…: an amber tag next to the name, on every page and every screen. Stable shows nothing. */
   channel: string;
 }
 
-function formatAge(t: (key: string, options?: Record<string, unknown>) => string, seconds: number) {
-  return seconds < 60
-    ? t("app.unit.ageSeconds", { count: seconds })
-    : t("app.unit.ageMinutes", { count: Math.floor(seconds / 60) });
-}
-
-/** The live unit chip: quiet while all is well, amber when the data is old, red when the unit does not answer. */
-function UnitChip({ unit }: Readonly<{ unit: UnitStatus }>) {
-  const { t } = useTranslation();
-  const error = unit.status === "error";
-  const age = unit.ageSeconds === null ? null : formatAge(t, unit.ageSeconds);
-  const Icon = error ? IconPlugConnectedX : IconWind;
-
-  return (
-    <span
-      data-status={unit.status}
-      title={error ? t("app.unit.notResponding") : age ? t("app.unit.updated", { age }) : undefined}
-      className={cn(
-        "inline-flex h-10 min-w-0 flex-[0_1_auto] items-center gap-2 rounded-full bg-card pr-3.5 pl-3 whitespace-nowrap shadow-plane",
-        error && "bg-destructive-soft shadow-none",
-      )}
-    >
-      <Icon
-        size={16}
-        stroke={ICON_STROKE}
-        aria-hidden
-        className={cn(
-          "flex-none text-muted-foreground",
-          unit.status === "warning" && "text-warning",
-          error && "text-destructive",
-        )}
-      />
-      <span className="label min-w-0 truncate">{unit.name}</span>
-      {error ? (
-        // Compact header: the unplugged icon and the red tint carry it; the word stays for screen readers.
-        <span className="code flex-none text-destructive max-md:sr-only">
-          {t("app.unit.disconnected")}
-        </span>
-      ) : (
-        age && (
-          <span
-            className={cn(
-              "code text-muted-foreground max-md:hidden",
-              unit.status === "warning" && "text-warning",
-            )}
-          >
-            {age}
-          </span>
-        )
-      )}
-    </span>
-  );
-}
-
 /**
- * The top bar: logo, pill navigation with a sliding ink pill, the live unit chip. Sticky and translucent. Below
- * 768px it is compact (no navigation; the TabBar takes over).
+ * The top bar: logo and pill navigation with a sliding ink pill. Sticky and translucent. Below 768px it is
+ * compact (no navigation; the TabBar takes over).
  */
-export function AppHeader({ items, pathname, unit, channel }: Readonly<AppHeaderProps>) {
+export function AppHeader({ items, pathname, channel }: Readonly<AppHeaderProps>) {
   const { t } = useTranslation();
   const nav = useRef<HTMLElement>(null);
   useIndicator(nav, '[aria-current="page"]', pathname);
@@ -129,7 +71,7 @@ export function AppHeader({ items, pathname, unit, channel }: Readonly<AppHeader
           <nav
             ref={nav}
             aria-label={t("app.nav.main")}
-            className="relative mx-auto flex gap-1 rounded-full bg-card p-1 shadow-plane supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--card)_80%,transparent)] max-md:hidden"
+            className="relative ml-auto flex gap-1 rounded-full bg-card p-1 shadow-plane supports-[backdrop-filter]:bg-[color-mix(in_oklab,var(--card)_80%,transparent)] max-md:hidden"
           >
             <span aria-hidden="true" className={cn(indicatorClass, "rounded-full bg-primary")} />
             {items.map((item) => {
@@ -156,8 +98,6 @@ export function AppHeader({ items, pathname, unit, channel }: Readonly<AppHeader
             })}
           </nav>
         )}
-
-        {unit && <UnitChip unit={unit} />}
       </div>
     </header>
   );
